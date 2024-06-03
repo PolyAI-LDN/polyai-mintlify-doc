@@ -184,19 +184,19 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/BadRequest"
+            "$ref": "#/components/schemas/responses/BadRequest"
           },
           "401": {
-            "$ref": "#/components/responses/Unauthorized"
+            "$ref": "#/components/schemas/responses/Unauthorized"
           },
           "403": {
-            "$ref": "#/components/responses/Unauthorized"
+            "$ref": "#/components/schemas/responses/Unauthorized"
           },
           "404": {
-            "$ref": "#/components/responses/NotFound"
+            "$ref": "#/components/schemas/responses/NotFound"
           },
           "500": {
-            "$ref": "#/components/responses/InternalError"
+            "$ref": "#/components/schemas/responses/InternalError"
           }
         }
       },
@@ -240,12 +240,21 @@
   "components": {
     "schemas": {
       "responses": {
+        "Error": {
+          "type": "object",
+          "properties": {
+            "error_message": {
+              "description": "Reason for error",
+              "type": "string"
+            }
+          }
+        },
         "Unauthorized": {
           "description": "Unauthorized",
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/responses/Error"
+                "$ref": "#/components/schemas/responses/Error"
               }
             }
           }
@@ -255,7 +264,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/responses/Error"
+                "$ref": "#/components/schemas/responses/Error"
               }
             }
           }
@@ -265,7 +274,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/responses/Error"
+                "$ref": "#/components/schemas/responses/Error"
               }
             }
           }
@@ -275,7 +284,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/responses/Error"
+                "$ref": "#/components/schemas/responses/Error"
               }
             }
           }
@@ -285,20 +294,201 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/responses/Error"
+                "$ref": "#/components/schemas/responses/Error"
               }
             }
           }
-        },
-        "Error": {
-          "type": "object",
-          "properties": {
-            "error_message": {
-              "description": "Reason for error",
+        }
+      },
+      "ConversationTurn": {
+        "type": "object",
+        "description": "Info about a single turn.",
+        "properties": {
+          "user_input": {
+            "type": "string",
+            "description": "The transcription of what the user spoke or typed."
+          },
+          "user_input_datetime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time when the agent received the user's input. For speech, this is when ASR finished transcribing."
+          },
+          "agent_response": {
+            "type": "string",
+            "description": "The transcription of the agent's response to the user."
+          },
+          "agent_response_datetime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time when the agent responded. For speech, this is when the agent started speaking."
+          },
+          "intents": {
+            "type": "array",
+            "description": "The list of intents that were found in this turn's input.",
+            "items": {
               "type": "string"
             }
+          },
+          "entities": {
+            "type": "array",
+            "description": "The list of entities that were found in this turn's input.",
+            "items": {
+              "type": "object",
+              "description": "Mapping entity name -> value(s)",
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "is_ood": {
+            "type": "boolean",
+            "description": "Whether the turn is classified as Out of Domain (OOD)"
+          },
+          "is_silence": {
+            "type": "boolean",
+            "description": "Whether the turn is classified as a silence"
           }
         }
+      },
+      "Conversation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique ID for this conversation",
+            "example": "CAabcd1234567abcdef1250065d4fc7389"
+          },
+          "account_id": {
+            "type": "string",
+            "description": "ID of the customer account this conversation is under."
+          },
+          "project_id": {
+            "type": "string",
+            "description": "ID of the project this conversation is under."
+          },
+          "variant_id": {
+            "type": "string",
+            "description": "ID of the variant this conversation is in"
+          },
+          "variant_name": {
+            "type": "string",
+            "description": "Name of the variant this conversation is in"
+          },
+          "environment": {
+            "type": "string",
+            "description": "Which deployment environment this conversation was handled in. Usually `live`, `sandbox`, or `pre-release`."
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time when the conversation began, in ISO8601 format."
+          },
+          "channel": {
+            "type": "string",
+            "description": "What medium the conversation took place in. Usually one of `CHAT` or `VOICE-SIP`."
+          },
+          "from_number": {
+            "type": "string",
+            "description": "Caller's phone number."
+          },
+          "to_number": {
+            "type": "string",
+            "description": "Phone number of the agent the caller was connected to."
+          },
+          "in_progress": {
+            "type": "boolean",
+            "description": "If true, the call is currently in progress, and therefore its properties may still change in the future."
+          },
+          "num_turns": {
+            "type": "integer",
+            "description": "Number of turns in the conversation."
+          },
+          "total_duration": {
+            "type": "integer",
+            "description": "Duration of the entire call, in seconds."
+          },
+          "polyai_duration": {
+            "type": "integer",
+            "description": "Duration of the portion of the call handled by the PolyAI agent, in seconds."
+          },
+          "handoff": {
+            "type": "boolean",
+            "description": "Whether or not the PolyAI agent handed the call off."
+          },
+          "handoff_reason": {
+            "type": "string",
+            "description": "Brief reason why the agent handed the call off."
+          },
+          "handoff_destination": {
+            "type": "string",
+            "description": "If there are multiple handoff destinations, which one was used."
+          },
+          "num_silences": {
+            "type": "integer",
+            "description": "Number of turns in the conversation where the caller gave no discernible input."
+          },
+          "num_ood": {
+            "type": "integer",
+            "description": "Number of turns in the conversation where the caller gave some input, but it could not be understood by our agent."
+          },
+          "metrics": {
+            "type": "object",
+            "description": "Mapping name -> value of custom metrics logged by the agent. If a metric name was written more than once, the value will be a list of the values that were written.",
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 2
+                }
+              ]
+            },
+            "example": {
+              "CALL_DURATION": "30",
+              "CALL_TURN": [
+                "2022-02-18 12:09:05.12677",
+                "2022-02-18 12:09:17.90602",
+                "2022-02-18 12:09:29.57732",
+                "2022-02-18 12:09:35.36996"
+              ]
+            }
+          },
+          "state": {
+            "type": "object",
+            "description": "Mapping of keys -> values written to the dialogue state by the agent."
+          },
+          "turns": {
+            "type": "array",
+            "description": "Ordered list of turns in the conversation.",
+            "items": {
+              "$ref": "#/components/schemas/ConversationTurn"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "account_id",
+          "project_id",
+          "environment",
+          "started_at",
+          "channel",
+          "in_progress"
+        ]
       },
       "Plant": {
         "required": [
