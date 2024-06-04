@@ -200,6 +200,205 @@
           }
         }
       }
+    },
+    "/v1/{account_id}/{project_id}/conversations/concurrency": {
+        "get": {
+            "summary": "Get distribution of the maximum number of concurrent conversations",
+            "description": "Get the maximum number of concurrent conversations in several 5-minute intervals based on given parameters",
+            "responses": {
+                "200": {
+                "description": "OK",
+                "content": {
+                    "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                        "account_id": {
+                            "type": "string",
+                            "description": "Customer PolyAI Account ID",
+                            "example": "ACCOUNT-t53y16r3"
+                        },
+                        "project_id": {
+                            "type": "string",
+                            "description": "Customer PolyAI Project ID",
+                            "example": "PROJECT-f76d75c2"
+                        },
+                        "intervals": {
+                            "type": "array",
+                            "description": "An array of intervals returned in ascending chronological order.",
+                            "items": {
+                            "type": "object",
+                            "properties": {
+                                "time": {
+                                "type": "string",
+                                "format": "date-time",
+                                "description": "The UTC lower bound time for this interval in ISO8601 format.",
+                                "example": "2022-04-01T16:35:00.000Z"
+                                },
+                                "max_concurrent_conversations": {
+                                "type": "integer",
+                                "description": "The maximum number of concurrent conversations in the 5-minute interval starting from `time` This is the number after slicing based on the rest of the query parameters",
+                                "example": 25
+                                },
+                                "variant_id": {
+                                "type": "string",
+                                "description": "The variant ID of for this interval. This is only present if the query is sliced by a <variant> using `slice_by` query parameter.",
+                                "example": "satdt"
+                                },
+                                "variant_name": {
+                                "type": "string",
+                                "description": "The variant name for this interval. This is only present if the query is sliced by a <variant> using `slice_by` query parameter.",
+                                "example": "variant_1"
+                                },
+                                "language": {
+                                "type": "string",
+                                "description": "The variant name for this interval. This is only present if the query is sliced by a <language> using `slice_by` query parameter. This is still not implemented, and will not be visible in the current state of implementation.",
+                                "example": "en-GB"
+                                },
+                                "phone_number": {
+                                "type": "string",
+                                "description": "The variant name for this interval. This is only present if the query is sliced by a <phone_number> using `slice_by` query parameter. This is still not implemented, and will not be visible in the current state of implementation.",
+                                "example": "+447856838428"
+                                }
+                            },
+                            "required": [
+                                "time",
+                                "max_concurrent_conversations"
+                            ]
+                            }
+                        }
+                        },
+                        "required": [
+                        "account_id",
+                        "project_id",
+                        "intervals"
+                        ],
+                        "example": "{\n  \"account_id\": \"ACCOUNT-t53y16r3\",\n  \"project_id\": \"PROJECT-f76d75c2\",\n  \"intervals\": [\n    {\"variant_id\":\"satdt\", \"variant_name\":\"variant_1\", \"language\":\"en-GB\", \"time\":\"2022-04-01T16:35:00Z\", \"concurrency\": 25},\n    {\"variant_id\":\"satdt\", \"variant_name\":\"variant_1\", \"language\":\"en-US\", \"time\":\"2022-04-01T16:40:00Z\", \"concurrency\": 20},\n    {\"variant_id\":\"satdc\", \"variant_name\":\"variant_2\", \"language\":\"en-GB\", \"time\":\"2022-04-01T16:35:00Z\", \"concurrency\": 5}\n  ]\n}"
+                    }
+                    }
+                }
+                },
+                "400": {
+                    "$ref": "#/components/responses/BadRequest"
+                },
+                "401": {
+                    "$ref": "#/components/responses/Unauthorized"
+                },
+                "404": {
+                    "$ref": "#/components/responses/NotFound"
+                },
+                "500": {
+                    "$ref": "#/components/responses/InternalError"
+                },
+                "501": {
+                    "$ref": "#/components/responses/NotImplementedError"
+                }
+            },
+            "parameters": [
+                {
+                "name": "account_id",
+                "in": "path",
+                "description": "Account ID",
+                "schema": {
+                    "type": "string",
+                    "example": "ACCOUNT-t53y16r3"
+                },
+                "required": true
+                },
+                {
+                "name": "project_id",
+                "in": "path",
+                "description": "Project ID",
+                "schema": {
+                    "type": "string",
+                    "example": "PROJECT-f76d75c2"
+                },
+                "required": true
+                },
+                {
+                "name": "start_time",
+                "in": "query",
+                "description": "The start of the time for the range of the intervals, in ISO8601 format This is rounded down to the nearest 5-min date-time. `start_time` and `end_time` shouldn't be more than 1 week apart",
+                "example": "2021-07-01T14:15:00.000Z",
+                "schema": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "required": true
+                },
+                {
+                "name": "end_time",
+                "in": "query",
+                "description": "The end of the time for the range of the intervals, in ISO8601 format This is rounded up to the nearest 5-min date-time. `start_time` and `end_time` shouldn't be more than 1 week apart",
+                "example": "2021-07-01T16:35:00.000Z",
+                "schema": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "required": true
+                },
+                {
+                "name": "client_env",
+                "in": "query",
+                "description": "If it is set, we would return all conversations under this client_env. Client Environment can be sandbox, pre-release or live",
+                "schema": {
+                    "type": "string",
+                    "enum": [
+                    "sandbox",
+                    "pre-release",
+                    "live"
+                    ],
+                    "default": "live"
+                },
+                "example": "sandbox"
+                },
+                {
+                "name": "variant_name",
+                "in": "query",
+                "description": "If it is set, we would return all conversations under this variant_name. Note that you may only specify either one of the variant_id or variant_name. Also, make sure to encode any spaces in the name with \"%20\"",
+                "schema": {
+                    "type": "string"
+                },
+                "example": "variant_1"
+                },
+                {
+                "name": "variant_id",
+                "in": "query",
+                "description": "If it is set, we would return all conversations under this variant_id. Note that you may only specify either one of the variant_id or variant_name",
+                "schema": {
+                    "type": "string"
+                },
+                "example": "satdt"
+                },
+                {
+                "name": "language",
+                "in": "query",
+                "description": "If it is set, we would return all conversations under this language.",
+                "schema": {
+                    "type": "string"
+                },
+                "example": "en-GB"
+                },
+                {
+                "name": "phone_number",
+                "in": "query",
+                "description": "If it is set, we would return all conversations under phone_number.",
+                "schema": {
+                    "type": "string"
+                },
+                "example": "+447856838428"
+                },
+                {
+                "name": "slice_by",
+                "in": "query",
+                "description": "If it is set, we slice the result intervals based on the slice_by parameter. You can slice by `variant`, `language` or `phone_number`. At the moment querying with `slice_by=language` or `slice_by=phone_number` will result in 501 Not Implemented",
+                "schema": {
+                    "type": "string"
+                },
+                "example": "variant"
+                }
+            ]
+        }
     }
   },
   "components": {
