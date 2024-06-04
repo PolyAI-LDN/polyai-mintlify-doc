@@ -1,692 +1,694 @@
 {
-  "openapi": "3.0.1",
-  "info": {
-    "title": "PolyAI API Documentation",
-    "description": "API schema for all PolyAI API support",
-    "license": {
-      "name": "MIT"
-    },
-    "version": "1.0.0"
-  },
-  "servers": [
-    {
-      "url": "https://api.us-1.platform.polyai.app",
-      "description": "US base url"
-    },
-    {
-      "url": "https://api.uk-1.platform.polyai.app",
-      "description": "UK base url"
-    },
-    {
-      "url": "https://api.euw-1.platform.polyai.app",
-      "description": "EUW base url"
-    }
-  ],
-  "security": [
-    {
-      "ApiKeyAuth": []
-    }
-  ],
-  "paths": {
-    "/v1/{account_id}/{project_id}/conversations": {
-      "get": {
-        "description": "Returns all conversations matching filters",
-        "parameters": [
-            {
-                "name": "account_id",
-                "in": "path",
-                "description": "Account ID",
-                "required": true,
-                "schema": {
-                    "type": "string"
-                }
-            },
-            {
-                "name": "project_id",
-                "in": "path",
-                "description": "Project ID",
-                "required": true,
-                "schema": {
-                    "type": "string"
-                }
-            },
-            {
-                "name": "client_env",
-                "in": "query",
-                "description": "Client Environment - sandbox, pre-release or live",
-                "schema": {
-                    "type": "string",
-                    "enum": [
+   "openapi":"3.0.1",
+   "info":{
+      "title":"PolyAI API Documentation",
+      "description":"API schema for all PolyAI API support",
+      "license":{
+         "name":"MIT"
+      },
+      "version":"1.0.0"
+   },
+   "servers":[
+      {
+         "url":"https://api.us-1.platform.polyai.app",
+         "description":"US base url"
+      },
+      {
+         "url":"https://api.uk-1.platform.polyai.app",
+         "description":"UK base url"
+      },
+      {
+         "url":"https://api.euw-1.platform.polyai.app",
+         "description":"EUW base url"
+      }
+   ],
+   "security":[
+      {
+         "ApiKeyAuth":[
+            
+         ]
+      }
+   ],
+   "paths":{
+      "/v1/{account_id}/{project_id}/conversations":{
+         "get":{
+            "description":"Returns all conversations matching filters",
+            "parameters":[
+               {
+                  "name":"account_id",
+                  "in":"path",
+                  "description":"Account ID",
+                  "required":true,
+                  "schema":{
+                     "type":"string"
+                  }
+               },
+               {
+                  "name":"project_id",
+                  "in":"path",
+                  "description":"Project ID",
+                  "required":true,
+                  "schema":{
+                     "type":"string"
+                  }
+               },
+               {
+                  "name":"client_env",
+                  "in":"query",
+                  "description":"Client Environment - sandbox, pre-release or live",
+                  "schema":{
+                     "type":"string",
+                     "enum":[
                         "sandbox",
                         "pre-release",
                         "live"
-                    ],
-                    "default": "live"
-                },
-                "example": "sandbox"
-            },
-            {
-                "name": "start_time",
-                "in": "query",
-                "description": "The start of the time range of the conversations to get, in ISO8601 format",
-                "example": "2021-07-01T14:15:00.000Z",
-                "required": false,
-                "schema": {
-                    "type": "string",
-                    "format": "date-time"
-                }
-            },
-            {
-                "name": "end_time",
-                "in": "query",
-                "description": "The end of the time range of the conversations to get, in ISO8601 format",
-                "example": "2021-07-01T16:35:00.000Z",
-                "required": false,
-                "schema": {
-                    "type": "string",
-                    "format": "date-time"
-                }
-            },
-            {
-                "name": "limit",
-                "in": "query",
-                "description": "Max number of conversations to return per API call. If the result set of your query is larger than this, it will be paginated.",
-                "required": false,
-                "schema": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 5000,
-                    "default": 5
-                }
-            },
-            {
-                "name": "offset",
-                "in": "query",
-                "description": "Offset within result set to fetch.",
-                "required": false,
-                "schema": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "default": 0
-                }
-            },
-            {
-                "name": "include_context_state",
-                "in": "query",
-                "description": "If true, include the `context_state` for each conversation. This is a large, noisy dictionary of the agent's internal dialogue state at the end of the conversation.",
-                "required": false,
-                "schema": {
-                    "type": "boolean",
-                    "default": false
-                }
-            },
-            {
-                "name": "variant_id",
-                "in": "query",
-                "description": "If it is set, we would return all conversations under this variant_id. Note that you may only specify either one of the variant_id or variant_name",
-                "required": false,
-                "schema": {
-                    "type": "string"
-                }
-            },
-            {
-                "name": "variant_name",
-                "in": "query",
-                "description": "If it is set, we would return all conversations under this variant_name. Note that you may only specify either one of the variant_id or variant_name. Also, make sure to encode any spaces in the name with \"%20\"",
-                "required": false,
-                "schema": {
-                    "type": "string"
-                }
-            },
-            {
-                "name": "in_progress",
-                "in": "query",
-                "description": "If it is set to false, we only return finished conversations. If it is set to true, we only return conversations still in progress. By default, this parameter is None and we return all conversations",
-                "required": false,
-                "schema": {
-                    "type": "boolean"
-                },
-                "example": false
-            }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "conversations": {
-                      "type": "array",
-                      "description": "An array of conversations returned in ascending chronological order.",
-                      "items": {
-                        "$ref": "#/components/schemas/Conversation"
-                      }
-                    },
-                    "descriptions": {
-                      "type": "object",
-                      "description": "An dictionary of response keys and their descriptions",
-                      "properties": {
-                        "conversations": {
-                          "type": "object",
-                          "description": "An dictionary of conversation object keys and their descriptions"
-                        }
-                      }
-                    },
-                    "next_offset": {
-                      "type": "integer",
-                      "description": "If present, the result is being paginated and requires another API call to fetch the next portion (pass the provided `next_offset` as the `offset` param for the next API call)."
-                    }
+                     ],
+                     "default":"live"
+                  },
+                  "example":"sandbox"
+               },
+               {
+                  "name":"start_time",
+                  "in":"query",
+                  "description":"The start of the time range of the conversations to get, in ISO8601 format",
+                  "example":"2021-07-01T14:15:00.000Z",
+                  "required":false,
+                  "schema":{
+                     "type":"string",
+                     "format":"date-time"
                   }
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalError"
-          }
-        }
-      }
-    },
-    "/v1/{account_id}/{project_id}/conversations/concurrency": {
-        "get": {
-            "summary": "Get distribution of the maximum number of concurrent conversations",
-            "description": "Get the maximum number of concurrent conversations in several 5-minute intervals based on given parameters",
-            "parameters": [
-                {
-                "name": "account_id",
-                "in": "path",
-                "description": "Account ID",
-                "schema": {
-                    "type": "string",
-                    "example": "ACCOUNT-t53y16r3"
-                },
-                "required": true
-                },
-                {
-                "name": "project_id",
-                "in": "path",
-                "description": "Project ID",
-                "schema": {
-                    "type": "string",
-                    "example": "PROJECT-f76d75c2"
-                },
-                "required": true
-                },
-                {
-                "name": "start_time",
-                "in": "query",
-                "description": "The start of the time for the range of the intervals, in ISO8601 format This is rounded down to the nearest 5-min date-time. `start_time` and `end_time` shouldn't be more than 1 week apart",
-                "example": "2021-07-01T14:15:00.000Z",
-                "schema": {
-                    "type": "string",
-                    "format": "date-time"
-                },
-                "required": true
-                },
-                {
-                "name": "end_time",
-                "in": "query",
-                "description": "The end of the time for the range of the intervals, in ISO8601 format This is rounded up to the nearest 5-min date-time. `start_time` and `end_time` shouldn't be more than 1 week apart",
-                "example": "2021-07-01T16:35:00.000Z",
-                "schema": {
-                    "type": "string",
-                    "format": "date-time"
-                },
-                "required": true
-                },
-                {
-                "name": "client_env",
-                "in": "query",
-                "description": "If it is set, we would return all conversations under this client_env. Client Environment can be sandbox, pre-release or live",
-                "schema": {
-                    "type": "string",
-                    "enum": [
-                    "sandbox",
-                    "pre-release",
-                    "live"
-                    ],
-                    "default": "live"
-                },
-                "example": "sandbox"
-                },
-                {
-                "name": "variant_name",
-                "in": "query",
-                "description": "If it is set, we would return all conversations under this variant_name. Note that you may only specify either one of the variant_id or variant_name. Also, make sure to encode any spaces in the name with \"%20\"",
-                "schema": {
-                    "type": "string"
-                },
-                "example": "variant_1"
-                },
-                {
-                "name": "variant_id",
-                "in": "query",
-                "description": "If it is set, we would return all conversations under this variant_id. Note that you may only specify either one of the variant_id or variant_name",
-                "schema": {
-                    "type": "string"
-                },
-                "example": "satdt"
-                },
-                {
-                "name": "language",
-                "in": "query",
-                "description": "If it is set, we would return all conversations under this language.",
-                "schema": {
-                    "type": "string"
-                },
-                "example": "en-GB"
-                },
-                {
-                "name": "phone_number",
-                "in": "query",
-                "description": "If it is set, we would return all conversations under phone_number.",
-                "schema": {
-                    "type": "string"
-                },
-                "example": "+447856838428"
-                },
-                {
-                "name": "slice_by",
-                "in": "query",
-                "description": "If it is set, we slice the result intervals based on the slice_by parameter. You can slice by `variant`, `language` or `phone_number`. At the moment querying with `slice_by=language` or `slice_by=phone_number` will result in 501 Not Implemented",
-                "schema": {
-                    "type": "string"
-                },
-                 "example": "variant"
-                }
+               },
+               {
+                  "name":"end_time",
+                  "in":"query",
+                  "description":"The end of the time range of the conversations to get, in ISO8601 format",
+                  "example":"2021-07-01T16:35:00.000Z",
+                  "required":false,
+                  "schema":{
+                     "type":"string",
+                     "format":"date-time"
+                  }
+               },
+               {
+                  "name":"limit",
+                  "in":"query",
+                  "description":"Max number of conversations to return per API call. If the result set of your query is larger than this, it will be paginated.",
+                  "required":false,
+                  "schema":{
+                     "type":"integer",
+                     "minimum":1,
+                     "maximum":5000,
+                     "default":5
+                  }
+               },
+               {
+                  "name":"offset",
+                  "in":"query",
+                  "description":"Offset within result set to fetch.",
+                  "required":false,
+                  "schema":{
+                     "type":"integer",
+                     "minimum":0,
+                     "default":0
+                  }
+               },
+               {
+                  "name":"include_context_state",
+                  "in":"query",
+                  "description":"If true, include the `context_state` for each conversation. This is a large, noisy dictionary of the agent's internal dialogue state at the end of the conversation.",
+                  "required":false,
+                  "schema":{
+                     "type":"boolean",
+                     "default":false
+                  }
+               },
+               {
+                  "name":"variant_id",
+                  "in":"query",
+                  "description":"If it is set, we would return all conversations under this variant_id. Note that you may only specify either one of the variant_id or variant_name",
+                  "required":false,
+                  "schema":{
+                     "type":"string"
+                  }
+               },
+               {
+                  "name":"variant_name",
+                  "in":"query",
+                  "description":"If it is set, we would return all conversations under this variant_name. Note that you may only specify either one of the variant_id or variant_name. Also, make sure to encode any spaces in the name with \"%20\"",
+                  "required":false,
+                  "schema":{
+                     "type":"string"
+                  }
+               },
+               {
+                  "name":"in_progress",
+                  "in":"query",
+                  "description":"If it is set to false, we only return finished conversations. If it is set to true, we only return conversations still in progress. By default, this parameter is None and we return all conversations",
+                  "required":false,
+                  "schema":{
+                     "type":"boolean"
+                  },
+                  "example":false
+               }
             ],
-            "responses": {
-                "200": {
-                "description": "OK",
-                "content": {
-                    "application/json": {
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                        "account_id": {
-                            "type": "string",
-                            "description": "Customer PolyAI Account ID",
-                            "example": "ACCOUNT-t53y16r3"
-                        },
-                        "project_id": {
-                            "type": "string",
-                            "description": "Customer PolyAI Project ID",
-                            "example": "PROJECT-f76d75c2"
-                        },
-                        "intervals": {
-                            "type": "array",
-                            "description": "An array of intervals returned in ascending chronological order.",
-                            "items": {
-                            "type": "object",
-                            "properties": {
-                                "time": {
-                                "type": "string",
-                                "format": "date-time",
-                                "description": "The UTC lower bound time for this interval in ISO8601 format.",
-                                "example": "2022-04-01T16:35:00.000Z"
-                                },
-                                "max_concurrent_conversations": {
-                                "type": "integer",
-                                "description": "The maximum number of concurrent conversations in the 5-minute interval starting from `time` This is the number after slicing based on the rest of the query parameters",
-                                "example": 25
-                                },
-                                "variant_id": {
-                                "type": "string",
-                                "description": "The variant ID of for this interval. This is only present if the query is sliced by a <variant> using `slice_by` query parameter.",
-                                "example": "satdt"
-                                },
-                                "variant_name": {
-                                "type": "string",
-                                "description": "The variant name for this interval. This is only present if the query is sliced by a <variant> using `slice_by` query parameter.",
-                                "example": "variant_1"
-                                },
-                                "language": {
-                                "type": "string",
-                                "description": "The variant name for this interval. This is only present if the query is sliced by a <language> using `slice_by` query parameter. This is still not implemented, and will not be visible in the current state of implementation.",
-                                "example": "en-GB"
-                                },
-                                "phone_number": {
-                                "type": "string",
-                                "description": "The variant name for this interval. This is only present if the query is sliced by a <phone_number> using `slice_by` query parameter. This is still not implemented, and will not be visible in the current state of implementation.",
-                                "example": "+447856838428"
-                                }
-                            },
-                            "required": [
-                                "time",
-                                "max_concurrent_conversations"
-                            ]
-                            }
+            "responses":{
+               "200":{
+                  "description":"OK",
+                  "content":{
+                     "application/json":{
+                        "schema":{
+                           "type":"object",
+                           "properties":{
+                              "conversations":{
+                                 "type":"array",
+                                 "description":"An array of conversations returned in ascending chronological order.",
+                                 "items":{
+                                    "$ref":"#/components/schemas/Conversation"
+                                 }
+                              },
+                              "descriptions":{
+                                 "type":"object",
+                                 "description":"An dictionary of response keys and their descriptions",
+                                 "properties":{
+                                    "conversations":{
+                                       "type":"object",
+                                       "description":"An dictionary of conversation object keys and their descriptions"
+                                    }
+                                 }
+                              },
+                              "next_offset":{
+                                 "type":"integer",
+                                 "description":"If present, the result is being paginated and requires another API call to fetch the next portion (pass the provided `next_offset` as the `offset` param for the next API call)."
+                              }
+                           }
                         }
-                        },
-                        "required": [
-                        "account_id",
-                        "project_id",
-                        "intervals"
-                        ]
-                    },
-                    "example": {
-                          "account_id": "ACCOUNT-t53y16r3",
-                          "project_id": "PROJECT-f76d75c2",
-                          "intervals": [
-                            {
-                              "variant_id": "satdt",
-                              "variant_name": "variant_1",
-                              "language": "en-GB",
-                              "time": "2022-04-01T16:35:00Z",
-                              "concurrency": 25
-                            },
-                            {
-                              "variant_id": "satdt",
-                              "variant_name": "variant_1",
-                              "language": "en-US",
-                              "time": "2022-04-01T16:40:00Z",
-                              "concurrency": 20
-                            },
-                            {
-                              "variant_id": "satdc",
-                              "variant_name": "variant_2",
-                              "language": "en-GB",
-                              "time": "2022-04-01T16:35:00Z",
-                              "concurrency": 5
-                            }
-                          ]
-                    }
-                }
-                },
-                "400": {
-                    "$ref": "#/components/responses/BadRequest"
-                },
-                "401": {
-                    "$ref": "#/components/responses/Unauthorized"
-                },
-                "404": {
-                    "$ref": "#/components/responses/NotFound"
-                },
-                "500": {
-                    "$ref": "#/components/responses/InternalError"
-                },
-                "501": {
-                    "$ref": "#/components/responses/NotImplementedError"
-                }
-              }
-            }
-        }
-    }
-  },
-  "components": {
-    "responses": {
-        "Unauthorized": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "BadRequest": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "NotFound": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "InternalError": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "NotImplementedError": {
-            "description": "Not Implemented Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-    },
-    "schemas": {
-      "Error": {
-          "type": "object",
-          "properties": {
-            "error_message": {
-              "description": "Reason for error",
-              "type": "string"
-            }
-          }
-      },
-      "ConversationTurn": {
-        "type": "object",
-        "description": "Info about a single turn.",
-        "properties": {
-          "user_input": {
-            "type": "string",
-            "description": "The transcription of what the user spoke or typed."
-          },
-          "user_input_datetime": {
-            "type": "string",
-            "format": "date-time",
-            "description": "The time when the agent received the user's input. For speech, this is when ASR finished transcribing."
-          },
-          "agent_response": {
-            "type": "string",
-            "description": "The transcription of the agent's response to the user."
-          },
-          "agent_response_datetime": {
-            "type": "string",
-            "format": "date-time",
-            "description": "The time when the agent responded. For speech, this is when the agent started speaking."
-          },
-          "intents": {
-            "type": "array",
-            "description": "The list of intents that were found in this turn's input.",
-            "items": {
-              "type": "string"
-            }
-          },
-          "entities": {
-            "type": "array",
-            "description": "The list of entities that were found in this turn's input.",
-            "items": {
-              "type": "object",
-              "description": "Mapping entity name -> value(s)",
-              "additionalProperties": {
-                "oneOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
+                     }
                   }
-                ]
-              }
+               },
+               "400":{
+                  "$ref":"#/components/responses/BadRequest"
+               },
+               "401":{
+                  "$ref":"#/components/responses/Unauthorized"
+               },
+               "403":{
+                  "$ref":"#/components/responses/Unauthorized"
+               },
+               "404":{
+                  "$ref":"#/components/responses/NotFound"
+               },
+               "500":{
+                  "$ref":"#/components/responses/InternalError"
+               }
             }
-          },
-          "is_ood": {
-            "type": "boolean",
-            "description": "Whether the turn is classified as Out of Domain (OOD)"
-          },
-          "is_silence": {
-            "type": "boolean",
-            "description": "Whether the turn is classified as a silence"
-          }
-        }
+         }
       },
-      "Conversation": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Unique ID for this conversation",
-            "example": "CAabcd1234567abcdef1250065d4fc7389"
-          },
-          "account_id": {
-            "type": "string",
-            "description": "ID of the customer account this conversation is under."
-          },
-          "project_id": {
-            "type": "string",
-            "description": "ID of the project this conversation is under."
-          },
-          "variant_id": {
-            "type": "string",
-            "description": "ID of the variant this conversation is in"
-          },
-          "variant_name": {
-            "type": "string",
-            "description": "Name of the variant this conversation is in"
-          },
-          "environment": {
-            "type": "string",
-            "description": "Which deployment environment this conversation was handled in. Usually `live`, `sandbox`, or `pre-release`."
-          },
-          "started_at": {
-            "type": "string",
-            "format": "date-time",
-            "description": "The time when the conversation began, in ISO8601 format."
-          },
-          "channel": {
-            "type": "string",
-            "description": "What medium the conversation took place in. Usually one of `CHAT` or `VOICE-SIP`."
-          },
-          "from_number": {
-            "type": "string",
-            "description": "Caller's phone number."
-          },
-          "to_number": {
-            "type": "string",
-            "description": "Phone number of the agent the caller was connected to."
-          },
-          "in_progress": {
-            "type": "boolean",
-            "description": "If true, the call is currently in progress, and therefore its properties may still change in the future."
-          },
-          "num_turns": {
-            "type": "integer",
-            "description": "Number of turns in the conversation."
-          },
-          "total_duration": {
-            "type": "integer",
-            "description": "Duration of the entire call, in seconds."
-          },
-          "polyai_duration": {
-            "type": "integer",
-            "description": "Duration of the portion of the call handled by the PolyAI agent, in seconds."
-          },
-          "handoff": {
-            "type": "boolean",
-            "description": "Whether or not the PolyAI agent handed the call off."
-          },
-          "handoff_reason": {
-            "type": "string",
-            "description": "Brief reason why the agent handed the call off."
-          },
-          "handoff_destination": {
-            "type": "string",
-            "description": "If there are multiple handoff destinations, which one was used."
-          },
-          "num_silences": {
-            "type": "integer",
-            "description": "Number of turns in the conversation where the caller gave no discernible input."
-          },
-          "num_ood": {
-            "type": "integer",
-            "description": "Number of turns in the conversation where the caller gave some input, but it could not be understood by our agent."
-          },
-          "metrics": {
-            "type": "object",
-            "description": "Mapping name -> value of custom metrics logged by the agent. If a metric name was written more than once, the value will be a list of the values that were written.",
-            "additionalProperties": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
+      "/v1/{account_id}/{project_id}/conversations/concurrency":{
+         "get":{
+            "summary":"Get distribution of the maximum number of concurrent conversations",
+            "description":"Get the maximum number of concurrent conversations in several 5-minute intervals based on given parameters",
+            "parameters":[
+               {
+                  "name":"account_id",
+                  "in":"path",
+                  "description":"Account ID",
+                  "schema":{
+                     "type":"string",
+                     "example":"ACCOUNT-t53y16r3"
                   },
-                  "minItems": 2
-                }
-              ]
+                  "required":true
+               },
+               {
+                  "name":"project_id",
+                  "in":"path",
+                  "description":"Project ID",
+                  "schema":{
+                     "type":"string",
+                     "example":"PROJECT-f76d75c2"
+                  },
+                  "required":true
+               },
+               {
+                  "name":"start_time",
+                  "in":"query",
+                  "description":"The start of the time for the range of the intervals, in ISO8601 format This is rounded down to the nearest 5-min date-time. `start_time` and `end_time` shouldn't be more than 1 week apart",
+                  "example":"2021-07-01T14:15:00.000Z",
+                  "schema":{
+                     "type":"string",
+                     "format":"date-time"
+                  },
+                  "required":true
+               },
+               {
+                  "name":"end_time",
+                  "in":"query",
+                  "description":"The end of the time for the range of the intervals, in ISO8601 format This is rounded up to the nearest 5-min date-time. `start_time` and `end_time` shouldn't be more than 1 week apart",
+                  "example":"2021-07-01T16:35:00.000Z",
+                  "schema":{
+                     "type":"string",
+                     "format":"date-time"
+                  },
+                  "required":true
+               },
+               {
+                  "name":"client_env",
+                  "in":"query",
+                  "description":"If it is set, we would return all conversations under this client_env. Client Environment can be sandbox, pre-release or live",
+                  "schema":{
+                     "type":"string",
+                     "enum":[
+                        "sandbox",
+                        "pre-release",
+                        "live"
+                     ],
+                     "default":"live"
+                  },
+                  "example":"sandbox"
+               },
+               {
+                  "name":"variant_name",
+                  "in":"query",
+                  "description":"If it is set, we would return all conversations under this variant_name. Note that you may only specify either one of the variant_id or variant_name. Also, make sure to encode any spaces in the name with \"%20\"",
+                  "schema":{
+                     "type":"string"
+                  },
+                  "example":"variant_1"
+               },
+               {
+                  "name":"variant_id",
+                  "in":"query",
+                  "description":"If it is set, we would return all conversations under this variant_id. Note that you may only specify either one of the variant_id or variant_name",
+                  "schema":{
+                     "type":"string"
+                  },
+                  "example":"satdt"
+               },
+               {
+                  "name":"language",
+                  "in":"query",
+                  "description":"If it is set, we would return all conversations under this language.",
+                  "schema":{
+                     "type":"string"
+                  },
+                  "example":"en-GB"
+               },
+               {
+                  "name":"phone_number",
+                  "in":"query",
+                  "description":"If it is set, we would return all conversations under phone_number.",
+                  "schema":{
+                     "type":"string"
+                  },
+                  "example":"+447856838428"
+               },
+               {
+                  "name":"slice_by",
+                  "in":"query",
+                  "description":"If it is set, we slice the result intervals based on the slice_by parameter. You can slice by `variant`, `language` or `phone_number`. At the moment querying with `slice_by=language` or `slice_by=phone_number` will result in 501 Not Implemented",
+                  "schema":{
+                     "type":"string"
+                  },
+                  "example":"variant"
+               }
+            ],
+            "responses":{
+               "200":{
+                  "description":"OK",
+                  "content":{
+                     "application/json":{
+                        "schema":{
+                           "type":"object",
+                           "properties":{
+                              "account_id":{
+                                 "type":"string",
+                                 "description":"Customer PolyAI Account ID",
+                                 "example":"ACCOUNT-t53y16r3"
+                              },
+                              "project_id":{
+                                 "type":"string",
+                                 "description":"Customer PolyAI Project ID",
+                                 "example":"PROJECT-f76d75c2"
+                              },
+                              "intervals":{
+                                 "type":"array",
+                                 "description":"An array of intervals returned in ascending chronological order.",
+                                 "items":{
+                                    "type":"object",
+                                    "properties":{
+                                       "time":{
+                                          "type":"string",
+                                          "format":"date-time",
+                                          "description":"The UTC lower bound time for this interval in ISO8601 format.",
+                                          "example":"2022-04-01T16:35:00.000Z"
+                                       },
+                                       "max_concurrent_conversations":{
+                                          "type":"integer",
+                                          "description":"The maximum number of concurrent conversations in the 5-minute interval starting from `time` This is the number after slicing based on the rest of the query parameters",
+                                          "example":25
+                                       },
+                                       "variant_id":{
+                                          "type":"string",
+                                          "description":"The variant ID of for this interval. This is only present if the query is sliced by a <variant> using `slice_by` query parameter.",
+                                          "example":"satdt"
+                                       },
+                                       "variant_name":{
+                                          "type":"string",
+                                          "description":"The variant name for this interval. This is only present if the query is sliced by a <variant> using `slice_by` query parameter.",
+                                          "example":"variant_1"
+                                       },
+                                       "language":{
+                                          "type":"string",
+                                          "description":"The variant name for this interval. This is only present if the query is sliced by a <language> using `slice_by` query parameter. This is still not implemented, and will not be visible in the current state of implementation.",
+                                          "example":"en-GB"
+                                       },
+                                       "phone_number":{
+                                          "type":"string",
+                                          "description":"The variant name for this interval. This is only present if the query is sliced by a <phone_number> using `slice_by` query parameter. This is still not implemented, and will not be visible in the current state of implementation.",
+                                          "example":"+447856838428"
+                                       }
+                                    },
+                                    "required":[
+                                       "time",
+                                       "max_concurrent_conversations"
+                                    ]
+                                 }
+                              }
+                           },
+                           "required":[
+                              "account_id",
+                              "project_id",
+                              "intervals"
+                           ]
+                        },
+                        "example":{
+                           "account_id":"ACCOUNT-t53y16r3",
+                           "project_id":"PROJECT-f76d75c2",
+                           "intervals":[
+                              {
+                                 "variant_id":"satdt",
+                                 "variant_name":"variant_1",
+                                 "language":"en-GB",
+                                 "time":"2022-04-01T16:35:00Z",
+                                 "concurrency":25
+                              },
+                              {
+                                 "variant_id":"satdt",
+                                 "variant_name":"variant_1",
+                                 "language":"en-US",
+                                 "time":"2022-04-01T16:40:00Z",
+                                 "concurrency":20
+                              },
+                              {
+                                 "variant_id":"satdc",
+                                 "variant_name":"variant_2",
+                                 "language":"en-GB",
+                                 "time":"2022-04-01T16:35:00Z",
+                                 "concurrency":5
+                              }
+                           ]
+                        }
+                     }
+                  },
+                  "400":{
+                     "$ref":"#/components/responses/BadRequest"
+                  },
+                  "401":{
+                     "$ref":"#/components/responses/Unauthorized"
+                  },
+                  "404":{
+                     "$ref":"#/components/responses/NotFound"
+                  },
+                  "500":{
+                     "$ref":"#/components/responses/InternalError"
+                  },
+                  "501":{
+                     "$ref":"#/components/responses/NotImplementedError"
+                  }
+               }
+            }
+         }
+      }
+   },
+   "components":{
+      "responses":{
+         "Unauthorized":{
+            "description":"Unauthorized",
+            "content":{
+               "application/json":{
+                  "schema":{
+                     "$ref":"#/components/schemas/Error"
+                  }
+               }
+            }
+         },
+         "BadRequest":{
+            "description":"Bad Request",
+            "content":{
+               "application/json":{
+                  "schema":{
+                     "$ref":"#/components/schemas/Error"
+                  }
+               }
+            }
+         },
+         "NotFound":{
+            "description":"Not Found",
+            "content":{
+               "application/json":{
+                  "schema":{
+                     "$ref":"#/components/schemas/Error"
+                  }
+               }
+            }
+         },
+         "InternalError":{
+            "description":"Internal Server Error",
+            "content":{
+               "application/json":{
+                  "schema":{
+                     "$ref":"#/components/schemas/Error"
+                  }
+               }
+            }
+         },
+         "NotImplementedError":{
+            "description":"Not Implemented Error",
+            "content":{
+               "application/json":{
+                  "schema":{
+                     "$ref":"#/components/schemas/Error"
+                  }
+               }
+            }
+         }
+      },
+      "schemas":{
+         "Error":{
+            "type":"object",
+            "properties":{
+               "error_message":{
+                  "description":"Reason for error",
+                  "type":"string"
+               }
+            }
+         },
+         "ConversationTurn":{
+            "type":"object",
+            "description":"Info about a single turn.",
+            "properties":{
+               "user_input":{
+                  "type":"string",
+                  "description":"The transcription of what the user spoke or typed."
+               },
+               "user_input_datetime":{
+                  "type":"string",
+                  "format":"date-time",
+                  "description":"The time when the agent received the user's input. For speech, this is when ASR finished transcribing."
+               },
+               "agent_response":{
+                  "type":"string",
+                  "description":"The transcription of the agent's response to the user."
+               },
+               "agent_response_datetime":{
+                  "type":"string",
+                  "format":"date-time",
+                  "description":"The time when the agent responded. For speech, this is when the agent started speaking."
+               },
+               "intents":{
+                  "type":"array",
+                  "description":"The list of intents that were found in this turn's input.",
+                  "items":{
+                     "type":"string"
+                  }
+               },
+               "entities":{
+                  "type":"array",
+                  "description":"The list of entities that were found in this turn's input.",
+                  "items":{
+                     "type":"object",
+                     "description":"Mapping entity name -> value(s)",
+                     "additionalProperties":{
+                        "oneOf":[
+                           {
+                              "type":"string"
+                           },
+                           {
+                              "type":"array",
+                              "items":{
+                                 "type":"string"
+                              }
+                           }
+                        ]
+                     }
+                  }
+               },
+               "is_ood":{
+                  "type":"boolean",
+                  "description":"Whether the turn is classified as Out of Domain (OOD)"
+               },
+               "is_silence":{
+                  "type":"boolean",
+                  "description":"Whether the turn is classified as a silence"
+               }
+            }
+         },
+         "Conversation":{
+            "type":"object",
+            "properties":{
+               "id":{
+                  "type":"string",
+                  "description":"Unique ID for this conversation",
+                  "example":"CAabcd1234567abcdef1250065d4fc7389"
+               },
+               "account_id":{
+                  "type":"string",
+                  "description":"ID of the customer account this conversation is under."
+               },
+               "project_id":{
+                  "type":"string",
+                  "description":"ID of the project this conversation is under."
+               },
+               "variant_id":{
+                  "type":"string",
+                  "description":"ID of the variant this conversation is in"
+               },
+               "variant_name":{
+                  "type":"string",
+                  "description":"Name of the variant this conversation is in"
+               },
+               "environment":{
+                  "type":"string",
+                  "description":"Which deployment environment this conversation was handled in. Usually `live`, `sandbox`, or `pre-release`."
+               },
+               "started_at":{
+                  "type":"string",
+                  "format":"date-time",
+                  "description":"The time when the conversation began, in ISO8601 format."
+               },
+               "channel":{
+                  "type":"string",
+                  "description":"What medium the conversation took place in. Usually one of `CHAT` or `VOICE-SIP`."
+               },
+               "from_number":{
+                  "type":"string",
+                  "description":"Caller's phone number."
+               },
+               "to_number":{
+                  "type":"string",
+                  "description":"Phone number of the agent the caller was connected to."
+               },
+               "in_progress":{
+                  "type":"boolean",
+                  "description":"If true, the call is currently in progress, and therefore its properties may still change in the future."
+               },
+               "num_turns":{
+                  "type":"integer",
+                  "description":"Number of turns in the conversation."
+               },
+               "total_duration":{
+                  "type":"integer",
+                  "description":"Duration of the entire call, in seconds."
+               },
+               "polyai_duration":{
+                  "type":"integer",
+                  "description":"Duration of the portion of the call handled by the PolyAI agent, in seconds."
+               },
+               "handoff":{
+                  "type":"boolean",
+                  "description":"Whether or not the PolyAI agent handed the call off."
+               },
+               "handoff_reason":{
+                  "type":"string",
+                  "description":"Brief reason why the agent handed the call off."
+               },
+               "handoff_destination":{
+                  "type":"string",
+                  "description":"If there are multiple handoff destinations, which one was used."
+               },
+               "num_silences":{
+                  "type":"integer",
+                  "description":"Number of turns in the conversation where the caller gave no discernible input."
+               },
+               "num_ood":{
+                  "type":"integer",
+                  "description":"Number of turns in the conversation where the caller gave some input, but it could not be understood by our agent."
+               },
+               "metrics":{
+                  "type":"object",
+                  "description":"Mapping name -> value of custom metrics logged by the agent. If a metric name was written more than once, the value will be a list of the values that were written.",
+                  "additionalProperties":{
+                     "oneOf":[
+                        {
+                           "type":"string"
+                        },
+                        {
+                           "type":"array",
+                           "items":{
+                              "type":"string"
+                           },
+                           "minItems":2
+                        }
+                     ]
+                  },
+                  "example":{
+                     "CALL_DURATION":"30",
+                     "CALL_TURN":[
+                        "2022-02-18 12:09:05.12677",
+                        "2022-02-18 12:09:17.90602",
+                        "2022-02-18 12:09:29.57732",
+                        "2022-02-18 12:09:35.36996"
+                     ]
+                  }
+               },
+               "state":{
+                  "type":"object",
+                  "description":"Mapping of keys -> values written to the dialogue state by the agent."
+               },
+               "turns":{
+                  "type":"array",
+                  "description":"Ordered list of turns in the conversation.",
+                  "items":{
+                     "$ref":"#/components/schemas/ConversationTurn"
+                  }
+               }
             },
-            "example": {
-              "CALL_DURATION": "30",
-              "CALL_TURN": [
-                "2022-02-18 12:09:05.12677",
-                "2022-02-18 12:09:17.90602",
-                "2022-02-18 12:09:29.57732",
-                "2022-02-18 12:09:35.36996"
-              ]
-            }
-          },
-          "state": {
-            "type": "object",
-            "description": "Mapping of keys -> values written to the dialogue state by the agent."
-          },
-          "turns": {
-            "type": "array",
-            "description": "Ordered list of turns in the conversation.",
-            "items": {
-              "$ref": "#/components/schemas/ConversationTurn"
-            }
-          }
-        },
-        "required": [
-          "id",
-          "account_id",
-          "project_id",
-          "environment",
-          "started_at",
-          "channel",
-          "in_progress"
-        ]
+            "required":[
+               "id",
+               "account_id",
+               "project_id",
+               "environment",
+               "started_at",
+               "channel",
+               "in_progress"
+            ]
+         }
+      },
+      "securitySchemes":{
+         "ApiKeyAuth":{
+            "type":"apiKey",
+            "in":"header",
+            "name":"x-api-key"
+         }
       }
-    },
-    "securitySchemes": {
-      "ApiKeyAuth": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "x-api-key"
-      }
-    }
-  }
+   }
 }
