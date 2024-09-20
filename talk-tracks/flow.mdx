@@ -1,0 +1,88 @@
+---
+title: 'Flow'
+description: 'The `Flow` object exposes useful information about the current flow and allows transitioning between steps in the flow.'
+---
+### Properties:
+
+### `current_step`:
+
+```python
+@property
+def current_step() -> str:
+
+# Usage
+
+if conv.current_step == "Step 1":
+	return "You are in Step 1"
+```
+
+- **Description**: Returns the step in the flow this conversation is in.
+- **Type**: `str`
+
+### `goto_step`:
+
+```python
+def goto_step(step_name: str):
+
+# Usage
+
+flow.goto_step("Step 2")
+if conv.state.should_go_to_another_step:
+	# We will go to "Step 3" because we only listen to the last
+	# invocation of this function.
+	flow.goto_step("Step 3")
+```
+
+- **Description**: Allows you to control the flow of the conversation, defining which step to go to and when.
+- **Tips:** In flow functions, there is often information that you want to collect before moving on to the next step, a good pattern for making sure this information is collected before continuing is guarding the step transitions like so:
+    
+    ```python
+    def flow_transition(conv: Conversation, flow: Flow, first_name: str, last_name: str):
+    	if not first_name or not last_name:
+    		return "You need to collect the first and last name."
+    	
+    	conv.state.first_name = first_name
+    	conv.state.last_name = last_name
+    	
+    	flow.goto_step("Next step")
+    ```
+    
+
+# **Demo bot**
+
+1. **Explore the Assistant’s Features:**
+    
+    Begin by navigating to the chatbot assistant. Review both conversation flows and all available functions, paying special attention to the transition functions between flows.
+    
+2. **Initiate a Room Cleaning Request:**
+    
+    Start a conversation with the assistant by asking it to book a room cleaning for you.
+    
+    - Provide any date. The assistant will inform you that it cannot complete the request.
+3. **Check Current Flow:**
+    
+    Ask the assistant what flow you are currently in.
+    
+    - It should call a function and provide you with the current flow information.
+4. **Exit the Current Flow:**
+    
+    Request the assistant to exit the current flow.
+    
+5. **Request Towels:**
+    
+    Ask the assistant to order towels for you.
+    
+6. **Provide a Number:**
+    
+    When prompted, give it any number.
+    
+7. **Test Error Handling:**
+    
+    After the assistant repeats the number back to you, tell it the number is incorrect.
+    
+    - The assistant should restart the process and ask you for the number again.
+8. **Confirm the Number:**
+    
+    Once the correct number is provided, confirm it with the assistant.
+    
+    - It should validate the number and then exit the flow.
