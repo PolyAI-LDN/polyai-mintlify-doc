@@ -10,3 +10,26 @@ The **Start Function** can be leveraged in a variety of ways, including but not 
 1. **Reading SIP Headers:** You may want to capture information from the SIP headers for metadata such as caller ID, call origin, or any other relevant telephony data. This could be used to find user information, or determine which hotel site is being called.
 2. **Retrieving Date and Time:** Gathering the current date and time at the start of the conversation to timestamp the interaction or use in later conversation logic.
 3. **Making API Calls:** If external data or systems are needed to set up the conversation, the start function can initiate API calls to gather required information, such as fetching customer data or pulling user preferences.
+
+```python
+import datetime as dt 
+import re 
+
+def start_function(conv: Conversation):
+  now = dt.datetime.now()
+  conv.state.current_date=now.strftime("%A %d-%m-%Y")
+  conv.state.current_weekday=now.strftime("%A")
+  conv.state.current_time=now.strftime("%H:%M")
+  conv.state.available_times=None
+  conv.state.user_bookings= None
+  conv.state.phone_number= None
+  
+  from_header=conv.sip_headers.get('From','')
+  match=re.search("sip:(.+?)@",from_header)
+
+  if match:
+    conv.state_phone_number=match.group(1)
+
+  return str()
+  ```
+  
