@@ -1,0 +1,82 @@
+---
+title: 'Variables'
+---
+
+### Functions
+
+Variables are defined by setting a property on the `conv.state` object within a function. You can choose a name for your variable and update it’s value to anything you want like so:
+
+```python
+conv.state.my_variable = 1
+conv.state.my_other_variable = {
+	"property": "value"
+}
+```
+
+These variables will retain their state between turns of the conversation, and can then be referenced in subsequent function calls like so:
+
+```python
+if conv.state.my_variable == 10:
+	return "Well done you hit 10"
+```
+
+### Prompt templating
+
+Variables can not only be used within function calls, but once a value has been set to a variable, you can also inject that dynamic value into the prompting that is shown to the LLM.
+
+The syntax for injecting the variable value into your prompt is to write `$variable_name` in your prompt. Anywhere we find a match for any variables which have a value, we will replace this with the variables value.
+
+For example if you wanted the assistant to know the exact date and time, you could do something like this:
+
+**In your start function you can write…**
+
+```python
+from datetime import datetime
+
+def start_function(conv: Conversation):
+	conv.state.current_date = datetime.now().strftime("%B %d, %Y")
+```
+
+**…and then in your prompting…**
+
+
+The current date is `$current_date` .
+
+
+**…becomes…**
+
+
+The current date is September 06, 2024.
+
+
+If you want to use variable templating, be careful to make sure that what you store in your variable is readable by the LLM. If you use dictionary or a datetime it will be stringified so you should be ok.
+
+
+### It’s dynamic
+
+The value that is templated into the prompt is always kept up to date, so any updates will be reflected in the prompt in the next turn that is sent to the LLM.
+
+**For example, if this function was run…**
+
+```python
+from datetime import datetime
+
+def set_fake_date(conv: Conversation):
+	conv.state.current_date = datetime(1995, 3, 22).date().strftime("%B %d, %Y")
+```
+
+**…the resulting prompt would become…**
+
+
+The current date is March 22, 1995.
+
+
+**…in the next turn.**
+
+### Deleting a variable
+
+You can delete a variable, all you have to do is remove it from state within a function.
+
+```python
+del conv.state['variable_name']
+```
