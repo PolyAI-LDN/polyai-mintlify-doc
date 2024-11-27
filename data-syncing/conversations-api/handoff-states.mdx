@@ -3,7 +3,7 @@ title: "Handoff States"
 description: "Guide to managing and monitoring handoff states for transitions between assistants and live agents."
 ---
 
-The **handoff states** feature in the PolyAI platform enables you to monitor and manage transitions between automated assistants and live agents. This page provides an overview of how to use the handoff-related APIs, explains relevant processes like **push vs. pull data syncing**, and highlights best practices for working with SIP header handoffs.
+The **handoff states** feature in the PolyAI platform allows you to monitor and manage transitions between automated assistants and live agents. This page explains how to use the handoff-related APIs, highlights the differences between **push** and **pull data syncing**, and outlines best practices for integrating SIP header handoffs.
 
 For detailed API specifications, refer to the [Get Handoff State API documentation](https://docs.poly.ai/api-reference/endpoint/get-handoff).
 
@@ -11,92 +11,83 @@ For detailed API specifications, refer to the [Get Handoff State API documentati
 
 ## When to Use Handoff States
 
-The **handoff states** API is essential for managing transitions in conversations. It allows you to:
-- Retrieve the current state of a conversation during a handoff, such as `handoff_initiated`, `handoff_completed`, or `handoff_failed`.
-- Monitor transitions for quality assurance, troubleshooting, and operational efficiency.
-- Synchronize metadata with external systems like CCaaS platforms to ensure agents have full conversational context.
+The **handoff states** API ensures effective management of live agent transitions during conversations. Use it to:
 
-By tracking these states, you can maintain seamless handoffs and improve the overall customer experience.
+- Retrieve the current state of a handoff, such as `handoff_initiated`, `handoff_completed`, or `handoff_failed`.
+- Monitor handoff processes for quality assurance and troubleshooting.
+- Synchronize metadata with external systems, like CCaaS platforms, so agents have complete conversational context.
+
+By tracking handoff states, you can improve operational efficiency and maintain seamless communication during transitions.
 
 ---
 
 ## Push vs. Pull APIs for Handoff Data
 
-PolyAI supports both **pull** and potentially **push** mechanisms for accessing handoff data. The choice depends on your system’s architecture and real-time requirements.
+PolyAI provides flexible access to handoff data through **pull** and potentially **push** APIs, tailored to different system requirements.
 
 ### Pull API
 
-- **Definition**: Clients request handoff data on demand by querying the API.
-- **Use case**: Ideal for systems that poll for updates periodically or require batched data retrieval.
+- **Definition**: Clients query the API on demand to retrieve handoff data.
+- **Use Case**: Best suited for periodic updates or batched retrieval of handoff information.
 
 ### Push API
 
-- **Definition**: Data is sent automatically to a configured endpoint when specific events occur, such as a completed handoff.
-- **Use case**: Best for event-driven systems that need real-time updates, like live dashboards.
-- **Current status**: Push API support for handoff states is under consideration. Prioritize evaluating potential use cases and benefits for your architecture.
+- **Definition**: Handoff data is automatically sent to a configured endpoint when events, like handoff completion, occur.
+- **Use Case**: Ideal for event-driven systems that require real-time updates, such as live dashboards.
+- **Status**: Currently under consideration for handoff states. Evaluate potential benefits for your architecture.
 
 ---
 
 ## Handoff States Overview
 
-The **handoff states** API provides the following states to describe the status of a handoff:
+The API returns the following handoff states to indicate the current stage of a transition:
 
 | State                | Description                                                                 |
 |----------------------|-----------------------------------------------------------------------------|
-| `handoff_initiated`  | The handoff process has started, and the call is transitioning to an agent. |
+| `handoff_initiated`  | The handoff process has started, transitioning the call to a live agent.    |
 | `handoff_completed`  | The handoff process has successfully connected the call to a live agent.    |
 | `handoff_failed`     | The handoff process failed, and the call remains with the assistant.        |
 
-These states give real-time visibility into handoff progress and can be used to trigger automated workflows, such as retries or fallbacks.
+These states provide real-time visibility and enable workflows like automated retries or fallback mechanisms.
 
 ---
 
 ## Accessing Handoff State Data
 
-The **Get Handoff State** endpoint allows you to retrieve the current handoff state for a conversation. It supports both PolyAI-generated conversation IDs (`id`) and client-provided shared IDs (`shared_id`). When both IDs are provided, the API prioritizes the `shared_id` to maintain consistency with your internal systems.
+The **Get Handoff State** endpoint retrieves the current handoff state of a conversation using either:
+- **PolyAI-generated conversation IDs (`id`)**
+- **Client-provided shared IDs (`shared_id`)**
 
-For detailed information about parameters, headers, and error codes, see the [Get Handoff State API documentation](https://docs.poly.ai/api-reference/endpoint/get-handoff).
+If both IDs are provided, the API prioritizes the `shared_id` for consistency with client systems.
+
+For details on parameters, headers, and error codes, refer to the [Get Handoff State API documentation](https://docs.poly.ai/api-reference/endpoint/get-handoff).
 
 ---
 
 ## SIP Header Handoff
 
-Metadata related to the handoff process can be included in SIP headers when calls are passed back to the contact center. This allows seamless integration with client systems, such as CCaaS platforms.
+In some cases, metadata related to the handoff is included in SIP headers when calls are passed back to the contact center. This supports seamless integration with client-side systems, providing critical context during transitions.
 
 ### Current State of SIP Header Handoff
 
-- **Functionality**: The SIP header packs metadata, such as the agent ID and current handoff state, to provide additional context during transitions.
-- **Gaps**: Investigate whether all relevant metadata fields are consistently included. Address inconsistencies and document missing fields where applicable.
-- **Action**: Ensure the SIP header fields are well-documented and identify areas for improvement to meet client needs.
+- **Functionality**: SIP headers encapsulate metadata, such as agent IDs and handoff states, during transitions.
+- **Gaps**: Review whether all necessary fields are consistently included in the header. Address missing fields to enhance integration.
+- **Action**: Document the SIP header structure and identify opportunities for improvement based on client needs.
 
 ---
 
-## Best Practices for Using Handoff States
+## Best Practices for Handoff States
 
-1. **Prioritize Shared IDs**: Use `shared_id` where possible to ensure alignment with your internal systems. If both `id` and `shared_id` are provided, the API defaults to the `shared_id`.
-2. **Monitor Handoff Failures**: Use the `handoff_failed` state to implement automated retries or fallback workflows, minimizing disruptions.
-3. **Synchronize Metadata with CCaaS Platforms**: Integrate handoff metadata with platforms like Genesys or LivePerson to enhance agent visibility and improve reporting.
-
----
-
-## FAQs
-
-### How do I retrieve metadata for a specific conversation?
-Use the `id` or `shared_id` query parameters in the **Get Handoff State** endpoint. Refer to the [API documentation](https://docs.poly.ai/api-reference/endpoint/get-handoff) for detailed examples.
-
-### Is Push API supported for handoff states?
-Push API support is currently under consideration. At this time, the API relies on a **pull** mechanism.
-
-### Can I access handoff data in bulk?
-For bulk data downloads, consider using the [S3-to-S3 integration](s3-to-s3) for scalable, high-performance data transfers.
-
----
+1. **Prioritize Shared IDs**: Use `shared_id` whenever possible for consistency with internal systems. If both `id` and `shared_id` are available, the API defaults to the `shared_id`.
+2. **Monitor Handoff Failures**: Track the `handoff_failed` state to trigger automated retries or fallback processes, ensuring smooth customer experiences.
+3. **Integrate with CCaaS Platforms**: Synchronize metadata with platforms like Genesys or LivePerson to give agents full visibility into conversation histories.
 
 ## Related Pages
 
-- [List Conversations](list-conversations): Retrieve metadata for multiple conversations.
-- [Portal Transcripts](portal-transcripts): Access detailed transcripts of conversations, including metadata.
+- [List Conversations](list-conversations): Retrieve metadata for conversations programmatically.
+- [Portal Transcripts](portal-transcripts): Access detailed transcripts for compliance and analytics.
+- [S3-to-S3 Integration](s3-to-s3): Automate large-scale transcript and metadata transfers.
 
 ---
 
-By combining the **Get Handoff State** API with best practices for SIP header handoffs and syncing strategies, you can effectively manage conversation transitions, improve reporting, and ensure seamless integration with external systems.
+By combining the **Get Handoff State** API with best practices for SIP header handoffs and data syncing, you can streamline conversation management, improve reporting, and ensure seamless integration with external systems.
