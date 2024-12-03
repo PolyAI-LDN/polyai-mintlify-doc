@@ -1,0 +1,88 @@
+---
+title: "Handoff States"
+description: "Guide to managing and monitoring handoff states for transitions between assistants and live agents."
+---
+
+**Handoff states** allow you to monitor and manage transitions between automated assistants and live agents. This page explains when to use the handoff-related APIs, highlights examples of topic-specific states, and provides best practices for integration.
+
+For detailed API specifications, refer to the [Get Handoff State API documentation](https://docs.poly.ai/api-reference/endpoint/get-handoff). For specific implementation details in your deployment, visit:
+
+- [The Handoff State feature page](/knowledge-base/how-to-setup-action/handoff)
+- For Twilio users, the [Twilio integration guide](/telephony/twilio-how-to-handoff#handoff-integration)
+
+## When to use handoff states
+
+The **handoff states** API ensures effective management of live agent transitions during conversations. Use it to:
+
+- Trigger transitions between automated assistants and live agents.
+- Retrieve the state of a handoff, such as `handoff_initiated`, `handoff_completed`, or `handoff_failed`, or custom topic-specific states (e.g., `customer_refund` or `complaint_escalation`).
+- Synchronize metadata with systems operated by human agents to ensure they have full conversational context.
+
+By tracking these states, you can improve operational efficiency and maintain seamless communication during transitions.
+
+## Handoff states overview
+
+The **handoff states** API provides key triggers for managing transitions between automated assistants and live agents. These states act as signals indicating the outcome of a handoff process rather than continuously updating during the call.
+
+Some example states you could use include:
+
+| State                      | Description                                                                                  |
+|----------------------------|----------------------------------------------------------------------------------------------|
+| `customer_refund`          | The call was escalated to a live agent to process a refund request.                          |
+| `complaint_escalation`     | The call was handed off due to a complaint requiring live agent resolution.                   |
+| `successfully_identified`  | The system successfully verified the customer’s identity before transitioning the call to a live agent. |
+
+Example API response:
+
+```json
+{
+  "id": "0bba04d7-38b3-4fd3-a1a8-329c34517fc1",
+  "shared_id": "acme_inc_sdklfasdklfjasbdfklabs",
+  "data": {
+    "customer_id": "12345",
+    "handoff_reason": "successfully_identified"
+  }
+}
+```
+
+## Accessing handoff state data
+
+Use the [handoff tab](/knowledge-base/how-to-setup-action/handoff) to set up a basic handoff function without using the API directly.
+
+### API endpoint
+
+The **Get Handoff State** endpoint retrieves the current handoff state of a conversation using either:
+
+- **Shared IDs (`shared_id`)**: Used in both the PolyAI and client systems to ensure consistency.
+- **PolyAI conversation IDs (`id`)**: Generated automatically by PolyAI for each conversation.
+
+When both IDs are provided, the API prioritizes the `shared_id`.
+
+For full details on parameters, headers, and error codes, refer to the [Get Handoff State API documentation](https://docs.poly.ai/api-reference/endpoint/get-handoff).
+
+## SIP header handoff
+
+Some deployments include handoff metadata in SIP headers when calls are passed back to the contact center. SIP headers can provide critical context by packaging metadata such as agent IDs and handoff states.
+
+### Considerations
+
+- **Customization**: The metadata included in SIP headers may be tailored to your deployment. Verify fields and formats with your engineering team.
+- **Best practices**: Ensure that SIP headers are documented thoroughly and include all necessary information for smooth integration.
+
+## Best practices
+
+For detailed integration steps, visit the [Handoff State](/knowledge-base/how-to-setup-action/handoff) feature page. Below are some general recommendations:
+
+1. **Prioritize shared IDs**: Use `shared_id` for consistency with your internal systems. If both `id` and `shared_id` are provided, the API defaults to the `shared_id`.
+2. **Monitor handoff failures**: Track the `handoff_failed` state (or its equivalent in your deployment) to implement automated retries or fallback workflows.
+3. **Use topic-specific states**: Implement custom states (e.g., `customer_refund` or `complaint_escalation`) for better tracking and reporting on specific interaction types.
+
+---
+
+## Related pages
+
+- [List Conversations](list-conversations): Retrieve metadata for conversations programmatically.
+- [Portal Transcripts](platform-transcripts): Access detailed transcripts for compliance and analytics.
+- [S3-to-S3 Integration](s3-to-s3): Automate large-scale transcript and metadata transfers.
+- [The Handoff State feature page](/knowledge-base/how-to-setup-action/handoff)
+- [The Twilio Integration Guide](/telephony/twilio-how-to-handoff#handoff-integration)
