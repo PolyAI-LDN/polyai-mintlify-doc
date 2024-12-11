@@ -1,36 +1,75 @@
 ---
-title: 'Start Function'
-description: 'The Start Function is a special function triggered unconditionally at the beginning of a conversation. Its purpose is to setup the call before it starts, and it runs synchronously which means the greeting message will not be read until it has finished executing. This setup process typically involves gathering relevant data, such as reading SIP headers or fetching the current date and time. It may also include making API calls or performing other necessary setup actions to ensure the conversation has the correct context.'
+title: 'Start function'
 ---
 
-### Use Cases
+The **Start Function** is a critical setup function triggered unconditionally at the beginning of a conversation. It synchronously
+prepares the conversation context by gathering essential data such as SIP headers or timestamps, performing initial API calls, and setting up the conversation state. This ensures a seamless user experience by providing the assistant with all necessary information before interaction begins.
 
-The **Start Function** can be leveraged in a variety of ways, including but not limited to:
+The Start Function is executed immediately when a conversation begins, ensuring that the assistant is fully prepared to handle user interactions.
+It runs synchronously, meaning the greeting message will not be played until the Start Function has completed its tasks. This function is
+essential for setting up key context and initializing the conversation state.
 
-1. **Reading SIP Headers:** You may want to capture information from the SIP headers for metadata such as caller ID, call origin, or any other relevant telephony data. This could be used to find user information, or determine which hotel site is being called.
+## Key features and functionality
 
-2. **Retrieving Date and Time:** Gathering the current date and time at the start of the conversation to timestamp the interaction or use in later conversation logic.
+1. **Synchronous execution**: Ensures the setup process is complete before the conversation begins.
+2. **Customizable initialization**: Allows for dynamic setup tailored to the specific use case.
+3. **Context preparation**: Gathers and stores data that informs subsequent steps in the conversation.
 
-3. **Making API Calls:** If external data or systems are needed to set up the conversation, the start function can initiate API calls to gather required information, such as fetching customer data or pulling user preferences.
+## Use cases
+
+The **Start Function**:
+
+### 1. **Reads SIP headers**
+   - Capture metadata like caller ID, call origin, or telephony-specific information.
+   - Example use case: Determine the hotel site or business branch the call is directed to based on telephony headers.
+
+### 2. **Retrieves date and time**
+   - Initialize state with the current date, time, or day of the week for timestamping or scheduling logic.
+   - Example use case: Preload available time slots for scheduling queries or confirm user-requested dates.
+
+### 3. **Makes API calls**
+   - Fetch external data such as user preferences, account information, or customer records.
+   - Example use case: Retrieve and preload personalized data to enhance the conversation's responsiveness and user experience.
+
+## Implementation example
+
+Below is a Python implementation of the **Start Function**:
+
 
 ```python
-import datetime as dt 
-import re 
+import datetime as dt
+import re
 
 def start_function(conv: Conversation):
-  now = dt.datetime.now()
-  conv.state.current_date=now.strftime("%A %d-%m-%Y")
-  conv.state.current_weekday=now.strftime("%A")
-  conv.state.current_time=now.strftime("%H:%M")
-  conv.state.available_times=None
-  conv.state.user_bookings= None
-  conv.state.phone_number= None
-  
-  from_header=conv.sip_headers.get('From','')
-  match=re.search("sip:(.+?)@",from_header)
+    # Retrieve the current date and time
+    now = dt.datetime.now()
+    conv.state.current_date = now.strftime("%A %d-%m-%Y")
+    conv.state.current_weekday = now.strftime("%A")
+    conv.state.current_time = now.strftime("%H:%M")
 
-  if match:
-    conv.state.phone_number=match.group(1)
+    # Initialize state variables
+    conv.state.available_times = None
+    conv.state.user_bookings = None
+    conv.state.phone_number = None
 
-  return str()
+    # Extract the phone number from SIP headers
+    from_header = conv.sip_headers.get('From', '')
+    match = re.search(r"sip:(.+?)@", from_header)
+    if match:
+        conv.state.phone_number = match.group(1)
+
+    # Return an empty string to indicate successful execution
+    return str()
 ```
+
+## Best practices for Start Function design
+
+1. **Efficient execution**: Ensure the function completes quickly to minimize delays in starting the conversation.
+2. **Error handling**:
+   - Handle missing or malformed data gracefully to avoid runtime errors.
+   - Provide fallbacks for incomplete or invalid information (e.g., missing SIP headers).
+3. **State initialization**:
+   - Predefine and initialize all state variables needed for the conversation to avoid undefined behaviors.
+4. **Contextual relevance**:
+   - Only include setup steps that are directly relevant to the conversation's purpose.
+   - Avoid overloading the Start Function with unnecessary logic.
