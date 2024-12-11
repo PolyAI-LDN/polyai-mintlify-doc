@@ -1,0 +1,91 @@
+---
+title: 'Flows'
+description: 'Manage complex, multi-step interactions'
+---
+
+Flows are a powerful tool for guiding deterministic agent behavior. You can use them to gain greater control by breaking down conversations into discrete steps.
+
+## Overview
+
+A **flow** is a series of steps that guide the assistant through a structured interaction. Each step in a flow has its own unique prompt,
+ which helps the assistant stay focused on the specific task at hand. This modular design makes flows particularly useful for scenarios like
+ collecting user information, processing requests, or navigating dynamic conversation paths.
+
+Flows are triggered by specific **functions** or **FAQ entries**, and once a flow is active, the assistant will progress through its steps sequentially,
+following defined transition rules.
+
+## Key features
+
+### 1. **Step-by-step prompts**
+Each step in a flow has a dedicated prompt, reducing the likelihood of hallucinations or skipping steps. This focused approach helps ensure
+the assistant processes one task at a time.
+
+### 2. **Hidden prompts**
+Only the current step's prompt is visible to the model, keeping the conversation on track. This prevents the assistant from "seeing"
+future steps, maintaining logical progression.
+
+### 3. **Transition functions**
+Transition functions move the assistant from one step to the next. These functions are defined within the flow and can only route to other
+ steps within the same flow.
+
+### 4. **Global functions**
+Functions not tied to specific steps can be used throughout the assistant's workflows. These functions allow for reusable logic, such as API
+calls or user input validation.
+
+### 5. **ASR biasing**
+Flows support **ASR (Automatic Speech Recognition) biasing** to improve transcription accuracy. This is especially useful for collecting
+ alphanumeric data like postcodes or phone numbers.
+
+## Best practices for flows
+
+### Keep steps concise
+- Ensure each step handles a single cohesive task (like collecting a name or date).
+- Combine related pieces of information (such as date, time, and number of people) into one step for efficiency.
+
+### Meaningful function names
+- Use descriptive names for functions (for example, `SaveLastName` or `CollectPhoneNumber`).
+- Avoid naming functions based on future tasks (e.g., `GoToNextStep`), as this can confuse the model.
+
+### Modular design
+- Use flows to encapsulate logic for specific tasks, like booking a reservation or handling a customer query.
+- Incorporate fallback mechanisms to handle unexpected inputs gracefully.
+
+### Exiting flows
+- Always include an explicit exit function (`ExitFlow`) to prevent the assistant from looping through unnecessary steps.
+- Exiting the flow resets the assistant’s focus, allowing it to handle new user queries effectively.
+
+## Advanced features
+
+### Conditional logic
+Flows can include conditions to dynamically adapt responses based on user input. For example:
+- If a user provides a specific date, the assistant can check availability and guide the user accordingly.
+
+### Variables in prompts
+Flows support the use of variables to dynamically fill in information during interactions. This allows for personalized and context-aware responses.
+
+### ASR biasing
+- Configure ASR biasing for specific steps to improve transcription accuracy for numbers, postcodes, or other alphanumeric inputs.
+- Boost keywords to prioritize relevant user inputs during transcription.
+
+## Example flow
+
+Here’s an example of a flow for making a restaurant reservation:
+
+1. **Start Step**: Collect the date, time, and number of people.
+   - Prompt: "What date and time would you like to book a table for? How many people will be dining?"
+   - Function: `CollectReservationDetails`
+
+2. **Check Availability**:
+   - Call an API to check availability based on user input.
+   - If available: Transition to the confirmation step.
+   - If unavailable: Prompt the user to choose a different time.
+
+3. **Confirmation Step**:
+   - Prompt: "Great! Your table is booked for [date] at [time] for [number of people]. Is there anything else I can help you with?"
+   - Function: `ExitFlow`
+
+## Troubleshooting
+
+- **Missing Exit Function**: Failing to exit a flow can lead to the assistant repeating unnecessary steps or ignoring new user queries.
+- **Overloading Steps**: Including too much information in a single step can overwhelm both the assistant and the user.
+- **Poorly Named Functions**: Functions with vague or misleading names can cause unexpected behavior.
