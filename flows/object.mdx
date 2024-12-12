@@ -1,0 +1,43 @@
+---
+title: 'Object'
+description: 'The `Flow` object exposes useful information about the current flow and allows transitioning between steps in the flow.'
+---
+
+### current_step (Property)
+Type: string
+Description: Returns the name of the current step.
+
+```python
+if conv.current_step == "Step 1":
+    return "You are in Step 1"
+```
+
+### goto_step (Method)
+
+```python
+flow.goto_step(step_name)
+```
+
+**Description:** Transitions to the specified step in the flow.
+<Note> The flow only respects the last `goto_step` call.</Note>
+
+```python
+flow.goto_step("Step 2")
+
+
+if conv.state.should_go_to_another_step:
+    flow.goto_step("Step 3")
+```
+
+**Rejecting transition example:**
+
+```python
+def flow_transition(conv: Conversation, flow: Flow, first_name: str, last_name: str):
+    if not first_name or not last_name:
+        return "You need to collect the first and last name."
+
+    conv.state.first_name = first_name
+    conv.state.last_name = last_name
+
+    flow.goto_step("Next step")
+```
