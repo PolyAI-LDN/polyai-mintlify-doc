@@ -1,0 +1,147 @@
+---
+title: Webchat and the Chat API
+sidebarTitle: Overview
+description: How to plug the PolyAI ChatAPI into your product ecosystem
+---
+
+The Chat API allows customers to seamlessly integrate their PolyAI agents into existing CCaaS solutions. By leveraging a provided
+API key and connector token, customers can send requests to their project's agent, receive responses, and manage conversational flow.
+
+**Key Benefits:**
+- Direct integration into existing solutions through simple REST API endpoints.
+- Secure access via API key and connector token.
+- Easy conversation initiation and ongoing message exchange.
+
+---
+
+## Summary
+
+The goal of the Chat API is to facilitate programmatic access to a conversation with a specified agent. Customers can integrate
+this functionality into their systems to create richer user experiences, such as automated chat interactions or extended customer
+support flows.
+
+---
+
+## Architecture
+
+### High-Level Overview
+
+- **Service Exposure:** The chat endpoints are served from the existing Webchat handler (Go-based, Kubernetes service).
+- **Request Flow:** External requests are routed through an external API service, which then proxies them to the Webchat handler.
+- **Security:** Requests must include a valid API key and connector token associated with a project. These credentials ensure that only
+authorized clients can initiate and continue conversations.
+
+For a visual representation of the overall design, refer to the architectural diagram: [Miro Board](https://miro.com/app/board/uXjVNzLho1g=/)
+
+---
+
+## Endpoints
+
+All Chat API endpoints follow a similar structure:
+
+**Base Path:**
+POST api/v1/<account_id>/<project_id>/chat/
+
+The <account_id> and <project_id> parameters identify the specific project and account the request pertains to.
+
+### Create Conversation
+
+**Endpoint:**
+POST api/v1/<account_id>/<project_id>/chat/create
+
+**Headers (Required):**
+X-API-Key: <API-Key>
+X-Token: <Connector-Token>
+
+**Example Headers:**
+python
+  X-Connector-Token: poiuytrewq0987654321
+  X-Api-Key: asdfghjkl12345678
+
+**Request Body:**
+No request body parameters required for creation.
+
+**Successful Response:**
+python
+  {
+    "conversation_id": "WEBCHAT_79f8f590-ce93-43d0-800f-62d8cbfea1ed",
+    "end_conversation": false,
+    "response": "Welcome to Cheesebot! Do ya like cheese??"
+  }
+
+### Send Response
+
+**Endpoint:**
+POST api/v1/<account_id>/<project_id>/chat/respond
+
+**Headers (Required):**
+X-API-Key: <API-Key>
+X-Token: <Connector-Token>
+
+**Example Headers:**
+python
+  X-Connector-Token: poiuytrewq0987654321
+  X-Api-Key: asdfghjkl12345678
+
+**Request Body:**
+python
+  {
+    "conversation_id": "WEBCHAT_79f8f590-ce93-43d0-800f-62d8cbfea1ed",
+    "message": "I like comte cheese"
+  }
+
+**Successful Response:**
+python
+  {
+    "conversation_id": "WEBCHAT_79f8f590-ce93-43d0-800f-62d8cbfea1ed",
+    "end_conversation": true,
+    "response": "Nice, I like comte too goodbye"
+  }
+
+---
+
+## User Flow
+
+### Pre-Usage Setup
+
+1. **Customer Requests Access:**
+   The customer requests enablement of the Chat API for their specific project.
+
+2. **Provisioning by PolyAI:**
+   - A PolyAI engineer creates the required connector.
+   - A PolyAI engineer generates the API key for the customer.
+
+3. **Authorization Setup:**
+   The API key must have the appropriate permission policies for the project’s Chat endpoints, for example:
+
+   python
+     [
+       {
+         "Action": "PLATFORM:PROJECT-eb85e04a:POST:/v1/PLATFORM/PROJECT-eb85e04a/chat/create",
+         "Effect": "ALLOW"
+       },
+       {
+         "Action": "PLATFORM:PROJECT-eb85e04a:POST:/v1/PLATFORM/PROJECT-eb85e04a/chat/respond",
+         "Effect": "ALLOW"
+       }
+     ]
+
+4. **Credentials Delivery:**
+   The customer receives the API key and connector token to be used in the Chat API calls.
+
+### Chatting with the Endpoint
+
+1. **Initiate Conversation:**
+   Send a POST /chat/create request with the required headers.
+   The server validates the API key and connector token.
+
+2. **Send Messages / Receive Responses:**
+   For each subsequent message, send a POST /chat/respond request with the required headers and conversation_id.
+
+3. **Backend Processing:**
+   - The request is validated (API key, connector, request body).
+   - The conversation and messages are stored.
+   - The agent processes the input, applies policy logic, and returns a response.
+
+4. **Handoff Logic (If Needed):**
+   The end_conversation field indicates when a conversation should be terminated or handed off.
