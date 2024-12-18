@@ -1,3 +1,36 @@
 ---
 title: 'Amazon Connect'
 ---
+
+## Flow Overview
+
+1. **Inbound Call Handling**
+   - Customer calls are routed via [Amazon Connect](https://aws.amazon.com/connect/), AWS’s cloud-based contact center service.
+
+2. **Event Processing**
+   - [AWS Lambda](https://aws.amazon.com/lambda/) processes the incoming call data and writes call attributes to [Amazon DynamoDB](https://aws.amazon.com/dynamodb/), a fast, flexible NoSQL database.
+
+3. **PolyAI Processing**
+   - PolyAI retrieves call attributes securely using [AWS STS](https://aws.amazon.com/iam/features/manage-credentials/), enabling temporary, secure access to the client's cloud resources.
+   - Attributes are updated during the call lifecycle and stored back in DynamoDB.
+
+
+```mermaid
+flowchart TB
+    %% Define Sections
+    subgraph Client_AWS_Cloud["Client AWS Cloud"]
+        Customers --> Amazon_Connect["Amazon Connect"]
+        Amazon_Connect --> AWS_Lambda["AWS Lambda"]
+        AWS_Lambda --> DynamoDB["Amazon DynamoDB"]
+    end
+
+    subgraph PolyAI_AWS_Cloud["PolyAI AWS Cloud"]
+        PolyAI["PolyAI"] -->|Retrieve attributes| AWS_STS["AWS STS"]
+        AWS_STS --> DynamoDB
+        PolyAI -->|Update attributes| AWS_STS
+        Amazon_Connect -->|Transfer call| PolyAI
+    end
+
+    %% Connections
+    DynamoDB -->|Write attributes| AWS_Lambda
+```
