@@ -7,22 +7,22 @@ Flows are a powerful tool for guiding deterministic agent behavior. You can use 
 
 ## Overview
 
-A **flow** is a series of steps that guide the assistant through a structured interaction. Each step in a flow has its own unique prompt,
- which helps the assistant stay focused on the specific task at hand. This modular design makes flows particularly useful for scenarios like
- collecting user information, processing requests, or navigating dynamic conversation paths.
+A **flow** is a series of steps that guide the assistant through a structured interaction. Each step in a flow has its own unique prompt, similar
+to the [knowledge base](/knowledge-base/introduction) content field. This modular design makes flows particularly useful for scenarios like
+collecting user information, processing requests for reservations or bookings, or structuring dynamic conversations with complex logic.
 
-Flows are triggered by specific **functions** or **FAQ entries**, and once a flow is active, the assistant will progress through its steps sequentially,
+Flows are triggered by specific **functions** or **action fields**, and once a flow is active, the assistant will progress through its steps sequentially,
 following defined transition rules.
 
 ## Key features
 
 ### 1. **Step-by-step prompts**
-Each step in a flow has a dedicated prompt, reducing the likelihood of hallucinations or skipping steps. This focused approach helps ensure
-the assistant processes one task at a time.
+Each step in a flow has a dedicated prompt to keep processing focused. This helps ensure
+the assistant processes one task at a time, and does not include any superfluous information in its answers. .
 
 ### 2. **Hidden prompts**
 Only the current step's prompt is visible to the model, keeping the conversation on track. This prevents the assistant from "seeing"
-future steps, maintaining logical progression.
+future steps.
 
 ### 3. **Transition functions**
 Transition functions move the assistant from one step to the next. These functions are defined within the flow and can only route to other
@@ -39,8 +39,8 @@ Flows support **ASR (Automatic Speech Recognition) biasing** to improve transcri
 ## Best practices for flows
 
 ### Keep steps concise
-- Ensure each step handles a single cohesive task (like collecting a name or date).
-- Combine related pieces of information (such as date, time, and number of people) into one step for efficiency.
+- Ensure each step handles a single cohesive task, like collecting a name or date.
+- When handling related pieces of information like the date, time, and number of people for a restaurant booking, combine them into one step for cohesion.
 
 ### Meaningful function names
 - Use descriptive names for functions (for example, `SaveLastName` or `CollectPhoneNumber`).
@@ -48,11 +48,13 @@ Flows support **ASR (Automatic Speech Recognition) biasing** to improve transcri
 
 ### Modular design
 - Use flows to encapsulate logic for specific tasks, like booking a reservation or handling a customer query.
-- Incorporate fallback mechanisms to handle unexpected inputs gracefully.
+- Incorporate fallback mechanisms to handle unexpected inputs.
 
 ### Exiting flows
 - Always include an explicit exit function (`ExitFlow`) to prevent the assistant from looping through unnecessary steps.
 - Exiting the flow resets the assistant's focus, allowing it to handle new user queries effectively.
+
+<Warning> Always include an exit step in your flow. Un-exited flows can cause <Tooltip tip="Incorrect or misleading results.">hallucinations</Tooltip>. </Warning>
 
 ## Advanced features
 
@@ -86,6 +88,7 @@ Here's an example of a flow for making a restaurant reservation:
 
 ## Troubleshooting
 
-- **Missing Exit Function**: Failing to exit a flow can lead to the assistant repeating unnecessary steps or ignoring new user queries.
-- **Overloading Steps**: Including too much information in a single step can overwhelm both the assistant and the user.
-- **Poorly Named Functions**: Functions with vague or misleading names can cause unexpected behavior.
+- **Missing exit step**: Failing to exit a flow can lead to the assistant repeating unnecessary steps or ignoring new user queries.
+- **Overloading steps**: Including too much information in a single step can overwhelm both the assistant and the user.
+- **Poorly-named functions**: Functions with vague or misleading names can cause unexpected behavior. Remember that when using
+the PolyAI platform, all title and description fields matter to the LLM.
