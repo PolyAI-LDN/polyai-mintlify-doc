@@ -1,3 +1,177 @@
 ---
 title: 'OpenTable'
 ---
+
+## Goal
+
+PolyAI aims to partner with OpenTable to be featured on their marketplace, enabling OpenTable customers to seamlessly integrate PolyAI's voice agent. This collaboration streamlines the process for restaurants to enhance customer service with AI-driven voice interactions, improving efficiency and guest experience.
+
+## User Journey
+
+### New Customers
+1. New customers see the **PolyAI tile** in the OpenTable marketplace within their OT console.
+2. They click **“Integrate with PolyAI”**.
+3. Customers are redirected to a page within OpenTable and prompted for a `partner_identifier`.
+   - Since new customers do not have a `partner_identifier`, they click **“Contact PolyAI”** to trigger a Sales/Partnership form.
+4. No actual integration happens at this stage.
+
+### Existing Customers
+1. Customers request a `partner_identifier` from the PolyAI team.
+2. The internal PolyAI team calls the **Create Integration** endpoint to generate the `partner_identifier` and share it with the customer.
+   - Restaurant metadata (e.g., name, address) must be collected from the customer.
+3. Existing customers click the PolyAI tile in OpenTable Marketplace and provide the `partner_identifier`.
+   - OpenTable backend calls the **Validate Endpoint** with `complete=false`.
+   - PolyAI returns the integration metadata.
+4. Customers confirm the details, and OpenTable completes the integration setup.
+   - OpenTable calls the **Validate Endpoint** again with `complete=true` to finalize the integration.
+5. The integration is marked as completed in both systems.
+
+---
+
+## User Journey Flow
+
+1. User clicks on the **PolyAI tile** on OpenTable Marketplace.
+2. The user inputs a **unique identifier token** (provided by PolyAI).
+3. OpenTable sends a request to the **Validate Endpoint** with `restaurant_id` and the token.
+4. PolyAI validates the token and links the `restaurant_id` to the integration.
+5. OpenTable confirms and calls the **Validate Endpoint** again with `complete=true` to mark integration as complete.
+
+If OpenTable wants to **deactivate** the integration, they remove permissions and call the **Deactivate Endpoint**.
+
+---
+
+## API Endpoints
+
+### 1. Create Integration
+**Request**
+```python
+POST https://api.dev.polyai.app/v1/opentable/<account_id>/<project_id>
+Content-Type: application/json
+```
+
+**Request Body**
+
+```json
+{
+  "polyai_live": true,
+  "additional_information": {
+    "name": "string",
+    "street1": "string",
+    "street2": "string (Optional)",
+    "city": "string",
+    "state": "string",
+    "country": "string",
+    "zip": "string"
+  }
+}
+```
+
+**Response**
+```json
+{
+  "account_id": "string",
+  "additional_information": {},
+  "project_id": "string",
+  "status": "CREATED",
+  "token": "string",
+  "restaurant_id": null,
+  "updated_at": "Datetime"
+}
+```
+
+### 2. Get Integration
+**Request**
+
+```python
+GET https://api.dev.polyai.app/v1/opentable/<account_id>/<project_id>
+```
+
+**Response**
+```json
+{
+  "account_id": "string",
+  "additional_information": {},
+  "project_id": "string",
+  "status": "CREATED | IN_PROGRESS | COMPLETED | INACTIVE",
+  "token": "string",
+  "restaurant_id": "string | null",
+  "updated_at": "Datetime"
+}
+```
+
+### 3. Validate Integration
+**Request**
+```python
+POST https://api.dev.polyai.app/v1/opentable/validate?complete=true/false
+Content-Type: application/json
+```
+
+**Request Body**
+```json
+{
+  "restaurant_id": "string",
+  "partner_identifier": "string"
+}
+```
+
+**Response**
+
+```json
+{
+  "account_id": "string",
+  "project_id": "string",
+  "restaurant_id": "string",
+  "updated_at": "Datetime",
+  "partner_identifier": "string",
+  "state": "IN_PROGRESS | COMPLETED",
+  "is_live": true,
+  "name": "string",
+  "address": {
+    "street1": "string",
+    "street2": "string",
+    "city": "string",
+    "state": "string",
+    "country": "string",
+    "zip": "string"
+  }
+}
+```
+
+### 4. Deactivate integration
+**Request**
+```python
+POST https://api.dev.polyai.app/v1/opentable/deactivate
+Content-Type: application/json
+```
+
+**Request Body**
+
+```
+json
+{
+  "restaurant_id": "string"
+}
+```
+
+**Response**
+
+```json
+{
+  "account_id": "string",
+  "project_id": "string",
+  "restaurant_id": "string",
+  "updated_at": "Datetime",
+  "partner_identifier": "string",
+  "state": "INACTIVE",
+  "is_live": true,
+  "name": "string",
+  "address": {
+    "street1": "string",
+    "street2": "string",
+    "city": "string",
+    "state": "string",
+    "country": "string",
+    "zip": "string"
+  }
+}
+```
