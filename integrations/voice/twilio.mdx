@@ -1,3 +1,146 @@
 ---
 title: 'Twilio'
+description: 'Integrate PolyAI voice agents into your Twilio routing and handoff setups.'
 ---
+
+<Tip>Trying to set up your project telephony using Twilio? Start with the [telephony guide](/telephony/twilio/introduction) for an
+overview of connecting Twilio telephony to your PolyAI projects using the UI.</Tip>
+
+The PolyAI integration for [Twilio Flex for contact centers](https://www.twilio.com/en-us/flex/use-cases/contact-center) routes
+incoming customer calls to PolyA's voice agents using the Twilio telephony system.
+
+If a [handoff](call-handoff/introduction) to a live agent is needed, the integration transfers the call
+and accompanying data to Twilio Flex for human handling. All interactions are
+managed through [SIP](https://www.twilio.com/docs/voice/sip) or a no-code [Twilio Studio](https://www.twilio.com/docs/studio) workflow.
+
+<CardGroup cols={2}>
+  <Card title="Set up connector" icon="square-1">
+    Create a [PolyAI Connector](#set-up-connector) and retrieve your Connector Token using the API.
+  </Card>
+  <Card title="Install Twilio addon" icon="square-2">
+    Link your **[PolyAI Connector Token](#install-twilio-addon)** to Twilio.
+  </Card>
+  <Card title="Configure routing" icon="square-3">
+    Use **[TwiML or Twilio Studio](#configure-routing)** to route calls to PolyAI.
+  </Card>
+  <Card title="Handle handoffs" icon="square-4">
+    Manage live-agent handoffs with the [PolyAI Handoff API](#handle-handoffs).
+  </Card>
+</CardGroup>
+
+PolyAI is live on the [Twilio Marketplace](https://www.twilio.com/marketplace) using a [media stream](https://www.twilio.com/docs/voice/media-streams)
+connector implementation.
+
+## Overview of capabilities
+
+- **Automated call handling**: Twilio routes incoming calls to PolyAI virtual agents, where customer queries are resolved, or additional data is captured for live-agent handoffs.
+- **Live-agent handoffs**: The PolyAI virtual agent passes contextual data from PolyAI to Twilio Flex, to be displayed in the [Flex UI](https://www.twilio.com/docs/flex/developer/ui).
+- **Routing**: Supports Twilio Studio flows and programmable routing using TwiML syntax.
+- **Metadata exchange**: Use SIP headers and APIs to share contextual information and accurately route tasks.
+
+## Set up connector
+
+To integrate PolyAI with Twilio, start by creating a PolyAI Connector. The connector links Twilio with your PolyAI project configuration.
+
+### Command to create connector
+
+```bash
+curl --location --request GET 'connector-service.us-1.platform.polyai.int/api/v1/connector' \
+--header 'Content-Type: application/json' \
+--data '{
+   "name": "[friendly name]",
+   "account_id": "[ACCOUNT_ID]",
+   "project_id": "[PROJECT_ID]",
+   "client_env": "[CLIENT_ENV]",
+   "variant_id": "[VARIANT_ID]",
+   "extra_info": {
+       "telephony": {
+           "asr_lang_code": "en-GB",
+           "tts_lang_code": "en-GB",
+           "twilio_partnership": true
+       }
+   }
+}
+```
+
+### Outputs
+
+The command generates:
+1. **Connector ID**: Used for debugging configurations.
+2. **Connector Token**: Required for linking the PolyAI Connector in Twilio.
+
+### Mapping notes
+
+Each Twilio Connector maps directly to:
+- A PolyAI Connector.
+- A PolyAI project configuration.
+
+To manage multiple environments (e.g., Sandbox and Production), repeat the steps to create separate connectors for each.
+
+## Install Twilio addon
+
+After obtaining the Connector Token, install the PolyAI Connector Addon in Twilio:
+
+1. Log in to your Twilio account.
+2. Navigate to the Twilio Marketplace and search for "PolyAI Connector."
+3. Install the Addon and paste your Connector Token into the required field.
+4. Save changes and verify the connection.
+
+## Configure routing
+
+Twilio offers two routing methods: **TwiML** and **Twilio Studio**.
+
+### TwiML syntax
+
+Define your Twilio flow with the `<Connect>` tag:
+
+```xml
+<Response>
+  <Say>Connecting your call...</Say>
+  <Connect connectorId="[Your Connector ID]" />
+</Response>
+```
+
+### Twilio Studio flow
+
+1. Open Twilio Studio.
+2. Add a **Make HTTP Request** widget to retrieve PolyAI handoff context via API.
+3. Use a **Send To Flex** widget to route calls to agents with the retrieved context.
+4. Save and test the flow.
+
+## Handle handoffs
+
+PolyAI provides detailed call context for live-agent handoffs:
+
+1. **Store handoff data**: PolyAI captures customer information in the `context.state.handoff` object.
+2. **API retrieval**: Twilio Functions fetch this data using the PolyAI Handoff API.
+3. **Flex display**: The data is passed to Twilio Flex, where agents can view it in the Flex UI.
+
+### Example Twilio Function
+
+```javascript
+
+const axios = require('axios');
+
+exports.handler = async (context, event, callback) => {
+  try {
+    const config = {
+      headers: { "x-api-key": "<your-polyai-api-key>" }
+    };
+    const response = await axios.get(
+      `https://api.polyai.app/v1/handoff_state?id=${event.call_sid}`,
+      config
+    );
+    callback(null, response.data);
+  } catch (error) {
+    console.error(error);
+    callback(error);
+  }
+};
+```
+
+## Useful links
+
+- [Twilio Flex Documentation](https://www.twilio.com/docs/flex)
+- [Twilio Studio](https://www.twilio.com/docs/studio)
+- [Twilio Flex Plugin Quickstart](https://www.twilio.com/docs/flex/quickstart/getting-started-plugin)
