@@ -1,3 +1,111 @@
 ---
 title: 'Overview'
+description: 'Configure and manage multi-site setups for tailored customer interactions.'
 ---
+
+The **Variant Management** feature in PolyAI allows contact centers to manage content tailored for different sites, like a coffee shop
+ with three stores or a hotel chain with branches in New York, London, and Tokyo.
+
+![variant-1](/images/variant_1.png)
+
+This setup means location-specific details, like multiple phone numbers,
+addresses, and operating hours, can be handled by a single assistant single assistant. Variants streamline the configuration of multi-site operations and provide
+ precise responses to customers based on their location.
+
+## Prerequisites
+
+1. Ensure you have admin access to the **Variant Management** tab in your PolyAI assistant.
+2. Set up a Knowledge Base aligned with your multi-site configuration goals. Learn more: [Knowledge Base Guide](/knowledge-base/introduction).
+3. Understand how to use **functions** in your assistant: [Functions Guide](/function/introduction).
+
+## Key capabilities
+
+### Multi-site configurations
+Use **Variant Management** to manage multiple locations within the same assistant, ensuring responses are location-specific. Attributes such as phone numbers and opening hours can be stored per variant, enabling dynamic customer interactions.
+
+### Knowledge base integration
+Attributes defined in Variant Management are accessible in your Knowledge Base (KB) rules, templates, and actions. For example, you can use `${variant_foo}` to populate responses dynamically with location-specific information.
+
+### Flexible routing
+Set up phone number-based routing in the [start function](/function/start-function) to direct callers to the appropriate variant. Variants can also be used to tailor SMS messages dynamically.
+
+### Advanced functions
+Use the `conv.variant` object to retrieve variant attributes during conversations or to make decisions based on variant data. Use functions to set, retrieve, or act on variant-specific attributes.
+
+### Testing and troubleshooting
+Testing variants is currently limited in chat, but workarounds include setting variants manually in the start function or creating specialized testing rules.
+
+## Real-life use case
+
+A hotel chain with multiple branches worldwide uses Variant Management to manage its assistant. Each branch (e.g., "London" and "New York") has a variant configured with attributes like phone numbers, addresses, and check-in hours. When a guest calls, the assistant identifies the branch based on the caller's phone number and tailors the response accordingly.
+
+## Variants and attributes
+
+* Use the (**+**) plus sign to add a new attribute.
+* Use the **Add variant** button to add a new variant.
+
+![variant-2](/images/variant_2.png)
+
+### Setting up a new variant
+
+![variant-3](/images/variant_add_variant_annexe.png)
+
+To configure variants:
+1. Navigate to the **Variant Management** tab in your assistant.
+2. Add a new variant and provide a name, such as "London" or "Tokyo."
+4. Save your configuration.
+
+![variant-4](/images/variant_added.png)
+
+### Setting up a new attribute
+
+![variant-5](/images/variant_add_attribute.png)
+
+Define attributes for the variant, such as:
+   - **Phone numbers**
+   - **Address**
+   - **Operating hours**
+   - **Menu**
+   - **Accessibility**
+
+![variant-6](/images/variant_attribute_added.png)
+
+## Using variants in SMS templates
+
+Main article: [SMS](/sms/introduction)
+
+To include variants dynamically in SMS messages, use the syntax `${variant_attribute}`. For example:
+- `${variant_phone_number}` dynamically includes the phone number associated with the active variant.
+
+## Testing in chat
+Testing variants in chat requires manual setup in the start function or custom testing rules:
+1. Update the start function with the desired variant:
+
+   ```python
+   if not conv.callee_number:
+       conv.set_variant("London")
+   ```
+
+2. Create functions such as `set_variant1`, `set_variant2` to manually switch variants during testing.
+
+## Advanced: Accessing variants in functions
+
+This example demonstrates how to dynamically assign variants based on a caller's phone number. Using the `conv.variant` object,
+you can retrieve and set the appropriate variant to ensure responses are tailored to the caller's location or context.
+
+```python
+def start_function(conv: Conversation):
+    phone_numbers = {
+        variant.phone_number: variant_name
+        for variant_name, variant in conv.variants.items()
+    }
+    if conv.callee_number:
+        conv.set_variant(phone_numbers[conv.callee_number])
+```
+
+## Useful links
+
+- [Knowledge Base Guide](/knowledge-base/introduction)
+- [Functions Guide](/function/introduction)
+- [Rules Guide](/agent-settings/rules)
+- [Advanced Templates](/knowledge-base/RAG/introduction)
