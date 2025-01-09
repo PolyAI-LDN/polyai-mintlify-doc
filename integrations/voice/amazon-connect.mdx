@@ -1,36 +1,90 @@
 ---
 title: 'Amazon Connect'
+description: 'Integrate PolyAI voice agents with Amazon Connect for advanced call automation and routing.'
 ---
 
-## Flow Overview
+Integrating PolyAI voice agents with Amazon Connect enhances your contact center by automating call handling, securely managing data, and
+ensuring seamless live-agent handoffs. This guide walks you through setting up and optimizing the integration for efficient customer interactions.
 
-1. **Inbound Call Handling**
-   - Customer calls are routed via [Amazon Connect](https://aws.amazon.com/connect/), AWS’s cloud-based contact center service.
+## Overview of capabilities
 
-2. **Event Processing**
-   - [AWS Lambda](https://aws.amazon.com/lambda/) processes the incoming call data and writes call attributes to [Amazon DynamoDB](https://aws.amazon.com/dynamodb/), a fast, flexible NoSQL database.
+### Automated call handling
+PolyAI voice agents handle incoming calls routed via Amazon Connect, capturing customer intent and responding with knowledge-based answers. This
+minimizes the load on live agents while maintaining high-quality service.
 
-3. **PolyAI Processing**
-   - PolyAI retrieves call attributes securely using [AWS STS](https://aws.amazon.com/iam/features/manage-credentials/), enabling temporary, secure access to the client's cloud resources.
-   - Attributes are updated during the call lifecycle and stored back in DynamoDB.
+### Secure data access
+PolyAI leverages **[AWS STS](https://aws.amazon.com/iam/features/manage-credentials/)** (Security Token Service) to securely retrieve, update, and
+store call attributes in **[Amazon DynamoDB](https://aws.amazon.com/dynamodb/)**. This ensures secure and real-time data exchange during the call lifecycle.
 
+### Dynamic routing and workflows
+PolyAI integrates with **[Amazon Connect Contact Flows](https://docs.aws.amazon.com/connect/latest/adminguide/contact-flows.html)** to support
+advanced call routing based on customer input, predefined rules, or real-time conditions.
 
-```mermaid
-flowchart TB
-    %% Define Sections
-    subgraph Client_AWS_Cloud["Client AWS Cloud"]
-        Customers --> Amazon_Connect["Amazon Connect"]
-        Amazon_Connect --> AWS_Lambda["AWS Lambda"]
-        AWS_Lambda --> DynamoDB["Amazon DynamoDB"]
-    end
+### Live-agent handoffs
+Seamlessly transfer calls requiring human intervention to Amazon Connect agents with full contextual data, ensuring continuity and personalized
+customer service.
 
-    subgraph PolyAI_AWS_Cloud["PolyAI AWS Cloud"]
-        PolyAI["PolyAI"] -->|Retrieve attributes| AWS_STS["AWS STS"]
-        AWS_STS --> DynamoDB
-        PolyAI -->|Update attributes| AWS_STS
-        Amazon_Connect -->|Transfer call| PolyAI
-    end
+### Real-time analytics
+Track call performance, resolution rates, and agent interaction efficiency through Amazon Connect’s analytics dashboard, combined with PolyAI’s
+detailed call logs.
 
-    %% Connections
-    DynamoDB -->|Write attributes| AWS_Lambda
-```
+## Prerequisites
+
+1. **Amazon Connect instance**: Ensure you have an active Amazon Connect instance with administrative access.
+2. **PolyAI project**: Configure your PolyAI project to align with Amazon Connect workflows.
+3. **AWS services setup**:
+   - **[Amazon DynamoDB](https://aws.amazon.com/dynamodb/)** for storing call attributes.
+   - **[AWS Lambda](https://aws.amazon.com/lambda/)** for processing event data.
+   - **[AWS STS](https://aws.amazon.com/iam/features/manage-credentials/)** for secure data access.
+4. **Integration credentials**: Obtain API keys and IAM roles for connecting Amazon Connect with PolyAI.
+
+## Setting up the integration
+
+### Configure Amazon Connect instance
+1. Log in to your **AWS Management Console** and open **Amazon Connect**.
+2. Navigate to the **Contact Flows** section and create or edit a flow.
+3. Add the following key components to your flow:
+   - **PolyAI handoff node**: Routes calls to PolyAI voice agents.
+   - **Lambda function node**: Configures a Lambda function for processing call events.
+4. Save and publish the flow.
+
+Refer to **[Amazon Connect Contact Flows Documentation](https://docs.aws.amazon.com/connect/latest/adminguide/contact-flows.html)** for detailed steps.
+
+### Configure AWS Lambda function
+1. Create a Lambda function in the AWS Management Console.
+2. Use the provided template for processing call events and securely retrieving attributes from DynamoDB.
+3. Grant the Lambda function necessary permissions using an IAM role with DynamoDB and STS access.
+4. Deploy and link the Lambda function to your Amazon Connect flow.
+
+For more, see **[AWS Lambda Documentation](https://docs.aws.amazon.com/lambda/latest/dg/welcome.html)**.
+
+### Set up DynamoDB for call attributes
+1. Create a DynamoDB table to store call attributes.
+2. Define primary keys to manage data, such as `CallID` or `CustomerID`.
+3. Link the DynamoDB table to your Lambda function for real-time data updates during call interactions.
+
+Refer to **[Amazon DynamoDB Documentation](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Introduction.html)** for additional
+setup instructions.
+
+### Integrate PolyAI APIs
+1. Enable PolyAI APIs to:
+   - Retrieve customer-specific data.
+   - Update call attributes dynamically.
+   - Log call outcomes in external systems.
+2. Use AWS STS to securely authenticate PolyAI requests to AWS services during calls.
+
+For API details, see **[PolyAI API Reference](https://docs.poly.ai/api-reference)**.
+
+## Testing and deployment
+
+1. **Conduct end-to-end tests**: Verify that Amazon Connect, Lambda, DynamoDB, and PolyAI components function as expected.
+2. **Monitor performance**: Use Amazon Connect’s analytics dashboard to track call volume, routing efficiency, and agent handoffs.
+3. **Optimize workflows**: Adjust contact flows, API configurations, and Lambda function settings based on test results.
+
+## Useful links
+
+- [Amazon Connect Contact Flows Documentation](https://docs.aws.amazon.com/connect/latest/adminguide/contact-flows.html)
+- [AWS Lambda Documentation](https://docs.aws.amazon.com/lambda/latest/dg/welcome.html)
+- [Amazon DynamoDB Documentation](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Introduction.html)
+- [AWS STS Documentation](https://aws.amazon.com/iam/features/manage-credentials/)
+- [PolyAI API Reference](https://docs.poly.ai/api-reference)
