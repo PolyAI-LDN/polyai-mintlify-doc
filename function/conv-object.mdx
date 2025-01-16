@@ -1,0 +1,205 @@
+---
+title: "Conversation"
+description: "Comprehensive reference for the Conversation (conv) object, its attributes, and methods."
+---
+
+The `Conversation` object (`conv`) provides access to critical conversation data and utilities for controlling the assistant's behavior during
+interactions. It centralizes functionality for managing states, flows, SMS communication, and the current environment.
+
+## Attributes
+
+The following attributes are available in the `conv` object:
+
+<AccordionGroup>
+
+  <Accordion title="env">
+    **Description**: Identifies the current [environment](/environments-and-versions/introduction) in which the assistant is running.
+
+    **Values**:
+    - `"sandbox"`: For testing new features.
+    - `"pre-release"`: For staging and quality assurance.
+    - `"live"`: For production environments.
+
+    **Example**:
+    ```python
+    if conv.env == "live":
+        print("Assistant is live!")
+    ```
+  </Accordion>
+
+  <Accordion title="sip_headers">
+    **Description**: A dictionary mapping [SIP headers](https://datatracker.ietf.org/doc/html/rfc7131) to their corresponding values, such as caller metadata.
+
+    **Example**:
+    ```python
+    caller_id = conv.sip_headers.get("From", "Unknown Caller")
+    print("Caller ID:", caller_id)
+    ```
+  </Accordion>
+
+  <Accordion title="caller_number">
+    **Description**: Returns the caller's phone number.
+
+    **Type**: Optional string
+
+    **Example**:
+    ```python
+    import requests
+
+    response = requests.get(f"https://api.example.com/users?number={conv.caller_number}")
+    response.raise_for_status()
+
+    user = response.json()
+    conv.state.user = user
+    ```
+  </Accordion>
+
+  <Accordion title="callee_number">
+    **Description**: Returns the phone number the caller dialed.
+
+    **Type**: Optional string
+
+    **Example**:
+    ```python
+    dialed_number = conv.callee_number
+    if dialed_number == "+15551234567":
+        conv.state.branch = "Main Branch"
+    else:
+        conv.state.branch = "Other Branch"
+    ```
+  </Accordion>
+
+  <Accordion title="state">
+    **Description**: A dictionary-like object for storing and persisting variables throughout the conversation. Use it to manage contextual data and share information between function calls.
+
+    **Example**:
+    ```python
+    conv.state.num_calls = 1
+    conv.state.responses = {
+        1: "This is your first call.",
+        2: "This is your second call.",
+    }
+
+    # Increment call count and retrieve response
+    num_calls = conv.state.num_calls
+    conv.state.num_calls += 1
+    return conv.state.responses[num_calls]
+    ```
+  </Accordion>
+
+  <Accordion title="current_flow">
+    **Description**: Returns the name of the flow the conversation is currently in, or `None` if no flow is active.
+
+    **Type**: Optional string
+
+    **Example**:
+    ```python
+    if conv.current_flow != "support_flow":
+        return "This function should only be used in 'support_flow'."
+    ```
+  </Accordion>
+
+</AccordionGroup>
+
+## Methods
+
+The following methods are available in the `conv` object:
+
+<AccordionGroup>
+
+  <Accordion title="goto_flow">
+    **Description**: Transitions the assistant to a specified flow.
+
+    **Args**:
+    - `flow_name` (str): The name of the target flow.
+
+    **Example**:
+    ```python
+    conv.goto_flow("support_flow")
+    if conv.state.should_switch_flow:
+        conv.goto_flow("escalation_flow")
+    ```
+  </Accordion>
+
+  <Accordion title="exit_flow">
+    **Description**: Exits the current flow and resumes the assistant's default behavior.
+
+    **Example**:
+    ```python
+    conv.exit_flow()
+    ```
+  </Accordion>
+
+  <Accordion title="set_variant">
+    **Description**: Sets the variant for the current conversation.
+
+    **Args**:
+    - `variant_name` (str): The name of the variant to set.
+
+    **Example**:
+    ```python
+    conv.set_variant("priority_customer_variant")
+    ```
+  </Accordion>
+
+  <Accordion title="send_sms">
+    **Description**: Sends an SMS message directly to the caller.
+
+    **Args**:
+    - `phone_number` (str): The recipient's phone number.
+    - `message` (str): The content of the SMS.
+
+    **Example**:
+    ```python
+    conv.send_sms("+15551234567", "Your appointment has been confirmed.")
+    ```
+  </Accordion>
+
+  <Accordion title="send_sms_template">
+    **Description**: Sends a predefined SMS template with optional dynamic values.
+
+    **Args**:
+    - `template_name` (str): The name of the SMS template.
+    - `dynamic_values` (dict): A dictionary of placeholders and their values.
+
+    **Example**:
+    ```python
+    conv.send_sms_template("order_confirmation", {"order_id": "12345", "delivery_date": "2025-01-20"})
+    ```
+  </Accordion>
+
+</AccordionGroup>
+
+## Multi-use example
+
+Here’s a comprehensive example utilizing multiple attributes and methods of the `conv` object:
+
+```python
+def manage_appointment(conv: Conversation):
+    # Step 1: Identify the environment
+    if conv.env == "sandbox":
+        print("Running in sandbox environment.")
+    elif conv.env == "live":
+        print("Running in production environment.")
+
+    # Step 2: Extract caller information
+    caller_id = conv.sip_headers.get("From", "Unknown Caller")
+    conv.state.caller_id = caller_id
+    print(f"Caller ID: {caller_id}")
+
+    # Step 3: Retrieve and store branch metadata
+    branch_name = conv.sip_headers.get("Branch", "Default Branch")
+    conv.state.branch_name = branch_name
+    print(f"Branch: {branch_name}")
+
+    # Step 4: Transition to a new flow if needed
+    if branch_name == "Priority Branch":
+        conv.goto_flow("priority_flow")
+    else:
+        conv.goto_flow("default_flow")
+
+    # Step 5: Send confirmation SMS
+    conv.send_sms_template("appointment_confirmation", {"branch": branch_name, "caller": caller_id})
+    return "Appointment managed successfully."
+```
+
