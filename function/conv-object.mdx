@@ -169,37 +169,3 @@ The following methods are available in the `conv` object:
   </Accordion>
 
 </AccordionGroup>
-
-## Multi-use example
-
-Here’s a comprehensive example utilizing multiple attributes and methods of the `conv` object:
-
-```python
-def manage_appointment(conv: Conversation):
-    # Step 1: Identify the environment
-    if conv.env == "sandbox":
-        print("Running in sandbox environment.")
-    elif conv.env == "live":
-        print("Running in production environment.")
-
-    # Step 2: Extract caller information
-    caller_id = conv.sip_headers.get("From", "Unknown Caller")
-    conv.state.caller_id = caller_id
-    print(f"Caller ID: {caller_id}")
-
-    # Step 3: Retrieve and store branch metadata
-    branch_name = conv.sip_headers.get("Branch", "Default Branch")
-    conv.state.branch_name = branch_name
-    print(f"Branch: {branch_name}")
-
-    # Step 4: Transition to a new flow if needed
-    if branch_name == "Priority Branch":
-        conv.goto_flow("priority_flow")
-    else:
-        conv.goto_flow("default_flow")
-
-    # Step 5: Send confirmation SMS
-    conv.send_sms_template("appointment_confirmation", {"branch": branch_name, "caller": caller_id})
-    return "Appointment managed successfully."
-```
-
