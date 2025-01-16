@@ -1,0 +1,116 @@
+---
+title: Return values
+---
+
+When creating functions, you can specify return values to control the assistant's behavior dynamically. The return value can either be a string or a dictionary containing specific fields to guide the virtual assistant.
+
+### String return
+
+You can return a simple string, which will be used as the system prompt for the virtual assistant:
+
+```python
+return "Tell the caller that you cannot assist with their request"
+```
+
+### Dictionary return
+
+Alternatively, you can return a dictionary to specify more detailed and deterministic instructions. The following fields can be used individually or in combination:
+
+#### `content`
+
+Equivalent to returning a string, this field specifies the system prompt:
+
+```python
+return {
+  "content": "Tell the caller that you cannot assist with their request"
+}
+```
+
+#### `utterance`
+
+Specifies the exact phrase the virtual assistant will speak after executing the function:
+
+```python
+return {
+  "utterance": "I cannot assist with your request."
+}
+```
+
+**Note**: If both `content` and `utterance` are returned:
+- The assistant will stream the `utterance` to the user and end the turn.
+- The `content` rules will apply to the next turn.
+
+#### `handoff`
+
+Initiates a call handoff after the function executes. This follows the format of a [Handoff object](https://www.notion.so/Policy-Fundamentals-126097db17f780e8aeaae0d703d8624d?pvs=21):
+
+```python
+return {
+  "handoff": {
+    "type": "CALL_CENTER",
+    "reason": "SPEAK_TO",
+    "refer": {
+      "phone_number": "12345"
+    }
+  }
+}
+```
+
+#### `invite`
+
+Hands the call off using a SIP INVITE. Configuration fields depend on project telephony integration requirements:
+
+```python
+return {
+  "handoff": {
+    "invite": {
+      "phone_number": "<eg: 2222222>",
+      "outbound_caller_id": conv.caller_number,
+      "outbound_endpoint": "<ADD_YOUR_OUTBOUND_ENDPOINT_NAME>",
+      "sip_headers": {
+        "X-ANY_HEADER_NAME": "header"
+      }
+    }
+  }
+}
+```
+
+#### `hangup`
+
+Ends the call after the function executes:
+
+```python
+return {
+  "hangup": True
+}
+```
+
+#### `listen`
+
+Configures the assistant to listen in the next turn. This uses the [Listen](https://www.notion.so/Policy-Fundamentals-126097db17f780e8aeaae0d703d8624d?pvs=21) configuration from policy:
+
+```python
+return {
+  "listen": {
+    "channel": "SPEECH_AND_DTMF",
+    "dtmf": {
+      "finish_on_key": "#",
+      "timeout": 15,
+      "num_digits": 5
+    },
+    "asr": {
+      "timeout": 20
+    }
+  }
+}
+```
+
+#### `variant`
+
+Switches the conversation to a different variant:
+
+```python
+return {
+  "variant": "orleans"
+}
+```
