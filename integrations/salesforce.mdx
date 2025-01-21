@@ -1,3 +1,112 @@
 ---
-title: 'Salesforce'
+title: Salesforce
+description: Plug PolyAI assistants into your Salesforce ecosystem.
 ---
+
+Salesforce is a leading customer relationship management (CRM) platform that helps businesses manage customer interactions, track sales, and automate workflows. 
+It offers a suite of tools for marketing, sales, commerce, and customer service.
+
+## Why use Salesforce with PolyAI?
+
+Integrating Salesforce with PolyAI allows businesses to streamline workflows and enhance customer service capabilities over the voice channel. Examples include:
+
+- **Automated case creation**: PolyAI's voice assistant can collect details during customer calls and create cases in Salesforce automatically, reducing manual effort and improving data accuracy.
+- **Real-time customer insights**: PolyAI retrieves customer details from Salesforce during calls, so calls are personalized and informed.
+- **Effortless follow-up**: After a call, PolyAI can send customers follow-up text messages like reservation notifications or order confirmations.
+
+## Getting started
+
+Before you begin, ensure you have the following:
+
+1. A **Salesforce Account**: Administrator access to a Salesforce account.
+2. **PolyAI Access**: Access credentials for the PolyAI Portal.
+
+## Set up Salesforce for API access
+
+Follow these steps to enable API access in Salesforce:
+
+1. **Enable API Access**:
+    - Log in to Salesforce with admin privileges.
+    - Navigate to **Setup > Users > Profiles**.
+    - Edit the profile for the user account that will connect to PolyAI.
+    - Ensure the checkbox for **API Enabled** is selected.
+2. **Create a Connected App**:
+    - Go to **Setup > App Manager**.
+    - Click **New Connected App**.
+    - Fill in the following details:
+        - **Connected App Name**: `PolyAI Integration`.
+        - **API Name**: `PolyAIIntegration`.
+        - **Contact Email**: Enter your email.
+        - **Enable OAuth Settings**: Check this box.
+        - **Callback URL**: Enter `https://www.example.com/oauth/callback` (replace with your actual callback URL).
+        - **Selected OAuth Scopes**: Add `Full Access (full)` and `Perform requests on your behalf at any time (refresh_token, offline_access)`.
+    - Save the connected app and note the **Consumer Key** and **Consumer Secret**.
+3. **Provide PolyAI with the Required Information**:
+    - **Client ID**: The Consumer Key of your Connected App.
+    - **Client Secret**: The Consumer Secret of your Connected App.
+    - **Username**: The Salesforce username for the integration.
+    - **Password**: The Salesforce password for the user, appended with the security token.
+    - **Access Token URL**: Typically `https://login.salesforce.com/services/oauth2/token` (for production) or `https://test.salesforce.com/services/oauth2/token` (for sandbox).
+    - **Base URL**: The root URL of your Salesforce instance (e.g., `https://your_instance.salesforce.com`).
+
+PolyAI will use these details to generate the necessary `access_token`. Credentials will be passed in the Authorization header as specified in the OAuth spec.
+
+## Code example
+
+The following is a simplified Python example that demonstrates how to create a case in Salesforce using their REST API.
+
+```python
+import requests
+
+def create_salesforce_case(base_url, access_token, case_data):
+    """
+    Create a case in Salesforce.
+
+    :param base_url: Salesforce base URL (e.g., https://your_instance.salesforce.com)
+    :param access_token: OAuth access token
+    :param case_data: Dictionary containing case details
+    """
+    url = f"{base_url}/services/data/v55.0/sobjects/Case"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    response = requests.post(url, headers=headers, json=case_data)
+
+    if response.status_code == 201:
+        print("Case created successfully!", response.json())
+    else:
+        print("Failed to create case.", response.status_code, response.text)
+
+# Example usage
+if __name__ == "__main__":
+    base_url = "https://your_instance.salesforce.com"
+    access_token = "your_access_token"
+
+    case_data = {
+        "Subject": "Support Request",
+        "Description": "Details about the issue.",
+        "Origin": "Web",
+        "Status": "New"
+    }
+
+    create_salesforce_case(base_url, access_token, case_data)
+```
+
+## Next steps
+
+**Keep in touch!** Once you provide PolyAI with the necessary information (outlined above), they will reach out once your integration is configured. They will ensure the following is in good working order:
+
+1. **Error Handling**: Handle HTTP status codes like `401 Unauthorized`, `403 Forbidden`, and `400 Bad Request`.
+2. **Data Validation**: Ensure users provide all required fields (e.g., names, valid phone numbers).
+3. **Token Renewal**: Monitor token expiration and re-run the OAuth flow to obtain fresh tokens.
+
+Depending on your use case, PolyAI may need to support custom functionality. Let us know, and we will confirm if we can accommodate.
+
+## Additional resources
+
+- [Salesforce REST API Documentation](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/)
+- [OAuth 2.0 Documentation](https://help.salesforce.com/s/articleView?id=sf.remoteaccess_oauth_web_server_flow.htm)
+
+For further assistance, please contact PolyAI support at **support@polyai.com**.

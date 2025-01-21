@@ -1,78 +1,143 @@
 ---
 title: 'Genesys'
-description: 'Integrate PolyAI voice agents with Genesys Cloud for advanced routing and automation.'
+description: 'Integrate PolyAI assistants with Genesys Cloud using BYOC.'
 ---
 
-Integrate PolyAI voice agents with [Genesys Cloud](https://www.genesys.com/) to streamline customer interactions. This integration
-enables automated call handling, knowledge-based responses, and transitions to live agents when required, while maintaining data synchronization
-and call flow continuity.
+PolyAI integrates with Genesys Cloud's [Bring Your Own Carrier (BYOC) service](https://help.mypurecloud.com/articles/about-byoc-bring-your-own-carrier/) to
+provide efficient call handling, routing, and handoff capabilities. This guide explains how to integrate your Genesys Cloud instance with the PolyAI app available on the
+[Genesys AppFoundry](https://appfoundry.genesys.com/filter/genesyscloud/listing/f1d61f31-661b-4ecf-a752-771a66286f51) page.
 
-## Overview of capabilities
+<Info> BYOC setups use shared SIP Trunks, so PolyAI connects using a preconfigured multi-tenant trunk with shared IPs and settings. </Info>
 
-### Automated call handling
-PolyAI voice agents handle incoming calls, capturing customer intent and providing knowledge-based responses. The integration supports
-multi-turn conversations and actions, reducing the workload on live agents.
+## PolyAI configuration
 
-### Live-agent handoffs
-When a live agent is needed, PolyAI transitions the call to a Genesys Cloud agent with contextual data, including customer details and interaction
-history, ensuring continuity and personalized service.
+1. **Get connection tokens**:
+   - PolyAI will provide you with two tokens:
+     - A **UAT Token** to use for testing.
+     - A **Production Token** to use for live deployment.
+   - Use these tokens to authenticate your SIP trunks with PolyAI.
 
-### Dynamic routing
-[Architect workflows](https://help.mypurecloud.com/articles/about-architect/) enable flexible call routing to PolyAI voice agents based on
- predefined triggers, customer inputs, or dynamic business logic. This ensures calls are directed to the appropriate resource.
+2. **Enable Handoff API**:
+   - If [screen pop](https://all.docs.genesys.com/PEC-GPA/Current/Administrator/GplusScreenPop90) is required, make sure you have configured your project to meet the standards of the [Handoff API](/api-reference/conversations/endpoint/get-handoff).
+   - Request an API key from PolyAI for this functionality.
 
-### API integrations
-The integration uses [Web Services Data Actions](https://help.mypurecloud.com/articles/web-services-data-actions-integration/) to fetch real-time
- data and execute business processes, such as updating CRM records or verifying account details.
+3. **Prepare for SIP INVITE data**:
+   - Your Genesys SIP INVITE will include:
+     - `x-inin-cnv`: the Genesys [Conversation ID](https://developer.genesys.cloud/commdigital/digital/openmessaging/gettingConversationId).
+     - `X-User-to-User`: Custom data in the format `X-User-to-User:{data};encoding=ascii`.
 
-### Call flow customization
-Through [Genesys Architect](https://help.mypurecloud.com/articles/about-architect/), contact centers can design and deploy custom call flows that
-incorporate PolyAI’s conversational AI capabilities into existing workflows.
+4. **Send data during SIP REFER**:
+   - To return data to Genesys, use this format in the SIP REFER message:
 
-## Prerequisites
+     `Refer-To: <sip:{route}@{ip}?User-to-User={pd}{data}%3Bencoding%3Dhex>`
 
-1. Genesys Cloud account: Ensure access to a Genesys Cloud environment with admin privileges.
-2. PolyAI project setup: Create and configure your PolyAI project to align with Genesys call flow requirements.
-3. SIP trunk: [Configure a SIP trunk in Genesys Cloud](https://help.mypurecloud.com/articles/create-a-sip-trunk/) to enable communication between PolyAI and Genesys.
-4. Web Services Data Actions: Set up a Genesys [Web Services Data Action](https://help.mypurecloud.com/articles/web-services-data-actions-integration/) to handle the real-time API calls necessary for a customer service setup.
-5. Genesys Premium Wizard: PolyAI is a premium application in Genesys. Visit the [Premium Wizard Overview](https://help.mypurecloud.com/articles/about-premium-applications/) for more information on premium applications.
+     - Replace `{pd}` with the protocol discriminator (two hex digits).
+     - Replace `{data}` with the hex-encoded information.
 
-## Set up the integration
+### Genesys trunk setup
 
-### Configure SIP trunk
-1. Log in to the Genesys Admin interface.
-2. Navigate to **Telephony > Trunks** and create a new SIP trunk.
-3. Enter the PolyAI SIP domain and authentication details as provided during project setup.
-4. Save and validate the configuration by placing a test call.
-5. For detailed steps, see [Create a SIP Trunk](https://help.mypurecloud.com/articles/create-a-sip-trunk/).
+#### Prerequisites
+- **PolyAI tokens**: You should have both UAT and Production tokens provided by PolyAI.
+- **Admin access**: Ensure your Genesys account has [permissions to manage external SIP trunks](https://help.mypurecloud.com/articles/external-trunk-settings/).
 
-### Define call flows in Genesys Architect
-1. Open [Genesys Architect](https://help.mypurecloud.com/articles/about-architect/) and create a new inbound call flow.
-2. Configure routing logic to direct calls to PolyAI’s voice agents.
-3. Use [Web Services Data Actions](https://help.mypurecloud.com/articles/web-services-data-actions-integration/) for real-time data retrieval during the call flow.
-4. Test the call flow to ensure it behaves as expected. For more, refer to [Create Architect Flows](https://help.mypurecloud.com/articles/create-an-inbound-call-flow/).
+#### Configure the primary trunk
 
-### Integrate PolyAI APIs
+To configure a SIP trunk with Genesys Cloud, follow these steps.
 
-Once you are registered and active with Genesys, visit PolyAI's [API reference](/api-reference/introduction) for information on capabilities.
+<Tabs>
+  <Tab title="US">
+    **Configuration steps for the US region:**
+    1. Navigate to `Telephony > Trunks > External Trunks` in Genesys Cloud.
+    2. Create a new SIP trunk:
+       - Type: **BYOC Carrier**
+       - Subtype: **Generic BYOC Carrier**
+       - Protocol: **TLS**
+    3. SIP server: `kam.us-1.polyai.app`, Port: `5061`
+    4. Allow IP: `3.221.248.55`
+    5. Media settings: Codec `audio/PCMU`
+    6. UUI passthrough:
+       - Protocol: `X-User-to-User`
+       - Encoding: `Ascii`
+    7. Custom SIP headers:
+       - Header: `X-PolyAi-Auth-Token`
+       - Value: Use the token provided by PolyAI.
+  </Tab>
+  <Tab title="UK">
+    **Configuration steps for the UK region:**
+    1. Navigate to `Telephony > Trunks > External Trunks` in Genesys Cloud.
+    2. Create a new SIP trunk:
+       - Type: **BYOC Carrier**
+       - Subtype: **Generic BYOC Carrier**
+       - Protocol: **TLS**
+    3. SIP server: `kam1.uk-1.polyai.app`, Port: `5061`
+    4. Allow IP: `3.10.92.139`
+    5. Media settings: Codec `audio/PCMU`
+    6. UUI passthrough:
+       - Protocol: `X-User-to-User`
+       - Encoding: `Ascii`
+    7. Custom SIP headers:
+       - Header: `X-PolyAi-Auth-Token`
+       - Value: Use the token provided by PolyAI.
+  </Tab>
+  <Tab title="EU">
+    **Configuration steps for the EU region:**
+    1. Navigate to `Telephony > Trunks > External Trunks` in Genesys Cloud.
+    2. Create a new SIP trunk:
+       - Type: **BYOC Carrier**
+       - Subtype: **Generic BYOC Carrier**
+       - Protocol: **TLS**
+    3. SIP server: `kam.euw-1.polyai.app`, Port: `5061`
+    4. Allow IP: `54.77.217.78`
+    5. Media settings: Codec `audio/PCMU`
+    6. UUI passthrough:
+       - Protocol: `X-User-to-User`
+       - Encoding: `Ascii`
+    7. Custom SIP headers:
+       - Header: `X-PolyAi-Auth-Token`
+       - Value: Use the token provided by PolyAI.
+  </Tab>
+  <Tab title="APAC">
+    **Configuration steps for the APAC region:**
+    1. Navigate to `Telephony > Trunks > External Trunks` in Genesys Cloud.
+    2. Create a new SIP trunk:
+       - Type: **BYOC Carrier**
+       - Subtype: **Generic BYOC Carrier**
+       - Protocol: **TLS**
+    3. SIP server: `kam1.sg-1.polyai.app`, Port: `5061`
+    4. Allow IP: `18.140.207.42`
+    5. Media settings: Codec `audio/PCMU`
+    6. UUI passthrough:
+       - Protocol: `X-User-to-User`
+       - Encoding: `Ascii`
+    7. Custom SIP headers:
+       - Header: `X-PolyAi-Auth-Token`
+       - Value: Use the token provided by PolyAI.
+  </Tab>
+</Tabs>
 
-1. Enable [Web Services Data Actions](https://help.mypurecloud.com/articles/web-services-data-actions-integration/) in Genesys Cloud for API integrations.
-2. Use PolyAI's API endpoints to:
-   - Retrieve [handoff states](/api-reference/conversations/endpoints/get-handoff).
-   - Fetch [customer-specific data](/api-reference/conversations/endpoints/get-conversation).
 
-## Test and deploy
+#### Create the secondary trunk
 
-1. Run end-to-end tests: Verify that the SIP trunk, call flows, and API integrations function as expected.
-2. Monitor performance: Use Genesys Cloud analytics [APIs](https://developer.genesys.cloud/analyticsdatamanagement/analytics/) and [dashboards](https://help.mypurecloud.com/articles/analytics-workspace-overview/) to track
-call volume, routing efficiency, and agent interactions.
-3. Optimize configurations: Adjust call flows and data actions based on test outcomes to improve performance.
+Repeat the above steps with the secondary PolyAI server and IP for your region:
 
-## Useful links
+<Tabs>
+  <Tab title="US">
+    - US: `kam2.us-1.polyai.app`, `35.170.209.49`.
+  </Tab>
+  <Tab title="UK">
+   - UK: `kam2.uk-1.polyai.app`, `18.168.178.6`.
+  </Tab>
+  <Tab title="EU">
+    - EU: `kam2.euw-1.polyai.app`, `34.255.224.245`.
+  </Tab>
+  <Tab title="APAC">
+    - APAC: `kam2.sg-1.polyai.app`, `13.250.218.51`.
+  </Tab>
+</Tabs>
 
-- [Genesys Cloud Overview](https://www.genesys.com/)
-- [Create a SIP Trunk](https://help.mypurecloud.com/articles/create-a-sip-trunk/)
-- [Web Services Data Actions Integration](https://help.mypurecloud.com/articles/web-services-data-actions-integration/)
-- [About Architect](https://help.mypurecloud.com/articles/about-architect/)
-- [Create Architect Flows](https://help.mypurecloud.com/articles/create-an-inbound-call-flow/)
-- [Premium Wizard Overview](https://help.mypurecloud.com/articles/about-premium-applications/)
+#### Set failover routing
+
+1. Go to **Site > Edit Site > Outbound Routes** in Genesys Cloud.
+2. Set the distribution pattern to **Sequential** to enable failover from the primary trunk to the secondary trunk.
+
+For support, contact PolyAI at **support@polyai.com**.

@@ -1,0 +1,50 @@
+---
+title: 'NICE CXone'
+description: 'Integrate with NICE CXone using the Signal API.'
+---
+
+The PolyAI and NICE CXone integration uses NICE's [Signal API](https://developer.niceincontact.com/API/AdminAPI#/Contacts/Signal%20a%20Contact) to manage handoff and voice interactions. This guide
+provides steps for setup, configuration, and using the integration effectively.
+
+## Overview
+
+### Shared NICE integration
+PolyAI uses a shared NICE [connector service](https://help.nice-incontact.com/content/studio/advanced/dbconnector/dbconnector.htm) integration, so uses common IPs across clients. Each
+client has unique [pseudo numbers](https://en.wikipedia.org/wiki/Pseudorandom_number_generator) assigned by NICE, which are used alongside the connector's [authentication token](https://developer.niceincontact.com/API/AuthenticationAPI#/Token/getToken) to route calls to a project.
+
+## Handoff process
+
+### Signal API
+PolyAI uses the Signal API for call handoffs. This API supports up to **9** additional parameters, making it useful for passing larger
+data sets to clients.
+
+#### Requirements for the Signal API
+- A Client-provided `access_key_id` and access_key_secret.
+- The `Client_id` and `client_secret` from NICE: To obtain these, fill out the [NICE API application form](https://forms.microsoft.com/pages/responsepage.aspx?id=vdojcYcOqU2cubfsggEarfHlkRVlgSlMjqsp52ASGttUMEJaSkQ0Rk5LVkIwOFZNWUtCUkFTWUVHUS4u&route=shorturl). Include:
+  - Your CxOne [business unit](https://help.nice-incontact.com/content/acd/businessunits/businessunit.htm) number.
+  - Your contact details, arbitrary application name, and description.
+  - Answer tenant-related questions: Select **Single** and **Global**.
+  - For Questions 10 and 11: Choose `secret_basic` and `AdminAPI`.
+  - For Question 12: Select **Back-End**.
+
+Expect a few days for processing to complete, and then you will receive a `client_id` and `client_secret`.
+
+### Using the Signal API
+1. Configure the Signal API in the PolyAI project:
+   - Use `CxOneClient` to initialize as a service in `services > __init__.py`.
+   - Call the `signal` function, requiring a `contact_id` passed via an X-Header in the initial SIP INVITE.
+2. Pass additional data:
+   - Use the API to include up to 9 arbitrary parameters if more detailed data is required than the SIP X-Header can accommodate.
+
+## Setup steps
+
+### 1: Obtain required credentials
+- **From NICE**: Retrieve `client_id` and `client_secret` after form submission.
+- **From the client**: `Access_key_id` and `access_key_secret`, and the CxOne business unit number.
+
+### 2: Configure the NICE connector in PolyAI
+1. Add a NICE connector to your PolyAI project.
+2. Save the provided authentication token for routing calls.
+3. If applicable, enable the Handoff API in your project and generate an API key for screen-pop or related functionality.
+
+For support, contact PolyAI at **support@polyai.com**.
