@@ -3,90 +3,87 @@ title: 'Five9'
 description: 'Integrate with the Five9 multi-tenant SIP trunk for call routing and management.'
 ---
 
-Integrating PolyAI with Five9 enables advanced call handling, routing, and handoff to live agents when required. This guide explains setup
- procedures, routing methods, and best practices for transferring calls between PolyAI and Five9.
+Integrating PolyAI with Five9 enables advanced call handling, routing, and handoff to live agents when required. This guide explains setup procedures, routing methods, and best practices for transferring calls between PolyAI and Five9.
 
 ## 1: Integrate with the shared Five9 and PolyAI SIP trunk
 
-Five9 uses a multi-tenant SIP trunk to connect with PolyAI. Contact your Five9 account manager to configure your environment to connect
-to this SIP trunk and route calls to PolyAI.
+Five9 uses a multi-tenant SIP trunk to connect with PolyAI. Contact your [Five9 account manager](https://www.five9.com/) to configure your environment to connect to this SIP trunk and route calls to PolyAI.
 
 ## 2: Five9 to PolyAI routing methods
 
-There are two ways to route calls to PolyAI:
-
-### a. Authentication token
-PolyAI provides an authentication token included in the SIP INVITE message under the X-header (`X-PolyAi-Auth-Token`). This token identifies
-and distinguishes traffic for accurate assistant routing.
-
-### b. Dialed extension (preferred)
-Five9 and PolyAI agree on unique extension numbers for routing calls. This method offers flexibility and scalability, especially for clients
-managing multiple PolyAI assistants.
+<Tabs>
+  <Tab title="Authentication token">
+    PolyAI provides an authentication token included in the SIP INVITE message under the X-header (`X-PolyAi-Auth-Token`). This token identifies and distinguishes traffic for accurate assistant routing.
+  </Tab>
+  <Tab title="Dialed extension">
+    Five9 and PolyAI agree on unique extension numbers for routing calls. This method offers flexibility and scalability, especially for clients managing multiple PolyAI assistants.
+  </Tab>
+</Tabs>
 
 ## 3: PolyAI to Five9 transfer methods
 
-When PolyAI is unable to contain a call, it transfers the call back to Five9. Two methods are available:
+<Tabs>
+  <Tab title="SIP BYE with custom headers">
+    When PolyAI is unable to contain a call, it sends a SIP BYE message with custom headers to indicate the status of the call. This method is simple and suitable for scenarios with limited metadata requirements.
 
-### a. SIP BYE with custom headers
-PolyAI sends a SIP BYE message with custom headers to indicate the status of the call. This method is simple and suitable for scenarios with
- limited metadata requirements.
+    Key headers include:
+    - `X-contained`: Indicates whether the call was contained by PolyAI. (`true` or `false`)
+    - `X-destination`: Specifies where to transfer the call if it was not contained. Values are determined during deployment.
 
-Key headers include:
-- `X-contained`: Indicates whether the call was contained by PolyAI. (`true` or `false`)
-- `X-destination`: Specifies where to transfer the call if it was not contained. Values are determined during deployment.
+    <Warning> Five9 supports up to 10 custom headers. Additional requirements should be discussed with PolyAI during deployment. </Warning>
+  </Tab>
+  <Tab title="PolyAI Handoff API">
+    For cases requiring detailed metadata, PolyAI provides a [Handoff API](https://docs.poly.ai/api-reference/#handoff-api) to return larger data payloads. This method involves:
 
-<Warning> Five9 supports up to 10 custom headers. Additional requirements should be discussed with PolyAI during deployment. </Warning>
+    1. PolyAI sends a SIP BYE message to Five9 to indicate the assistant call leg is complete.
+    2. Five9 uses scripting to call the PolyAI Handoff API, using the Five9 session ID as the `shared_id` parameter to retrieve data.
+    3. The API response includes:
+       - `contained`: Indicates whether the call was contained. (`true` or `false`)
+       - `destination`: Specifies the transfer destination if the call was not contained.
 
-### b. PolyAI Handoff API
-For cases requiring detailed metadata, PolyAI provides a Handoff API to return larger data payloads. This method involves:
+    **Benefits**:
+    - No size limit on the API response, enabling detailed metadata transfer.
+    - Flexible for advanced routing decisions.
 
-1. PolyAI sends a SIP BYE message to Five9 to indicate the assistant call leg is complete.
-2. Five9 uses scripting to call the PolyAI Handoff API, using the Five9 session ID as the `shared_id` parameter to retrieve data.
-3. The API response includes:
-   - `contained`: Indicates whether the call was contained. (`true` or `false`)
-   - `destination`: Specifies the transfer destination if the call was not contained.
+    **Considerations**:
+    - Ensure error handling in the Five9 scripting to manage API response issues.
 
-**Benefits**:
-- No size limit on the API response, enabling detailed metadata transfer.
-- Flexible for advanced routing decisions.
+    ### Example API integration
 
-**Considerations**:
-- Ensure error handling in the Five9 scripting to manage API response issues.
+    ```python
+    import requests
 
-### Example API integration
+    def call_handoff_api(api_url, api_key, shared_id):
+        """
+        Calls the PolyAI Handoff API to retrieve call metadata.
 
-```python
-import requests
+        :param api_url: Handoff API URL
+        :param api_key: PolyAI API key
+        :param shared_id: Five9 session ID used for the call
+        """
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        payload = {"shared_id": shared_id}
 
-def call_handoff_api(api_url, api_key, shared_id):
-    """
-    Calls the PolyAI Handoff API to retrieve call metadata.
+        response = requests.post(api_url, headers=headers, json=payload)
+        response_data = response.json()
 
-    :param api_url: Handoff API URL
-    :param api_key: PolyAI API key
-    :param shared_id: Five9 session ID used for the call
-    """
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    payload = {"shared_id": shared_id}
+        if response.status_code == 200:
+            return response_data
+        else:
+            raise Exception(f"API Error: {response.status_code} - {response.text}")
 
-    response = requests.post(api_url, headers=headers, json=payload)
-    response_data = response.json()
+    # Example usage
+    api_url = "https://api.poly.ai/handoff"
+    api_key = "your_polyai_api_key"
+    shared_id = "five9_session_id"
 
-    if response.status_code == 200:
-        return response_data
-    else:
-        raise Exception(f"API Error: {response.status_code} - {response.text}")
+    data = call_handoff_api(api_url, api_key, shared_id)
+    print("Call metadata:", data)
+    ```
+  </Tab>
+</Tabs>
 
-# Example usage
-api_url = "https://api.polyai.com/handoff"
-api_key = "your_polyai_api_key"
-shared_id = "five9_session_id"
-
-data = call_handoff_api(api_url, api_key, shared_id)
-print("Call metadata:", data)
-```
-
-For support, contact PolyAI at **support@polyai.com**.
+For support, contact PolyAI at [support@polyai.com](mailto:support@polyai.com).
