@@ -1,99 +1,92 @@
 ---
 title: 'Five9'
-description: 'Integrate PolyAI voice agents with Five9 for seamless customer interactions.'
+description: 'Integrate with the Five9 multi-tenant SIP trunk for call routing and management.'
 ---
 
-Integrating PolyAI voice agents with Five9 provides a robust solution for automating customer interactions, streamlining workflows, and enabling seamless collaboration between AI and live agents. This guide outlines the integration process, features, and typical call flows, emphasizing customer benefits while minimizing technical complexity.
+Integrating PolyAI with Five9 enables advanced call handling, routing, and handoff to live agents when required. This guide explains setup
+ procedures, routing methods, and best practices for transferring calls between PolyAI and Five9.
 
-## Introduction
+## 1: Integrate with the shared Five9 and PolyAI SIP trunk
 
-PolyAI's integration with Five9 is a validated, repeatable process that has been deployed successfully across multiple regions. It offers flexible configurations to meet diverse customer needs, ensuring simplicity in reporting and efficiency in call handling.
+Five9 uses a multi-tenant SIP trunk to connect with PolyAI. Contact your Five9 account manager to configure your environment to connect
+to this SIP trunk and route calls to PolyAI.
 
-### Key Features of the Integration
+## 2: Five9 to PolyAI routing methods
 
-1. **Automated call handling**: PolyAI voice agents handle FAQs, capture intent, and provide knowledge-based responses, reducing the workload on human agents.
-2. **Dynamic routing**: Calls are routed intelligently using predefined business rules or real-time conditions in Five9's Intelligent Cloud Contact Center.
-3. **Live-agent handoffs**: Calls requiring escalation are seamlessly transferred to Five9 agents, complete with contextual data like customer details and captured intents.
-4. **Data exchange**: Both platforms can exchange information via SIP headers or APIs, enabling deeper integration and enhanced functionality, such as:
-   - PolyAI checking current queue times in Five9.
-   - PolyAI scheduling callbacks.
-   - Five9 querying PolyAI for additional data on user interactions.
+There are two ways to route calls to PolyAI:
 
-## SIP Trunk and Regional Availability
+### a. Authentication token
+PolyAI provides an authentication token included in the SIP INVITE message under the X-header (`X-PolyAi-Auth-Token`). This token identifies
+and distinguishes traffic for accurate assistant routing.
 
-### Shared Trunk Setup
+### b. Dialed extension (preferred)
+Five9 and PolyAI agree on unique extension numbers for routing calls. This method offers flexibility and scalability, especially for clients
+managing multiple PolyAI assistants.
 
-Five9 provides a shared SIP trunk for customers in the USA, simplifying the connection process. For other regions, similar setups can be deployed based on demand.
+## 3: PolyAI to Five9 transfer methods
 
-1. **Request Access**: Contact Five9 Professional Services (PS) to obtain a quote for using the shared trunk. This may involve one-time setup fees and ongoing port or license costs.
-2. **Receive Numbers**: Once connected, Five9 provides phone numbers for routing calls to PolyAI.
+When PolyAI is unable to contain a call, it transfers the call back to Five9. Two methods are available:
 
-### Global support
+### a. SIP BYE with custom headers
+PolyAI sends a SIP BYE message with custom headers to indicate the status of the call. This method is simple and suitable for scenarios with
+ limited metadata requirements.
 
-PolyAI operates multiple fully redundant, autonomous regions. Your PolyAI representative will guide you in choosing the best region for your deployment.
+Key headers include:
+- `X-contained`: Indicates whether the call was contained by PolyAI. (`true` or `false`)
+- `X-destination`: Specifies where to transfer the call if it was not contained. Values are determined during deployment.
 
-## Typical call flow
+<Warning> Five9 supports up to 10 custom headers. Additional requirements should be discussed with PolyAI during deployment. </Warning>
 
-Here's how a standard call interaction between Five9 and PolyAI works:
+### b. PolyAI Handoff API
+For cases requiring detailed metadata, PolyAI provides a Handoff API to return larger data payloads. This method involves:
 
-1. **SIP INVITE**:
-   - Five9 sends a SIP INVITE to PolyAI, including key metadata in X-headers (e.g., session IDs, account numbers).
-   - Metadata is agreed upon during the design phase and can include up to 10 X-headers.
+1. PolyAI sends a SIP BYE message to Five9 to indicate the assistant call leg is complete.
+2. Five9 uses scripting to call the PolyAI Handoff API, using the Five9 session ID as the `shared_id` parameter to retrieve data.
+3. The API response includes:
+   - `contained`: Indicates whether the call was contained. (`true` or `false`)
+   - `destination`: Specifies the transfer destination if the call was not contained.
 
-2. **Call handling by PolyAI**:
-   - The virtual assistant engages with the caller, providing responses, capturing intent, or gathering information.
+**Benefits**:
+- No size limit on the API response, enabling detailed metadata transfer.
+- Flexible for advanced routing decisions.
 
-3. **Call outcomes**:
-   - **Call Contained**: The user's query is resolved, and they disconnect.
-   - **Call Transferred**: The call is handed off to a Five9 agent with relevant contextual data attached.
+**Considerations**:
+- Ensure error handling in the Five9 scripting to manage API response issues.
 
-### X-Headers for Containment and Transfer
+### Example API integration
 
-- **Contained calls**:
-  - `X-contained: true`
-  - Optional headers include user intent, captured FAQs, and account numbers.
-- **Transferred calls**:
-  - `X-contained: false`
-  - Additional headers indicate transfer destinations or skill groups.
+```python
+import requests
 
-### Alternative solution: API integration
+def call_handoff_api(api_url, api_key, shared_id):
+    """
+    Calls the PolyAI Handoff API to retrieve call metadata.
 
-In cases where X-headers are not ideal, PolyAI's handoff API can be used to retrieve and send data dynamically. This method supports 
-custom requirements and deeper integrations.
+    :param api_url: Handoff API URL
+    :param api_key: PolyAI API key
+    :param shared_id: Five9 session ID used for the call
+    """
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {"shared_id": shared_id}
 
-## Integration process
+    response = requests.post(api_url, headers=headers, json=payload)
+    response_data = response.json()
 
-1. **SIP Trunk configuration**:
-   - Five9 sets up the SIP trunk, and PolyAI configures endpoints.
-   - Standard protocols include TLS/TCP and SRTP, with Digicert as the root provider.
+    if response.status_code == 200:
+        return response_data
+    else:
+        raise Exception(f"API Error: {response.status_code} - {response.text}")
 
-2. **Testing and validation**:
-   - Conduct basic connectivity tests (e.g., OPTIONS requests, initial calls).
-   - Perform failover testing with all relevant Five9 data centers.
-   - Validate headers and API calls through end-to-end testing.
+# Example usage
+api_url = "https://api.polyai.com/handoff"
+api_key = "your_polyai_api_key"
+shared_id = "five9_session_id"
 
-3. **Go-Live**:
-   - After validation, the integration goes live with support from both Five9 and PolyAI.
+data = call_handoff_api(api_url, api_key, shared_id)
+print("Call metadata:", data)
+```
 
-## Advanced capabilities
-
-- **Custom SIP Headers**: Add project-specific metadata (e.g., order IDs, tracking numbers) to SIP messages.
-- **API Integration**: Enable PolyAI and Five9 to query or exchange data dynamically during or after calls.
-
-## Key benefits
-
-1. **Scalability**: Handle peak call volumes effortlessly with cloud-native platforms.
-2. **Flexibility**: Tailor the integration to meet specific business needs.
-3. **Efficiency**: Automate repetitive tasks and streamline operations.
-4. **Insight**: Leverage analytics to monitor and optimize call flows.
-
-## Notes
-
-- Both platforms support regular updates, and precise steps may evolve over time.
-- For assistance, contact your PolyAI representative.
-
-## Useful Links
-
-- [Five9 SIP Trunk Documentation](https://www.five9.com/solutions/sip-trunking)
-- [Five9 IVR Call Flow Documentation](https://documentation.five9.com/bundle/studio-combo/page/studio-discover/CFT_StudioBehEngageWorkflow/ivr-callflow.htm)
-- [PolyAI API Reference](https://docs.poly.ai/api-reference)
+For support, contact PolyAI at **support@polyai.com**.
