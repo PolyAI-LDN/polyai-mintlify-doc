@@ -3,14 +3,14 @@ title: "Conversation"
 description: "The Conversation object, its attributes, and methods."
 ---
 
-The `Conversation` object (`conv`) provides access to critical conversation data and utilities for controlling the assistant's behavior during interactions. It centralizes functionality for managing states, flows, SMS communication, and the current environment.
+The `Conversation` object (`conv`) provides access to critical conversation data and utilities for controlling the assistant's behavior during
+interactions. It centralizes functionality for managing states, flows, SMS communication, and the current environment.
 
 ## Attributes
 
 The following attributes are available in the `conv` object:
 
 <AccordionGroup>
-
   <Accordion title="env">
     **Description**: Identifies the current [environment](/environments-and-versions/introduction) in which the assistant is running.
 
@@ -20,20 +20,25 @@ The following attributes are available in the `conv` object:
     - `"live"`: For production environments.
 
     **Example**:
+
     ```python
+    import requests
     if conv.env == "live":
         print("Assistant is live!")
     ```
+
   </Accordion>
 
   <Accordion title="sip_headers">
     **Description**: A dictionary mapping [SIP headers](https://datatracker.ietf.org/doc/html/rfc7131) to their corresponding values, such as caller metadata.
 
     **Example**:
+
     ```python
     caller_id = conv.sip_headers.get("From", "Unknown Caller")
     print("Caller ID:", caller_id)
     ```
+
   </Accordion>
 
   <Accordion title="caller_number">
@@ -42,15 +47,16 @@ The following attributes are available in the `conv` object:
     **Type**: Optional string
 
     **Example**:
+
     ```python
     import requests
-
     response = requests.get(f"https://api.example.com/users?number={conv.caller_number}")
     response.raise_for_status()
 
     user = response.json()
     conv.state.user = user
     ```
+
   </Accordion>
 
   <Accordion title="callee_number">
@@ -59,6 +65,7 @@ The following attributes are available in the `conv` object:
     **Type**: Optional string
 
     **Example**:
+
     ```python
     dialed_number = conv.callee_number
     if dialed_number == "+15551234567":
@@ -66,12 +73,14 @@ The following attributes are available in the `conv` object:
     else:
         conv.state.branch = "Other Branch"
     ```
+
   </Accordion>
 
   <Accordion title="state">
-    **Description**: A dictionary-like object for storing and persisting variables throughout the conversation. Use it to manage contextual data and share information between function calls. For more information visit, the function [variable feature page](./variables).
+    **Description**: A dictionary-like object for storing and persisting variables throughout the conversation. Use it to manage contextual data and share information between function calls. For more information, visit the function [variable feature page](./variables).
 
     **Example**:
+
     ```python
     conv.state.num_calls = 1
     conv.state.responses = {
@@ -84,6 +93,7 @@ The following attributes are available in the `conv` object:
     conv.state.num_calls += 1
     return conv.state.responses[num_calls]
     ```
+
   </Accordion>
 
   <Accordion title="current_flow">
@@ -92,10 +102,52 @@ The following attributes are available in the `conv` object:
     **Type**: Optional string
 
     **Example**:
+
     ```python
     if conv.current_flow != "support_flow":
         return "This function should only be used in 'support_flow'."
     ```
+
+  </Accordion>
+
+  <Accordion title="conversation_id">
+    **Description**: Provides a unique identifier for the current conversation, which can be used for logging or linking to external systems.
+
+    **Type**: String
+
+    **Example**:
+
+    ```python
+    link = f"https://jupiter.polyai.app/conversations/{conv.conversation_id}"
+    print("View the conversation here:", link)
+    ```
+
+  </Accordion>
+
+  <Accordion title="account_id">
+    **Description**: Returns the account identifier for the current conversation environment.
+
+    **Type**: String
+
+    **Example**:
+
+    ```python
+    print(f"Account ID: {conv.account_id}"
+    ```
+
+  </Accordion>
+
+  <Accordion title="project_id">
+    **Description**: Returns the project identifier associated with the conversation.
+
+    **Type**: String
+
+    **Example**:
+
+    ```python
+    print(f"Project ID: {conv.project_id}")
+    ```
+
   </Accordion>
 
 </AccordionGroup>
@@ -113,6 +165,7 @@ The following methods are available in the `conv` object:
     - `flow_name` (str): The name of the target flow.
 
     **Example**:
+
     ```python
     conv.goto_flow("support_flow")
     if conv.state.should_switch_flow:
@@ -124,9 +177,11 @@ The following methods are available in the `conv` object:
     **Description**: Exits the current flow and resumes the assistant's default behavior.
 
     **Example**:
+
     ```python
     conv.exit_flow()
     ```
+
   </Accordion>
 
   <Accordion title="set_variant">
@@ -136,9 +191,11 @@ The following methods are available in the `conv` object:
     - `variant_name` (str): The name of the variant to set.
 
     **Example**:
-   ```python
+
+    ```python
     conv.set_variant("priority_customer_variant")
     ```
+
   </Accordion>
 
   <Accordion title="send_sms">
@@ -149,9 +206,11 @@ The following methods are available in the `conv` object:
     - `message` (str): The content of the SMS.
 
     **Example**:
+
     ```python
     conv.send_sms("+15551234567", "Your appointment has been confirmed.")
     ```
+
   </Accordion>
 
   <Accordion title="send_sms_template">
@@ -162,9 +221,11 @@ The following methods are available in the `conv` object:
     - `dynamic_values` (dict): A dictionary of placeholders and their values.
 
     **Example**:
+
     ```python
     conv.send_sms_template("order_confirmation", {"order_id": "12345", "delivery_date": "2025-01-20"})
     ```
+
   </Accordion>
 
 </AccordionGroup>
