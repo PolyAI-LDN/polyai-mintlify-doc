@@ -7,6 +7,8 @@ The **Response Controls** tab
 enables you to regulate Assistant outputs by defining and managing specific keywords and phrases. These controls ensure appropriate
 and on-brand interactions while preserving user experience.
 
+![control](/images/response_control.png)
+
 ## Key benefits
 
 - **Enhanced safety**: Prevent the Assistant from generating inappropriate or off-brand responses.
@@ -35,8 +37,6 @@ This functionality helps ensure adherence to safety and brand standards without 
      - **Regular Expression**: Enter a regex pattern to define the keyword or phrase.
      - **Say Phrases**: Toggle to determine whether matching phrases halt the response (TRUE) or are tracked for analytics (FALSE).
 
-[Include a screenshot of the Response Controls configuration page]
-
 ## Feature details
 
 ### Response Controls structure
@@ -48,20 +48,68 @@ Response Controls are organized as **Stop Keywords**, each with specific attribu
 - **Regular Expression (String)**: Regex pattern that identifies the phrases or words to control.
 - **Say Phrases (Boolean)**: Specifies whether matching phrases halt responses (TRUE) or are logged for analysis (FALSE).
 
+### Stop keywords
+
+Use stop keywords to ensure your assistants react quickly and appropriately to sensitive information or inappropriate conversations.
+
+<Tabs>
+<Tab title="1. Create a function">
+![control](/images/stop_keywords_function.png)
+Navigate to the [Functions](/functions/introduction) section under the Build tab to define a custom function for handling stop keywords.
+
+**Example setup**:
+- **Name**: ashmolean
+- **Description**: Respond when stop keywords are detected.
+- **Type**: String
+- **Function definition**:
+
+```python
+def ashmolean(conv: Conversation):
+    return "The detected phrase is restricted. Please adjust your input."
+```
+
+</Tab>
+
+<Tab title="2. Configure the keyword">
+![control](/images/stop_keywords_response_control.png)
+Next, navigate to the **Response Controls** section and add a new stop keyword.
+
+**Setup details**:
+- **ID**: Ashmolean
+- **Description**: Restrict responses containing the word "Ashmolean."
+- **Regular Expression**: `\bashmolean\b`
+- **Say Phrases**: `TRUE` (to halt responses when detected).
+- **Action**: Link to the `ashmolean` function.
+
+</Tab>
+
+<Tab title="3. Test">
+![control](/images/stop_keywords_test.png)
+Go to the **Web Chat** testing panel to validate your setup.
+
+**Steps**:
+1. Type a message containing the word "Ashmolean."
+2. Observe the assistant's response: "The detected phrase is restricted. Please adjust your input."
+3. Confirm that the assistant halts any further response generation.
+
+**Expected result**:
+The assistant successfully identifies the stop keyword, triggers the linked function, and stops further dialogue.
+
+</Tab>
+</Tabs>
+
 #### Example configuration
 
-ID: `stop_inappropriate`
-Description: Prevent responses containing offensive language.
-Regular Expression: `/\b(offensiveWord1|offensiveWord2)\b/i`
-Say Phrases: `TRUE`
+**ID:** `stop_inappropriate`
+**Description:** Prevent responses containing offensive language.
+**Regular Expression:** `/\b(offensiveWord1|offensiveWord2)\b/i`
+**Say Phrases:** `TRUE`
 
 This setup ensures responses containing "offensiveWord1" or "offensiveWord2" are immediately halted.
 
 ### Advanced configuration
 
 You can use regex to define complex patterns for fine-grained control over responses. For a detailed guide on regex, refer to **[Regex documentation](https://regex101.com/)**.
-
-[Include a screenshot of an example Response Control setup]
 
 ## Custom metrics tracking
 
