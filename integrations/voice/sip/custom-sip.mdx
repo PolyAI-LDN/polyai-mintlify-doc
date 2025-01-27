@@ -1,3 +1,76 @@
 ---
 title: 'Custom SIP'
 ---
+
+**Custom SIP (Session Initiation Protocol)** integration in PolyAI allows you to leverage SIP headers for tailoring assistant behaviors based on call-specific metadata. By accessing SIP headers, builders can extract details like caller ID, dialed number, or other metadata transmitted through the SIP protocol.
+
+## What is Custom SIP?
+
+SIP headers provide a structured format for transmitting metadata during VoIP calls. This metadata can include details about the caller, the recipient, and other contextual information, enabling more personalized and context-aware interactions.
+
+## Key attributes
+
+The `conv` object provides access to SIP-related attributes that you can use in your assistant logic:
+
+#### **sip_headers**
+- **Description**: A dictionary containing SIP headers and their corresponding values.
+- **Use case**: Extract caller-specific metadata or route calls dynamically.
+- **Example**:
+
+```python
+caller_id = conv.sip_headers.get("From", "Unknown Caller")
+print(f"Caller ID: {caller_id}")
+```
+
+#### **caller_number**
+- **Description**: The phone number of the caller.
+- **Use case**: Personalize responses based on the caller's number.
+- **Example**:
+
+```python
+if conv.caller_number == "+15551234567":
+    conv.goto_flow("vip_support_flow")
+else:
+    conv.goto_flow("general_support_flow")
+```
+
+#### **callee_number**
+- **Description**: The phone number the caller dialed.
+- **Use case**: Determine routing based on the number dialed.
+- **Example**:
+
+```python
+dialed_number = conv.callee_number
+if dialed_number == "+15557654321":
+    conv.state.branch = "North Branch"
+else:
+    conv.state.branch = "South Branch"
+```
+
+### How to Use Custom SIP
+
+1. **Access SIP headers**:
+   - Use `conv.sip_headers` to retrieve metadata from the SIP protocol.
+   - This is particularly useful for identifying caller attributes or custom routing.
+
+2. **Dynamic routing**:
+   - Utilize `caller_number` and `callee_number` to configure routing flows based on incoming and dialed numbers.
+
+3. **Store data for contextual responses**:
+   - Save SIP-related information into `conv.state` to persist data across the conversation.
+   - Example:
+
+```python
+conv.state.metadata = {
+    "caller_id": conv.sip_headers.get("From", "Unknown"),
+    "dialed_number": conv.callee_number,
+}
+```
+
+### Use cases
+
+- **VIP routing**: Automatically direct high-priority callers to specific support flows.
+- **Branch-specific handling**: Route calls to the appropriate branch or location based on the number dialed.
+- **Dynamic personalization**: Use SIP headers to provide tailored greetings or responses.
+
+For more details on the `Conversation` object, visit the **[`conv` object](/functions/conv-object)** page.
