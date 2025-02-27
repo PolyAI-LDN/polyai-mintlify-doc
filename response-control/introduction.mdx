@@ -121,6 +121,48 @@ Response Controls log all occurrences of matches for analytics. You can view the
 - **Brand adherence**: Block responses with phrases outside approved messaging.
 - **Content moderation**: Identify and log responses that require review or adjustment.
 
+## Use stop keywords to optimize flows
+
+LLMs often add unnecessary meta-explanations before executing an action, which can slow down response times and, more importantly, annoy users.
+By applying stop keywords, you can ensure that agents immediately proceed with relevant information without unnecessary lead-ins.
+
+#### Example: Before and after applying keywords
+
+ **Without stop keyword**
+    User: "I want to cancel my plan."
+    *"Let's start by gathering some information. Please hold on while I check your cancellation options. Here are your cancellation options."*
+
+**With stop keyword applied**
+    User: "I want to cancel my plan."
+    *"Here are your cancellation options."*
+
+This setup **removes redundant explanations** and improves the natural flow of conversation.
+
+### Implementation
+To prevent assistants from **adding redundant transition phrases**, use Stop Keywords with targeted regex patterns.
+
+- **ID:** `flow_redundancy_cutoff`
+- **Description:** Prevents the assistant from over-explaining process transitions.
+- **Regular Expression:** `\b(let's start|please hold on|let me check)\b`
+- **Say Phrases:** `TRUE` (stops response immediately upon detection).
+
+1. Navigate to **Response Controls** in Agent Studio.
+2. Click **Add Phrase** and enter:
+   - **ID**: `flow_redundancy_cutoff`
+   - **Description**: *Prevents assistant from over-explaining flow transitions.*
+   - **Regular Expression**: `\b(let's start|please hold on|let me check)\b`
+   - **Say Phrases**: `TRUE`
+3. Save and test the agent's response behavior.
+
+### Linking stop keywords to functions
+
+If required, stop keywords can be linked to a [function](/function/how-to-setup) that **restructures responses** for even better clarity.
+
+```python
+def flow_redundancy_cutoff(conv: Conversation):
+    return "Here are your options."
+```
+
 ## Related links
 
 - **[Response controls introduction](/response-control/introduction)**
