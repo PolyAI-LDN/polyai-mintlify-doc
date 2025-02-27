@@ -41,7 +41,7 @@ This functionality helps ensure adherence to safety and brand standards without 
 
 ### Response Controls structure
 
-Response Controls are organized as **Stop Keywords**, each with specific attributes:
+Response Controls are organized as **stop keywords**, each with specific attributes:
 
 - **ID (String)**: Unique identifier for tracking and analytics.
 - **Description (String)**: Optional text to clarify the keyword's purpose.
@@ -121,42 +121,40 @@ Response Controls log all occurrences of matches for analytics. You can view the
 - **Brand adherence**: Block responses with phrases outside approved messaging.
 - **Content moderation**: Identify and log responses that require review or adjustment.
 
-## Use stop keywords to optimize flows
+## Use stop keywords to remove unnecessary preambles
 
-LLMs often add unnecessary meta-explanations before executing an action, which can slow down response times and, more importantly, annoy users.
-By applying stop keywords, you can ensure that agents immediately proceed with relevant information without unnecessary lead-ins.
+LLMs often add unnecessary meta-explanations before executing an action, which can slow down response times and, more importantly, annoy users. By applying stop keywords, you can ensure that agents immediately proceed with relevant information without unnecessary preamble or repetition.
 
-#### Example: Before and after applying keywords
+#### Example: Before and after applying stop keywords
 
- **Without stop keyword**
-    User: "I want to cancel my plan."
-    *"Let's start by gathering some information. Please hold on while I check your cancellation options. Here are your cancellation options."*
+**Without stop keyword:**  
+- User: *"I want to cancel my plan."*
+- Agent: *"Let's start by gathering some information. Please hold on while I check your cancellation options. Here are your cancellation options."*
 
-**With stop keyword applied**
-    User: "I want to cancel my plan."
-    *"Here are your cancellation options."*
+**With stop keyword on "let's start" applied:**
+- User: *"I want to cancel my plan."*
+- Agent: *"Here are your cancellation options."*
 
-This setup **removes redundant explanations** and improves the natural flow of conversation.
+### How to implement stop keywords
 
-### Implementation
-To prevent assistants from **adding redundant transition phrases**, use Stop Keywords with targeted regex patterns.
+Add a stop keyword to block redundant transition phrases:
 
 - **ID:** `flow_redundancy_cutoff`
-- **Description:** Prevents the assistant from over-explaining process transitions.
+- **Description:** Prevents unnecessary filler before a response.
 - **Regular Expression:** `\b(let's start|please hold on|let me check)\b`
-- **Say Phrases:** `TRUE` (stops response immediately upon detection).
+- **Say Phrases:** `TRUE` (halts response when detected).
 
-1. Navigate to **Response Controls** in Agent Studio.
+#### Steps to set up:
+1. Go to **Response Controls** in Agent Studio.
 2. Click **Add Phrase** and enter:
-   - **ID**: `flow_redundancy_cutoff`
-   - **Description**: *Prevents assistant from over-explaining flow transitions.*
-   - **Regular Expression**: `\b(let's start|please hold on|let me check)\b`
-   - **Say Phrases**: `TRUE`
-3. Save and test the agent's response behavior.
+   - **ID:** `flow_redundancy_cutoff`
+   - **Regular Expression:** `\b(let's start|please hold on|let me check)\b`
+   - **Say Phrases:** `TRUE`
+3. Save and test the assistant's responses.
 
-### Linking stop keywords to functions
+### Optional: Redirect to a function for better phrasing
 
-If required, stop keywords can be linked to a [function](/function/how-to-setup) that **restructures responses** for even better clarity.
+Stop keywords can also trigger a function to **replace** the blocked phrase with a cleaner response of your choice.
 
 ```python
 def flow_redundancy_cutoff(conv: Conversation):
