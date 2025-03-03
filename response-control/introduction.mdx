@@ -1,24 +1,24 @@
 ---
 title: "Overview"
-description: "Ensure your assistant's responses maintain safety and brand adherence."
+description: "Ensure your agent's responses maintain safety and brand adherence."
 ---
 
 The **Response Controls** tab
-enables you to regulate Assistant outputs by defining and managing specific keywords and phrases. These controls ensure appropriate
+enables you to regulate agent outputs by defining and managing specific keywords and phrases. These controls ensure appropriate
 and on-brand interactions while preserving user experience.
 
 ![control](/images/response_control.png)
 
 ## Key benefits
 
-- **Enhanced safety**: Prevent the Assistant from generating inappropriate or off-brand responses.
+- **Enhanced safety**: Prevent the agent from generating inappropriate or off-brand responses.
 - **Improved brand adherence**: Filter out responses that deviate from brand guidelines.
 - **Operational efficiency**: Configure Response Controls directly in the PolyAI UI without backend modifications.
-- **Custom metrics tracking**: Monitor and analyze Assistant behavior for better performance insights.
+- **Custom metrics tracking**: Monitor and analyze agent behavior for better performance insights.
 
 ## How it works
 
-Response Controls use string matching and regex patterns to monitor Assistant responses in real time. When a response matches a predefined stop keyword or phrase, the system can:
+Response Controls use string matching and regex patterns to monitor agent responses in real time. When a response matches a predefined stop keyword or phrase, the system can:
 1. **Halt the response**: Immediately stop response generation.
 2. **Log the occurrence**: Track matches for analytics and review.
 
@@ -41,7 +41,7 @@ This functionality helps ensure adherence to safety and brand standards without 
 
 ### Response Controls structure
 
-Response Controls are organized as **Stop Keywords**, each with specific attributes:
+Response Controls are organized as **stop keywords**, each with specific attributes:
 
 - **ID (String)**: Unique identifier for tracking and analytics.
 - **Description (String)**: Optional text to clarify the keyword's purpose.
@@ -50,11 +50,11 @@ Response Controls are organized as **Stop Keywords**, each with specific attribu
 
 ### Stop keywords
 
-Use stop keywords to ensure your assistants react quickly and appropriately to sensitive information or inappropriate conversations.
+Use stop keywords to ensure your agents react quickly and appropriately to sensitive information or inappropriate conversations.
 
 <Tabs>
 <Tab title="1. Create a function">
-![control](/images/stop_keywords_function.png)
+![control](/images/stop-keywords-function.png)
 Navigate to the [Functions](/function/introduction) section under the Build tab to define a custom function for handling stop keywords.
 
 **Example setup**:
@@ -71,7 +71,7 @@ def ashmolean(conv: Conversation):
 </Tab>
 
 <Tab title="2. Configure the keyword">
-![control](/images/stop_keywords_response_control.png)
+![control](/images/stop-keywords-response-control.png)
 Next, navigate to the **Response Controls** section and add a new stop keyword.
 
 **Setup details**:
@@ -84,16 +84,16 @@ Next, navigate to the **Response Controls** section and add a new stop keyword.
 </Tab>
 
 <Tab title="3. Test">
-![control](/images/stop_keywords_test.png)
+![control](/images/stop-keywords-test.png)
 Go to the **Web Chat** testing panel to validate your setup.
 
 **Steps**:
 1. Type a message containing the word "Ashmolean."
-2. Observe the assistant's response: "The detected phrase is restricted. Please adjust your input."
-3. Confirm that the assistant halts any further response generation.
+2. Observe the agent's response: "The detected phrase is restricted. Please adjust your input."
+3. Confirm that the agent halts any further response generation.
 
 **Expected result**:
-The assistant successfully identifies the stop keyword, triggers the linked function, and stops further dialogue.
+The agent successfully identifies the stop keyword, triggers the linked function, and stops further dialogue.
 
 </Tab>
 </Tabs>
@@ -113,13 +113,53 @@ You can use regex to define complex patterns for fine-grained control over respo
 
 ## Custom metrics tracking
 
-Response Controls log all occurrences of matches for analytics. You can view these metrics in the **[Analytics Dashboard](/analytics/dashboards/introduction)** to identify trends, evaluate Assistant behavior, and refine controls over time.
+Response Controls log all occurrences of matches for analytics. You can view these metrics in the **[Analytics Dashboard](/analytics/dashboards/introduction)** to identify trends, evaluate agent behavior, and refine controls over time.
 
 ## Practical use cases
 
 - **Safety compliance**: Prevent offensive or harmful language in user interactions.
 - **Brand adherence**: Block responses with phrases outside approved messaging.
 - **Content moderation**: Identify and log responses that require review or adjustment.
+
+## Use stop keywords to remove unnecessary preambles
+
+LLMs often add unnecessary meta-explanations before executing an action, which can slow down response times and, more importantly, annoy users. By applying stop keywords, you can ensure that agents immediately proceed with relevant information without unnecessary preamble or repetition.
+
+#### Example: Before and after applying stop keywords
+
+**Without stop keyword:**  
+- User: *"I want to cancel my plan."*
+- Agent: *"Let's start by gathering some information. Please hold on while I check your cancellation options. Here are your cancellation options."*
+
+**With stop keyword on "let's start" applied:**
+- User: *"I want to cancel my plan."*
+- Agent: *"Here are your cancellation options."*
+
+### How to implement stop keywords
+
+Add a stop keyword to block redundant transition phrases:
+
+- **ID:** `flow_redundancy_cutoff`
+- **Description:** Prevents unnecessary filler before a response.
+- **Regular Expression:** `\b(let's start|please hold on|let me check)\b`
+- **Say Phrases:** `TRUE` (halts response when detected).
+
+#### Steps to set up:
+1. Go to **Response Controls** in Agent Studio.
+2. Click **Add Phrase** and enter:
+   - **ID:** `flow_redundancy_cutoff`
+   - **Regular Expression:** `\b(let's start|please hold on|let me check)\b`
+   - **Say Phrases:** `TRUE`
+3. Save and test the assistant's responses.
+
+### Optional: Redirect to a function for better phrasing
+
+Stop keywords can also trigger a function to **replace** the blocked phrase with a cleaner response of your choice.
+
+```python
+def flow_redundancy_cutoff(conv: Conversation):
+    return "Here are your options."
+```
 
 ## Related links
 
