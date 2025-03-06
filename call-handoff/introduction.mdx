@@ -20,10 +20,10 @@ To create a new handoff destination:
    - **Name**: Enter a descriptive name (e.g., "Front desk").
    - **Description**: Add a note about when to use this handoff (e.g., "When the caller needs to speak with an operator").
    - **Method**: Choose the SIP method to use for call routing. Options include:
-     - **[SIP REFER](https://www.ietf.org/rfc/rfc3515.txt)** (default) – Transfers the call to an external number or SIP URI.
-     - **[SIP INVITE](https://datatracker.ietf.org/doc/html/rfc3261#section-13.3.1)** – Directly places a new call.
-     - **[SIP BYE](https://www.rfc-editor.org/rfc/rfc3261.html)** – Ends an ongoing call.
-   - **Route**: Specify the destination SIP URI or extension.
+     - **[SIP REFER](https://www.ietf.org/rfc/rfc3515.txt)** (default) – PolyAI specifies a transfer destination to the client <Tooltip tip="This is a network element that manages and secures SIP calls. SBCs handle call routing, security, and interoperability between different VoIP networks.">Session Border Controller</Tooltip> (SBC), then drops from the call.
+     - **[SIP INVITE](https://datatracker.ietf.org/doc/html/rfc3261#section-13.3.1)** – PolyAI creates a new call with the destination and acts as a bridge between the client SBC and the destination.
+     - **[SIP BYE](https://www.rfc-editor.org/rfc/rfc3261.html)** – PolyAI signals that its call leg is over, allowing the client SBC to take the call back over.
+   - **Route**: Specify the destination SIP URI or extension (only applies to SIP INVITE and SIP REFER).
    - **SIP headers**: Add optional **[SIP headers](https://www.iana.org/assignments/sip-parameters/sip-parameters.xhtml)** to include metadata or routing instructions.
 
 4. Click **Add** to save the destination.
@@ -35,9 +35,14 @@ To create a new handoff destination:
 SIP headers can be used to send additional metadata when making a handoff. To add SIP headers:
 
 1. Click **Add SIP Header** in the handoff setup modal.
-2. Enter a **Header Name** (e.g., `Call-ID`).
+2. Enter a **Header Name** (e.g., X-Customer-ID).
+   - Custom headers should start with an `X-` prefix.
 3. Enter a **Value** (e.g., `abc123`).
-4. Repeat as needed for multiple headers.
+4. You can use `$variables` in the SIP header values for dynamic data. Example:
+
+   `X-Caller-ID: $caller_id`
+
+5. Repeat as needed for multiple headers.
 
 SIP headers allow for custom integrations with external telephony systems and can help manage call behavior dynamically.
 
@@ -52,7 +57,6 @@ Once a handoff destination is created, it will appear in the list of destination
 - **Use clear descriptions**: Ensure handoffs are labeled with their intended use to avoid confusion.
 - **Test call routing**: Regularly test handoff destinations to verify they are functioning correctly.
 - **Optimize SIP headers**: Use headers to pass relevant metadata and improve call handling.
-- **Ensure fallback coverage**: Set up a default handoff destination in case a primary route fails.
 
 ### Using your own Twilio number
 
@@ -68,7 +72,7 @@ If you're bringing your own Twilio phone number to route calls, follow these ste
    - If necessary, provision new numbers directly using the Twilio console.
 
 3. **Set up routing in Twilio**:
-   - Configure your Twilio number to route calls to your PolyAI agent by setting the **Webhook URL** in your Twilio console. For example:
+   - Configure your Twilio number to route calls to your PolyAI agent by setting the **Webhook URL** in your Twilio console. Example:
      - **Voice Webhook URL**: `https://your-polyai-instance-url/voice/call`
    - Make sure your webhook supports **POST** requests and uses the correct authentication methods.
 
