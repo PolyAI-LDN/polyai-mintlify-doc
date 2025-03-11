@@ -1,9 +1,51 @@
 ---
-tite: How a PolyAI Agent conversation works
-sidebarTitle: Conversation flow
-mode: custom
+title: "PolyAI Agent Conversation Flow"
+description: "Understanding the step-by-step processing of a PolyAI voice agent."
 ---
 
+This page explains the **full order of operations** in a PolyAI agent conversation, covering:
 
-![operations](/images/operations-diagram-full-static.png)
+![PolyAI Voice Agent Conversation Flow](/images/operations-diagram-full-static.png)
 
+## Processing stages
+
+Each conversation follows a structured pipeline, broken down into key stages:
+
+<AccordionGroup>
+  <Accordion title="1. Input and Processing">
+    - i. The **caller** speaks into their device.
+    - ii. The [ASR service](/speech-recognition/introduction) transcribes speech into text.
+    - iii. The **ASR processing layer** applies corrections to improve accuracy.
+    - iv. The corrected transcript is passed to **retrieval**.
+  </Accordion>
+
+  <Accordion title="2. Compute Prompt & Response Generation">
+    - i. The system **retrieves knowledge** relevant to the user's query.
+    - ii. The **LLM prompt is computed**, integrating system knowledge and conversation history.
+    - iii. The **LLM processes the request**, determining whether to return:
+      - **A text response** (e.g., answering a question)
+      - **A function call** (e.g., retrieving order status)
+    - iv. If a function is executed, its output is passed back to the **LLM for further response refinement**.
+  </Accordion>
+
+  <Accordion title="3. Streaming & Chunking">
+    - i. The response is broken into **streamed chunks** for real-time interaction.
+    - ii. **Stop keywords** determine if unnecessary chunks should be suppressed.
+    - iii. The processed text is converted into speech via **TTS service**.
+  </Accordion>
+
+  <Accordion title="4. Post-Processing & Handoff">
+    - i. If escalation is needed, the agent **triggers a live handoff**.
+    - ii. The conversation history and logs are stored for analytics.
+    - iii. The final **spoken response is streamed to the caller**.
+  </Accordion>
+</AccordionGroup>
+
+## Advanced: How response streaming works
+
+Unlike traditional conversational AI, **PolyAI agents don’t wait for a full response before speaking**. Instead:
+
+- The **LLM response is streamed** word by word.
+- **Each chunk** is sent to **TTS in real time**, allowing seamless back-and-forth interaction.
+- **Stop keywords** (such as "Sorry for any confusion") **automatically terminate unnecessary responses**.
+- The system ensures **natural, responsive dialogue flow** by balancing **real-time streaming** and **controlled chunking**.
