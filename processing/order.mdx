@@ -1,0 +1,81 @@
+---
+title: "Conversation flow"
+description: "Understanding the step-by-step processing of a PolyAI voice agent."
+---
+
+This page explains how a PolyAI agent processes a conversation, from caller input to response generation.
+
+![PolyAI Voice Agent Conversation Flow](/images/operations/diagram-full-static.png)
+
+Expand the image to zoom.
+
+## Processing stages
+
+A conversation moves through the following stages:
+
+<AccordionGroup>
+  <Accordion title="1. Input and processing">
+
+  - **Caller**: The caller speaks into their device.
+  - **Audio Stream**: The spoken input is captured and sent for transcription.
+  - **ASR Provider**: The system receives the raw audio.
+  - **[ASR Service](/speech-recognition/introduction)**: Converts the audio into text.
+  - **ASR Processing**: Searches for transcription issues and applies any relevant corrections.
+  - **Transcript Text → Corrected Transcript**: The corrected transcript is passed to [Retrieval](/knowledge-base/RAG/introduction).
+  - **Retrieval**: Pulls relevant **topics retrieved** from the [knowledge base](/knowledge-base/introduction) to provide context for the response.
+
+  </Accordion>
+
+  <Accordion title="2. Compute prompt and generate response">
+
+  - **Compute Prompt**: The system builds an LLM prompt using retrieved topics, system knowledge, and conversation history.
+  - **Run LLM**: The LLM processes the request and determines whether to return:
+    - **Returned Text**: A direct text response.
+    - **Returned Function**: A [function](/function/introduction) call.
+  - **Execute Function (if applicable)**: Runs the function and passes the result back to the LLM.
+  - **LLM Refinement**: If a function result is returned, the LLM updates its response before proceeding.
+
+  </Accordion>
+
+  <Accordion title="3. Streaming and chunking">
+
+  - **Chunk LLM Output**: The response is broken into chunks before being sent to text-to-speech.
+  - **Postprocess Chunks**: Applies rules such as [stop keywords](/response-control/introduction#use-stop-keywords-to-remove-unnecessary-preambles) to remove unnecessary phrases.
+  - **Stream Partial Responses**: The system sends chunks as soon as they are ready, rather than waiting for the full response.
+  - **TTS Service**: Converts text chunks into speech.
+  - **TTS Provider**: Streams the synthesized speech back to the caller.
+
+  </Accordion>
+
+  <Accordion title="4. Post-processing and handoff">
+
+  - **Live Handoff (if applicable)**: If escalation is needed, the agent triggers a [live handoff](/call-handoff/introduction).
+  - **Conversation Logs**: The system stores conversation history and logs for [analytics](/analytics/conversations/introduction).
+  - **Final Response**: The caller hears the completed response as it streams, without waiting for the entire message.
+
+  </Accordion>
+</AccordionGroup>
+
+## Advanced: How response streaming works
+
+PolyAI agents don’t wait for the full response before speaking. Instead, responses are processed and streamed **in real time**:
+
+- **LLM Streaming**: Words are generated and sent continuously.
+- **Chunking**: Before reaching TTS, responses are broken into chunks for controlled delivery.
+- **Postprocessing**: [Stop keywords](/response-control/introduction#use-stop-keywords-to-remove-unnecessary-preambles) remove unnecessary phrases before they are spoken.
+- **TTS Streaming**: The caller hears speech as soon as it’s processed, rather than waiting for the entire response.
+
+### Watch it in action
+
+This video visualizes the conversation flow, showing how responses are processed, chunked, and streamed:
+
+<div style={{ display: "flex", justifyContent: "center", margin: "20px 0" }}>
+  <video
+    controls
+    width="800"
+    style={{ maxWidth: "100%", borderRadius: "8px" }}
+  >
+    <source src="https://res.cloudinary.com/dtdd8khwd/video/upload/v1741740875/Screen_Recording_2025-03-07_at_10.01.17_vhpnx1.mov" type="video/mp4" />
+    Your browser does not support the video tag.
+  </video>
+</div>
