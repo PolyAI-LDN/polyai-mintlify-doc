@@ -1,0 +1,71 @@
+---
+title: 'Zendesk'
+description: 'Integrate Zendesk with your PolyAI agents.'
+---
+
+The Zendesk integration allows PolyAI voice agents to interact with Zendesk Talk. This guide outlines the setup process and key components.
+
+## Call flow
+
+1. A caller dials a number linked to a [Zendesk account](https://support.zendesk.com/hc/en-us/articles/4408828861466-Getting-started-with-Zendesk-Support).
+2. Zendesk uses the [Overflow](https://support.zendesk.com/hc/en-us/articles/4408825321626-Using-Overflow-Routing-in-Zendesk-Talk) feature to redirect the call to PolyAI. This requires a phone number from a [SIP provider](https://www.techtarget.com/searchunifiedcommunications/definition/Session-Initiation-Protocol-SIP) such as [Twilio](https://www.twilio.com/sip-trunking) or [Gamma](https://www.gamma.co.uk/products/gamma-sip-trunks/).
+3. Twilio converts the [PSTN](https://www.techtarget.com/searchnetworking/definition/PSTN) call to [SIP](https://www.ietf.org/rfc/rfc3261.txt) and sends it to PolyAI.
+4. PolyAI starts a [SIP INVITE](https://datatracker.ietf.org/doc/html/rfc3261#section-13) to an outbound integration. This routes the call to a [SIP URI](https://www.twilio.com/docs/sip-trunking#sip-uri-format) provided by Zendesk.
+5. Zendesk agents receive the call. If a ticket exists, they see its ID via the [`X-Zendesk-Ticket-Id`](https://support.zendesk.com/hc/en-us/articles/4408825198106).
+
+## Test environment
+
+PolyAI has a test setup for Zendesk integrations:
+- **Zendesk dev account:** [PolyAI Zendesk](https://d3v-polyai.zendesk.com/agent/dashboard)
+- **Test bot:** [UK-1 Staging](https://platform.uk-1-staging.polyai.app/telephony-testing-ukstaging/zendesk-test-bot-ukstagingp/flows/main)
+- **Test number:** `01727 326086`
+
+## Setup
+
+### Configure PSTN forwarding
+
+Zendesk numbers route calls internally by default. To send calls to PolyAI, enable Overflow.
+
+1. Create an empty agent group in Zendesk Talk.
+2. Set the inbound number to route only to this group.
+3. Configure Overflow to forward calls:
+   - If no agents are available (the group is empty, so this is always the case).
+   - Outside business hours.
+4. Disable voicemail for this number.
+
+### Enable SIP in Zendesk
+
+Zendesk requires SIP to send calls to external systems.
+
+1. In Zendesk, go to **Admin Center**.
+2. Select **Channels → Talk → Lines**.
+3. Click **Add Line → Add SIP Line**.
+4. Register a SIP address. Name it to match the client or project.
+5. Add Kamailio’s IP address range to allow traffic from PolyAI.
+
+### Create the outbound integration
+
+1. Create a `telephony.<environment>.yaml` file in the project’s `domain` folder.
+
+```yaml
+outbound_integrations:
+  - name: CLIENT_OR_PROJECT_NAME
+    encryption: UDP/RTP
+    addresses:
+      - "sip:YOUR_SIP_ADDRESS"
+```
+
+2. Deploy it:
+
+```bash
+infra telephony manage --cluster CLUSTER_NAME --path telephony.<environment>.yaml
+```
+
+A telephony engineer may need to run this command.
+
+## Handoff using the outbound integration
+
+Once the SIP address is set up and verified, PolyAI can hand off calls to Zendesk agents.
+
+For additional support, contact [PolyAI Support](mailto:support@polyai.com).
+
