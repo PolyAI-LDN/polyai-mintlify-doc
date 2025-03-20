@@ -10,10 +10,9 @@ Multi-voice allows you to assign multiple voices to an agent. Since each voice h
 
 ## Select your voices
 
-To use multiple voices, you need their ElevenLabs voice IDs. Refer to the [ElevenLabs documentation](https://help.elevenlabs.io/hc/en-us/articles/14599760033937-How-do-I-find-my-voices-ID-of-my-voices-via-the-website-and-through-the-API) to find them.
+To use multiple voices, you need their voice IDs from your chosen TTS provider. Refer to the [function TTS provider configuration](/function/classes) for full details on supported providers and their configuration options.
 
-Here is an example of how to configure multiple voices as part of the start function. This example is for an agent that will be randomly assigned a voice
-at the start of each interaction:
+Here’s an example of how to configure multiple voices, where the agent is randomly assigned a voice at the start of each interaction:
 
 ```python
 def start_function(conv: Conversation):
@@ -27,10 +26,9 @@ def start_function(conv: Conversation):
             weight=0.5
         ),
         VoiceWeighting(
-            voice=ElevenLabsVoice(
-                voice_id="SOYHLrjzKX21zeoPC6cr",
-                similarity_boost=0.7,
-                stability=0.3
+            voice=RimeVoice(
+                provider_voice_id="rime_general_female",
+                style="neutral"
             ),
             weight=0.5
         )
@@ -39,16 +37,9 @@ def start_function(conv: Conversation):
 
 ### How it works
 
-- **`conv.randomize_voice([...])`**: Selects a voice at random based on the assigned weights.
-- **`VoiceWeighting`**: Associates a voice with a probability of being selected.
-- **`ElevenLabsVoice`**: Specifies an ElevenLabs voice with configurable parameters:
-  - `voice_id`: The unique identifier for the voice.
-  - `similarity_boost`: A value (0.0 to 1.0) that controls how closely the generated voice matches the original.
-  - `stability`: A value (0.0 to 1.0) that controls the consistency of tone and delivery.
-  - For more information on these parameters, visit the [ElevenLabs API documentation](https://elevenlabs.io/docs/api-reference/voices/edit-settings).
-- **Weights**: Define selection probability:
-  - First `ElevenLabsVoice`: 0.5 is 50%
-  - Second `ElevenLabsVoice`: Also 50%, so they are equal.
+- `conv.randomize_voice([...])`: Selects a voice at random based on the assigned weights.
+- `VoiceWeighting`: Associates a voice with a probability of being selected.
+- **Weights** define selection probability:
   - The sum of all weights must equal 1.0.
 
 ## Understanding voice weights
@@ -58,9 +49,9 @@ You can add a maximum of **five voices** to an AI agent.
 The `weight` parameter determines how often each voice is selected. The sum of all weights must equal **1.0**.
 
 Examples:
-- **One voice at 1.0**: Always uses that voice.
-- **Two voices at 0.5 each**: Each is selected 50% of the time.
-- **Four voices at 0.25 each**
+- One voice at `1.0`: Always uses that voice.
+- Two voices at `0.5` each: Each is selected 50% of the time.
+- Four voices at `0.25` each.
 
 ## Personalizing repeat caller experiences
 
