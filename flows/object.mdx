@@ -3,41 +3,62 @@ title: 'Object'
 description: 'The `Flow` object exposes useful information about the current flow and allows transitioning between steps in the flow.'
 ---
 
-### current_step (Property)
-Type: string
-Description: Returns the name of the current step.
+The `Flow` object provides control over how the conversation moves between steps in a flow. It is typically used inside **transition functions**, where deterministic logic determines the next conversational state.
 
-```python
-if conv.current_step == "Step 1":
-    return "You are in Step 1"
-```
+<Warning>
+Only the **last** `flow.goto_step()` call is executed if multiple are present in a single function. To prevent silent overrides, use `return` immediately after each call unless intentionally chaining.
+</Warning>
 
-### goto_step (Method)
+## `current_step` (Property)
 
-```python
-flow.goto_step(step_name)
-```
+**Type:** `string`
+**Description:** Returns the name of the current step the user is currently in.
 
-**Description:** Transitions to the specified step in the flow.
-<Note> The flow only respects the last `goto_step` call.</Note>
+    if conv.current_step == "Step 1":
+        return "You are in Step 1"
 
-```python
-flow.goto_step("Step 2")
+Use this for conditional logic, such as applying fallbacks or managing recovery flows if the user becomes stuck or skips required input.
 
+## `goto_step(step_name)` (Method)
 
-if conv.state.should_go_to_another_step:
-    flow.goto_step("Step 3")
-```
+The `flow.goto_step()` method transitions the agent to a different step in the flow. When this is called, the current step’s prompt is replaced with the next one. Each step has a unique prompt and set of active functions, and only the prompt in the current step is visible to the LLM.
 
-**Rejecting transition example:**
+    flow.goto_step("Step Name")
+    return
 
-```python
-def flow_transition(conv: Conversation, flow: Flow, first_name: str, last_name: str):
-    if not first_name or not last_name:
-        return "You need to collect the first and last name."
+<Note>
+Only the final `flow.goto_step()` call in a function will execute. Use `return` immediately after the call to enforce predictable behavior.
+</Note>
 
-    conv.state.first_name = first_name
-    conv.state.last_name = last_name
+### Conditional transition example
 
-    flow.goto_step("Next step")
-```
+    if conv.state.should_continue:
+        flow.goto_step("Step 3")
+        return
+
+### Input validation + state update example
+
+    def flow_transition(conv: Conversation, flow: Flow, first_name: str, last_name: str):
+        if not first_name or not last_name:
+            return "Please collect the user's full name first."
+
+        conv.state.first_name = first_name
+        conv.state.last_name = last_name
+
+        flow.goto_step("Confirm name")
+        return
+
+## Prompt visibility
+
+- LLMs **only see the prompt and function descriptions in the current step**.
+- LLMs **do not see flow names or step names** — all logic must be conveyed through clear prompts or function names.
+- Transitioning between steps resets the prompt context and available functions.
+- Prompt and function naming should be **LLM-readable and explicit** (e.g. `check_availability`, not `step_two_logic`).
+
+## Good to know
+
+- Any step in the flow can be set as the start step in the UI.
+- Transition functions (those that use `goto_step`) exist inside individual steps and follow step-by-step logic.
+- Exit flows are a type of transition function that end the flow rather than forwarding to another step.
+- Use `current_step` for debugging, flow analytics, or conditional routing.
+- Design flows as state machines: deterministic, modular, and scoped to a single conversational intent per step.
