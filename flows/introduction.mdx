@@ -135,3 +135,158 @@ the PolyAI Agent Studio, all title and description fields matter to the LLM.
 - [Flow object reference](./object)
 - [Prompting tips](./prompting)
 - [Function definition and syntax](./functions)
+
+# 🚧 How Flows Work in PolyAI
+
+## When to Build a Flow vs. Use Knowledge Base
+
+- **Knowledge Base**: Best for straightforward FAQs (1–3 turn interactions).
+- **Flows**: Required for scenarios involving:
+  - Collecting user-specific inputs (e.g., DOB, names, order numbers).
+  - API interactions.
+  - Complex transactions (e.g., bookings, payments, ID verification).
+  - Controlled assistant behavior (e.g., question order, input validation, escalation logic).
+
+## Structure of a Flow
+
+Flows consist of **steps** and **functions**:
+
+- **Steps**: Each step provides context (prompt) added to the LLM input.
+  - Active step prompt is at the end of the LLM input after system and conversation history.
+- **Functions**: Available functions depend on current step.
+  - Clearly instruct the LLM to call functions using explicit language.
+
+## LLM Input Assembly
+
+Order of LLM input assembly:
+
+1. System prompt ("About" + "Rules")
+2. Relevant KB topics (if retrieved)
+3. Conversation history
+4. Current step prompt
+
+### Function Visibility
+
+- Functions referenced only in KB topics are not visible during a flow step unless explicitly referenced in the rules section.
+
+## Transitioning Between Flows and Steps
+
+- Enter a flow: `conv.goto_flow("flow name")`
+  - Automatically enters start step marked by green flag.
+- Transition within flow: `flow.goto_step("step name")`
+- Use explicit return statements or structured if/elif logic to avoid unintended overwrites.
+
+## Value Collection Steps
+
+Typical pattern for value collection prompts:
+
+1. Extract value from conversation by calling a flow function.
+2. If extraction fails, explicitly ask the user.
+3. Provide additional rules for accurate parsing (e.g., spelling, NATO alphabet conversion).
+
+### Example Logic for Value Collection Function
+
+```python
+def save_value(conv: Conversation, flow: Flow, value: str):
+    if valid(value):
+        conv.state.value = value
+        flow.goto_step("Next Step")
+        return "Value saved successfully. Move on."
+    else:
+        return "Invalid value, please retry."
+```
+
+## Value Verification
+
+- Integrate verification logic directly into value collection functions to avoid inconsistencies.
+- Use fuzzy matching (e.g., Levenshtein distance) for validation:
+
+```python
+def fuzzy_match(input_string, reference_string):
+    distance = levdistance(input_string, reference_string)
+    similarity = (1 - distance / max(len(input_string), len(reference_string))) * 100
+    return similarity >= threshold
+```
+
+## Confirming Collected Values
+
+- Important for sensitive or easily misunderstood data (e.g., phone numbers).
+- Keep confirmation steps concise and clear, minimizing UX friction.
+
+## Defining and Using Functions Effectively
+
+### Function Naming
+
+- Names influence LLM behavior.
+- Use clear, value-focused names (`save_first_name`, `check_availability`).
+- Avoid future-looking names (`go_to_next_step`).
+
+### Function Imports
+
+- Functions can import other global utility functions.
+
+```python
+from functions.util_function import util_function
+
+def flow_function(conv: Conversation):
+    result = util_function(conv.state.some_data)
+```
+
+## Deterministic Logic and Branching
+
+- Use deterministic logic for security-sensitive branching (e.g., ID&V, phone number checks):
+
+```python
+if conv.state.phone_number:
+    flow.goto_step("Confirm phone number")
+else:
+    flow.goto_step("Collect phone number")
+```
+
+### ID&V Example Logic
+
+- Mark user as verified upon successful verification, then route accordingly.
+
+```python
+def verify_user(conv: Conversation):
+    if verify_details(conv.state.user_input):
+        conv.state.user_verified = True
+        conv.goto_flow(conv.state.destination_flow)
+```
+
+- Clearly defined exit points avoid repetition and misrouting.
+- Avoid overloading steps or ambiguous function names to maintain clarity and predictability.
+
+
+- GenAI development is a trial-and-error process
+- Just use the knowledge base for simple interactions that might only necessitate two or three responses without needing more complex info
+- Flows are for transactional interactions, or once where the conversation could go off in different directions depending.
+- Current DDs need SWEs help to set up new flows, with handoffs/sms/agent worker/metrics.
+- Consider where you start your flow from - it can be in a knowledge base item, or in the Rules, or in a function(?)
+- LLMs /do not/ get the name and description of flows like they do with functions or flow steps.
+- Start a flow with
+￼
+- When you reference a start flow in a knowledge base or rules field, it will create a start flow function with the same configurable options as other start functions.
+- Just do a slash (/) -> type Flow -> then type the flow name
+- Components:
+    - Steps - building blocks, nodes, when — and only when! — you reach a step, the prompt inside is shown to the LLM.
+    - Prompts - technically a mixture of LLM prompts and functions, with internal function names and descriptions included as plain text and read as textual elements inside the prompt.
+    - Actions - SMS, handoff, functions, steps (transitional/in-flow functions), attributes, exit flows.
+- Each action is a function from inside this UI.
+- Global functions (fx) and transition functions (->) are different types, the former exists globally and is added to the Functions tab.
+- Transition functions are per-flow but naturally adhere to the step by step logic.
+    - Use `return` to signal a function definition is over - any lines after that will be greyed out.
+- ASR biasing can be added to a step with ‘configure’, any step can be set as the start step.
+- Exit flows look yellow with a <- arrow but they also are transition functions (except they don’t transition anywhere).
+- All start functions are available from the functions page, but transition functions only inside their respective steps (may have changed now, actually, check that, one of the last releases)
+- Flow prompting — good example (don’t use, catalis production) 
+- ￼
+
+- Use functions for deterministic behaviours and pure prompting for more freeform:
+￼
+
+- One of our internal frameworks is few shot prompting (FSP) which means including examples of an ideal or theoretical conversation that might occur between the agent and customer.
+    - These examples are the “few shots”.
+-
+
+
