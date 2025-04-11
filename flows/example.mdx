@@ -12,14 +12,16 @@ This flow handles a real-world reservation confirmation scenario. It highlights:
 - ASR biasing for input accuracy
 - Clean state transitions between flow steps
 
+## Start step
+
 ![example-1](/images/flow-hotel-start-step.png)
 
-## A. Flow name (breadcrumb)
+### A. Flow name (breadcrumb)
 The flow name appears at the top of the editor and identifies the current flow — in this case, `reservation confirmation`.
 
 It also acts as a **breadcrumb**, allowing you to return to the list of all flows. This is useful when working across multiple projects or assistants.
 
-## B. Step name and icon
+### B. Step name and icon
 This shows the **current step**: `Collect confirmation code`. The 🏁 icon indicates it's the **start step** of the flow.
 
 Each step contains:
@@ -27,7 +29,7 @@ Each step contains:
 - Transition logic to guide conversation flow
 - A set of visible functions the LLM can call.
 
-## C. Transition function reference
+### C. Transition function reference
 Inside the step prompt, the LLM is told to call `save_confirmation_code` if the user provides a valid input.
 
 This example uses both the [conversation](/function/classes/conv-object) and [flow](/flows/object) objects:
@@ -43,7 +45,7 @@ Transition functions are inserted using `/` and appear as underlined blocks in t
 
 See the [transition function](transition-functions) page for more details.
 
-## D. Add another reference
+### D. Add another reference
 Clicking the <Icon icon="plus" iconType="solid" />. icon below the prompt lets you:
 - Add another function reference
 - Insert a transition to another step
@@ -51,7 +53,7 @@ Clicking the <Icon icon="plus" iconType="solid" />. icon below the prompt lets y
 
 This is useful for branching logic but avoid chaining multiple `goto_step()` calls inside a single function. Always `return` after calling `goto_step`.
 
-## E. ASR biasing
+### E. ASR biasing
 This step has [ASR biasing](asr-biasing) set to **Alphanumeric**, improving recognition of spoken confirmation codes like "B–4–Z–Q–9".
 
 You can enable other biasing types as needed, including:
@@ -62,12 +64,51 @@ You can enable other biasing types as needed, including:
 
 See the [ASR biasing](asr-biasing) page for more details.
 
-## F. Flow toolbar (bottom panel)
+### F. Flow toolbar (bottom panel)
 At the bottom of the Flow Editor:
 - **Flow functions** opens a modal to manage logic used in the flow
 - **+ Step** adds a new node to the flow canvas
 
 Transition functions created here are scoped to the flow unless declared globally.
+
+## Middle steps
+
+![example-2](/images/flow-example-middle.png)
+
+The assistant collects the user’s **first** and **last** name using separate steps, each with its own prompt and transition logic.
+
+- If the user has already provided the name, the assistant calls the relevant function (e.g. `save_first_name`, `save_last_name`) and proceeds.
+- If not, the assistant asks for it directly.
+
+Each step uses **few-shot prompting** to improve recognition of tricky formats:
+
+```plaintext
+User: It’s Smith.
+Johannes: Thanks — that’s Smith.
+
+User: My surname is de la Cruz.
+Johannes: Got it, de la Cruz.
+
+User: Sure, that’s H-O-W-E. Howe.
+Johannes: Thanks for spelling it — I’ve got Howe.
+```
+
+ASR biasing is set to **Name spelling** in the “Collect last name” step to improve recognition of spelled-out inputs.
+
+## End step
+
+![example-3](/images/flow-example-end.png)
+
+The assistant attempts to match the user's provided details against active reservations.
+
+- It compares the `confirmation code`, `first name`, and `last name` against entries in the `$reservations` list.
+- If a match is found, it calls the `confirm_reservation` function and moves forward.
+- If no match is found, it calls `transfer_call` with the following parameters:
+  - `destination="RESERVATIONS"`
+  - `reason="RESERVATION_NOT_FOUND"`
+  - `utterance="Right, let me put you through to someone who can help. Just a moment."`
+
+This is a standard validation step using dynamic values and conditional logic.
 
 ## Reminders
 
