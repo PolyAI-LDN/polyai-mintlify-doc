@@ -3,270 +3,62 @@ title: 'Introduction'
 description: 'An overview of how flows and prompting work inside the PolyAI agent runtime.'
 ---
 
-A flow, or [Talk Track](/glossary/introduction#talk-tracks), is a structured interaction made up of **steps**, each containing a [prompt](/knowledge-base/introduction) and one or more [actions](/knowledge-base/how-to-setup-action/introduction)). You use flows when an interaction requires:
+A flow, or [Talk Track](/glossary/introduction#talk-tracks), is a structured interaction made up of **steps**, each containing a [prompt](/knowledge-base/introduction) and one or more [actions](/knowledge-base/how-to-setup-action/introduction). You use flows when an interaction requires:
 
-![example-2](/images/exit-flow.png)
-
-![example-2](/images/end-step-plain.png)
-
-- Data collection (e.g. phone number, address, name)
-- Validation or retries
-- External or [internal](/api-reference/introduction) API calls.
-- Complex [routing, handoff, and escalation](/call-handoff/introduction)
-- Enforcement of any required business logic or process compliance, like requiring users to confirm GDPR consent before proceeding with a data collection process.
-
-## When to use a flow
-
-- You should use individual [Knowledge Base](/knowledge-base/introduction) entries for short, simple, FAQ-style questions that require a few conversational turns.
-- Use a flow when:
-  - The conversation needs to follow a defined sequence — for example, gathering user details in a specific order for onboarding or signup.
-  - You want to guide or constrain the LLM.
-  - You need to collect multiple inputs, call [APIs](/api-reference/introduction), or escalate.
+- Collecting user input (e.g. name, phone number, confirmation code)
+- Performing validation or retries
+- Calling internal or external APIs
+- Routing, handoff, or escalation
+- Following a specific sequence to meet business logic or regulatory requirements
 
 <Note>
-A knowledge base entry is perfect for straightforward questions like:
-    - "What are your opening hours?"
-    - "Do you offer vegetarian options?"
-    - "Can I speak to the sommelier?"
-
-It's useful for times when an answer is factual, concise, and won't require any follow-up.
+Use individual [Knowledge Base](/knowledge-base/introduction) entries for short, factual answers. Use a flow when interaction needs structure, memory, or logic.
 </Note>
 
-## Flow architecture
+## How flows work
 
-Each **Flow** is made up of:
-- **Steps**: These define a single state in the conversation. Each step includes a prompt (shown to the LLM) and a list of available functions (also visible to the LLM).
-- **Functions**: Deterministic logic blocks that handle validation, state transitions, and side effects like API calls or data storage.
+Each flow is made up of:
+
+- **Steps**: Self-contained conversation states. Each has a prompt and a set of allowed functions.
+- **Functions**: Logic blocks that validate input, call APIs, store values, or move the conversation forward.
 
 What the LLM sees:
-- The current step’s prompt (appended last in the input stack for emphasis)
-- The functions listed in the step, with their names, descriptions, and arguments
+- The **current step’s prompt**
+- A list of available **functions** with names, descriptions, and arguments
 
-What the LLM **does not** see:
-- The flow’s name or overall description
-- Any text prompts from previous steps
-- Code comments or UI metadata
+What the LLM doesn’t see:
+- Previous step prompts
+- Any system context unless it’s surfaced in the prompt or state
 
 <Tip>
-Visit the [processing order](/processing/order) page to understand how the agent constructs its input and how step prompts fit into the full prompt stack.
+Because previous steps are not visible, each prompt must be **self-contained**. Provide all necessary context and clear guidance in each step.
 </Tip>
 
-Because previous step prompts aren’t retained, **each step prompt must be fully self-contained**. It should give the LLM everything it needs to reason and act correctly from that single state.
+## LLM interaction model
 
-## Prompting philosophy
+When the assistant is inside a flow step, this is the input order:
 
-- Use [few-shot prompting](/prompting/few-shot) to anchor the model’s expectations and responses.
-- Be direct when instructing function calls:
-  _“Call `save_user_info` now”_ is more effective than just mentioning the function name.
+1. System prompt (includes Rules and About)
+2. Any relevant KB entries (if applicable)
+3. Conversation history
+4. The **step prompt** (appended last)
 
-## Designing flows
+This makes the step prompt the **most influential** part of the LLM's input.
 
-- Think of flows as state machines: each step should be an isolated unit with clear entry and exit conditions.
-- Use `flow.goto_step("step_name")` followed by `return` to move between steps.
-- Avoid function names that suggest transitions (e.g. `goto_email_step`) — this can cause the LLM to jump ahead or hallucinate.
+## Key techniques
 
-Example:
+- [Transition functions](transition-functions) control the flow's routing logic.
+- Use [few-shot prompting](few-shot-prompting) to clarify expected inputs or edge cases.
+- Set [ASR biasing](asr-biasing) to improve voice transcription for structured or ambiguous values like confirmation codes or personal names.
 
-```python
-if not user_email:
-    flow.goto_step("Collect email")
-    return
-```
-
-### Variables in prompts
-Flows support the use of [variables](/function/variables) to dynamically fill in information during interactions. This allows for personalized and context-aware responses.
-
-
-## Conditional logic
-
-Flows can and should adapt based on user input.
-
-- Use standard Python `if`/`elif`/`else` blocks to guide transitions.
-- For example:
-  If a user provides a date, call `check_availability`. If unavailable, transition to a fallback step or escalate.
-
-```python
-if is_date_available(date):
-    flow.goto_step("Confirm time")
-    return
-else:
-    flow.goto_step("Offer alternatives")
-    return
-```
-
-This lets your assistant stay flexible while maintaining structure.
-
-## Variables and ASR biasing
-
-- Use [variables](/variant-management/introduction) to personalize prompts — e.g., greeting users by name or referencing saved details.
-- Configure **ASR biasing** in each step to improve transcription of critical values like names, email addresses, or dates.
-
-<Note>
-If you're collecting a postcode or order number, setting ASR biasing helps ensure the assistant hears the input correctly — especially in noisy environments.
-</Note>
-
-## Connecting and managing steps
+## Connecting steps
 
 In the Flow Editor:
 
-- Connect steps using `/Steps` in the prompt field to suggest next actions.
-- Define transitions using manually named or autogenerated transition functions.
-- Use the bottom-right **Flow Functions** modal to manage all transitions across the flow.
+- Use `/Steps` in the prompt to connect to the next step
+- Add named transition functions to manage movement between states
+- Use the **Flow Functions** modal to see all transitions in one place
 
 <Note>
-Use consistent naming to make flows easier to debug — e.g., `goto_confirmation_step` vs. vague names like `next_step`.
+Use descriptive function names like `check_reservation_match`, not vague ones like `step_two` — this helps the LLM reason correctly.
 </Note>
-
-## Common pitfalls
-
-- Missing an **exit step** causes loops or flow lock-ins.
-- Packing too much into one step overwhelms both users and the model — break long logic chains into clear, focused steps.
-- Vague or forward-looking function names (like `handle_it` or `go_to_next`) confuse the LLM and increase the chance of errors.
-
-<Note>
-A function called `save_user_email` is much easier for the LLM to match with “My email is john@example.com” than one called `continue_flow`.
-</Note>
-## Example flow: restaurant booking
-
-Flows are ideal for structured tasks like bookings. Here’s a minimal example:
-
-1. **Collect Details**
-   - Prompt: “What date and time would you like to book for? How many people?”
-   - Function: `collect_reservation_details`
-
-2. **Check Availability**
-   - Call `check_availability()`
-   - If available, transition to confirmation; if not, loop back or offer alternatives.
-
-3. **Confirm**
-   - Prompt: “Your table is booked. Anything else I can help with?”
-   - Function: `exit_flow`
-
-<Note>
-Use action-oriented, retrospective function names (like `check_availability`) to help the model make the right call at the right time.
-</Note>
-
-## When to build a flow
-
-Flows are best when you need:
-- Structured, multi-turn logic
-- Collection of key values (e.g. email, date of birth)
-- Controlled sequences (e.g. step-by-step verification)
-- Transactions, lookups, or escalation logic
-
-Enter flows using `conv.goto_flow("flow_name")` and move between steps using `flow.goto_step("step_name")`.
-
-## LLM input assembly order
-
-When inside a flow step, the model sees:
-
-1. System prompt (with Rules + About)
-2. Relevant knowledge base entries (if any)
-3. Conversation history
-4. Current step prompt (inserted last for emphasis)
-
-⚠️ Functions referenced **only** in KB topics are **not visible** inside flows. Add them to the Rules section to expose them.
-
-## Value collection: standard pattern
-
-When asking for user input, follow this three-part strategy:
-
-1. Try to extract the value from previous turns.
-2. If missing, ask the user directly.
-3. Add rules and edge case handling as needed.
-
-Example:
-
-```python
-def save_value(conv: Conversation, flow: Flow, value: str):
-    if valid(value):
-        conv.state.value = value
-        flow.goto_step("Next Step")
-        return "Value saved."
-    return "That didn’t look right — can you try again?"
-```
-
-<Tip>
-Let the function handle transitions. Keep the prompt focused on user input, not step logic.
-</Tip>
-
-## Verification and fuzzy matching
-
-Use fuzzy matching to handle typos, phonetic errors, or alternate formats:
-
-```python
-def fuzzy_match(input, reference):
-    distance = levdistance(input, reference)
-    return (1 - distance / max(len(input), len(reference))) * 100 >= 80
-```
-
-## Confirming collected values
-
-- Confirm inputs like phone numbers or bookings before saving.
-- Keep confirmations natural:
-  _“So that’s a table for 4 at 8pm on Saturday — is that right?”_
-
-Avoid echoing long strings verbatim (e.g., “Your email is j-o-h-n...”).
-
-## Function imports
-
-Import utility functions into your flow logic as needed:
-
-```python
-from functions.utility import fuzzy_match
-
-def flow_fn(conv):
-    if fuzzy_match(conv.state.user_input, "reference"):
-        ...
-```
-
-This keeps flows modular and makes shared logic easy to maintain.
-
-## Deterministic branching
-
-Use conditional logic to control flow transitions based on state:
-
-```python
-if conv.state.phone_number:
-    flow.goto_step("Confirm phone number")
-else:
-    flow.goto_step("Collect phone number")
-```
-
-For ID&V-style logic:
-
-```python
-def verify_user(conv):
-    if verify(conv.state.details):
-        conv.state.user_verified = True
-        conv.goto_flow(conv.state.destination_flow)
-        return "Verified"
-```
-
-Branching should be handled in functions — not in prompts.
-
-## Additional internal notes
-
-- Generative AI development is inherently iterative — **trial and error is expected**.
-- Flows can be entered via:
-  - KB topic triggers
-  - Functions (e.g. `goto_flow`)
-  - Rules in the system prompt
-- Flows are **invisible** to the LLM unless it is actively inside a step.
-- Use `/Flow` in a prompt field to quickly generate a starter function for a new flow.
-
-### Component breakdown
-
-- **Steps** – Individual conversation states
-- **Prompts** – What the LLM sees in each step
-- **Actions** – Handlers like `transition`, `handoff`, `send_sms`, or `exit_flow`
-- **Global functions** – Reusable across multiple flows
-- **Transition functions** – Flow-local functions used for step-to-step movement
-
-### Pro tips
-
-- Always use `return` at the end of flow functions to avoid unexpected behavior
-- Set **ASR biasing** per step to improve voice transcription accuracy
-- Exit steps are **yellow** in the UI
-- Start functions are globally visible; transition functions are scoped to the current flow
-- Use [few-shot prompting (FSP)](/prompting/few-shot) for complex behaviors or edge cases
