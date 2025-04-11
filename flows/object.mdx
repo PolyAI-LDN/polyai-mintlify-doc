@@ -3,7 +3,7 @@ title: 'Object'
 description: 'The `Flow` object exposes useful information about the current flow and allows transitioning between steps in the flow.'
 ---
 
-The `Flow` object gives you control over how the assistant moves between steps in a flow. It is most commonly used inside **transition functions**, where deterministic logic determines what happens next.
+The `Flow` object gives you control over how the agent moves between steps in a flow. It is most commonly used inside **transition functions**, where deterministic logic determines what happens next.
 
 <Warning>
 Only the **last** `flow.goto_step()` call in a function is executed. To prevent accidental overrides, always use `return` immediately after a `goto_step()` call — unless you're explicitly chaining transitions.
@@ -12,7 +12,7 @@ Only the **last** `flow.goto_step()` call in a function is executed. To prevent 
 ## `current_step` (Property)
 
 **Type:** `string`
-**Returns:** The name of the current step the assistant is in.
+**Returns:** The name of the current step the agent is in.
 
 ```python
 if flow.current_step == "Collect Name":
@@ -24,7 +24,7 @@ Use this for debugging, conditional routing, or gracefully recovering from skipp
 
 ## `goto_step(step_name)` (Method)
 
-Use `flow.goto_step()` to move the assistant to another step in the flow. This replaces the current step’s prompt and functions with those of the target step.
+Use `flow.goto_step()` to move the agent to another step in the flow. This replaces the current step’s prompt and functions with those of the target step.
 
 ```python
 flow.goto_step("Confirm Name")
@@ -64,45 +64,15 @@ def transition_to_confirm_name(conv: Conversation, flow: Flow, first_name: str, 
 
 This is the recommended structure for transition logic: validate input, update state, transition, then return.
 
-## Prompt visibility rules
-
-- ✅ The LLM sees: the **current step prompt** and the **list of functions defined in the step**.
-- ❌ The LLM does **not** see:
-  - The flow or step name
-  - Prompts from earlier steps
-  - Code comments
-- 💡 Function and argument **names and descriptions are treated as prompts** — write them clearly and actionably.
-
 <Note>
 If your function is called `go_to_step_two`, the LLM may generate irrelevant responses like “Okay, moving on.” Use intent-based names like `check_user_info` or `verify_email` to anchor model behavior.
 </Note>
 
 ## Best practices
 
-- ✅ Design flows like **state machines** — each step represents a specific state with a clear transition path.
-- ✅ Keep transition functions short and scoped to a single decision.
-- ❌ Avoid chaining multiple function calls in the same function — consolidate them into a single utility or flow function.
-
-```python
-# ❌ Don't do this
-save_user_input()
-check_availability()
-flow.goto_step("Next")
-return
-```
-
-```python
-# ✅ Better
-def handle_input_and_continue(conv: Conversation, flow: Flow, input: str):
-    if is_valid(input):
-        conv.state.user_input = input
-        if check_availability(input):
-            flow.goto_step("Confirm")
-        else:
-            flow.goto_step("Unavailable")
-        return
-    return "That input didn’t look right. Can you try again?"
-```
+- Design flows like **state machines** — each step represents a specific state with a clear transition path.
+- Keep transition functions short and scoped to a single decision.
+- Avoid chaining multiple function calls in the same function — consolidate them into a single utility or flow function.
 
 ## Good to know
 
@@ -111,7 +81,3 @@ def handle_input_and_continue(conv: Conversation, flow: Flow, input: str):
 - **Exit steps** are defined using `conv.exit_flow()` and are visually marked in yellow in the Flow Editor.
 - Transition functions live **inside flows**, not globally — reuse shared logic via global utility functions instead.
 - Function names affect both **behavior and language** — treat them as part of your prompt design.
-
-<Tip>
-Think of each step as a container: one prompt, one set of functions, one decision. The `Flow` object lets you move between these containers with precision.
-</Tip>
