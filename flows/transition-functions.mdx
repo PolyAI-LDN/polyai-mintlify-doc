@@ -3,15 +3,19 @@ title: Managing transition functions
 sidebarTitle: Transition functions
 ---
 
-![flow-functions](/images/flow-functions-button.png)
+Transition functions are tied to a specific flow. They should not be confused with [global functions](/function/introduction), which can be used across [flows](introduction), in the [global rules](/agent-settings/rules), and in the [knowledge base](/knowledge-base/introduction).
 
-To view and manage transition functions, click the **<Icon icon="arrow-progress" iconType="solid" /> Flow functions** button in the bottom-right corner of the Flow Editor. This opens a searchable modal showing all [functions](/function/introduction) associated with the current flow.
+To view and manage transition functions, click the **<Icon icon="arrow-progress" iconType="solid" /> Flow functions** button in the bottom-right corner of the Flow Editor. This opens a searchable modal showing all **transition** functions associated with the current flow.
+
+![tfunctions-2](/images/transition-function-menu.png)
 
 ## Creating and managing transitions
 
-Transition functions control how your assistant moves from one step to another. You can create and edit them directly in the Flow Editor.
+Use transition functions to control how your assistant moves from one step to another, using the open-code Python fields that you can find in other transition items around Agent Studio.
 
-1. **Create manually by connecting steps**
+Here's how you can create a new transition function:
+
+1. **Connect two steps**
    If no transition exists, linking two steps will prompt you to create one.
 
 2. **Name your transition**
@@ -23,7 +27,9 @@ Transition functions control how your assistant moves from one step to another. 
 4. **View usage references**
    After creation, the UI shows how many times the transition function is referenced in prompts.
 
-## Where to manage transitions
+## Managing transition functions
+
+![transition-functions](/images/transition-function.png)
 
 You can manage transition functions in two ways:
 
@@ -33,7 +39,7 @@ You can manage transition functions in two ways:
 - **From the Flow Functions modal**
   Use the modal to view, rename, delete, or connect transitions to steps.
 
-## Duplicating transitions
+### Duplicating
 
 Duplicating a transition will auto-generate a unique name. You can then update the logic or connect it to different steps.
 
@@ -54,23 +60,27 @@ def check_user_verified(conv: Conversation, flow: Flow):
 Always use `return` at the end of your transition function. Omitting it can lead to unexpected behavior.
 </Tip>
 
-
 ## Best practices
 
-- ✅ Keep transition functions focused — one job, one output.
-- ✅ Use action- or intent-based names like `check_user_verified`, `handle_no_availability`.
-- ❌ Avoid vague or structural names like `goto_step_two` or `continue_flow` — they confuse the LLM and make flows harder to debug.
-- ❌ **Never chain multiple function calls in a single step.** This increases failure rates and makes flow behavior unpredictable. Consolidate logic into one function wherever possible.
+- Keep transition functions focused, with one job and one output.
+- Use action- or intent-based names like `check_user_verified`, `handle_no_availability`.
+- Avoid vague or structural names like `goto_step_two` or `continue_flow` — they confuse the LLM and make flows harder to debug.
+- Transition functions are only visible to the LLM if referenced in the current step.
+- They are attached to the current flow, so they are not shared globally. They will not show up in the [functions](/function/introduction) tab.
+- Use them to encapsulate branching logic and control step sequencing — not to generate assistant responses.
 
+<Tabs>
+<Tab title="Avoid">
+Never chain multiple function calls in a single step. This will always increase the failure rate, and it makes flow behavior unpredictable.
 ```python
-# ❌ Avoid this pattern
 save_user_input()
 check_availability()
 flow.goto_step("Next")
 ```
-
+</Tab>
+<Tab title="Instead, use...">
+Keep individual step logic consolidated into one function wherever possible.
 ```python
-# ✅ Do this instead
 def save_and_check(conv: Conversation, flow: Flow, value: str):
     conv.state.value = value
     if check_availability(value):
@@ -79,13 +89,8 @@ def save_and_check(conv: Conversation, flow: Flow, value: str):
         flow.goto_step("Unavailable")
     return
 ```
-
-## Important notes
-
-- Transition functions are **only visible to the LLM if referenced in the current step**.
-- They are **scoped to the current flow** — not shared globally.
-- Use them to encapsulate branching logic and control step sequencing — not to generate assistant responses.
-
-<Note>
+</Tab>
+</Tabs>
+<Tip>
 If your transition function needs to trigger user-facing output, return a message string at the end. Otherwise, let the assistant respond from the step prompt.
-</Note>
+</Tip>
