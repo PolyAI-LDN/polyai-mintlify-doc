@@ -1,0 +1,137 @@
+---
+title: 04.2025
+description: April 2025 release notes.
+---
+
+The **April 2025** PolyAI Agent Studio release introduces improvements to agent evaluation, debugging, and conversation review.
+
+Expand the items for details:
+
+<AccordionGroup>
+
+<Accordion title="Call analysis and categorisation" icon="list-check">
+You can now assess calls using an **LLM-powered review flow**. Define prompts or evaluation tasks to automatically analyse agent performance and surface relevant conversations.
+
+![assistant-analysis](/images/release-notes/2504/call-categorization.png)
+
+**Key features:**
+- Rate calls for tone, intent success, or compliance
+- Use predefined categories set per project
+- Get LLM-based summaries of call performance
+
+</Accordion>
+
+<Accordion title="Enhanced diagnosis logging in Agent Studio" icon="bug">
+The conversation diagnosis view now shows **state variables** and grouped logs in real time—making it easier to debug unexpected behaviour or follow the logic of each step.
+
+![state-variables](/images/release-notes/2504/state-vars.png)
+
+**Why it matters:**
+- View flow entry/exit, LLM calls, function outputs, and more
+- Check internal state and slot values during runtime
+- Debug faster without needing Datadog access
+
+</Accordion>
+
+<Accordion title="Custom columns in Conversations" icon="columns-3">
+Conversation review now supports **custom columns**, allowing you to configure which metrics appear by default.
+
+![custom-columns](/images/release-notes/2504/custom-columns.png)
+
+**What’s configurable:**
+- Standard fields like call duration or handoff reason
+- Custom metrics added at project level
+- Display preferences scoped to each workspace
+
+</Accordion>
+
+<Accordion title="Workspace filter in Conversations" icon="window-restore">
+A new workspace-level filter in the Conversations page makes it easier to review only the calls that matter to your team.
+
+![workspace-filter-json-ui](/images/release-notes/2504/json-ui.png)
+
+**Use cases:**
+- QA teams reviewing specific builds
+- Large organizations managing many projects
+- Clearer project-by-project triage
+
+</Accordion>
+
+<Accordion title="Utility function – extract_address" icon="address-book">
+<Note>This is an opt-in feature and will not be enabled by default. Contact PolyAI for access.</Note>
+
+Agent Studio now supports utility functions—LLM-powered helpers for common conversational tasks. This release introduces the first: `extract_address()`.
+
+![extract-address-util](/images/release-notes/2504/address-util.png)
+
+**What it does:**
+- Extracts a structured address from the most recent user input using an internal LLM.
+- Returns an `Address` object with fields like street name, number, postcode, and country.
+- Raises a custom `ExtractionError` with clear messaging when something goes wrong.
+
+**Usage example:**
+```
+try:
+    address = conv.extract_address(country="US")
+    conv.state.parsed_address = address
+except ExtractionError as e:
+    conv.state.address_error = str(e)
+```
+
+**The `Address` object includes:**
+```python
+@dataclass
+class Address:
+    street_number: Optional[str]
+    street_name: Optional[str]
+    city: Optional[str]
+    state: Optional[str]
+    postcode: Optional[str]
+    country: Optional[str]
+```
+
+**Details:**
+- The method may take a few seconds to run—it calls an LLM behind the scenes.
+- You can optionally pass a list of expected addresses to validate against.
+- Fields may be partially filled depending on input quality and model confidence.
+
+**Why it matters:**
+- Replaces fragile regex or lookup-based parsing with robust LLM-driven logic.
+- Makes structured data accessible from open-ended inputs.
+- Lays the foundation for upcoming utility functions like `summarize_conversation()` and `select_from_list()`.
+
+</Accordion>
+
+<Accordion title="Import and export variants" icon="arrow-right-arrow-left">
+You can now export and import variant configurations across environments or agents—ideal for managing multi-site setups at scale.
+
+![variant-import-export](/images/release-notes/2504/variant-export.png)
+
+**What you can do:**
+- Export all variant data to a CSV file from the Variant Management tab.
+- Make bulk edits in the CSV (e.g. opening hours, contact numbers).
+- Import updated variant files into the same or different agents.
+
+**Why it matters:**
+- Scale support across multi-location businesses with consistent variant logic.
+- Avoid rework by reusing variant configurations across projects.
+- Align variant data with broader enterprise tools and systems.
+
+<Tip>See the full [variant management](/variant-management/introduction) page for advanced use cases, including SMS personalization, routing, and KB integration.</Tip>
+</Accordion>
+
+<Accordion title="Variant ID added to conversations" icon="fingerprint">
+Reviewed conversations now show the **variant ID** in use during the call.
+
+![variant-id](/images/release-notes/2504/call-variant.png)
+
+**Why it helps:**
+- Identify which variant the agent used
+- Spot differences between call versions
+- Improve traceability for QA and bug reports
+
+</Accordion>
+
+</AccordionGroup>
+
+For questions or additional support, contact us at [platform-support@poly-ai.com](mailto:platform-support@poly-ai.com).
