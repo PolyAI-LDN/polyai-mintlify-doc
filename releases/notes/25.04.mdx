@@ -1,0 +1,143 @@
+---
+title: 04.2025
+description: April 2025 release notes.
+---
+
+The **April 2025** PolyAI Agent Studio release includes new tools for call review, debugging, and utility development.
+
+<AccordionGroup>
+
+<Accordion title="Call categorization" icon="list-check">
+You can now use an LLM to review and rate calls.
+
+![assistant-analysis](/images/release-notes/2504/call-categorization.png)
+
+**What you can do:**
+- Rate calls for tone, intent success, or compliance
+- Use project-specific categories
+- Get automatic summaries
+
+</Accordion>
+
+<Accordion title="Enhanced diagnosis logging" icon="bug">
+The diagnosis view now shows state variables and logs grouped by step.
+
+![state-variables](/images/release-notes/2504/state-vars.png)
+
+**What you can see:**
+- Flow entry/exit, LLM calls, and function outputs
+- Real-time state and slot values
+- Everything in one place, no Datadog required
+
+</Accordion>
+
+<Accordion title="Workspace filter in Conversations" icon="window-restore">
+You can now filter conversations by workspace on the Conversations page.
+
+![workspace-filter](/images/release-notes/2504/version-filter.png)
+
+**Why it helps:**
+- Focus on the calls your team is responsible for
+- Cleaner review experience for large orgs
+
+</Accordion>
+
+<Accordion title="Utility function – extract_address" icon="address-book">
+<Note>This is an opt-in feature and will not be enabled by default. Contact PolyAI for access.</Note>
+
+You can now extract structured address data from free-text input using a built-in LLM utility: `extract_address()`.
+
+![extract-address-util](/images/release-notes/2504/address-util.png)
+
+**What it does:**
+- Parses the most recent user message for address info
+- Returns an `Address` object with fields like street, postcode, and country
+- Raises an `ExtractionError` if parsing fails
+
+**Usage:**
+```python
+try:
+    address = conv.extract_address(country="US")
+    conv.state.parsed_address = address
+except ExtractionError as e:
+    conv.state.address_error = str(e)
+```
+
+**Address object:**
+```python
+@dataclass
+class Address:
+    street_number: Optional[str]
+    street_name: Optional[str]
+    city: Optional[str]
+    state: Optional[str]
+    postcode: Optional[str]
+    country: Optional[str]
+```
+
+**Other details:**
+- Calls an LLM, so may take a few seconds
+- You can optionally validate against a list of known addresses
+- Some fields may be missing depending on input quality
+
+</Accordion>
+
+<Accordion title="Conversation history access – conv.history" icon="book-open">
+You can now access earlier conversation turns from within utility functions using `conv.history`.
+
+**What it does:**
+- Returns a list of events: user inputs, agent replies, function calls, etc.
+- Useful for writing context-aware logic
+
+**Usage:**
+```python
+def some_function(conv: Conversation):
+    history = conv.history
+
+    for event in history:
+        print(event.to_dict())
+
+    return {
+        "utterance": "Here's a response that depends on previous turns.",
+        "content": f"Conversation so far: {str(history)}"
+    }
+```
+
+**Why it matters:**
+- Build logic based on what’s already happened in the conversation
+- Avoid passing state manually
+- Better debugging and flow control
+
+</Accordion>
+
+<Accordion title="Import and export variants" icon="arrow-right-arrow-left">
+You can now export and import variants between agents or environments.
+
+**What you can do:**
+- Export all variant data to CSV
+- Edit things like contact numbers or opening hours in bulk
+- Reimport to update the same or a different agent
+
+**Why it matters:**
+- Makes it easy to scale across multiple sites
+- No need to rebuild variant logic from scratch
+- Keeps your CSVs in sync with other tools
+
+<Tip>See the full [variant management](/variant-management/introduction) page for advanced use cases like SMS personalisation or routing.</Tip>
+</Accordion>
+
+<Accordion title="Variant ID added to conversations" icon="fingerprint">
+Reviewed conversations now show the **variant ID** used in each call.
+
+![variant-id](/images/release-notes/2504/call-variant.png)
+
+**Why it matters:**
+- See exactly which variant was active
+- Easier to debug and compare different versions
+- Adds context for QA and bug tracking
+
+</Accordion>
+
+</AccordionGroup>
+
+For help or feedback, email [platform-support@poly-ai.com](mailto:platform-support@poly-ai.com).
