@@ -1,0 +1,101 @@
+---
+title: 'Multi-lingual'
+description: 'Set up your agent so that it is ready to speak more than one language.'
+---
+
+Currently, Agent Studio supports **only one language per project**. If you want to support multiple languages, we recommend creating a separate project for each language and localising the relevant content accordingly.
+
+> There is currently **no built-in routing** between language-specific projects. Some teams use custom logic or even a third routing agent to ask the user which language they want, then forward the call to the right assistant.
+
+## Setting up a non-English project
+
+When configuring a project for a language other than English:
+
+![response-language](/images/choose-response-language.png)
+
+* Set the **project language** under **Settings**.
+* Choose an **11labs voice** that supports your language. If you're adding a new voice, use a `multilingual_v2` model.
+* Update **Agent Behaviour** to instruct the agent to respond in your target language (e.g., "Always reply in Spanish").
+
+## What to translate
+
+Some project content needs to be translated, and some does not. Here's a breakdown:
+
+| Area               | Element                                          | Yes | No | Notes                                                            |
+| ------------------| ------------------------------------------------ | :---------------------------------------------------------------: | :-------------------------------------------------------------: | ---------------------------------------------------------------- |
+| **Knowledge Base**| Sample questions                                 | <Icon icon="check" iconType="solid" color="#2ecc71" size={14} /> |                                                                   | Must match user input language for retrieval                     |
+|                   | Content                                          | <Icon icon="check" iconType="solid" color="#2ecc71" size={14} /> |                                                                   | Translate for brand accuracy and better output                   |
+|                   | Topic names and actions                          |                                                                     | <Icon icon="x" iconType="solid" color="#e74c3c" size={14} />     | Keep in English (used internally, not user-facing)               |
+| **SMS**           | SMS content                                      | <Icon icon="check" iconType="solid" color="#2ecc71" size={14} /> |                                                                   | Translate anything user-facing                                   |
+| **ASR & Voice**   | ASR keywords and corrections                     | <Icon icon="check" iconType="solid" color="#2ecc71" size={14} /> |                                                                   | Translate as needed                                              |
+|                   | Response control and pronunciations              | <Icon icon="check" iconType="solid" color="#2ecc71" size={14} /> |                                                                   | Translate as needed                                              |
+| **Functions**     | Python code                                      |                                                                     | <Icon icon="x" iconType="solid" color="#e74c3c" size={14} />     | Leave in English                                                 |
+|                   | Function names and descriptions                  |                                                                     | <Icon icon="x" iconType="solid" color="#e74c3c" size={14} />     | Leave in English                                                 |
+|                   | Hard-coded responses and LLM prompts             | <Icon icon="check" iconType="solid" color="#2ecc71" size={14} /> |                                                                   | Translate only user-facing content (e.g., utterances)            |
+
+### Example
+
+If you're using a function like:
+
+```python
+return {
+  "utterance": "Hard-coded response in Spanish here"
+}
+```
+
+That string should be translated.
+
+```python
+return {
+  "utterance": "Respuesta fija en español aquí"
+}
+```
+
+If you're re-prompting the LLM:
+
+```python
+return {
+  "content": "Inject prompt here"
+}
+```
+
+You only need to translate if you're giving an example response.
+
+## Translating prompts
+
+Prompts are found in:
+
+* The [knowledge base actions field](/knowledge-base/how-to-setup-action/function-call)
+* [Flow steps](/flows/introduction)
+* The [agent behavior rules](/rules/introduction)
+* [Function](/function/introduction) descriptions
+
+### General rules:
+
+* Keep **instructions** in English (e.g., "Ask for the user’s phone number")
+* Translate **example utterances** or scripted responses
+* If it's directed at the **Agent**, keep it in English. If it's going to be spoken aloud directly to the **Customer**, then translate it.
+
+> Example: Instead of `Ask the user for their number`, write:
+>
+> `Ask the user for their number by saying “¿Me puedes dar tu número de teléfono?”`
+
+### Sample excerpt (Spanish)
+
+```
+If the user’s query is unclear, ask for clarification. For example, if the user says ‘‘factura,’’ ask ‘‘¿Cómo puedo ayudarle con su factura?’’ Or if the user says ‘‘problema con la factura,’’ ask ‘‘¿Me puede dar más detalles sobre el problema con su factura?’’
+
+If the user offers you their 10- or 11-digit account number, say ‘‘Gracias, pero tal vez no necesite su número de cuenta. ¿Cómo puedo ayudarle hoy?’’
+
+When discussing making payments (online, by phone, payment methods, etc.):
+
+- Always make sure to include ALL information about **transaction fees** (cargos por transacción), including both residential and commercial fees (don't forget to mention the 1.95% surcharge for commercial card payments)
+- Don’t ever use the word **"fee"** or **"cargo"** in isolation. Use the company-approved phrase **'cargo por transacción'**
+
+**Your responses must adhere to the following STYLE guidelines:**
+
+- Only answer in **Spanish**, in a register that would feel **conversational and appropriate for a customer service context in North America** (you will be working mostly with Latinos in the USA). Even if the instructions you receive and example utterances you are given are in English, you should **only ever respond to the user in Spanish**.
+- Your responses should be **casual and concise**, appropriate for a **customer service agent in a phone conversation**
+```
+
+If you have questions about setting up multi-lingual support or want to share your team’s approach, please reach out to [platform-support@poly-ai.com](mailto:platform-support@poly-ai.com).
