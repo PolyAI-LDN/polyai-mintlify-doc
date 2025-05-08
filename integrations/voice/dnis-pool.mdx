@@ -1,0 +1,48 @@
+---
+title: 'DNIs Pool'
+description: 'Integrate your telephony system with PolyAI using a Pool of DNIs.'
+---
+
+# Overview
+A DNIs Pool is a rotating pool of DNIs (Dynamic Number Insertion) that you can dial to
+connect to your Virtual Agent in the PolyAI infrastructure. The main benefit of using this
+integration is the ability to share structured JSON data to your Agent at the start of the call.
+This is great if you are using:
+- PSTN (where sharing metadata is technically not possible at all).
+- SIP installations where sending custom SIP Headers is not enabled or supported.
+Other than sharing initial info, you will also want to retrieve some information at 
+the end of the call: for example, whether the call was terminated successfully or 
+if you need to transfer it to a human agent for additional help.
+The main use case here is for you to be able to send **at least** a shared ID that you
+can then use to retrieve that handoff information at the end of the call, but you can
+send and retrieve much more structured data.
+
+The following docs will help you setting up a DNIs Pooling Integration with PolyAI!
+
+# How does it work
+The integration relies on two main Endpoints that you will integrate with:
+- [DNI Reservation](/api-reference/conversations/endpoint/dni-reservation)
+- [Get Handoff](api-reference/conversations/endpoint/get-handoff)
+
+It works as follows - we will refer as you integrating with PolyAI as Client:
+1. Client posts the Attributes for your project  
+2. PolyAI stores them
+3. PolyAI returns a DNI (example: +12345)  
+4. Client calls the DNI  
+5. PolyAI retrieves the Attributes for the DNI  
+6. PolyAI transmit the Attributes to your Agent based on your API Key
+7. PolyAI automates the call, storing any info Client and PolyAI agreed on (example: handoff info) 
+8. PolyAI ends the call  
+9. PolyAI send SIP BYE  
+10. Client gets the handoff state  
+11. Client checks if the handoff state is non empty, transferring accordingly, otherwise it will end the call  
+
+Integration Diagram
+![DNIs Pooling Integration](/images/integrations/dnis-pooling-integration.jpg)
+
+# What you will need
+You will need the following from your contact at PolyAI:
+- An API token for the Reserve DNI Endpoint
+- An API token for the Get handoff Endpoint
+- Your account_id and project_id
+
