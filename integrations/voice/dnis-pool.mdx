@@ -1,0 +1,72 @@
+---
+title: 'DNIs Pool'
+description: 'Integrate your telephony system with PolyAI using a Pool of DNIs.'
+---
+
+# Overview
+
+A DNIs Pool is a rotating pool of Dynamic Number Insertion (DNI) numbers that allows you 
+to connect to your Virtual Agent hosted on PolyAI's infrastructure. 
+
+This integration enables you to:
+- Share structured JSON metadata with your Agent at the beginning of a call.
+- Retrieve call state information at the end of the conversation.
+
+This is particularly useful when:
+- You're using PSTN, which by definition does not support sharing metadata.
+- You're using SIP installations that do not support custom SIP headers.
+
+A typical use case is sending a shared ID (or other metadata) at call start, 
+and using it later to retrieve handoff details, such as whether the call completed 
+successfully or needs escalation to a human agent.
+
+You can follow the docs to learn how to integrate your telephony stack with PolyAI's DNIs Pooling solution.
+
+
+# Requirements
+To set up the DNIs Pool integration, you'll need the following from your PolyAI contact:
+
+- API token for the `Reserve DNI` endpoint
+- API token for the `Get Handoff` endpoint
+- Your `account_id` and `project_id`
+- Agree with your PolyAI contact on the attributes the Agent will need to extract
+
+
+# Integration Runtime
+
+The integration involves two main API endpoints:
+- [`Reserve DNI`](/api-reference/conversations/endpoint/dni-reservation)
+- [`Get Handoff`](/api-reference/conversations/endpoint/get-handoff)
+
+![DNIs Pooling Integration](/images/integrations/dnis-pooling-integration.jpg)
+*Figure: A visual overview of how DNIs Pool integration works in practice.*
+
+The flow works as follows:
+1. Client sends project-specific attributes to the Reserve DNI endpoint. An example payload would look like this:
+```json
+{
+    "attributes": {
+        "shared_id": "1234567",
+        "ani": "+44123456789"
+    }
+}
+```
+2. PolyAI stores the attributes and returns a reserved DNI (e.g., `+12345`).
+3. Client initiates a call to the DNI.
+4. PolyAI looks up the attributes for that DNI.
+5. Attributes are forwarded to the Virtual Agent based on your API Key.
+6. The Virtual Agent handles the conversation and stores any agreed data (e.g., handoff status).
+7. The call ends, and PolyAI sends a SIP BYE message.
+8. Client queries the Get Handoff endpoint to retrieve the call outcome. 
+An example response will look like this - note that the `shared_id` is the same ID you would have sent above:
+```json
+{
+    "data": {
+        "handoff_to": "default_queue",
+        "handoff_reason": "test_reason"
+    },
+    "id": "POLYAI_CALL_SID",
+    "shared_id": "1234567"
+}
+```
+9. If a handoff state is present, the Client can transfer the call to a human agent; otherwise, the call is considered complete.
