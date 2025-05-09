@@ -19,14 +19,17 @@
     },
     {
       "url": "https://api.euw-1.platform.polyai.app",
-      "description": "EUW base url"
+      "description": "EU-West base url"
     }
   ],
-  "security": [
-    {
-      "ApiKeyAuth": []
+  "security": {
+    "PolyAPIKey": {
+      "type": "apiKey",
+      "name": "X-Api-Key",
+      "in": "header",
+      "description": "API keys must be requested from PolyAI"
     }
-  ],
+  },
   "paths": {
     "/v1/{account_id}/{project_id}/chat/create": {
       "post": {
@@ -50,6 +53,15 @@
               "type": "string"
             },
             "description": "Project ID in the format `PROJECT-xxxxxxxx`. Combined with the `account_id`, this uniquely identifies a PolyAI project."
+          },
+          {
+            "name": "X-Token",
+            "in": "header",
+            "required": true,
+            "description": "A unique identifier for the agent to create a chat with. Supplied by PolyAI.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -58,20 +70,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {
-                  "user_id": {
-                    "type": "string",
-                    "description": "Unique identifier for the user initiating the chat session. Useful for associating the chat with a specific user in your system."
-                  },
-                  "message": {
-                    "type": "string",
-                    "description": "The initial message content sent to start the chat session."
-                  },
-                  "metadata": {
-                    "type": "object",
-                    "description": "Optional metadata to provide additional context for the chat session. This can include custom attributes or other relevant information."
-                  }
-                }
+                "properties": {}
               }
             }
           }
@@ -82,14 +81,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "chat_id": {
-                      "type": "string",
-                      "description": "A unique identifier for the created chat session. Used in subsequent operations.",
-                      "example": "WEBCHAT_18bd8253-4019-4ba7-83b5-5ed602d5d84a"
-                    }
-                  }
+                  "$ref": "#/components/schemas/ChatResponse"
                 }
               }
             }
@@ -125,6 +117,15 @@
               "type": "string"
             },
             "description": "Project ID in the format `PROJECT-xxxxxxxx`. Combined with the `account_id`, this uniquely identifies a PolyAI project."
+          },
+          {
+            "name": "X-Token",
+            "in": "header",
+            "required": true,
+            "description": "A unique identifier for the agent to create a chat with. Supplied by PolyAI.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -134,7 +135,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "chat_id": {
+                  "conversation_id": {
                     "type": "string",
                     "description": "A unique identifier for the chat session. Returned from the `create` endpoint and required to interact with the chat.",
                     "example": "WEBCHAT_18bd8253-4019-4ba7-83b5-5ed602d5d84a"
@@ -154,13 +155,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "string",
-                      "description": "Indicates whether the message was successfully sent."
-                    }
-                  }
+                  "$ref": "#/components/schemas/ChatResponse"
                 }
               }
             }
@@ -212,6 +207,21 @@
       }
     },
     "schemas": {
+      "ChatResponse": {
+        "type": "object",
+        "properties": {
+          "conversation_id": {
+            "type": "string"
+          },
+          "response": {
+            "type": "string"
+          },
+          "end_conversation": {
+            "type": "boolean"
+          }
+        },
+        "required": ["conversation_id", "response"]
+      },
       "Error": {
         "type": "object",
         "properties": {
