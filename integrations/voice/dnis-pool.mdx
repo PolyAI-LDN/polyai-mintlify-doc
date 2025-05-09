@@ -24,6 +24,7 @@ You can follow the docs to learn how to integrate your telephony stack with Poly
 
 
 # Requirements
+
 To set up the DNIs Pool integration, you'll need the following from your PolyAI contact:
 
 - API token for the `Reserve DNI` endpoint
@@ -70,6 +71,59 @@ An example response will look like this - note that the `shared_id` is the same 
 }
 ```
 9. If a handoff state is present, the Client can transfer the call to a human agent; otherwise, the call is considered complete.
+
+With this in mind, let's have a look at how to set up the Agent to cope with this!
+
+# Agent setup
+As a first step, head over to your project.
+For the integration to work, we will need your Agent to:
+- Store the attributes you are sending through the [`Reserve DNI`](/api-reference/conversations/endpoint/dni-reservation) API.
+- Save the handoff info into state to have the [`Get Handoff`](/api-reference/conversations/endpoint/get-handoff) API to show them when invoked.
+
+## Store attributes
+Attributes received from the API can **only** be accessed in the `start_function`.
+Not doing it here would mean losing them for all the conversations, making it impossible for the integration to work.
+
+In your `start_function`, attributes are stored in the `integration_attributes` field as a dictionary.
+Retrieve them like this (assuming the attributes sent are the ones in the example above):
+```python
+#### anywhere in start_function ####
+
+# Retrieve DNIs Pooling Attributes
+shared_id = conv.integration_attributes.get("shared_id")
+ani = conv.integration_attributes.get("ani")
+if not (shared_id or ani):
+  # In case no attributes are received, make sure to handoff to a default queue 
+  # on your side if you can't handle the call without the data
+  conv.state.handoff_to = "DEFAULT_QUEUE"
+
+print(f"shared_id: {shared_id}, ani: {ani}")  # you can optionally print the attributes
+
+# Store them in the state to use them later in the conversation
+conv.state.shared_id = shared_id
+conv.state.ani = ani
+```
+You can then use those attributes in other functions, in the Knowledge Base or elsewhere
+in your Agent. This will be useful to customise your Agent behaviour, or use those attributes
+in other API calls to your infrastructure for example.
+
+## Save handoff info
+As we outlined above, the bot will always need to end the conversation with this integration.
+For this reason, we need to configure the handoff information in other ways, which is: 
+prepare them to be exposed by the Handoff API.
+
+The Handoff API can be configured to expose all the `state` variables that you desire.
+The most useful variables are often:
+- the handoff reason, which is usually stored in `conv.state.handoff_reason`
+- the handoff destination, which is usually stored in `conv.state.handoff_to`
+But you can always expose more based on your use case.
+
+As long as you store your desired value in the `state` variables, the Handoff API will expose them
+(as long as it is configured to do so). 
+
+At the moment, configuration can only be done by your PolyAI contact. Send them all the 
+variables you want to expose, and they will be able to set up the Handoff API accordingly.
+
 
 # Pool size 
 It's important to make sure that every customer hitting your solution gets to PolyAI.
