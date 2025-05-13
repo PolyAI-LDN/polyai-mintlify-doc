@@ -66,8 +66,25 @@ def check_user_verified(conv: Conversation, flow: Flow):
 Always use `return` at the end of your transition function. Omitting it can lead to unexpected behavior.
 </Tip>
 
+<Warning>
+Broken transitions after editing?
+
+If you’re moving transition code between steps, be careful:
+
+- Avoid **cutting or dragging** transition function code between steps.
+- Instead, **copy the code**, paste it into the new step, then delete the original.
+
+This ensures any `flow.goto_step("Step Name")` call still refers to a real, valid Step.
+Transition logic can break silently if the destination step name is renamed or deleted elsewhere in the flow.
+
+Also remember:
+- `flow.goto_step(...)` is **case-sensitive**
+- Renaming a Step will update the flow editor — but not your function logic
+</Warning>
+
 ## Best practices
 
+- Step IDs are **case-sensitive** — so `"CollectName"` is not the same as `"collectname"`.
 - Keep transition functions focused, with one job and one output.
 - Use action- or intent-based names like `check_user_verified`, `handle_no_availability`.
 - Avoid vague or structural names like `goto_step_two` or `continue_flow` — they confuse the LLM and make flows harder to debug.

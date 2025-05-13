@@ -77,7 +77,7 @@ Transition functions created here are scoped to the flow unless declared globall
 
 ![example-2](/images/flow-example-middle.png)
 
-The agent collects the user’s **first** and **last** name using separate steps, each with its own prompt and transition logic.
+The agent collects the user's **first** and **last** name using separate steps, each with its own prompt and transition logic.
 
 - If the user has already provided the name, the agent calls the relevant function (e.g. `save_first_name`, `save_last_name`) and proceeds.
 - If not, the agent asks for it directly.
@@ -85,14 +85,14 @@ The agent collects the user’s **first** and **last** name using separate steps
 Each step uses **few-shot prompting** to improve recognition of tricky formats:
 
 ```plaintext
-User: It’s Smith.
-Johannes: Thanks — that’s Smith.
+User: It's Smith.
+Johannes: Thanks — that's Smith.
 
 User: My surname is de la Cruz.
 Johannes: Got it, de la Cruz.
 
-User: Sure, that’s H-O-W-E. Howe.
-Johannes: Thanks for spelling it — I’ve got Howe.
+User: Sure, that's H-O-W-E. Howe.
+Johannes: Thanks for spelling it — I've got Howe.
 ```
 
 [ASR biasing](./asr-biasing) is set to **Name spelling** in the "Collect last name" step to improve recognition of spelled-out inputs.
@@ -117,3 +117,32 @@ This is a standard validation step using dynamic values and conditional logic.
 - LLMs only see the **current step's prompt and function list** — not previous steps
 - Always use `return` after `flow.goto_step()` to prevent silent overrides
 - Avoid naming transitions by position (`goto_step_4`) — use intent-based names like `match_reservation` or `retry_lookup`
+
+### Improving date accuracy from speech
+
+Voice transcription (ASR) often produces **unstructured date strings** like `twenty seventh of june twenty twenty five`, which can be hard to parse — especially if you're enforcing a strict format like `DD/MM/YYYY`.
+
+<Note>
+Instead of checking the date format in the step prompt or rejecting invalid inputs immediately:
+
+- Move format enforcement into the **LLM context field** of the parameter.
+- Let the LLM interpret and convert the input to the required format.
+- Then validate it in the function.
+
+This avoids issues where STT fails to cleanly separate day, month, and year — especially in multi-lingual or noisy environments.
+</Note>
+
+**Example context (LLM parameter):**
+
+> The user will say a date. You must extract the intended date and convert it to DD MM YYYY format. If they use a different format, rewrite it before returning.
+
+```python
+try:
+    day, month, year = value.split(" ")
+except ValueError:
+    return {
+        "utterance": "Hmm, I didn't catch a full date. Could you say it again?"
+    }
+```
+
+This code uses Python's [try statement](https://docs.python.org/3/tutorial/errors.html#handling-exceptions) to attempt splitting the date into day, month, and year. If the input isn't in the expected format, it prompts the user to try again.

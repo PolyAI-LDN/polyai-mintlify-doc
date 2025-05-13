@@ -47,3 +47,33 @@ elif conv.env == "pre-release":
 elif conv.env == "live":
     <run_production_features>
 ```
+
+### Handling API response errors
+
+When writing functions that call external APIs (e.g. to fetch user records or transactions), always handle non-`200` HTTP responses explicitly.
+
+<Note>
+If `response.status_code != 200`, make sure to distinguish:
+- A **true error** (e.g. invalid URL or broken integration)
+- From a **valid request with no user data** (e.g. user has no transaction history)
+
+Instead of returning a generic failure, you can hand off the call or give a clearer response depending on the cause.
+</Note>
+
+Example:
+
+```python
+response = requests.get(url)
+
+if response.status_code == 404:
+    return {
+        "handoff": {
+            "reason": "no_transaction_data",
+            "utterance": "It looks like there's no recent activity on your account. Let me transfer you to someone who can help."
+        }
+    }
+elif response.status_code != 200:
+    return {
+        "utterance": "Sorry, we couldn’t reach your account information right now. Please try again later."
+    }
+```
