@@ -74,3 +74,54 @@ conv.state.metadata = {
 - **Dynamic personalization**: Use SIP headers to provide tailored greetings or responses.
 
 For more details on the `Conversation` object, visit the **[`conv` object](/function/classes/conv-object)** page.
+
+## Initiating SIP transfers programmatically
+
+In addition to configuring call handoffs in the UI, you can initiate SIP transfers directly from a function using `return` values. This is especially useful when routing logic depends on in-conversation data or SIP header values.
+
+You can use two methods: **INVITE** and **REFER**. These are mutually exclusive with UI-based `Call Handoffs` and require manual setup.
+
+### SIP INVITE
+
+This creates a new call and bridges the user with the target. Use this when you want PolyAI to act as a bridge.
+
+
+```python
+return {
+  "handoff": {
+    "invite": {
+      "phone_number": "2222222",  // SIP URI or PSTN number
+      "outbound_caller_id": conv.caller_number,
+      "outbound_endpoint": "YOUR_OUTBOUND_ENDPOINT_NAME",
+      "sip_headers": {
+        "X-Customer-ID": conv.state.customer_id,
+        "X-Call-Type": "Support"
+      }
+    }
+  }
+}
+```
+
+### SIP REFER
+
+This instructs the Session Border Controller to take over and transfer the call.
+
+```python
+return {
+  "handoff": {
+    "refer": {
+      "phone_number": conv.caller_number,  // Number PolyAI used
+      "refer_to": "sip:support@example.com",  // SIP URI or number
+      "sip_headers": {
+        "X-Caller-ID": conv.caller_number
+      }
+    }
+  }
+}
+```
+
+<Note>
+To avoid 405 errors, make sure the "Take Back and Transfer" setting is enabled when using SIP REFER on any platform with that setting.
+</Note>
+
+These code patterns are especially useful when dynamic call routing or SIP metadata injection is needed mid-conversation.

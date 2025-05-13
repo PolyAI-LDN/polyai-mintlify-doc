@@ -1,53 +1,101 @@
 ---
 title: 'Delay control'
-description: 'Add filler phrases to your high-latency functions and avoid any long silences.'
+description: 'Add filler phrases to your high-latency functions and avoid long silences.'
 ---
 
 ![delay-control](/images/delay-controls.png)
 
-Use the **Delay control** panel to improve the user experience when a function takes longer than expected. Inserting a transition utterances while the function is still processing and prevent long silences, making interactions feel more natural and responsive.
+Use the **Delay control** panel to improve the user experience when a function takes longer than expected. Inserting transition utterances while a function is still processing prevents long silences and helps interactions feel more natural and responsive.
 
 ## Key benefits
 
-- **Keep users engaged:** Provide real-time feedback rather than leaving users waiting in silence.
-- **Fully configurable timing:** Control when and how often delay responses play.
-- **Supports multiple utterances:** Define a sequence of responses to use as interim messages.
-- **Works across different function types:** Available for global functions and flow functions, but not for start or end functions.
+* **Keep users engaged:** Provide real-time feedback rather than leaving users waiting in silence.
+* **Fully configurable timing:** Control when and how often delay responses play.
+* **Supports multiple utterances:** Define a sequence of responses to use as interim messages.
+* **Works across different function types:** Available for global and flow functions (not supported on start or end functions).
+
+## Important timing behavior
+
+<Tip>
+Delay timing does **not** begin from when the user stops speaking. It starts when the **function begins executing** — which can happen seconds later due to LLM, ASR, or model routing latency.
+</Tip>
+
+This means that if you set a delay of `1s`, filler utterances may not begin until several seconds after silence, depending on system load and model timing.
+
+<Note>
+When setting delays, consider the **full turn latency** — not just the time your function takes to respond. For LLM-heavy flows, use shorter delays like `0–0.5s` or include immediate filler lines directly in the step prompt.
+</Note>
 
 ## How it works
 
 1. **Define delay responses**
-   - Create a list of phrases that the assistant can say while waiting for a function to complete.
-   - These could include simple confirmations, status updates, or even sound effects like 'keyboard typing.'
+
+   * Create a list of phrases the assistant can say while waiting for a function to complete.
+   * These might include confirmations, status updates, or even sound effects like 'keyboard typing.'
 
 2. **Configure delay timing**
-   - Set the initial delay before the first utterance plays.
-   - Define the interval between subsequent utterances to control pacing.
+
+   * Set the initial delay (in seconds) after function execution begins.
+   * Define the interval between each subsequent utterance.
 
 3. **Specify utterance length**
-   - For sound-based responses (e.g., typing noises), specify the expected duration so the system can calculate accurate timing.
+
+   * For sound-based responses (e.g., typing noises), specify the expected duration to pace playback accurately.
 
 ## Example scenario
 
-A restaurant booking system uses delay control for a function that takes a few seconds to confirm a reservation.
+A restaurant booking function takes several seconds to confirm availability:
 
-1. The user requests a table.
-2. The assistant acknowledges: *'Let me check availability for you.'*
-3. While the function is running, it plays: *'Just a moment, I’m still checking.'*
-4. Once complete, the assistant confirms: *'Your table is booked!'*
+1. The user asks for a table.
+2. The assistant immediately says: *"Let me check availability for you."*
+3. After 0.5s, it plays: *"Just a moment, I’m still checking..."*
+4. After another 2s, it plays: *"Thanks for waiting!"*
+5. Once complete, the assistant returns: *"Your table is booked!"*
 
 ## Creating a new delay control phrase
 
-- Navigate to the **Functions** and select a function.
-- Open the **Delay control** panel.
-- Add one or more delay responses.
-- Set the initial delay and interval between responses.
-- Optionally, specify the length of sound-based utterances.
-- Save changes and test in the chat panel to experience the timing adjustments in real-time.
+* Navigate to the **Functions** tab and select a function.
+* Open the **Delay control** panel.
+* Add one or more delay responses.
+* Set the initial delay and interval.
+* Optionally, specify the length of sound-based utterances.
+* Save changes and test in the chat panel to preview the delay behavior.
 
 <Tip>
-You can reference state variables using the `$` symbol inside delay responses.
-For example, a response might say:
-`Your booking has been made at $branch_name...`
-The assistant will substitute the value of the `branch_name` state variable automatically.
+You can reference state variables inside delay responses using the `$` symbol.
+For example:
+`Still checking availability at $branch_name...`
+The assistant will substitute the value automatically.
 </Tip>
+
+## Best practices
+
+* Keep filler utterances brief and natural — a mix of phrases like “Still working on it...” or “\[typing]” helps maintain trust.
+* Avoid overly repetitive or robotic phrasing.
+* Use delay control sparingly: if your function is fast (under 1 second), it might not need filler responses at all.
+* For very slow flows, consider adding initial speech directly in the step prompt and letting the delay control handle the fallback.
+
+<Note>
+This feature is ideal for **API-based functions** and **LLM utility functions** that experience irregular latency.
+It’s **not** suitable for conversational steps where the function is near-instant or where multiple branches could be chosen.
+</Note>
+
+## Timeline diagram
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant ASR
+    participant LLM
+    participant Function
+    participant Agent
+
+    User->>ASR: User speaks
+    ASR->>LLM: Transcript sent
+    LLM->>Function: Calls function (start timer here)
+    Note right of Function: Delay timer starts<br>not at user silence
+    Function-->>Agent: Response pending...
+    Note right of Agent: Delay response triggered after set time
+    Function-->>Agent: Final result
+    Agent-->>User: Sends final reply
+```
