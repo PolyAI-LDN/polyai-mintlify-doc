@@ -10,6 +10,23 @@ The `Conversation` object (`conv`) provides access to conversation data and tool
 The `conv` object includes the following attributes:
 
 <AccordionGroup>
+  <Accordion title="id">
+    **Description**: Unique identifier of the conversation.
+
+    **Example**:
+    ```python
+    print(f"Conversation ID: {conv.id}")
+    ```
+  </Accordion>
+
+  <Accordion title="account_id">
+    **Description**: The account ID associated with the conversation.
+  </Accordion>
+
+  <Accordion title="project_id">
+    **Description**: The project ID of the current agent.
+  </Accordion>
+
   <Accordion title="env">
     **Description**: Identifies the current [environment](/environments-and-versions/introduction) where the agent is running.
 
@@ -25,6 +42,10 @@ The `conv` object includes the following attributes:
     ```
   </Accordion>
 
+  <Accordion title="integration_attributes">
+    **Description**: A dictionary of metadata from integration platforms. Available only in the start function.
+  </Accordion>
+
   <Accordion title="sip_headers">
     **Description**: A dictionary of [SIP headers](https://datatracker.ietf.org/doc/html/rfc7131) with metadata about the caller.
 
@@ -38,8 +59,6 @@ The `conv` object includes the following attributes:
   <Accordion title="caller_number">
     **Description**: The caller's phone number.
 
-    **Type**: Optional string
-
     **Example**:
     ```python
     response = requests.get(f"https://api.example.com/users?number={conv.caller_number}")
@@ -51,8 +70,6 @@ The `conv` object includes the following attributes:
   <Accordion title="callee_number">
     **Description**: The number the caller dialed.
 
-    **Type**: Optional string
-
     **Example**:
     ```python
     if conv.callee_number == "+15551234567":
@@ -60,6 +77,10 @@ The `conv` object includes the following attributes:
     else:
         conv.state.branch = "Other Branch"
     ```
+  </Accordion>
+
+  <Accordion title="current_flow">
+    **Description**: The name of the current flow, if any.
   </Accordion>
 
   <Accordion title="state">
@@ -79,117 +100,120 @@ The `conv` object includes the following attributes:
     ```
   </Accordion>
 
+  <Accordion title="sms_queue">
+    **Description**: List of SMS messages queued to be sent.
+  </Accordion>
+
+  <Accordion title="metrics_queue">
+    **Description**: List of metrics queued to be logged.
+  </Accordion>
+
+  <Accordion title="variant_name">
+    **Description**: The name of the current variant used in this conversation, if any.
+  </Accordion>
+
+  <Accordion title="variants">
+    **Description**: Dictionary of all variants available in the conversation.
+  </Accordion>
+
+  <Accordion title="variant">
+    **Description**: Returns the full object of the current variant in use.
+  </Accordion>
+
   <Accordion title="sms_templates">
     **Description**: A dictionary containing SMS templates, accessible by template ID.
-
-    **Type**: [dict](https://www.w3schools.com/python/python_dictionaries.asp)
 
     **Example**:
     ```python
     conv.state.sms_content = conv.sms_templates[conv.state.sms_template_id].content
     ```
   </Accordion>
+
+  <Accordion title="voice_change">
+    **Description**: The current request to change voice.
+  </Accordion>
+
+  <Accordion title="language">
+    **Description**: ISO 639 language code for the project.
+  </Accordion>
+
+  <Accordion title="history">
+    **Description**: Full chronological history of the conversation.
+  </Accordion>
+
+  <Accordion title="handoffs">
+    **Description**: Dictionary of handoff destinations available for this conversation.
+  </Accordion>
+
+  <Accordion title="transcript_alternatives">
+    **Description**: List of alternate transcriptions for the most recent user utterance.
+  </Accordion>
 </AccordionGroup>
 
 ## Methods
 
-The `conv` object includes the following methods:
-
 <AccordionGroup>
-  <Accordion title="randomize_voice">
-    **Description**: Assigns a voice to the agent based on predefined weights. This allows an agent to use multiple voices, simulating a team of agents. For more information, visit the [multi-voice guide](/voice/multi-voice).
+  <Accordion title="set_voice">
+    **Description**: Set a new voice to be used moving forward.
+  </Accordion>
 
-    **Args**:
-    - `voices` (list): A list of `VoiceWeighting` objects specifying the voices and their weights.
+  <Accordion title="say">
+    **Description**: Sets the utterance to say after the function finishes.
+  </Accordion>
+
+  <Accordion title="randomize_voice">
+    **Description**: Assigns a voice to the agent based on predefined weights. [Details](/voice/multi-voice)
 
     **Example**:
     ```python
-    conv.randomize_voice([
-        VoiceWeighting(
-            voice=ElevenLabsVoice(
-                voice_id="LcfCDJNUPlGQjkzn1xUU",
-                similarity_boost=0.2,
-                stability=0.4
-            ),
-            weight=0.5
-        ),
-        VoiceWeighting(
-            voice=ElevenLabsVoice(
-                voice_id="SOYHLrjzKX21zeoPC6cr",
-                similarity_boost=0.7,
-                stability=0.3
-            ),
-            weight=0.5
-        )
-    ])
+    conv.randomize_voice([...])
     ```
   </Accordion>
 
   <Accordion title="goto_flow">
-    **Description**: Moves the conversation to a specific flow.
-
-    **Args**:
-    - `flow_name` (str): The name of the target flow.
+    **Description**: Transitions the agent to another flow.
 
     **Example**:
     ```python
     conv.goto_flow("support_flow")
-    if conv.state.should_switch_flow:
-        conv.goto_flow("escalation_flow")
     ```
   </Accordion>
 
   <Accordion title="exit_flow">
-    **Description**: Leaves the current flow and resumes the default behavior.
+    **Description**: Exits the current flow and resumes default agent behavior.
+  </Accordion>
+
+  <Accordion title="set_variant">
+    **Description**: Manually sets the variant for this conversation.
+  </Accordion>
+
+  <Accordion title="log_api_response">
+    **Description**: Log an API response for analytics and diagnostics.
+  </Accordion>
+
+  <Accordion title="send_sms">
+    **Description**: Sends a direct SMS.
 
     **Example**:
     ```python
-    conv.exit_flow()
+    conv.send_sms(to_number, from_number, "Hello!")
     ```
   </Accordion>
 
-  <Accordion title="utils.extract_address">
-  <Note> This is an opt-in feature, and will not be turned on by default. Contact PolyAI for details. </Note>
-    **Description**: Extracts a structured address object from the most recent user input using a PolyAI LLM service.
+  <Accordion title="send_sms_template">
+    **Description**: Sends a pre-configured SMS template.
+  </Accordion>
 
-    **Args**:
-    - `addresses` (optional list): A list of `Address` objects to match against.
-    - `country` (str): Optional country filter (default: "US").
+  <Accordion title="write_metric">
+    **Description**: Sends a custom metric to the analytics pipeline.
+  </Accordion>
 
-    **Returns**: `Address` object containing the following fields:
-    - `street_number`, `street_name`, `city`, `state`, `postcode`, `country`
-
-    **Error**: `ExtractionError` if the extraction fails.
+  <Accordion title="call_handoff">
+    **Description**: Initiates a call handoff to a predefined destination.
 
     **Example**:
     ```python
-    try:
-        address = conv.utils.extract_address(country="US")
-        conv.state.user_address = address
-    except ExtractionError as e:
-        conv.state.address_error = str(e)
+    conv.call_handoff("Billing", reason="Billing request", utterance="Let me transfer you.")
     ```
   </Accordion>
-  <Accordion title="history">
-     **Description**: Returns the full chronological history of the conversation, including user messages, agent responses, function calls, and other events.
-
-     **Type**: `List[Event]`
-
-     **Usage**:
-     ```python
-     def summarise_history(conv: Conversation):
-         for event in conv.history:
-             print(event.to_dict())
-
-         return {
-             "utterance": "Here's what we've discussed so far.",
-             "content": f"History: {str(conv.history)}"
-         }
-     ```
-
-     **Why it matters**:
-     - Lets you build logic based on earlier parts of the conversation
-     - Enables better debugging and context-aware responses
-     - Avoids manually storing history in `conv.state`
-   </Accordion>
 </AccordionGroup>
