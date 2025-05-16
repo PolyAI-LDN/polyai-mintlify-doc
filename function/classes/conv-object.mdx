@@ -3,217 +3,379 @@ title: "Conversation"
 description: "The Conversation object, its attributes, and methods."
 ---
 
-The `Conversation` object (`conv`) provides access to conversation data and tools for managing the agent's behavior. It handles state management, flow transitions, SMS interactions, environment details, and voice selection.
+The `Conversation` object (`conv`) provides access to conversation data and tools for managing the agent’s behaviour. It handles state management, flow transitions, SMS interactions, environment details, and voice selection.
 
 ## Attributes
 
-The `conv` object includes the following attributes:
-
 <AccordionGroup>
+
   <Accordion title="id">
     **Description**: Unique identifier of the conversation.
 
-    **Example**:
-    ```python
-    print(f"Conversation ID: {conv.id}")
-    ```
+````
+**Example**:
+```python
+print(conv.id)
+```
+````
+
   </Accordion>
 
   <Accordion title="account_id">
-    **Description**: The account ID associated with the conversation.
+    **Description**: PolyAI account ID that owns this project.
+
+````
+**Example**:
+```python
+log.info(f"Account: {conv.account_id}")
+```
+````
+
   </Accordion>
 
   <Accordion title="project_id">
-    **Description**: The project ID of the current agent.
+    **Description**: Project ID of the current agent.
+
+````
+**Example**:
+```python
+if conv.project_id == "proj_123":
+    print("Running in the main deployment")
+```
+````
+
   </Accordion>
 
   <Accordion title="env">
-    **Description**: Identifies the current [environment](/environments-and-versions/introduction) where the agent is running.
+    **Description**: Current [environment](/environments-and-versions/introduction).
 
-    **Values**:
-    - `"sandbox"`: For testing new features.
-    - `"pre-release"`: For staging and quality assurance.
-    - `"live"`: For production environments.
+````
+**Values**:
+- `"sandbox"`
+- `"pre-release"`
+- `"live"`
 
-    **Example**:
-    ```python
-    if conv.env == "live":
-        print("Agent is live!")
-    ```
-  </Accordion>
+**Example**:
+```python
+if conv.env == "live":
+    log.info("Production traffic")
+```
+````
 
-  <Accordion title="integration_attributes">
-    **Description**: A dictionary of metadata from integration platforms. Available only in the start function.
   </Accordion>
 
   <Accordion title="sip_headers">
-    **Description**: A dictionary of [SIP headers](https://datatracker.ietf.org/doc/html/rfc7131) with metadata about the caller.
+    **Description**: Dictionary of SIP headers (`dict[str, str]`) provided by the carrier.
 
-    **Example**:
-    ```python
-    caller_id = conv.sip_headers.get("From", "Unknown Caller")
-    print("Caller ID:", caller_id)
-    ```
+````
+**Example**:
+```python
+source_ip = conv.sip_headers.get("X-Src-IP")
+```
+````
+
+  </Accordion>
+
+  <Accordion title="integration_attributes">
+    **Description**: Metadata passed from an external integration (`dict[str, Any]`).
+    *Only available inside the `start` function.*
+
+````
+**Example**:
+```python
+source = conv.integration_attributes.get("lead_source")
+```
+````
+
   </Accordion>
 
   <Accordion title="caller_number">
-    **Description**: The caller's phone number.
+    **Description**: Caller’s phone number in E.164 format, or `None` on chat channels.
 
-    **Example**:
-    ```python
-    response = requests.get(f"https://api.example.com/users?number={conv.caller_number}")
-    user = response.json()
-    conv.state.user = user
-    ```
+````
+**Example**:
+```python
+if conv.caller_number:
+    conv.send_sms(conv.caller_number, BUSINESS_NUMBER, "Thanks for calling!")
+```
+````
+
   </Accordion>
 
   <Accordion title="callee_number">
-    **Description**: The number the caller dialed.
+    **Description**: Number dialled by the caller.
 
-    **Example**:
-    ```python
-    if conv.callee_number == "+15551234567":
-        conv.state.branch = "Main Branch"
-    else:
-        conv.state.branch = "Other Branch"
-    ```
-  </Accordion>
+````
+**Example**:
+```python
+if conv.callee_number.endswith("1001"):
+    conv.state.branch = "Priority"
+```
+````
 
-  <Accordion title="current_flow">
-    **Description**: The name of the current flow, if any.
   </Accordion>
 
   <Accordion title="state">
-    **Description**: A dictionary-like object for storing variables during the conversation. Use it to maintain context across function calls. See the [variable feature page](../variables) for details.
+    **Description**: Dictionary-like store that persists values across turns.
 
-    **Example**:
-    ```python
-    conv.state.num_calls = 1
-    conv.state.responses = {
-        1: "This is your first call.",
-        2: "This is your second call."
-    }
+````
+**Example**:
+```python
+conv.state["attempts"] = conv.state.get("attempts", 0) + 1
+```
+````
 
-    num_calls = conv.state.num_calls
-    conv.state.num_calls += 1
-    return conv.state.responses[num_calls]
-    ```
+  </Accordion>
+
+  <Accordion title="current_flow">
+    **Description**: Name of the flow currently executing, or `None`.
   </Accordion>
 
   <Accordion title="sms_queue">
-    **Description**: List of SMS messages queued to be sent.
+    **Description**: List of `OutgoingSMS` / `OutgoingSMSTemplate` objects queued for dispatch at turn end.
   </Accordion>
 
   <Accordion title="metrics_queue">
-    **Description**: List of metrics queued to be logged.
+    **Description**: List of custom metrics queued for analytics.
   </Accordion>
 
   <Accordion title="variant_name">
-    **Description**: The name of the current variant used in this conversation, if any.
+    **Description**: Name of the active variant, or `None`.
   </Accordion>
 
   <Accordion title="variants">
-    **Description**: Dictionary of all variants available in the conversation.
+    **Description**: Dictionary of all variant definitions (`dict[str, Variant]`).
   </Accordion>
 
   <Accordion title="variant">
-    **Description**: Returns the full object of the current variant in use.
+    **Description**: `Variant` object for the active variant, or `None`.
+
+````
+**Example**:
+```python
+if conv.variant:
+    print(conv.variant.description)
+```
+````
+
   </Accordion>
 
   <Accordion title="sms_templates">
-    **Description**: A dictionary containing SMS templates, accessible by template ID.
+    **Description**: Dictionary of SMS templates (`dict[str, SMSTemplate]`).
 
-    **Example**:
-    ```python
-    conv.state.sms_content = conv.sms_templates[conv.state.sms_template_id].content
-    ```
+````
+**Example**:
+```python
+template_body = conv.sms_templates["booking_confirmation"].content
+```
+````
+
   </Accordion>
 
   <Accordion title="voice_change">
-    **Description**: The current request to change voice.
+    **Description**: Pending `TTSVoice` change requested this turn, or `None`.
   </Accordion>
 
   <Accordion title="language">
-    **Description**: ISO 639 language code for the project.
+    **Description**: ISO-639 language code configured for the project (e.g. `"en"`).
   </Accordion>
 
   <Accordion title="history">
-    **Description**: Full chronological history of the conversation.
+    **Description**: Chronological list of `UserInput` and `AgentResponse` events so far.
+
+````
+**Example**:
+```python
+for event in conv.history:
+    print(event.text)
+```
+````
+
   </Accordion>
 
   <Accordion title="handoffs">
-    **Description**: Dictionary of handoff destinations available for this conversation.
+    **Description**: Dictionary of configured hand-off destinations (`dict[str, HandoffConfig]`).
+
+````
+**Example**:
+```python
+if "support" in conv.handoffs:
+    print("Support line is available")
+```
+````
+
   </Accordion>
 
   <Accordion title="transcript_alternatives">
-    **Description**: List of alternate transcriptions for the most recent user utterance.
+    **Description**: List of ASR alternatives for the **last** user utterance.
+
+````
+**Example**:
+```python
+print(conv.transcript_alternatives)
+```
+````
+
   </Accordion>
+
 </AccordionGroup>
 
 ## Methods
 
 <AccordionGroup>
+
   <Accordion title="set_voice">
-    **Description**: Set a new voice to be used moving forward.
+    **Description**: Change the assistant voice for future replies.
+
+````
+**Example**:
+```python
+conv.set_voice(voice=Voices.en_female_warm)
+```
+````
+
   </Accordion>
 
   <Accordion title="say">
-    **Description**: Sets the utterance to say after the function finishes.
+    **Description**: Override the next utterance.
+
+````
+**Example**:
+```python
+conv.say("I’ve made that change for you.")
+```
+````
+
   </Accordion>
 
   <Accordion title="randomize_voice">
-    **Description**: Assigns a voice to the agent based on predefined weights. [Details](/voice/multi-voice)
+    **Description**: Randomly choose a voice based on weighted probabilities.
 
-    **Example**:
-    ```python
-    conv.randomize_voice([...])
-    ```
+````
+**Example**:
+```python
+conv.randomize_voice([
+    VoiceWeighting(voice=Voices.en_male_calm, weight=70),
+    VoiceWeighting(voice=Voices.en_female_warm, weight=30),
+])
+```
+````
+
   </Accordion>
 
   <Accordion title="goto_flow">
-    **Description**: Transitions the agent to another flow.
+    **Description**: Transition to another flow at turn end.
 
-    **Example**:
-    ```python
-    conv.goto_flow("support_flow")
-    ```
+````
+**Example**:
+```python
+conv.goto_flow("verification")
+```
+````
+
   </Accordion>
 
   <Accordion title="exit_flow">
-    **Description**: Exits the current flow and resumes default agent behavior.
+    **Description**: Exit the current flow.
+
+````
+**Example**:
+```python
+conv.exit_flow()
+```
+````
+
   </Accordion>
 
   <Accordion title="set_variant">
-    **Description**: Manually sets the variant for this conversation.
+    **Description**: Manually set the active variant.
+
+````
+**Example**:
+```python
+conv.set_variant("evening")
+```
+````
+
   </Accordion>
 
   <Accordion title="log_api_response">
-    **Description**: Log an API response for analytics and diagnostics.
+    **Description**: Log an external API response for analytics.
+
+````
+**Example**:
+```python
+response = requests.get("https://api.example.com/user")
+conv.log_api_response(response)
+```
+````
+
   </Accordion>
 
   <Accordion title="send_sms">
-    **Description**: Sends a direct SMS.
+    **Description**: Queue a plain-text SMS.
 
-    **Example**:
-    ```python
-    conv.send_sms(to_number, from_number, "Hello!")
-    ```
+````
+**Example**:
+```python
+conv.send_sms(
+    to_number=conv.caller_number,
+    from_number="+441234567890",
+    content="Thanks for calling — here’s your link: https://…",
+)
+```
+````
+
   </Accordion>
 
   <Accordion title="send_sms_template">
-    **Description**: Sends a pre-configured SMS template.
+    **Description**: Queue a pre-configured SMS template.
+
+````
+**Example**:
+```python
+conv.send_sms_template(to_number=conv.caller_number, template="booking_confirmation")
+```
+````
+
   </Accordion>
 
   <Accordion title="write_metric">
-    **Description**: Sends a custom metric to the analytics pipeline.
+    **Description**: Write a custom metric to the analytics pipeline.
+
+````
+**Example**:
+```python
+conv.write_metric("agent_handoff", 1)
+```
+````
+
   </Accordion>
 
-  <Accordion title="call_handoff">
-    **Description**: Initiates a call handoff to a predefined destination.
+<Accordion title="call_handoff">
+**Description**: Transfer the call to a configured handoff destination.
 
-    **Example**:
-    ```python
-    conv.call_handoff("Billing", reason="Billing request", utterance="Let me transfer you.")
-    ```
-  </Accordion>
+This method supports optional `reason` and `utterance` fields:
+
+| Parameter     | Type            | Description                                                                 |
+|---------------|-----------------|-----------------------------------------------------------------------------|
+| `destination` | `str`            | Handoff target key (e.g. `"BillingQueue"`). Must be defined in your agent config. |
+| `reason`      | `str` or `None`  | Short code for escalation reason. Appears in Conversation Review and API.      |
+| `utterance`   | `str` or `None`  | Spoken message just before transfer begins. Also appears in logs and Review.   |
+
+**Example**:
+
+```python
+conv.call_handoff(
+    destination="BillingQueue",
+    reason="policy_violation",
+    utterance="Let me transfer you to a specialist who can help."
+)
+```
+
+**Where it shows up**:
+- In flows or actions using `builtin-handoff`, the fields appear as config options.
+- In functions, you call `conv.call_handoff(...)` directly.
+- In Conversation Review and the Conversations API, both fields appear for debugging and analytics.
+</Accordion>
 </AccordionGroup>
