@@ -77,24 +77,6 @@ You can now create new [knowledge base](/knowledge-base/introduction) topics by 
 
 </Accordion>
 
-<Accordion title="Latency metadata tag" icon="clock">
-
-![high-latency](/images/release-notes/2505/high-latency.png)
-
-Calls with unusually high latency are now flagged automatically with a metadata tag.
-
-**How it works:**
-
-* Compares turn latency to weekly project baseline
-* Flags any outliers as potential performance issues
-
-**Why it matters:**
-
-* Helps internal teams isolate laggy behavior
-* Can indicate systemic issues requiring optimization
-
-</Accordion>
-
 <Accordion title="Chat-to-review shortcut" icon="arrow-up-right-from-square">
 
 ![review-shortcut](/images/release-notes/2505/review-shortcut.png)
@@ -110,25 +92,28 @@ A shortcut button has been added to the chat panel to open the conversation in t
 
 <Accordion title="Handoff reason and utterance" icon="phone">
 
-The built-in **handoff** template and the `conv.handoff()` helper now accept two optional, structured fields:
+The built-in **handoff** template and the `conv.handoff()` helper now accept two optional, structured fields for clearer call logging and routing:
 
-| Field | Purpose | Example |
-|-------|---------|---------|
-| `reason` | Machine-readable code explaining *why* the call is being escalated (e.g. `policy_violation`, `needs_human`, `no_availability`). Surfaces in Conversation Review and the Conversations API. | `policy_violation` |
-| `utterance` | A short sentence the assistant should speak *before* transfer begins. Logged alongside the handoff so QA can hear exactly what callers were told. | “Let me transfer you to a specialist who can help.” |
+| Field      | Purpose                                                                                                   | Example |
+|------------|-----------------------------------------------------------------------------------------------------------|---------|
+| `reason`   | Machine-readable code explaining *why* the call is being escalated (e.g. `policy_violation`, `needs_human`, `no_availability`). Surfaces in [Conversation Review](/analytics/conversations/review) and the [Conversations API](/api-reference/conversations). | `policy_violation` |
+| `utterance`| The exact phrase the agent should speak *before* initiating the transfer. Logged alongside the handoff.  | "Let me transfer you to a specialist who can help." |
 
 **Where it shows up**
 
-* **Flows & KB actions** – Selecting **builtin-handoff** now displays *Reason* and *Pre-handoff utterance* fields.
-* **Functions** – Call `conv.handoff(reason="...", utterance="...")` to escalate programmatically.
-* **Conversation Review** – Both fields appear in the metadata panel for quick troubleshooting.
-* **Conversations API** – Returned inside the `handoff` object for BI dashboards or CRM routing.
+* **Flows & KB Actions** – When using the `builtin-handoff` action, you can now optionally specify `reason` and `utterance` fields inside the action configuration (visible in the JSON behind the scenes, not in the Handoff Destination UI).
+* **Functions** – Call `conv.handoff(reason="...", utterance="...")` directly in the Function Editor to trigger a handoff with these fields.
+* **Conversation Review** – Both fields appear in the metadata panel for visibility and QA.
+* **Conversations API** – Returned inside the `handoff` object for downstream BI dashboards or CRM routing.
+
+These fields **do not appear in the Call Handoff Destination UI** (where you configure SIP methods, URIs, or SIP headers).
+They are attached **at runtime, when the agent decides to escalate the call**, and are logged alongside the handoff action.
 
 **Why it matters**
 
-* Removes guess-work when diagnosing handoffs—no more relying on LLM summaries alone.
+* Removes guess-work when diagnosing handoffs—QA no longer has to rely on LLM summaries alone.
 * Enables fine-grained routing rules in telephony or CRM systems.
-* Gives QA teams full visibility into the exact wording customers heard.
+* Ensures the exact agent wording before handoff is logged and auditable.
 
 </Accordion>
 
