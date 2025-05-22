@@ -4,92 +4,104 @@ title: Overview
 
 ![kb-main-image](/images/kb-main-image.png)
 
-The **knowledge base** is the backbone of your agent's configuration. It organizes topics and interactions that guide responses to user queries. Each topic typically represents a single FAQ or use case and contains three key parts:
+The **knowledge base (KB)** is the brain of your PolyAI agent. It stores the topics that inform the language model's answers and actions at runtime.  A well‑built KB keeps responses on‑brand, workflows predictable, and analytics meaningful.
 
-1. **Topic name**: A concise, descriptive title summarizing the topic.
-2. **Content**: The main information, including sample queries and model answers.
-3. [**Actions**](./how-to-setup-action/introduction): Follow-up workflows triggered by the topic, like sending [SMS](/sms/introduction) messages or handing off to a live agent.
+Each topic is defined in a single file (Markdown/JSON) and contains four fields:
 
-A well-structured knowledge base ensures your agent retrieves accurate information, performs tasks reliably, and delivers a consistent user experience.
+| Field                | Purpose                                                                  | Seen by retriever? |
+| -------------------- | ------------------------------------------------------------------------ | ------------------ |
+| **Name**             | Short, semantically tight title.                                         | ✓                  |
+| **Sample questions** | 5‑10 ways a real user might ask the same thing.                          | ✓                  |
+| **Content**          | The facts or default utterances used to formulate the reply.             | ✓                  |
+| **Actions**          | Optional follow‑up behaviour (send SMS, transfer call, invoke function). | ✗                  |
+
+A topic that is *clear* in these fields is easier for the model to match, safer to automate, and simpler to report on.
+
+## How retrieval works (RAG)
+
+Rather than passing the entire KB to the model each turn, the agent uses **retrieval‑augmented generation (RAG)**:
+
+1. The retriever compares the user utterance to the **Name**, **Sample questions**, and **Content** of every topic.
+2. The closest matches (by semantic similarity) are appended to the prompt.
+3. The model selects the best topic from that shortlist, then crafts the reply and decides whether to run an **Action**.
+
+<Tip> **Tip** Because the **Name** is always shown to the retriever, make it semantically close to the actual intent.  A vague label like *"General_Info"* will fire on everything and pollute analytics. </Tip>
+
 
 ## Key components of a topic
 
-### Topic name
-- **Clarity and precision**: Use clear, descriptive titles such as *"Opening Hours"* or *"Refund Policy"* that reflect the topic's content.
-- **Analytics impact**: Topic names influence search accuracy, dashboard analytics, and reporting.
-- **Best practice**: Avoid generic or overly broad names that can lead to misretrieval.
+### Name
+
+* Use descriptive titles such as *“Refund Policy”* or *“Lost Property – Hotel”*.
+* Avoid catch‑all buckets (*“Other Queries”*). They cause mis‑retrieval and inflate fallback.
 
 ### Sample questions
 
-- Sample questions help the model determine when to use this topic.
-- **Include at least 5 phrased variations** per topic to boost retrieval reliability and reduce fallback errors.
+* Provide **5–10 real phrasings**—formal, informal, and typo‑laden.
+* The retriever relies on this variety to generalise beyond the obvious wording.
 
-<Note>
-If a topic has too few or overly narrow examples, the model may skip it — even if the content matches. This often leads to fallback responses like *"I don't have information about that."*
-</Note>
+### Content
 
-**Example (for "Refund Policy"):**
-- "Can I get my money back?"
-- "How do I request a refund?"
-- "What's your return policy?"
+* Keep it concise and directly answer the query.
+* Write in the voice you want the agent to speak.
+* For complex material, use headings or bullet lists so the model can quote relevant parts.
 
-### Content section
-- **Core information**: Add concise, actionable content that directly addresses user questions. Write in the tone you expect the agent to use.
-- **Organize large topics**: Break down complex topics into logical, smaller sections to ensure clarity and precision.
+### 4. Actions
 
-### Actions section
-The Actions section allows the agent to perform workflows beyond delivering answers.
+* Define what should happen after the answer is delivered.
+* Common patterns:
 
-- **Common actions**:
-  - Sending [SMS messages](/sms/introduction).
-  - Triggering a [handoff to a live agent](/call-handoff/introduction).
-  - Invoking custom [functions](/function/introduction) (e.g., fetching live data).
+  * Send an [SMS](/sms/introduction) with more detail.
+  * Trigger a [handoff](/call-handoff/introduction) to a live queue.
+  * Call a custom [function](/function/introduction) for live data.
+* Be explicit: *“If the user agrees to transfer, call `transfer_call` with destination=`support_live`.”*
 
-- **Structured instructions**: Clearly define what should happen when a topic is triggered.
-  - *Example*:
-    `"If the user asks for emergency assistance, trigger a handoff to a live agent in the support queue."`
+## QA metrics and dashboards
 
-Learn more: [How to configure Actions](./how-to-setup-action/introduction)
+After each turn, the system logs the **Name** of the topic whose **Content** was most similar to the model’s final answer.  This becomes the QA metric in Agent Studio, letting you audit which KB entry actually drove the response.
 
-## Best practices for building a knowledge base
+## Types of entries
 
-### Write clear, actionable content
-- Use direct language that's easy for users to understand.
-- Keep content concise and avoid ambiguity.
+### Simple FAQ
 
-### Add diverse sample questions
-- Include 5–10 different phrasings of common user queries per topic.
-- These help clarify the scope of the topic for the model.
+| Variant         | When to use                    | Setup                                                             |
+| --------------- | ------------------------------ | ----------------------------------------------------------------- |
+| **Single‑turn** | Straight answer, no follow‑up. | Fill **Content**. Leave **Actions** empty.                        |
+| **Multi‑turn**  | Need one clarifying question.  | Split prompts across turns inside **Content**. **Actions** empty. |
 
-### Simplify and structure topics
-- Group related questions under a single topic if they share similar context or answers.
-- Avoid overloading a single topic with too many unrelated intents.
+### Handoff
 
-### Plan for risky or critical scenarios
-- Identify high-risk or regulated topics (e.g., refunds, complaints, emergencies).
-- Add specific instructions or actions to ensure they're handled clearly and consistently.
+| Variant         | Behaviour                             | Setup                                                                                           |
+| --------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **Offer**       | Answer, then *offer* transfer.        | Put answer + offer in **Content**.  In **Actions**, run `transfer_call` *only if* user accepts. |
+| **Direct**      | Immediate transfer, no clarification. | **Content** empty. **Actions** always run `transfer_call`.                                      |
+| **Conditional** | Multiple possible queues.             | Ask disambiguation in **Content**. **Actions** list each queue with its condition.              |
 
-### Define and test actions
-- Use the **Actions** field to link workflows like SMS notifications, function calls, or handoffs.
-- Test actions thoroughly to ensure they behave as expected in real scenarios.
+### SMS
 
-## Global rules and tone
+| Variant         | Behaviour                             | Setup                                                                                       |
+| --------------- | ------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **Offer**       | Answer, then *offer* to text details. | Include answer + offer in **Content**.  **Actions** call `start_sms_flow` if user consents. |
+| **Conditional** | Choose one of many SMS templates.     | Ask clarifying question in **Content**.  **Actions** map conditions to `sms_id` choices.    |
 
-Use [global rules](/agent-settings/rules) to set overall tone and behavior across all topics.
+### Misc
 
-**Example:**
-- Rule: "Respond in a friendly, concise tone. Avoid long explanations or unnecessary repetition."
+Sometimes you just need to expose a block of data (opening hours for 200 stores, price grids, etc.).  Put that reference material in **Content** and leave **Actions** empty.  Let the model pull the right snippet.
 
-## Iterate and improve
+## Avoid
 
-- Monitor conversations and continuously update your KB based on real examples.
-- Add new sample questions to underperforming topics.
-- Refine unclear content or missed actions to improve response accuracy.
+* **Multiple tasks in the same turn**— e.g. tell the user something *and* run `transfer_call` immediately.  Split utterances and function calls into separate turns.
+* **Overloaded topics** — bundling unrelated intents together hurts retrieval and analytics.
+* **Generic names** - "Misc Info" will match everything; use intent‑specific titles.
 
-By following these best practices, you'll create a knowledge base that's accurate, reliable, and easy to scale.
+## Build, test, iterate
 
-- [Read the FAQ](/troubleshoot/faq)
+1. **Draft** topics with clear names, diverse sample questions, and purposeful actions.
+2. **Validate** in staging: confirm the right topic fires and the action executes.
+3. **Watch analytics**: high fallback or mis‑fire rates usually mean missing samples or fuzzy names.
+4. **Refine** continuously: add real user phrasings, split bloated topics, tighten risky actions.
 
-<Note>
-Want to upload multiple topics at once? See our [CSV import guide](/essentials/csv-imports).
-</Note>
+Following these guidelines will give you a KB that scales cleanly, surfaces the right knowledge, and keeps support teams—and end users—confident in every interaction.
+
+* Need bulk upload? See the [CSV import guide](/essentials/csv-imports).
+* Questions? Check the [FAQ](/troubleshoot/faq).
