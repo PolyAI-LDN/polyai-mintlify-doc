@@ -2,94 +2,140 @@
 title: Overview
 ---
 
-![kb-main-image](/images/kb-main-image.png)
+The knowledge base (KB) is the brain of your agent. Each topic defines a single intent, how users might phrase it, what the agent should say, and what it should do next.
 
-The **knowledge base** is the backbone of your agent's configuration. It organizes topics and interactions that guide responses to user queries. Each topic typically represents a single FAQ or use case and contains three key parts:
+Well-structured entries keep answers clear, safe, and meaningful.
 
-1. **Topic name**: A concise, descriptive title summarizing the topic.
-2. **Content**: The main information, including sample queries and model answers.
-3. [**Actions**](./how-to-setup-action/introduction): Follow-up workflows triggered by the topic, like sending [SMS](/sms/introduction) messages or handing off to a live agent.
+## How retrieval works
 
-A well-structured knowledge base ensures your agent retrieves accurate information, performs tasks reliably, and delivers a consistent user experience.
+The agent **does not** see the whole knowledge base every time. Instead, it uses [retrieval-augmented generation (RAG)](/knowledge-base/RAG/introduction) to find the best match for the user's message.
 
-## Key components of a topic
+1. The retriever compares the user's message to the **name**, **sample questions**, and **content**.
+2. It returns the closest few topics.
+3. The model selects one and generates a reply (and may trigger an **action**).
 
-### Topic name
-- **Clarity and precision**: Use clear, descriptive titles such as *"Opening Hours"* or *"Refund Policy"* that reflect the topic's content.
-- **Analytics impact**: Topic names influence search accuracy, dashboard analytics, and reporting.
-- **Best practice**: Avoid generic or overly broad names that can lead to misretrieval.
+## Types of knowledge base entries
 
-### Sample questions
+We will now go through the broad categories that most knowledge base entries tend to fall into:
 
-- Sample questions help the model determine when to use this topic.
-- **Include at least 5 phrased variations** per topic to boost retrieval reliability and reduce fallback errors.
+### Simple FAQ
 
-<Note>
-If a topic has too few or overly narrow examples, the model may skip it — even if the content matches. This often leads to fallback responses like *"I don't have information about that."*
-</Note>
+Used when the agent just needs to answer a question with no follow-up or action required.
 
-**Example (for "Refund Policy"):**
-- "Can I get my money back?"
-- "How do I request a refund?"
-- "What's your return policy?"
+#### Single turn
 
-### Content section
-- **Core information**: Add concise, actionable content that directly addresses user questions. Write in the tone you expect the agent to use.
-- **Organize large topics**: Break down complex topics into logical, smaller sections to ensure clarity and precision.
+One message in, one message out.
 
-### Actions section
-The Actions section allows the agent to perform workflows beyond delivering answers.
+- Add a short, helpful reply in `content`.
+- Leave `actions` empty.
 
-- **Common actions**:
-  - Sending [SMS messages](/sms/introduction).
-  - Triggering a [handoff to a live agent](/call-handoff/introduction).
-  - Invoking custom [functions](/function/introduction) (e.g., fetching live data).
+**Example – Pet policy (single-turn)**
+![simple_FAQ_single_turn-pet_policy](/images/kb-single-turn-pet-policy.png)
 
-- **Structured instructions**: Clearly define what should happen when a topic is triggered.
-  - *Example*:
-    `"If the user asks for emergency assistance, trigger a handoff to a live agent in the support queue."`
+#### Multi turn
 
-Learn more: [How to configure Actions](./how-to-setup-action/introduction)
+Ask a clarifying question before giving the answer.
 
-## Best practices for building a knowledge base
+- Use branching inside `content` to structure the reply.
+- Leave `actions` empty.
 
-### Write clear, actionable content
-- Use direct language that's easy for users to understand.
-- Keep content concise and avoid ambiguity.
+**Example – Pet policy (multi-turn)**
+![simple_FAQ_multi_turn-pet_policy](/images/kb-multi-turn-pet-policy.png)
 
-### Add diverse sample questions
-- Include 5–10 different phrasings of common user queries per topic.
-- These help clarify the scope of the topic for the model.
+### Handoff
 
-### Simplify and structure topics
-- Group related questions under a single topic if they share similar context or answers.
-- Avoid overloading a single topic with too many unrelated intents.
+Used when the agent should offer to connect the user to a human agent.
 
-### Plan for risky or critical scenarios
-- Identify high-risk or regulated topics (e.g., refunds, complaints, emergencies).
-- Add specific instructions or actions to ensure they're handled clearly and consistently.
+#### Offer
 
-### Define and test actions
-- Use the **Actions** field to link workflows like SMS notifications, function calls, or handoffs.
-- Test actions thoroughly to ensure they behave as expected in real scenarios.
+Agent replies, then offers to transfer.
 
-## Global rules and tone
+- `content`: Include the answer + offer.
+- `actions`: Trigger `transfer_call` only if user accepts.
 
-Use [global rules](/agent-settings/rules) to set overall tone and behavior across all topics.
+**Example – Spa booking**
+![handoff_offer-spa](/images/kb-handoff-spa.png)
 
-**Example:**
-- Rule: "Respond in a friendly, concise tone. Avoid long explanations or unnecessary repetition."
+#### Direct
 
-## Iterate and improve
+Immediate transfer with no agent reply.
 
-- Monitor conversations and continuously update your KB based on real examples.
-- Add new sample questions to underperforming topics.
-- Refine unclear content or missed actions to improve response accuracy.
+- Leave `content` empty.
+- Always run `transfer_call` in `actions`.
 
-By following these best practices, you'll create a knowledge base that's accurate, reliable, and easy to scale.
+**Example – Billing handoff**
+![handoff-direct-billing](/images/kb-handoff-direct-billing.png)
 
-- [Read the FAQ](/troubleshoot/faq)
+#### Conditional
 
-<Note>
-Want to upload multiple topics at once? See our [CSV import guide](/essentials/csv-imports).
-</Note>
+Transfer based on user clarification, for example, group size, request type.
+
+- `content`: Ask a disambiguating question.
+- `actions`: Map each answer to the correct destination.
+
+**Example – Room reservations**
+![handoff_conditional-room_reservation](/images/kb-handoff-conditional-reservation.png)
+
+### SMS
+
+Used when you want to follow up with a link or info through text.
+
+#### Offer
+
+Offer to send a link by SMS.
+
+- `content`: Include a short message and ask for consent.
+- `actions`: If accepted, call `start_sms_flow`.
+
+**Example – Golf info**
+![SMS_offer-golf](/images/kb-sms-golf.png)
+
+#### Conditional
+
+Let the user choose which SMS to receive.
+
+- `content`: Ask a branching question.
+- `actions`: Map answers to different `sms_id`s.
+
+**Example – Tee time booking**
+![SMS_conditional-golf_booking](/images/kb-sms-conditional-golf-booking.png)
+
+### SMS + handoff combo
+
+Used when you want to **try sending a text**, and if that fails, **offer to transfer** instead.
+
+- `content`: Offer SMS, with a polite fallback.
+- `actions`: Include both SMS and optional transfer logic.
+
+**Example – Concierge activities**
+![sms-conditional](/images/kb-sms-conditional.png)
+
+### Info only
+
+Used for reference material (like opening hours or prices). No interaction or action required.
+
+- Fill `content`
+- Leave `actions` empty
+
+**Example – Opening hours**
+![misc_info_dump-opening_hours](/images/kb-misc-info-opening-hours.png)
+
+## Best practices
+
+Do this:
+- Use specific topic names
+- Add 5–10 realistic sample phrasings
+- Keep replies short, helpful, and on-brand
+- Use `actions` only when necessary
+- Split multi-part flows into separate turns or topics
+
+Avoid this:
+- Bundling multiple intents into one topic
+- Running more than one action per turn
+- Using vague topic names like `Misc`, `Help`, or `Info`
+
+## Resources
+
+- [CSV import guide](/essentials/csv-imports)
+- [FAQ troubleshooting](/troubleshoot/faq)
+- [How to maintain a KB](/maintain/knowledge-base)
