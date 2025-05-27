@@ -4,34 +4,37 @@ title: Overview
 
 The knowledge base (KB) is the brain of your agent. Each topic defines a single intent, how users might phrase it, what the agent should say, and what it should do next.
 
-Well-structured entries make answers clear, behavior safe, and analytics meaningful.
+Well-structured entries keep answers clear, safe, and meaningful.
 
 ## How retrieval works
 
-The agent doesn’t see the whole KB every time. Instead, it uses **retrieval-augmented generation (RAG)** to find the best match for the user’s message.
+The agent **does not** see the whole knowledge base every time. Instead, it uses [retrieval-augmented generation (RAG)](/knowledge-base/RAG/introduction) to find the best match for the user's message.
 
-1. The retriever compares the message to the `name`, `sample questions`, and `content`.
+1. The retriever compares the user's message to the **name**, **sample questions**, and **content**.
 2. It returns the closest few topics.
-3. The model selects one and generates a reply (and may trigger an `action`).
+3. The model selects one and generates a reply (and may trigger an **action**).
 
-<Tip>
-Make the `name` semantically close to the actual intent. Avoid vague labels like `"General_Info"` or `"Miscellaneous"` — they fire too often and confuse metrics.
-</Tip>
+## Types of knowledge base entries
+
+We will now go through the broad categories that most knowledge base entries tend to fall into:
 
 ### Simple FAQ
 
-Used when the agent just needs to answer a question — no follow-up or action required.
+Used when the agent just needs to answer a question with no follow-up or action required.
 
-### Single turn
+#### Single turn
 
-<Icon name="message-square" /> One message in, one message out.
+One message in, one message out.
 
 - Add a short, helpful reply in `content`.
 - Leave `actions` empty.
 
-### Multi turn
+**Example – Pet policy (single-turn)**
+![simple_FAQ_single_turn-pet_policy](/images/kb-single-turn-pet-policy.png)
 
-<Icon name="corner-down-right" /> Ask a clarifying question before giving the answer.
+#### Multi turn
+
+Ask a clarifying question before giving the answer.
 
 - Use branching inside `content` to structure the reply.
 - Leave `actions` empty.
@@ -39,13 +42,13 @@ Used when the agent just needs to answer a question — no follow-up or action r
 **Example – Pet policy (multi-turn)**
 ![simple_FAQ_multi_turn-pet_policy](/images/kb-multi-turn-pet-policy.png)
 
-## Handoff
+### Handoff
 
 Used when the agent should offer to connect the user to a human agent.
 
-### Offer
+#### Offer
 
-<Icon name="hand" /> agent replies, then offers to transfer.
+Agent replies, then offers to transfer.
 
 - `content`: Include the answer + offer.
 - `actions`: Trigger `transfer_call` only if user accepts.
@@ -53,9 +56,9 @@ Used when the agent should offer to connect the user to a human agent.
 **Example – Spa booking**
 ![handoff_offer-spa](/images/kb-handoff-spa.png)
 
-### Direct
+#### Direct
 
-<Icon name="arrow-right" /> Immediate transfer with no agent reply.
+Immediate transfer with no agent reply.
 
 - Leave `content` empty.
 - Always run `transfer_call` in `actions`.
@@ -63,9 +66,9 @@ Used when the agent should offer to connect the user to a human agent.
 **Example – Billing handoff**
 ![handoff-direct-billing](/images/kb-handoff-direct-billing.png)
 
-### Conditional
+#### Conditional
 
-<Icon name="split" /> Transfer based on user clarification (e.g. group size, request type).
+Transfer based on user clarification, for example, group size, request type.
 
 - `content`: Ask a disambiguating question.
 - `actions`: Map each answer to the correct destination.
@@ -73,13 +76,13 @@ Used when the agent should offer to connect the user to a human agent.
 **Example – Room reservations**
 ![handoff_conditional-room_reservation](/images/kb-handoff-conditional-reservation.png)
 
-## SMS
+### SMS
 
-Used when you want to follow up with a link or info via text.
+Used when you want to follow up with a link or info through text.
 
-### Offer
+#### Offer
 
-<Icon name="phone" /> Offer to send a link by SMS.
+Offer to send a link by SMS.
 
 - `content`: Include a short message and ask for consent.
 - `actions`: If accepted, call `start_sms_flow`.
@@ -87,17 +90,17 @@ Used when you want to follow up with a link or info via text.
 **Example – Golf info**
 ![SMS_offer-golf](/images/kb-sms-golf.png)
 
-### Conditional
+#### Conditional
 
-<Icon name="list" /> Let the user choose which SMS to receive.
+Let the user choose which SMS to receive.
 
 - `content`: Ask a branching question.
 - `actions`: Map answers to different `sms_id`s.
 
 **Example – Tee time booking**
-![SMS_conditional-golf_booking](/images/kb-sms-conditional-golf-booking)
+![SMS_conditional-golf_booking](/images/kb-sms-conditional-golf-booking.png)
 
-## SMS + handoff combo
+### SMS + handoff combo
 
 Used when you want to **try sending a text**, and if that fails, **offer to transfer** instead.
 
@@ -105,9 +108,9 @@ Used when you want to **try sending a text**, and if that fails, **offer to tran
 - `actions`: Include both SMS and optional transfer logic.
 
 **Example – Concierge activities**
-![sms-conditional](/images/kb-sms-conditional)
+![sms-conditional](/images/kb-sms-conditional.png)
 
-## Info only
+### Info only
 
 Used for reference material (like opening hours or prices). No interaction or action required.
 
@@ -115,19 +118,18 @@ Used for reference material (like opening hours or prices). No interaction or ac
 - Leave `actions` empty
 
 **Example – Opening hours**
-
 ![misc_info_dump-opening_hours](/images/kb-misc-info-opening-hours.png)
 
 ## Best practices
 
-<Icon name="check-circle" /> Do this:
+Do this:
 - Use specific topic names
 - Add 5–10 realistic sample phrasings
 - Keep replies short, helpful, and on-brand
 - Use `actions` only when necessary
 - Split multi-part flows into separate turns or topics
 
-<Icon name="x-circle" /> Avoid this:
+Avoid this:
 - Bundling multiple intents into one topic
 - Running more than one action per turn
 - Using vague topic names like `Misc`, `Help`, or `Info`
