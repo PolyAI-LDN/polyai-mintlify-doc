@@ -2,106 +2,138 @@
 title: Overview
 ---
 
-![kb-main-image](/images/kb-main-image.png)
+The knowledge base (KB) is the brain of your agent. Each topic defines a single intent, how users might phrase it, what the agent should say, and what it should do next.
 
-The **knowledge base (KB)** is the brain of your PolyAI agent. It stores the topics that inform the language model's answers and actions at runtime.  A well‑built KB keeps responses on‑brand, workflows predictable, and analytics meaningful.
+Well-structured entries make answers clear, behavior safe, and analytics meaningful.
 
-Each topic is defined in a single file (Markdown/JSON) and contains four fields:
+## How retrieval works
 
-| Field                | Purpose                                                                  | Seen by retriever? |
-| -------------------- | ------------------------------------------------------------------------ | ------------------ |
-| **Name**             | Short, semantically tight title.                                         | ✓                  |
-| **Sample questions** | 5‑10 ways a real user might ask the same thing.                          | ✓                  |
-| **Content**          | The facts or default utterances used to formulate the reply.             | ✓                  |
-| **Actions**          | Optional follow‑up behaviour (send SMS, transfer call, invoke function). | ✗                  |
+The agent doesn’t see the whole KB every time. Instead, it uses **retrieval-augmented generation (RAG)** to find the best match for the user’s message.
 
-A topic that is *clear* in these fields is easier for the model to match, safer to automate, and simpler to report on.
+1. The retriever compares the message to the `name`, `sample questions`, and `content`.
+2. It returns the closest few topics.
+3. The model selects one and generates a reply (and may trigger an `action`).
 
-## How retrieval works (RAG)
-
-Rather than passing the entire KB to the model each turn, the agent uses **retrieval‑augmented generation (RAG)**:
-
-1. The retriever compares the user utterance to the **Name**, **Sample questions**, and **Content** of every topic.
-2. The closest matches (by semantic similarity) are appended to the prompt.
-3. The model selects the best topic from that shortlist, then crafts the reply and decides whether to run an **Action**.
-
-<Tip> **Tip** Because the **Name** is always shown to the retriever, make it semantically close to the actual intent.  A vague label like *"General_Info"* will fire on everything and pollute analytics. </Tip>
-
-
-## Key components of a topic
-
-### Name
-
-* Use descriptive titles such as *“Refund Policy”* or *“Lost Property – Hotel”*.
-* Avoid catch‑all buckets (*“Other Queries”*). They cause mis‑retrieval and inflate fallback.
-
-### Sample questions
-
-* Provide **5–10 real phrasings**—formal, informal, and typo‑laden.
-* The retriever relies on this variety to generalise beyond the obvious wording.
-
-### Content
-
-* Keep it concise and directly answer the query.
-* Write in the voice you want the agent to speak.
-* For complex material, use headings or bullet lists so the model can quote relevant parts.
-
-### 4. Actions
-
-* Define what should happen after the answer is delivered.
-* Common patterns:
-
-  * Send an [SMS](/sms/introduction) with more detail.
-  * Trigger a [handoff](/call-handoff/introduction) to a live queue.
-  * Call a custom [function](/function/introduction) for live data.
-* Be explicit: *“If the user agrees to transfer, call `transfer_call` with destination=`support_live`.”*
-
-## QA metrics and dashboards
-
-After each turn, the system logs the **Name** of the topic whose **Content** was most similar to the model’s final answer.  This becomes the QA metric in Agent Studio, letting you audit which KB entry actually drove the response.
-
-## Types of entries
+<Tip>
+Make the `name` semantically close to the actual intent. Avoid vague labels like `"General_Info"` or `"Miscellaneous"` — they fire too often and confuse metrics.
+</Tip>
 
 ### Simple FAQ
 
-| Variant         | When to use                    | Setup                                                             |
-| --------------- | ------------------------------ | ----------------------------------------------------------------- |
-| **Single‑turn** | Straight answer, no follow‑up. | Fill **Content**. Leave **Actions** empty.                        |
-| **Multi‑turn**  | Need one clarifying question.  | Split prompts across turns inside **Content**. **Actions** empty. |
+Used when the agent just needs to answer a question — no follow-up or action required.
 
-### Handoff
+### Single turn
 
-| Variant         | Behaviour                             | Setup                                                                                           |
-| --------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| **Offer**       | Answer, then *offer* transfer.        | Put answer + offer in **Content**.  In **Actions**, run `transfer_call` *only if* user accepts. |
-| **Direct**      | Immediate transfer, no clarification. | **Content** empty. **Actions** always run `transfer_call`.                                      |
-| **Conditional** | Multiple possible queues.             | Ask disambiguation in **Content**. **Actions** list each queue with its condition.              |
+<Icon name="message-square" /> One message in, one message out.
 
-### SMS
+- Add a short, helpful reply in `content`.
+- Leave `actions` empty.
 
-| Variant         | Behaviour                             | Setup                                                                                       |
-| --------------- | ------------------------------------- | ------------------------------------------------------------------------------------------- |
-| **Offer**       | Answer, then *offer* to text details. | Include answer + offer in **Content**.  **Actions** call `start_sms_flow` if user consents. |
-| **Conditional** | Choose one of many SMS templates.     | Ask clarifying question in **Content**.  **Actions** map conditions to `sms_id` choices.    |
+### Multi turn
 
-### Misc
+<Icon name="corner-down-right" /> Ask a clarifying question before giving the answer.
 
-Sometimes you just need to expose a block of data (opening hours for 200 stores, price grids, etc.).  Put that reference material in **Content** and leave **Actions** empty.  Let the model pull the right snippet.
+- Use branching inside `content` to structure the reply.
+- Leave `actions` empty.
 
-## Avoid
+**Example – Pet policy (multi-turn)**
+![simple_FAQ_multi_turn-pet_policy](/images/kb-multi-turn-pet-policy.png)
 
-* **Multiple tasks in the same turn**— e.g. tell the user something *and* run `transfer_call` immediately.  Split utterances and function calls into separate turns.
-* **Overloaded topics** — bundling unrelated intents together hurts retrieval and analytics.
-* **Generic names** - "Misc Info" will match everything; use intent‑specific titles.
+## Handoff
 
-## Build, test, iterate
+Used when the agent should offer to connect the user to a human agent.
 
-1. **Draft** topics with clear names, diverse sample questions, and purposeful actions.
-2. **Validate** in staging: confirm the right topic fires and the action executes.
-3. **Watch analytics**: high fallback or mis‑fire rates usually mean missing samples or fuzzy names.
-4. **Refine** continuously: add real user phrasings, split bloated topics, tighten risky actions.
+### Offer
 
-Following these guidelines will give you a KB that scales cleanly, surfaces the right knowledge, and keeps support teams—and end users—confident in every interaction.
+<Icon name="hand" /> agent replies, then offers to transfer.
 
-* Need bulk upload? See the [CSV import guide](/essentials/csv-imports).
-* Questions? Check the [FAQ](/troubleshoot/faq).
+- `content`: Include the answer + offer.
+- `actions`: Trigger `transfer_call` only if user accepts.
+
+**Example – Spa booking**
+![handoff_offer-spa](/images/kb-handoff-spa.png)
+
+### Direct
+
+<Icon name="arrow-right" /> Immediate transfer with no agent reply.
+
+- Leave `content` empty.
+- Always run `transfer_call` in `actions`.
+
+**Example – Billing handoff**
+![handoff-direct-billing](/images/kb-handoff-direct-billing.png)
+
+### Conditional
+
+<Icon name="split" /> Transfer based on user clarification (e.g. group size, request type).
+
+- `content`: Ask a disambiguating question.
+- `actions`: Map each answer to the correct destination.
+
+**Example – Room reservations**
+![handoff_conditional-room_reservation](/images/kb-handoff-conditional-reservation.png)
+
+## SMS
+
+Used when you want to follow up with a link or info via text.
+
+### Offer
+
+<Icon name="phone" /> Offer to send a link by SMS.
+
+- `content`: Include a short message and ask for consent.
+- `actions`: If accepted, call `start_sms_flow`.
+
+**Example – Golf info**
+![SMS_offer-golf](/images/kb-sms-golf.png)
+
+### Conditional
+
+<Icon name="list" /> Let the user choose which SMS to receive.
+
+- `content`: Ask a branching question.
+- `actions`: Map answers to different `sms_id`s.
+
+**Example – Tee time booking**
+![SMS_conditional-golf_booking](/images/kb-sms-conditional-golf-booking)
+
+## SMS + handoff combo
+
+Used when you want to **try sending a text**, and if that fails, **offer to transfer** instead.
+
+- `content`: Offer SMS, with a polite fallback.
+- `actions`: Include both SMS and optional transfer logic.
+
+**Example – Concierge activities**
+![sms-conditional](/images/kb-sms-conditional)
+
+## Info only
+
+Used for reference material (like opening hours or prices). No interaction or action required.
+
+- Fill `content`
+- Leave `actions` empty
+
+**Example – Opening hours**
+
+![misc_info_dump-opening_hours](/images/kb-misc-info-opening-hours.png)
+
+## Best practices
+
+<Icon name="check-circle" /> Do this:
+- Use specific topic names
+- Add 5–10 realistic sample phrasings
+- Keep replies short, helpful, and on-brand
+- Use `actions` only when necessary
+- Split multi-part flows into separate turns or topics
+
+<Icon name="x-circle" /> Avoid this:
+- Bundling multiple intents into one topic
+- Running more than one action per turn
+- Using vague topic names like `Misc`, `Help`, or `Info`
+
+## Resources
+
+- [CSV import guide](/essentials/csv-imports)
+- [FAQ troubleshooting](/troubleshoot/faq)
+- [How to maintain a KB](/maintain/knowledge-base)
