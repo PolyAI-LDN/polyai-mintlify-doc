@@ -1,51 +1,179 @@
 ---
 title: 'Model'
-description: 'Determine which GPT model to use with your agent.'
+description: 'Determine which GPT model to use with your agent, or connect your own LLM endpoint.'
 ---
 
-The **Model** section in the Agent Settings allows you to select the Large Language Model (LLM) that best suits your agent's requirements.
+The **Model** section in Agent Settings lets you choose the Large Language Model (LLM) that best fits your agent’s needs — or plug in your own.
 
 Below is an overview of the models currently available:
 
 ## [GPT-4o Mini](https://platform.openai.com/docs/models#gpt-4o)
-The lightweight version of GPT-4o, offering faster performance and cost-efficiency. Best suited for simple queries and applications prioritizing speed and affordability.
+The lightweight version of GPT-4o, offering faster performance and cost-efficiency. Best for simple queries and use-cases that prioritise speed and affordability.
 
 ## [GPT-4o](https://platform.openai.com/docs/models#gpt-4o)
-An optimized version of GPT-4, providing high-quality responses with reduced latency. Ideal for scenarios requiring both accuracy and responsiveness.
+An optimised version of GPT-4 with high-quality responses and reduced latency. Ideal when you need both accuracy and responsiveness.
 
 ## [GPT-4](https://platform.openai.com/docs/models#gpt-4)
-The most advanced model for generating high-quality, detailed responses. Recommended for complex tasks requiring precision and contextual understanding.
+The most advanced model for generating detailed, high-quality responses. Recommended for complex tasks requiring precision and context.
 
 ## [GPT-3.5 (0125)](https://platform.openai.com/docs/models#gpt-3-5-turbo)
-An enhanced version of GPT-3.5 with optimizations for stability and specific use cases. Offers a balance between performance and cost-effectiveness.
+An enhanced build of GPT-3.5 with stability improvements for specific workloads. Balances performance and cost.
 
 ## GPT-3.5
-A reliable and cost-efficient option for applications where speed and affordability are the primary considerations. Suitable for straightforward interactions and real-time responses.
+A reliable, cost-efficient option when speed and affordability are the main concerns. Good for straightforward interactions and real-time responses.
 
 ## [Bedrock Claude 3.5 Haiku](https://aws.amazon.com/about-aws/whats-new/2024/11/anthropics-claude-3-5-haiku-model-amazon-bedrock/)
-A lightweight version of Anthropic's Claude model, hosted using [AWS Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/model-claude.html). Suitable for simple, consistent tasks.
+A lightweight version of Anthropic’s Claude model, hosted on AWS Bedrock. Suitable for simple, predictable tasks.
 
 ## PolyLLM
-PolyAI's proprietary model, optimized for real-time voice interactions.
+PolyAI’s proprietary model, optimised for real-time voice interactions.
 
-## [Gemini 1.5 (coming soon)](https://ai.google.dev/gemini-api/docs/models#gemini-1.5-flash)
-Google's next-generation LLM, focused on high reasoning performance and long context windows. Currently being integrated and evaluated for future availability.
+## [Gemini 1.5 (coming soon)](https://ai.google.dev/gemini-api/docs/models#gemini-1-5-flash)
+Google’s next-generation LLM focused on reasoning and long context windows. Currently being integrated.
 
 ## [Mistral (coming soon)](https://docs.mistral.ai/)
-An open-weight model designed for high performance on reasoning and coding tasks. Integration is planned for an upcoming release.
+An open-weight model designed for high-performance reasoning and coding tasks. Integration planned for a future release.
 
 ## Configuring the model
 
 ![llm-use](/images/model.png)
 
-To configure the model for your agent:
-1. Go to the **Large Language Model** section in Agent Settings.
-2. Select the desired model from the dropdown list.
-3. Save your settings to apply the changes.
+1. Open **Agent Settings → Large Language Model**.
+2. Select the desired model from the dropdown.
+3. Click **Save** to apply your changes.
 
-For more detailed information on each provider's models, refer to their documentation:
+For more details on each provider, see:
+
 - [OpenAI Models](https://platform.openai.com/docs/models)
 - [Anthropic (Claude)](https://docs.anthropic.com/)
 - [Google DeepMind (Gemini)](https://ai.google.dev/)
 - [Mistral](https://docs.mistral.ai/)
-- Contact a PolyAI representative for more information about PolyLLM.
+- Contact PolyAI for information about **PolyLLM**.
+
+## Bring Your Own Model (BYOM)
+
+PolyAI supports **bring-your-own-model (BYOM)** via a simple API integration. If you run your own LLM, expose an endpoint that follows the OpenAI [`chat/completions`](https://platform.openai.com/docs/api-reference/chat/create) schema and PolyAI will treat it like any other provider.
+
+### Overview
+
+1. **Expose an API endpoint** that accepts/returns data in the OpenAI `chat/completions` format.
+2. **Provide authentication** — PolyAI can send either an `x-api-key` header **or** a Bearer token.
+3. **(Optional)** Support **streaming** responses using `stream: true`.
+
+### API endpoint
+
+#### Request format
+
+```
+    {
+      "model": "your-model-id",
+      "messages": [
+        { "role": "system", "content": "You are a helpful assistant." },
+        { "role": "user", "content": "What's the weather today?" }
+      ],
+      "temperature": 0.7,
+      "top_p": 1.0,
+      "stream": false
+    }
+```json
+
+*You might receive extra OpenAI-style fields such as `frequency_penalty`, `presence_penalty`, etc.*
+
+#### 📤 Response format
+
+```json
+    {
+      "id": "chatcmpl-abc123",
+      "object": "chat.completion",
+      "created": 1712345678,
+      "model": "your-model-id",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "It’s sunny today in London."
+          },
+          "finish_reason": "stop"
+        }
+      ]
+    }
+```
+
+#### Streaming support (optional)
+
+If `stream` is `true`, send Server-Sent Events (SSE) mirroring OpenAI’s format:
+
+```json
+    data: {
+      "id": "...",
+      "object": "chat.completion.chunk",
+      "choices": [{
+        "delta": { "content": "Hello" },
+        "index": 0,
+        "finish_reason": null
+      }]
+    }
+
+    data: {
+      "choices": [{
+        "delta": {},
+        "index": 0,
+        "finish_reason": "stop"
+      }]
+    }
+
+    data: [DONE]
+```
+
+### Authentication
+
+| Method   | Header sent by PolyAI                |
+|----------|---------------------------------------|
+| **API Key** | `x-api-key: YOUR_API_KEY`           |
+| **Bearer**  | `Authorization: Bearer YOUR_TOKEN` |
+
+Configure your server to accept **one** of the above.
+
+### Sample implementation (Python / Flask)
+
+```python
+    from flask import Flask, request, jsonify
+    import time, uuid
+
+    app = Flask(__name__)
+
+    @app.route('/chat/completions', methods=['POST'])
+    def chat_completions():
+        data = request.json
+        messages = data.get('messages', [])
+        user_input = messages[-1]['content'] if messages else ''
+
+        # TODO: insert your model inference here
+        reply = f'You said: {user_input}'
+
+        return jsonify({
+            'id': f'chatcmpl-{uuid.uuid4().hex}',
+            'object': 'chat.completion',
+            'created': int(time.time()),
+            'model': 'my-llm',
+            'choices': [{
+                'index': 0,
+                'message': { 'role': 'assistant', 'content': reply },
+                'finish_reason': 'stop'
+            }]
+        })
+```
+
+### Final checklist
+
+- [ ] Endpoint reachable via **POST**.
+- [ ] Request/response match **OpenAI `chat/completions`** schema.
+- [ ] Authentication header configured (API Key **or** Bearer token).
+- [ ] (Optional) Streaming supported if needed.
+
+**Send to your PolyAI contact:**
+
+- **Endpoint URL**
+- **Model ID**
+- **Auth method & credential**
