@@ -1,0 +1,72 @@
+---
+title: "Voice"
+description: "Configure voices using Python"
+---
+
+The PolyAI platform supports flexible voice selection, including built-in voices and external providers such as ElevenLabs, AWS Polly,
+and Microsoft Azure TTS.
+
+## Quick voice selection with Voices enum
+
+For simple use cases, you can assign voices using the built-in `Voices` enum:
+
+```python
+from polyai.voice import Voices
+
+conv.set_voice(Voices.en_female_warm)
+```
+
+These voices are hosted and maintained by PolyAI.
+
+## Advanced voice control with provider classes
+
+For finer control — such as picking models, adjusting stability, or accessing third-party providers — use provider-specific `TTSVoice` classes:
+
+### Example: ElevenLabs
+
+```python
+from polyai.voice import ElevenLabsVoice
+
+conv.set_voice(
+    ElevenLabsVoice(
+        provider_voice_id="gDnGxUcsitTxRiGHr904",
+        model_id="eleven_flash_v2",
+        stability=0.5,
+        similarity_boost=0.7,
+    )
+)
+```
+
+### Example: AWS Polly
+
+```python
+from polyai.voice import PollyVoice
+
+conv.set_voice(
+    PollyVoice(
+        provider_voice_id="Joanna",
+        engine="neural",
+    )
+)
+```
+
+### Example: Microsoft Azure TTS
+
+```python
+from polyai.voice import AzureVoice
+
+conv.set_voice(
+    AzureVoice(
+        provider_voice_id="en-US-JennyNeural",
+        style="cheerful",
+        role="customer-service-rep"
+    )
+)
+```
+
+## Cache behavior
+* Changing `model_id` does not automatically invalidate cached audio.
+* To reset [cached audio](/audio-management/introduction):
+    * Go to **Audio > Cache** and delete existing entries.
+	* Or, create a new voice entry with a different `voice_id`.
+	* You can prepend model ID to voice ID (e.g. `eleven_flash_v2/a1b2c3`...) if you want to isolate caches across models.
