@@ -1,0 +1,90 @@
+---
+title: "Overview"
+description: "Define structured config forms and real-time agent settings."
+---
+
+The **Configuration Builder** allows builders to define JSON schemas that generate structured config forms. These forms let managers safely
+update settings—like opening hours or toggle flags—across environments.
+
+## How it works
+
+Configuration Builder separates **structure** (schema) from **values** (data).
+
+| Role      | Tool     | Purpose                                |
+|-----------|----------|----------------------------------------|
+| Builder   | **Schema** tab | Defines what fields exist (e.g. opening hours, toggles) |
+| Manager   | **Data** tab   | Fills in environment-specific values using a form |
+
+The schema ensures consistent structure and validation. The data defines what the agent uses at runtime.
+
+<Frame>
+  <img src="/images/config-builder-main.png" alt="Configuration builder UI with schema/data tabs" />
+</Frame>
+
+## Step-by-step
+
+### 1. Create a schema
+
+<Frame>
+  <img src="/images/release-notes/2506/config-live-form.png" alt="Live config UI showing example values" />
+</Frame>
+
+In **Configuration Builder → Schema**, define the fields your manager should configure. For example:
+
+- A text field for `opening_hours`
+- A toggle for `after_hours_enabled`
+- A validated phone number for `fallback_number`
+
+These fields are written in JSON Schema format. The schema drives the form layout in the next step.
+
+<Info>Use clear `"title"` and `"description"` values—these labels will be visible in the real-time UI.</Info>
+
+### 2. Fill in values per environment
+
+<Frame>
+  <img src="/images/release-notes/2506/config-live-form.png" alt="Live config UI showing example values" />
+</Frame>
+
+Once published, your schema will appear in **Real Time Configuration**. Managers can populate values for:
+
+- **Draft and Sandbox**
+- **Pre-release**
+- **Live**
+
+<Frame>
+  <img src="/images/release-notes/2506/config-live-form.png" alt="Live config UI showing example values" />
+</Frame>
+
+Example values might include:
+- `Opening Hours`: *Mon–Fri, 9am to 6pm*
+- `After Hours Message`: *On*
+- `Fallback Number`: *+442071234567*
+
+### 3. Read config in your functions
+
+Use the `conv.project_config()` helper in a function to read real-time values.
+
+For example:
+
+- Check if `after_hours_enabled` is `true`
+- Route calls differently based on `opening_hours`
+- Use fallback contact numbers conditionally
+
+<Tip>All values are returned as a dictionary. Use `.get("key")` to safely access fields.</Tip>
+
+## Best practices
+
+- <Icon icon="tick" iconType="solid" color="#2D8C66" /> Design schemas for clarity. Labels and descriptions help non-technical users.
+- <Icon icon="tick" iconType="solid" color="#2D8C66" /> Validate critical fields (like phone numbers) with regex.
+- <Icon icon="tick" iconType="solid" color="#2D8C66" /> Test behavior across all environments before deploying to Live.
+- <Icon icon="tick" iconType="solid" color="#2D8C66" /> Keep track of which flows and functions use which configuration fields.
+
+## What happens if the schema changes?
+
+If the schema is edited in a way that invalidates existing data, the system will prevent publishing until all environments are valid again.
+
+## Can each environment have different values?
+
+Yes. For example, you can test one phone number in **pre-release** while using a different one in **live**.
+
+Need help? Contact [platform-support@poly-ai.com](mailto:platform-support@poly-ai.com).
