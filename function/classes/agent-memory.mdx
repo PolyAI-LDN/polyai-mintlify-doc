@@ -1,0 +1,118 @@
+---
+title: "Agent memory"
+description: "Store and retrieve persistent user memory across conversations."
+---
+
+<Warning>This is an **advanced** feature requiring explicit config. It is not enabled by default</Warning>
+
+Agent Memory is an **experimental** feature that allows your assistant to persist data about users across conversations. This enables experiences like repeat-caller logic, customer preferences, and cross-channel continuity.
+
+It uses a key-value store attached to a user identifier (like phone number). Memory is read at the start of each turn and written after the conversation ends.
+
+You can:
+
+- **Read memory** using `conv.memory.get("key")`
+- **Write memory** by setting `conv.state["key"] = value` (if configured via `state_keys`)
+
+## Configuration
+
+### JSON config (Agent Studio)
+
+To enable Agent Memory:
+
+```json
+{
+  "memory": {
+    "repeat_caller": {
+      "analytics_enabled": true,
+      "state_keys": ["booking_day", "cheese_type"],
+      "identifier_blacklist": ["+447777"]
+    }
+  }
+}
+```
+
+- `analytics_enabled`: Adds repeat caller metrics to Studio analytics
+- `state_keys`: Keys to save from `conv.state` to memory
+- `identifier_blacklist`: Optional list of excluded IDs (e.g. test numbers)
+
+## Using memory in functions
+
+### Read memory
+
+```python
+def start_function(conv: Conversation):
+  if "cheese_type" in conv.memory:
+    cheese = conv.memory["cheese_type"]
+    conv.say(f"You previously picked {cheese}.")
+```
+
+### Write memory (via conv.state)
+
+```python
+def book(conv: Conversation):
+  conv.state["cheese_type"] = "brie"
+```
+
+<Tip>These fields will only be persisted if they are listed under `state_keys` in your config.</Tip>
+
+### Example: conditional reuse
+
+```python
+def start_function(conv: Conversation):
+  booking_day = conv.memory.get("booking_day")
+  cheese_type = conv.memory.get("cheese_type")
+  if booking_day and cheese_type:
+    conv.say(f"You booked {cheese_type} for {booking_day}. Rebook?")
+```
+
+## Platform (context.memory)
+
+If you're working in the agent worker (not Studio), use `context.memory`:
+
+```python
+context.memory.patch_builder_memory(
+  identifier=context.turn.user_input.from_,
+  fields={"cheese_type": "gouda"}
+)
+```
+
+You can also:
+
+- `get_builder_memory(...)`
+- `link_identifiers(...)`
+
+## Memory behaviour
+
+- Memory is read **once per turn** and cached.
+- Memory is persisted **at the end of a conversation**.
+- Only supported identifier today: **phone number**.
+
+## FAQ
+
+### Can I store nested JSON?
+
+No. Each value must be a string, number, or flat serializable object. Always avoid packing PII into a single field.
+
+### Can I check if memory exists?
+
+Yes:
+
+```python
+if "booking_day" in conv.memory:
+```
+
+### Can I prevent overwrites?
+
+Not directly, but you can check before writing:
+
+```python
+if "cheese_type" not in conv.memory:
+  conv.state["cheese_type"] = value
+```
+
+### Can I link identifiers?
+
+Yes. This is supported by `context.memory.link_identifiers()`.
+
+Need help? Contact [platform-support@poly-ai.com](mailto:platform-support@poly-ai.com).
