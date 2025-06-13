@@ -1,0 +1,131 @@
+---
+title: "Overview"
+description: "Define structured config forms and real-time agent settings."
+---
+
+The **Configuration Builder** allows builders to define JSON schemas that generate structured config forms. These forms let managers safely
+update settings—like opening hours or toggle flags—across environments.
+
+## How it works
+
+Configuration Builder separates **structure** (schema) from **values** (data).
+
+| Tab     | Purpose                                |
+|----------|----------------------------------------|
+| **Schema** | Define what fields exist (like opening hours, toggles) |
+| **Data**   | Fill in the environment-specific values |
+
+The schema ensures consistent structure and validation. The data defines what the agent uses at runtime.
+
+<Frame>
+  <img src="/images/config-builder-main.png" alt="Configuration builder UI with schema/data tabs" />
+</Frame>
+
+## Step-by-step
+
+### 1. Create a schema
+
+<Frame>
+  <img src="/images/config-schema.png" alt="Live config UI showing example values" />
+</Frame>
+
+In **Configuration Builder → Schema**, define the fields your manager should configure. For example:
+
+- A text field for `opening_hours`
+- A toggle for `after_hours_enabled`
+- A validated phone number for `fallback_number`
+
+These fields are written in JSON Schema format. The schema drives the form layout in the next step.
+
+<Info>Use clear "title" and "description" values—these labels will be visible in the real-time UI.</Info>
+
+```json
+{
+  "title": "Assistant Settings",
+  "description": "Set call handling parameters for this assistant",
+  "type": "object",
+  "properties": {
+    "opening_hours": {
+      "type": "string",
+      "title": "Opening Hours",
+      "description": "Hours during which the assistant should be available"
+    },
+    "after_hours_enabled": {
+      "type": "boolean",
+      "title": "After Hours Message",
+      "description": "Enable this toggle to play a message outside business hours"
+    },
+    "fallback_number": {
+      "type": "string",
+      "title": "Fallback Contact Number",
+      "description": "Phone number to call if no agent is available",
+      "pattern": "^\\+44\\d{10}$"
+    }
+  }
+}
+```
+
+### 2. Fill in data values
+
+<Frame>
+  <img src="/images/config-data.png" alt="Live config UI showing example values" />
+</Frame>
+
+Environment tabs (Draft, Pre-release, Live) will let you enter the runtime values for each field. You can leave fields blank if optional.
+
+```json
+{
+  "opening_hours": "Mon–Fri, 9am to 6pm",
+  "after_hours_enabled": true,
+  "fallback_number": "+442071234567"
+}
+```
+
+### 3. Publish
+
+Once published, your schema will appear in the **Real Time Configuration** tab. Managers can populate values for any of the [environments](/environments-and-versions/introduction):
+
+- **Draft and Sandbox**
+- **Pre-release**
+- **Live**
+
+<Frame>
+  <img src="/images/config-schema-data-finished.png" alt="Live config UI showing example values" />
+</Frame>
+
+### 4. (Optional) Add the read config in your functions
+
+Use the [conv.project_config()](/function/classes/conv-object/#project-config) helper to read real-time values.
+
+```python
+config = conv.project_config()
+hours = config.get("opening_hours")
+after_hours = config.get("after_hours_enabled")
+fallback = config.get("fallback_number")
+
+if after_hours:
+    conv.say("We're currently closed. Please call back during business hours.")
+    conv.transfer_call(fallback)
+```
+
+<Tip>All values are returned as a dictionary. Use .get("key") to safely access fields.</Tip>
+
+## Best practices
+
+<Icon icon="check" iconType="solid" color="#2D8C66" /> Design schemas for clarity. Labels and descriptions help non-technical users.
+
+<Icon icon="check" iconType="solid" color="#2D8C66" /> Validate critical fields (like phone numbers) with regex.
+
+<Icon icon="check" iconType="solid" color="#2D8C66" /> Test behavior across all environments before deploying to Live.
+
+<Icon icon="check" iconType="solid" color="#2D8C66" /> Keep track of which flows and functions use which configuration fields.
+
+## What happens if the schema changes?
+
+If the schema is edited in a way that invalidates existing data, the system will prevent publishing until all environments are valid again.
+
+## Can each environment have different values?
+
+Yes. For example, you can test one phone number in **pre-release** while using a different one in **live**.
+
+Need help? Contact [platform-support@poly-ai.com](mailto:platform-support@poly-ai.com).
