@@ -10,10 +10,10 @@ update settings—like opening hours or toggle flags—across environments.
 
 Configuration Builder separates **structure** (schema) from **values** (data).
 
-| Role      | Tool     | Purpose                                |
-|-----------|----------|----------------------------------------|
-| Builder   | **Schema** tab | Defines what fields exist (e.g. opening hours, toggles) |
-| Manager   | **Data** tab   | Fills in environment-specific values using a form |
+| Tab     | Purpose                                |
+|----------|----------------------------------------|
+| **Schema** | Define what fields exist (like opening hours, toggles) |
+| **Data**   | Fill in the environment-specific values |
 
 The schema ensures consistent structure and validation. The data defines what the agent uses at runtime.
 
@@ -26,7 +26,7 @@ The schema ensures consistent structure and validation. The data defines what th
 ### 1. Create a schema
 
 <Frame>
-  <img src="/images/release-notes/2506/config-live-form.png" alt="Live config UI showing example values" />
+  <img src="/images/config-schema.png" alt="Live config UI showing example values" />
 </Frame>
 
 In **Configuration Builder → Schema**, define the fields your manager should configure. For example:
@@ -37,47 +37,85 @@ In **Configuration Builder → Schema**, define the fields your manager should c
 
 These fields are written in JSON Schema format. The schema drives the form layout in the next step.
 
-<Info>Use clear `"title"` and `"description"` values—these labels will be visible in the real-time UI.</Info>
+<Info>Use clear "title" and "description" values—these labels will be visible in the real-time UI.</Info>
 
-### 2. Fill in values per environment
+```json
+{
+  "title": "Assistant Settings",
+  "description": "Set call handling parameters for this assistant",
+  "type": "object",
+  "properties": {
+    "opening_hours": {
+      "type": "string",
+      "title": "Opening Hours",
+      "description": "Hours during which the assistant should be available"
+    },
+    "after_hours_enabled": {
+      "type": "boolean",
+      "title": "After Hours Message",
+      "description": "Enable this toggle to play a message outside business hours"
+    },
+    "fallback_number": {
+      "type": "string",
+      "title": "Fallback Contact Number",
+      "description": "Phone number to call if no agent is available",
+      "pattern": "^\\+44\\d{10}$"
+    }
+  }
+}
+```
+
+### 2. Fill in data values
 
 <Frame>
-  <img src="/images/release-notes/2506/config-live-form.png" alt="Live config UI showing example values" />
+  <img src="/images/config-data.png" alt="Live config UI showing example values" />
 </Frame>
 
-Once published, your schema will appear in **Real Time Configuration**. Managers can populate values for:
+Environment tabs (Draft, Pre-release, Live) will let you enter the runtime values for each field. You can leave fields blank if optional.
+
+```json
+{
+  "opening_hours": "Mon–Fri, 9am to 6pm",
+  "after_hours_enabled": true,
+  "fallback_number": "+442071234567"
+}
+```
+
+### 3. Publish
+
+Once published, your schema will appear in the **Real Time Configuration** tab. Managers can populate values for any of the [environments](/environments-and-versions/introduction):
 
 - **Draft and Sandbox**
 - **Pre-release**
 - **Live**
 
 <Frame>
-  <img src="/images/release-notes/2506/config-live-form.png" alt="Live config UI showing example values" />
+  <img src="/images/config-schema-data-finished.png" alt="Live config UI showing example values" />
 </Frame>
 
-Example values might include:
-- `Opening Hours`: *Mon–Fri, 9am to 6pm*
-- `After Hours Message`: *On*
-- `Fallback Number`: *+442071234567*
+### 4. (Optional) Add the read config in your functions
 
-### 3. Read config in your functions
+Use the conv.project_config() helper to read real-time values.
 
-Use the `conv.project_config()` helper in a function to read real-time values.
+```python
+config = conv.project_config()
+hours = config.get("opening_hours")
+after_hours = config.get("after_hours_enabled")
+fallback = config.get("fallback_number")
 
-For example:
+if after_hours:
+    conv.say("We're currently closed. Please call back during business hours.")
+    conv.transfer_call(fallback)
+```
 
-- Check if `after_hours_enabled` is `true`
-- Route calls differently based on `opening_hours`
-- Use fallback contact numbers conditionally
-
-<Tip>All values are returned as a dictionary. Use `.get("key")` to safely access fields.</Tip>
+<Tip>All values are returned as a dictionary. Use .get("key") to safely access fields.</Tip>
 
 ## Best practices
 
-- <Icon icon="tick" iconType="solid" color="#2D8C66" /> Design schemas for clarity. Labels and descriptions help non-technical users.
-- <Icon icon="tick" iconType="solid" color="#2D8C66" /> Validate critical fields (like phone numbers) with regex.
-- <Icon icon="tick" iconType="solid" color="#2D8C66" /> Test behavior across all environments before deploying to Live.
-- <Icon icon="tick" iconType="solid" color="#2D8C66" /> Keep track of which flows and functions use which configuration fields.
+<Icon icon="check" iconType="solid" color="#2D8C66" /> Design schemas for clarity. Labels and descriptions help non-technical users.
+<Icon icon="check" iconType="solid" color="#2D8C66" /> Validate critical fields (like phone numbers) with regex.
+<Icon icon="check" iconType="solid" color="#2D8C66" /> Test behavior across all environments before deploying to Live.
+<Icon icon="check" iconType="solid" color="#2D8C66" /> Keep track of which flows and functions use which configuration fields.
 
 ## What happens if the schema changes?
 
