@@ -6,17 +6,23 @@ description: "Use the PolyAI Chat API to power Webchat."
 
 <Tip>Visit the [integrations](/integrations/web-chat/introduction) homepage if you are looking for more information on [Webchat integrations](/integrations/web-chat/introduction).</Tip>
 
-Use the Chat API to integrate PolyAI agents into existing <Tooltip tip="Non-voice chat systems, including in-browser chats and widgets, as well as SMS and email conversations.">Webchat</Tooltip>
-systems, and use its endpoints to get programmatic access to your automated chat interactions. This API structures non-voice web
-integration conversations, messages, and chat sessions using a simple set of REST endpoints.
+Use the Chat API to integrate PolyAI agents into existing <Tooltip tip="Non-voice chat systems, including in-browser chats and widgets, as well as SMS and email conversations.">Webchat</Tooltip> systems, and use its endpoints to get programmatic access to automated chat interactions. This API structures non-voice web conversations, messages, and chat sessions using a simple set of REST endpoints.
 
 The Chat API can power multiple Webchat integrations, including [WhatsApp](/integrations/web-chat/whatsapp), [email](/integrations/web-chat/email), and [in-app widgets](/integrations/web-chat/in-app-chat).
 
 ## Chatting with the API
 
-1. **Initiate conversation**: Send a POST `/chat/create` request with required headers.
+1. **Start a conversation**
+   Send a `POST /chat/create` request with:
+   - a unique `user_id` (UUID recommended)
+   - an optional `message` (can be an empty string)
+   - an empty or populated `metadata` object
 
-2. **Send and receive messages**: Use the `/chat/respond` endpoint for ongoing interaction.
+   The response includes a `conversation_id` and the assistant’s initial message.
+
+2. **Send and receive messages**
+   Use `POST /chat/respond` with the `conversation_id` and a `message`.
+   The response includes the assistant’s reply and an optional `end_conversation` flag.
 
 ## Endpoints
 
@@ -24,30 +30,77 @@ The Chat API can power multiple Webchat integrations, including [WhatsApp](/inte
 
 The Chat API is available in the following regions:
 
-| Region | URL                                   |
-| ------ | ------------------------------------- |
-| US     | https://api.us-1.platform.polyai.app  |
-| UK     | https://api.uk-1.platform.polyai.app  |
-| EUW    | https://api.euw-1.platform.polyai.app |
+| Region | Base URL |
+|--------|----------|
+| US     | https://api.us-1.platform.polyai.app |
+| UK     | https://api.uk-1.platform.polyai.app |
+| EU-W   | https://api.euw-1.platform.polyai.app |
 
-### API path format
+**Endpoint format:**
+`/v1/{account_id}/{project_id}/chat/{operation}`
 
-All endpoints follow this structure:
-
-```http
-POST /v1/{account_id}/{project_id}/chat/{operation}
-```
-
-* `account_id`: Your PolyAI account ID, e.g., `ACCOUNT-12345678`.
-
-* `project_id`: Your PolyAI project ID, e.g., `PROJECT-87654321`.
-
-* `operation`: The operation to perform, e.g., `create`, `respond`, `end`.
+- `account_id`: Your PolyAI account ID (e.g. `poly-scs-uk`)
+- `project_id`: Your PolyAI project ID (e.g. `PROJECT-191bfa2a`)
+- `operation`: Either `create` or `respond`
 
 ## Authentication
 
-All requests to the Chat API must include the following headers:
+All requests must include the following headers:
 
-* `X-Api-Key`: Your API key.
+| Header         | Description |
+|----------------|-------------|
+| `X-Api-Key`    | Your API key for PolyAI |
+| `X-Token`      | A token identifying the agent (connector token) |
+| `Content-Type` | Must be `application/json` |
 
-* `X-Token`: The connector token for the agent you want to chat with.
+## Example: Create Chat
+
+**POST**
+`/v1/poly-scs-uk/PROJECT-191bfa2a/chat/create`
+
+**Body:**
+ ```json
+    {
+      "user_id": "71c21b7c-5fa3-4c0d-bd4f-5ef0a7641b84",
+      "message": "",
+      "metadata": {}
+    }
+```
+
+**Response:**
+```json
+
+    {
+      "conversation_id": "WEBCHAT_abc123def456",
+      "response": "Hi, how can I help you today?"
+    }
+```
+
+## Example: Send Message
+
+**POST**
+`/v1/poly-scs-uk/PROJECT-191bfa2a/chat/respond`
+
+**Body:**
+```json
+
+    {
+      "conversation_id": "WEBCHAT_abc123def456",
+      "message": "What's your return policy?"
+    }
+```
+
+**Response:**
+```json
+    {
+      "response": "Our return policy is 30 days with proof of purchase.",
+      "end_conversation": false
+    }
+```
+
+## Notes
+
+- `user_id` must be unique per session. Use `uuid.uuid4()` to generate it safely.
+- `conversation_id` must match the ID returned by the `/chat/create` endpoint.
+- `end_conversation` indicates the assistant has concluded the session.
+- All fields in the request bodies are required (even if some are empty).

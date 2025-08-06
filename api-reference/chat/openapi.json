@@ -22,14 +22,12 @@
       "description": "EU-West base url"
     }
   ],
-  "security": {
-    "PolyAPIKey": {
-      "type": "apiKey",
-      "name": "X-Api-Key",
-      "in": "header",
-      "description": "API keys must be requested from PolyAI"
+  "security": [
+    {
+      "ApiKeyAuth": [],
+      "TokenAuth": []
     }
-  },
+  ],
   "paths": {
     "/v1/{account_id}/{project_id}/chat/create": {
       "post": {
@@ -55,7 +53,7 @@
             "description": "Project ID in the format `PROJECT-xxxxxxxx`. Combined with the `account_id`, this uniquely identifies a PolyAI project."
           },
           {
-            "name": "X-Token",
+            "name": "x-token",
             "in": "header",
             "required": true,
             "description": "A unique identifier for the agent to create a chat with. Supplied by PolyAI.",
@@ -70,7 +68,21 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {}
+                "properties": {
+                  "user_id": {
+                    "type": "string",
+                    "description": "Unique identifier for the user. Should be a UUID."
+                  },
+                  "message": {
+                    "type": "string",
+                    "description": "Optional initial message. Can be an empty string."
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "description": "Optional metadata. Can be an empty object."
+                  }
+                },
+                "required": ["user_id", "message", "metadata"]
               }
             }
           }
@@ -119,7 +131,7 @@
             "description": "Project ID in the format `PROJECT-xxxxxxxx`. Combined with the `account_id`, this uniquely identifies a PolyAI project."
           },
           {
-            "name": "X-Token",
+            "name": "x-token",
             "in": "header",
             "required": true,
             "description": "A unique identifier for the agent to create a chat with. Supplied by PolyAI.",
@@ -137,14 +149,14 @@
                 "properties": {
                   "conversation_id": {
                     "type": "string",
-                    "description": "A unique identifier for the chat session. Returned from the `create` endpoint and required to interact with the chat.",
-                    "example": "WEBCHAT_18bd8253-4019-4ba7-83b5-5ed602d5d84a"
+                    "description": "A unique identifier for the chat session. Returned from the `create` endpoint."
                   },
                   "message": {
                     "type": "string",
                     "description": "The content of the chat message."
                   }
-                }
+                },
+                "required": ["conversation_id", "message"]
               }
             }
           }
@@ -226,8 +238,8 @@
         "type": "object",
         "properties": {
           "error_message": {
-            "description": "A description of the error encountered.",
-            "type": "string"
+            "type": "string",
+            "description": "A description of the error encountered."
           }
         }
       }
@@ -237,6 +249,11 @@
         "type": "apiKey",
         "in": "header",
         "name": "x-api-key"
+      },
+      "TokenAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-token"
       }
     }
   }
