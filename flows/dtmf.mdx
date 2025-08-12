@@ -1,0 +1,78 @@
+---
+title: 'DTMF'
+description: 'Enable callers to select options using their phone keypad.'
+---
+
+**Dual-Tone Multi-Frequency** (DTMF) is the method telephones use to convert keypad presses into audio tones that telecom systems can detect and process.
+You can configure DTMF collection directly in a **flow step** to gather numeric input from callers, such as phone numbers, booking IDs, confirmation codes, or consent responses.
+
+## Configuring DTMF in a flow step
+
+1. Open your **flow** in the editor.
+2. Select the step where you want to collect numeric input.
+3. On the right-hand configuration panel, toggle **DTMF** on.
+4. Configure the following options:
+
+| Setting | Description |
+|---------|-------------|
+| **Inter-digit timeout (seconds)** | How long to wait between key presses before timing out. |
+| **Number of digits expected** | How many digits the caller must enter (1–32). |
+| **End key** | Optional key (such as `#` or `*`) to signal the end of input. |
+| **Collect data while the agent is speaking** | Allow input collection during speech playback. |
+| **Mark collected data as PII** | Flag collected values as Personally Identifiable Information. |
+
+The DTMF panel sits in the **step configuration sidebar**, replacing the ASR biasing options when enabled.
+
+> **Tip:** To open the DTMF menu quickly, click the **app grid icon** in the step’s prompt card.
+
+## Behavior and timing
+
+DTMF input is processed **after** the `start` function runs. If your `start` function plays a greeting, that greeting will play before DTMF capture begins.
+If you need DTMF input collected before any greeting plays, override the greeting by setting it to an empty string in the `start` function.
+> **Known issue:** You cannot fully delete a greeting due to a bug — the empty string method is a temporary workaround.
+
+## Using DTMF for Recording Opt-Out
+
+You can give callers the option to opt out of call recording by listening for a specific DTMF input — such as “Press 1 to opt out” — and then calling a `discard recording` function to remove the current call's recording.
+
+### Example prompt
+At the start of the call, you might say:
+> "This call may be recorded for quality and training purposes. To opt out, press 1."
+
+You can play this message either:
+- **Before** the greeting (by routing to a DTMF-enabled flow step before the `start` function), or
+- **Alongside** your greeting, since DTMF can still be captured while the assistant is speaking.
+
+> **Note:** DTMF processing starts after the `start` function runs. If you want to collect the opt-out keypress *before* any other audio is played, override the greeting in your `start` function with an empty string. There is currently a bug that prevents deleting the greeting entirely — this empty string method is a temporary workaround.
+
+### The `discard recording` function
+
+The `discard recording` function is a built-in command that removes the recording for the current call up to the moment it’s invoked.
+
+| Property   | Description |
+|------------|-------------|
+| **Purpose** | Deletes the audio recording for the current call from the conversation record. |
+| **When to call** | Any time during the call **except** in the `end` function. |
+| **Arguments** | None. |
+| **Effect** | The conversation record will show no recording for that call. |
+| **Persistence** | This action is irreversible — once discarded, the recording cannot be recovered. |
+
+#### Example usage
+```javascript
+if (context.dtmf === '1') {
+  discard_recording();
+}
+```
+
+
+### UX and timing considerations
+
+- **Greeting and DTMF overlap**: Even if you choose to play a greeting, DTMF input will still be processed in the background. You can say:
+  > "This call may be recorded. To opt out, press 1. How can I help you today?"
+  and still capture the caller’s keypress while they hear the welcome message.
+
+- **Timeouts**: When DTMF is enabled, Automatic Speech Recognition (ASR) remains active. If the caller doesn’t press a key, there can be a noticeable delay before the assistant continues. The timeout can be reduced only at the **conversation level** via an experimental configuration, not per step.
+
+- **Flexible logic**: You can design the flow so that pressing other keys triggers different actions — e.g.,
+  - Press 1 = opt out of recording
+  - Press 2 = continue with recording enabled
