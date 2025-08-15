@@ -1,0 +1,75 @@
+---
+title: 'Conversation utilities'
+sidebarTitle: Utilities
+description: 'Use built-in helpers from conv.utils to extract structured data from user input.'
+---
+
+The `conv.utils` property provides helper methods for extracting and validating information from the most recent user input during a conversation. These helpers are LLM-powered and return typed objects you can store in `conv.state` or use in your logic.
+
+<Note>
+These utilities are **opt-in** and may not be enabled in your workspace. Contact your admin to request access.
+</Note>
+
+## `extract_address`
+
+Extract a structured postal address from the latest user turn. Optionally validate against a list of known addresses.
+
+```python
+address = conv.utils.extract_address(country="US")
+conv.state.user_address = address
+```
+
+Parameters:
+- `addresses`: Optional list of `Address` objects to match against. Street name must be specified for each address.
+- `country`: Optional country code to filter on (default `"US"`).
+
+Returns:
+- An `Address` instance with available fields populated. Some fields may be `None` if not provided.
+
+Raises:
+- `ExtractionError` if parsing fails.
+
+## `extract_city`
+
+Extract a valid city name (and optionally state/country) from the latest user turn.
+
+```python
+city_data = conv.utils.extract_city(states=["CA"], country="US")
+conv.state.city = city_data.city
+```
+
+Parameters:
+- `city_spellings`: Optional list of spelled-out city names to match.
+- `states`: Optional list of states to filter on.
+- `country`: Optional country code to filter on (default `"US"`).
+
+Returns:
+- An `Address` instance where the `city` field is populated; other fields may be `None`.
+
+Raises:
+- `ExtractionError` if parsing fails.
+
+## `Address` type
+
+Both utilities return the same `Address` type:
+
+```python
+@dataclass
+class Address:
+    street_number: Optional[str]
+    street_name: Optional[str]
+    city: Optional[str]
+    state: Optional[str]
+    postcode: Optional[str]
+    country: Optional[str]
+```
+
+## Notes
+
+- **Latency**: Each method may take a few seconds to complete due to LLM processing.
+- **Validation**: Providing allowed values (addresses, city spellings, or states) can improve accuracy.
+- **Scope**: Operates on the most recent user input, including alternate transcript hypotheses.
+
+## See also
+
+- [`conv` object](./classes/conv-object) — full list of conversation methods and attributes.
