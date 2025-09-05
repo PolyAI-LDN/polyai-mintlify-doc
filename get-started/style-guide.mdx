@@ -1,0 +1,99 @@
+---
+title: Style guide
+description: Review the centralized best practices for building PolyAI agents
+---
+
+## 1. Role and objective
+Define who the agent is and what success means.
+- State the role clearly: "You are a [brand] support agent."
+- Define success: "Resolve the caller’s issue or escalate gracefully."
+
+*Why: pins identity and scope so the agent stays on task.*
+
+## 2. Personality and tone
+- Voice: friendly, calm, confident; never fawning.
+- Length: 1–2 sentences per turn.
+- Language: stick to one language only.
+- Pacing: conversational, not rushed.
+- Variety: do not repeat the same opener more than once per few turns.
+
+*Why: keeps replies natural, consistent, and brand-safe.*
+
+## 3. Rules and instructions
+- Write rules as **positive imperatives**: "Always confirm unclear inputs."
+- Provide at least one **example per rule**.
+- Plan for **edge cases** (unclear audio, emergency scenarios).
+- Test and iterate—refine rules from analytics and transcripts.
+
+Example:
+If user input is unintelligible:
+- Ask politely for repetition: "Sorry, I didn’t catch that—could you say it again?"
+
+## 4. Conversation flow
+Flows = state machines. Each step = a state with exit conditions.
+
+Golden rules:
+- **Self-contained step prompts** with instructions + examples.
+- **Intent-based transition names** (e.g. `confirm_booking`).
+- Always `return` after `flow.goto_step()`.
+
+Example:
+
+```python
+if intent == "provide_date":
+    flow.goto_step("collect_date")
+    return
+```
+
+## 5. Few-shot prompting
+- Place **2–3 examples inside each step prompt**.
+- Cover: a clean case, a tricky edge case, and a fallback.
+- Remember: step prompts are appended last, so examples carry strong weight.
+
+## 6. Develop functions
+- **Action-oriented names**: `book_reservation`, not `goto_step_two`.
+- Comprehensive descriptions: purpose, parameters, outputs.
+- Arguments: precise, meaningful names.
+- Trigger control: functions fire only under defined conditions.
+- Error handling:
+  - **404** → "Sorry, I couldn’t find that."
+  - **Other errors** → fallback to human or retry.
+- Each function = one job, one output.
+
+## 7. Speech input configuration
+- **ASR bias**: apply when structured input is expected.
+- Local bias overrides global bias.
+- **Transcript corrections**: regex + replacement rules (lowercase, diacritics).
+- Use correction tables sparingly, and test outputs.
+
+## 8. Safety and Escalation
+Escalate immediately if:
+- Caller requests a human.
+- Safety risks: harassment, threats, self-harm.
+- ≥2 tool failures or ≥3 no-match events.
+- Caller is extremely frustrated.
+
+Preamble:
+"Thanks for your patience—I’m connecting you with a specialist now."
+
+## 9. Knowledge Base & Topics
+- Topic names must be specific (avoid "Misc").
+- Each topic = 5–10 realistic user phrasings.
+- Replies = short, helpful, on-brand.
+- Split multi-part flows into separate topics.
+- Avoid bundling multiple intents together.
+
+## 10. Feedback
+- Annotate calls for wrong ASR or missing topics.
+- Feed annotations back weekly to refine rules and examples.
+- Update few-shots and edge-case handling based on trends.
+
+**Acceptance checklist:**
+- [ ] All rules are positive and testable.
+- [ ] Each rule has at least one example.
+- [ ] Conversation flow steps follow state-machine design.
+- [ ] Few-shots included inside step prompts (≤3).
+- [ ] Functions are single-purpose with error handling.
+- [ ] ASR bias + transcript correction documented.
+- [ ] Escalation triggers and preambles explicit.
+- [ ] Topics specific, with sample phrasings.
