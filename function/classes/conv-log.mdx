@@ -1,0 +1,116 @@
+---
+title: "Conversation log"
+sidebarTitle: "Log"
+description: "Write structured logs from functions with conv.log."
+---
+
+`conv.log` lets your function write small, structured log entries that show up in **Conversation Review → Diagnosis** and in the Conversations API. Use it for breadcrumbs, warnings, and errors.
+
+<Tip>Logging is part of the core `Conversation` object. It lives on `conv.log`, not `conv.utils`.</Tip>
+
+## Methods
+
+<AccordionGroup>
+
+<Accordion title="log.info(message)">
+**Description**: Add a routine breadcrumb.
+
+**Example**:
+
+```python
+conv.log.info("Validated inputs", validation_passed=True)
+```
+
+</Accordion>
+
+<Accordion title="log.warning(message)">
+**Description**: Flag a soft failure or approaching limit.
+
+**Example**:
+
+```python
+conv.log.warning(
+  "Rate limit nearing cap",
+  vendor="maps_api", window_remaining=5, threshold=10
+)
+```
+
+</Accordion>
+
+<Accordion title="log.error(message)">
+**Description**: Record a handled failure with context.
+
+**Example**:
+
+```python
+conv.log.error(
+  "CRM upsert failed", status=409, retriable=True, attempt=2
+)
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+## PII
+
+Set `is_pii=True` when the message or fields contain personally identifiable information.
+
+```python
+conv.log.warning("Caller number captured", user_phone="+123…", is_pii=True)
+```
+
+Users without PII permission won’t see PII logs in Review or API responses.
+
+## Where it appears
+
+* **Conversation Review → Diagnosis**: grouped under the turn’s function event.
+* **Conversations API**: returned on function events as `logs.conversation_logger`.
+
+## Entry shape
+
+Each call produces a JSON object like this:
+
+```json
+{
+  "level": "info|warning|error",
+  "content": "Message",
+  "is_pii": false,
+  "timestamp": "2025-01-01T10:00:00Z",
+  "logger": "conversation_logger",
+  "...": "any extra key–values you passed"
+}
+```
+
+## Patterns
+
+**Validation**
+
+```python
+conv.log.info("Validation ok", validation_passed=True, missing_fields=[])
+```
+
+**Retries**
+
+```python
+conv.log.error("Inventory API failed", error_code=500, attempt=1, retriable=True)
+```
+
+**Companion redaction**
+
+```python
+conv.log.warning("User email captured", email="j***@example.com", is_pii=True)
+conv.log.info("User email captured [redacted]")
+```
+
+## Best practices
+
+* Keep messages short; put details in fields.
+* Log at decision points, not in tight loops.
+* Prefer identifiers over payload dumps.
+* Default to `is_pii=True` if you’re unsure.
+
+## See also
+
+* [Conversation object](./conv-object)
+* [Conversation utilities](./conv-utils)
