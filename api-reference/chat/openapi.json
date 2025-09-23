@@ -1,144 +1,171 @@
 {
-  "openapi": "3.0.1",
+  "openapi": "3.0.0",
   "info": {
-    "title": "PolyAI Chat API Documentation",
-    "description": "Schema for managing web chat operations in PolyAI.",
-    "license": {
-      "name": "MIT"
-    },
+    "title": "Chat API",
+    "description": "API endpoints for chat functionality.",
     "version": "1.0.0"
   },
   "servers": [
     {
       "url": "https://api.us-1.platform.polyai.app",
-      "description": "US base url"
+      "description": "Hostname for US-1 region"
     },
     {
       "url": "https://api.uk-1.platform.polyai.app",
-      "description": "UK base url"
+      "description": "Hostname for UK-1 region"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-KEY",
+        "description": "You must request an API Key to use PolyAI APIs."
+      },
+      "TokenAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-TOKEN",
+        "description": "Authentication token provisioned in Agent Studio."
+      }
     },
-    {
-      "url": "https://api.euw-1.platform.polyai.app",
-      "description": "EU-West base url"
-    }
-  ],
-  "security": [
-    {
-      "ApiKeyAuth": [],
-      "TokenAuth": []
-    }
-  ],
-  "paths": {
-    "/v1/{account_id}/{project_id}/chat/create": {
-      "post": {
-        "summary": "Create a chat",
-        "description": "Initiate a new web chat session.",
-        "parameters": [
-          {
-            "name": "account_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Account ID in the format `ACCOUNT-xxxxxxxx`. Uniquely identifies your PolyAI account."
-          },
-          {
-            "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Project ID in the format `PROJECT-xxxxxxxx`. Combined with the `account_id`, this uniquely identifies a PolyAI project."
-          },
-          {
-            "name": "x-token",
-            "in": "header",
-            "required": true,
-            "description": "A unique identifier for the agent to create a chat with. Supplied by PolyAI.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "user_id": {
-                    "type": "string",
-                    "description": "Unique identifier for the user. Should be a UUID."
-                  },
-                  "message": {
-                    "type": "string",
-                    "description": "Optional initial message. Can be an empty string."
-                  },
-                  "metadata": {
-                    "type": "object",
-                    "description": "Optional metadata. Can be an empty object."
-                  }
-                },
-                "required": ["user_id", "message", "metadata"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Chat session created successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChatResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error_message": {
+            "type": "string",
+            "description": "Reason for error"
           }
         }
       }
     },
-    "/v1/{account_id}/{project_id}/chat/respond": {
+    "responses": {
+      "BadRequest": {
+        "description": "Bad Request",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Unauthorized",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Not Found",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "Internal Server Error",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/{version}/{account_id}/{project_id}/chat/create": {
       "post": {
-        "summary": "Respond to a chat",
-        "description": "Send a message in an existing chat session.",
+        "summary": "Create a new chat conversation",
         "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "description": "API version",
+            "required": true,
+            "schema": { "type": "string" }
+          },
           {
             "name": "account_id",
             "in": "path",
+            "description": "Account ID",
             "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Account ID in the format `ACCOUNT-xxxxxxxx`. Uniquely identifies your PolyAI account."
+            "schema": { "type": "string" }
           },
           {
             "name": "project_id",
             "in": "path",
+            "description": "Project ID",
             "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Project ID in the format `PROJECT-xxxxxxxx`. Combined with the `account_id`, this uniquely identifies a PolyAI project."
+            "schema": { "type": "string" }
+          }
+        ],
+        "security": [
+          { "ApiKeyAuth": [] },
+          { "TokenAuth": [] }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "conversation_id": {
+                      "type": "string",
+                      "description": "Unique ID for the created conversation"
+                    },
+                    "response": {
+                      "type": "string",
+                      "description": "Initial response message from the agent"
+                    }
+                  },
+                  "required": ["conversation_id", "response"]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/{version}/{account_id}/{project_id}/chat/respond": {
+      "post": {
+        "summary": "Send a message to an existing chat conversation",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "description": "API version",
+            "required": true,
+            "schema": { "type": "string" }
           },
           {
-            "name": "x-token",
-            "in": "header",
+            "name": "account_id",
+            "in": "path",
+            "description": "Account ID",
             "required": true,
-            "description": "A unique identifier for the agent to create a chat with. Supplied by PolyAI.",
-            "schema": {
-              "type": "string"
-            }
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": { "type": "string" }
           }
+        ],
+        "security": [
+          { "ApiKeyAuth": [] },
+          { "TokenAuth": [] }
         ],
         "requestBody": {
           "required": true,
@@ -149,112 +176,142 @@
                 "properties": {
                   "conversation_id": {
                     "type": "string",
-                    "description": "A unique identifier for the chat session. Returned from the `create` endpoint."
+                    "description": "ID of the conversation to respond to"
                   },
                   "message": {
                     "type": "string",
-                    "description": "The content of the chat message."
+                    "description": "Message to send to the agent"
                   }
                 },
-                "required": ["conversation_id", "message"]
+                "required": ["conversation_id"]
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Message sent successfully.",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChatResponse"
+                  "type": "object",
+                  "properties": {
+                    "conversation_id": {
+                      "type": "string",
+                      "description": "ID of the conversation"
+                    },
+                    "response": {
+                      "type": "string",
+                      "description": "Response message from the agent"
+                    },
+                    "end_conversation": {
+                      "type": "boolean",
+                      "description": "Whether the conversation should be ended"
+                    },
+                    "handoff": {
+                      "type": "object",
+                      "description": "Information about handoff if applicable",
+                      "properties": {
+                        "destination": {
+                          "type": "string",
+                          "description": "Destination for the handoff"
+                        },
+                        "reason": {
+                          "type": "string",
+                          "description": "Reason for the handoff"
+                        }
+                      }
+                    }
+                  },
+                  "required": ["conversation_id", "response", "end_conversation"]
                 }
               }
             }
           },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/{version}/{account_id}/{project_id}/chat/close": {
+      "put": {
+        "summary": "Close an existing chat conversation",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "description": "API version",
+            "required": true,
+            "schema": { "type": "string" }
           },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Account ID",
+            "required": true,
+            "schema": { "type": "string" }
           },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": { "type": "string" }
           }
+        ],
+        "security": [
+          { "ApiKeyAuth": [] },
+          { "TokenAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "conversation_id": {
+                    "type": "string",
+                    "description": "ID of the conversation to close"
+                  }
+                },
+                "required": ["conversation_id"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Whether the conversation was successfully closed"
+                    }
+                  },
+                  "required": ["success"]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalError" }
         }
       }
     }
   },
-  "components": {
-    "responses": {
-      "Unauthorized": {
-        "description": "Unauthorized",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/Error"
-            }
-          }
-        }
-      },
-      "BadRequest": {
-        "description": "Bad Request",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/Error"
-            }
-          }
-        }
-      },
-      "NotFound": {
-        "description": "Not Found",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/Error"
-            }
-          }
-        }
-      }
-    },
-    "schemas": {
-      "ChatResponse": {
-        "type": "object",
-        "properties": {
-          "conversation_id": {
-            "type": "string"
-          },
-          "response": {
-            "type": "string"
-          },
-          "end_conversation": {
-            "type": "boolean"
-          }
-        },
-        "required": ["conversation_id", "response"]
-      },
-      "Error": {
-        "type": "object",
-        "properties": {
-          "error_message": {
-            "type": "string",
-            "description": "A description of the error encountered."
-          }
-        }
-      }
-    },
-    "securitySchemes": {
-      "ApiKeyAuth": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "x-api-key"
-      },
-      "TokenAuth": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "x-token"
-      }
-    }
-  }
+  "security": [
+    { "ApiKeyAuth": [] },
+    { "TokenAuth": [] }
+  ]
 }
