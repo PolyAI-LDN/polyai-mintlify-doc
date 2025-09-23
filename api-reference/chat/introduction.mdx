@@ -4,7 +4,7 @@ sidebarTitle: "Overview"
 description: "Use the PolyAI Chat API to power Webchat."
 ---
 
-<Tip>Visit the [integrations](/integrations/web-chat/introduction) homepage if you are looking for more information on [Webchat integrations](/integrations/web-chat/introduction).</Tip>
+<Tip>Visit the [web chat](/webchat/introduction) homepage if you are looking for more information on chat integrations.</Tip>
 
 Use the Chat API to integrate PolyAI agents into existing <Tooltip tip="Non-voice chat systems, including in-browser chats and widgets, as well as SMS and email conversations.">Webchat</Tooltip> systems, and use its endpoints to get programmatic access to automated chat interactions. This API structures non-voice web conversations, messages, and chat sessions using a simple set of REST endpoints.
 
@@ -13,94 +13,123 @@ The Chat API can power multiple Webchat integrations, including [WhatsApp](/inte
 ## Chatting with the API
 
 1. **Start a conversation**
-   Send a `POST /chat/create` request with:
-   - a unique `user_id` (UUID recommended)
-   - an optional `message` (can be an empty string)
-   - an empty or populated `metadata` object
-
-   The response includes a `conversation_id` and the assistant’s initial message.
+   Call `POST /{version}/{account_id}/{project_id}/chat/create`.
+   The response includes a `conversation_id` and the assistant’s initial `response`.
+   > Per current schema, this endpoint has no request body.
 
 2. **Send and receive messages**
-   Use `POST /chat/respond` with the `conversation_id` and a `message`.
-   The response includes the assistant’s reply and an optional `end_conversation` flag.
+   Call `POST /{version}/{account_id}/{project_id}/chat/respond` with the `conversation_id`.
+   `message` is optional. The response includes the assistant’s `response`, an `end_conversation` flag, and may include a `handoff` object.
+
+3. **Close a conversation**
+   Call `PUT /{version}/{account_id}/{project_id}/chat/close` with the `conversation_id` in the body.
+   The response returns `{ "success": true }` on success.
 
 ## Endpoints
 
 ### Base URLs
 
-The Chat API is available in the following regions:
-
-| Region | Base URL |
-|--------|----------|
-| US     | https://api.us-1.platform.polyai.app |
-| UK     | https://api.uk-1.platform.polyai.app |
-| EU-W   | https://api.euw-1.platform.polyai.app |
+| Region | Base URL                                  |
+|-------:|-------------------------------------------|
+| US     | https://api.us-1.platform.polyai.app      |
+| UK     | https://api.uk-1.platform.polyai.app      |
 
 **Endpoint format:**
-`/v1/{account_id}/{project_id}/chat/{operation}`
+`/{version}/{account_id}/{project_id}/chat/{operation}`
 
-- `account_id`: Your PolyAI account ID (e.g. `poly-scs-uk`)
-- `project_id`: Your PolyAI project ID (e.g. `PROJECT-191bfa2a`)
-- `operation`: Either `create` or `respond`
+- `version`: API version (for example `v1`)
+- `account_id`: Your PolyAI account ID (for example `poly-scs-uk` or `ACCOUNT-xxxxxxx`)
+- `project_id`: Your PolyAI project ID (for example `PROJECT-191bfa2a`)
+- `operation`: `create`, `respond`, or `close`
 
 ## Authentication
 
-All requests must include the following headers:
+All requests must include the following headers (case-sensitive):
 
-| Header         | Description |
-|----------------|-------------|
-| `X-Api-Key`    | Your API key for PolyAI |
-| `X-Token`      | A token identifying the agent (connector token) |
-| `Content-Type` | Must be `application/json` |
+| Header       | Description                              |
+|--------------|------------------------------------------|
+| `X-API-KEY`  | Your API key for PolyAI                  |
+| `X-TOKEN`    | Agent authentication token (connector)   |
+| `Content-Type` | Must be `application/json`             |
 
-## Example: Create Chat
+## Example: Create chat
 
 **POST**
 `/v1/poly-scs-uk/PROJECT-191bfa2a/chat/create`
 
-**Body:**
- ```json
-    {
-      "user_id": "71c21b7c-5fa3-4c0d-bd4f-5ef0a7641b84",
-      "message": "",
-      "metadata": {}
-    }
-```
+**Response**
 
-**Response:**
 ```json
-
-    {
-      "conversation_id": "WEBCHAT_abc123def456",
-      "response": "Hi, how can I help you today?"
-    }
+{
+  "conversation_id": "CONV-1234567890",
+  "response": "Hi, how can I help you today?"
+}
 ```
 
-## Example: Send Message
+## Example: Send message
 
 **POST**
 `/v1/poly-scs-uk/PROJECT-191bfa2a/chat/respond`
 
-**Body:**
-```json
+**Body**
 
-    {
-      "conversation_id": "WEBCHAT_abc123def456",
-      "message": "What's your return policy?"
-    }
+```json
+{
+  "conversation_id": "CONV-1234567890",
+  "message": "What's your return policy?"
+}
 ```
 
-**Response:**
+**Response**
+
 ```json
-    {
-      "response": "Our return policy is 30 days with proof of purchase.",
-      "end_conversation": false
-    }
+{
+  "conversation_id": "CONV-1234567890",
+  "response": "Our return policy is 30 days with proof of purchase.",
+  "end_conversation": false
+}
+```
+
+**Response with handoff**
+
+```json
+{
+  "conversation_id": "CONV-1234567890",
+  "response": "Transferring you to a live agent.",
+  "end_conversation": true,
+  "handoff": {
+    "destination": "live_agent_queue",
+    "reason": "billing_question"
+  }
+}
+```
+
+## Example: Close chat
+
+**PUT**
+`/v1/poly-scs-uk/PROJECT-191bfa2a/chat/close`
+
+**Body**
+
+```json
+{
+  "conversation_id": "CONV-1234567890"
+}
+```
+
+**Response**
+
+```json
+{
+  "success": true
+}
 ```
 
 ## Notes
 
-- `user_id` must be unique per session. Use `uuid.uuid4()` to generate it safely.
-- `conversation_id` must match the ID returned by the `/chat/create` endpoint.
-- `end_conversation` indicates the assistant has concluded the session.
-- All fields in the request bodies are required (even if some are empty).
+- `create` has **no** request body in the current schema.
+- `respond` requires `conversation_id`; `message` is optional.
+- `handoff` may appear in the `respond` response with `destination` and `reason`.
+- `close` requires a JSON body containing `conversation_id`.
+- Header names are case-sensitive: `X-API-KEY`, `X-TOKEN`.
+- Use the regional base URL closest to your deployment.

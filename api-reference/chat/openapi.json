@@ -39,6 +39,81 @@
             "description": "Reason for error"
           }
         }
+      },
+      "CreateChatResponse": {
+        "type": "object",
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "description": "Unique ID for the created conversation",
+            "example": "CONV-1234567890"
+          },
+          "response": {
+            "type": "string",
+            "description": "Initial response message from the agent",
+            "example": "Hi, how can I help?"
+          }
+        },
+        "required": ["conversation_id", "response"]
+      },
+      "RespondChatResponse": {
+        "type": "object",
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "description": "ID of the conversation",
+            "example": "CONV-1234567890"
+          },
+          "response": {
+            "type": "string",
+            "description": "Response message from the agent",
+            "example": "Transferring you to an agent."
+          },
+          "end_conversation": {
+            "type": "boolean",
+            "description": "Whether the conversation should be ended",
+            "example": true
+          },
+          "handoff": {
+            "type": "object",
+            "description": "Information about handoff if applicable",
+            "properties": {
+              "destination": {
+                "type": "string",
+                "description": "Destination for the handoff",
+                "example": "live_agent_queue"
+              },
+              "reason": {
+                "type": "string",
+                "description": "Reason for the handoff",
+                "example": "billing_question"
+              }
+            }
+          }
+        },
+        "required": ["conversation_id", "response", "end_conversation"]
+      },
+      "CloseChatRequest": {
+        "type": "object",
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "description": "ID of the conversation to close",
+            "example": "CONV-1234567890"
+          }
+        },
+        "required": ["conversation_id"]
+      },
+      "CloseChatResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the conversation was successfully closed",
+            "example": true
+          }
+        },
+        "required": ["success"]
       }
     },
     "responses": {
@@ -79,6 +154,7 @@
   "paths": {
     "/{version}/{account_id}/{project_id}/chat/create": {
       "post": {
+        "operationId": "chatCreate",
         "summary": "Create a new chat conversation",
         "parameters": [
           {
@@ -86,21 +162,24 @@
             "in": "path",
             "description": "API version",
             "required": true,
-            "schema": { "type": "string" }
+            "schema": { "type": "string" },
+            "example": "v1"
           },
           {
             "name": "account_id",
             "in": "path",
             "description": "Account ID",
             "required": true,
-            "schema": { "type": "string" }
+            "schema": { "type": "string" },
+            "example": "ACCOUNT-xxxxxxxx"
           },
           {
             "name": "project_id",
             "in": "path",
             "description": "Project ID",
             "required": true,
-            "schema": { "type": "string" }
+            "schema": { "type": "string" },
+            "example": "PROJECT-xxxxxxxx"
           }
         ],
         "security": [
@@ -112,20 +191,7 @@
             "description": "OK",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "conversation_id": {
-                      "type": "string",
-                      "description": "Unique ID for the created conversation"
-                    },
-                    "response": {
-                      "type": "string",
-                      "description": "Initial response message from the agent"
-                    }
-                  },
-                  "required": ["conversation_id", "response"]
-                }
+                "schema": { "$ref": "#/components/schemas/CreateChatResponse" }
               }
             }
           },
@@ -139,6 +205,7 @@
     },
     "/{version}/{account_id}/{project_id}/chat/respond": {
       "post": {
+        "operationId": "chatRespond",
         "summary": "Send a message to an existing chat conversation",
         "parameters": [
           {
@@ -146,21 +213,24 @@
             "in": "path",
             "description": "API version",
             "required": true,
-            "schema": { "type": "string" }
+            "schema": { "type": "string" },
+            "example": "v1"
           },
           {
             "name": "account_id",
             "in": "path",
             "description": "Account ID",
             "required": true,
-            "schema": { "type": "string" }
+            "schema": { "type": "string" },
+            "example": "ACCOUNT-xxxxxxxx"
           },
           {
             "name": "project_id",
             "in": "path",
             "description": "Project ID",
             "required": true,
-            "schema": { "type": "string" }
+            "schema": { "type": "string" },
+            "example": "PROJECT-xxxxxxxx"
           }
         ],
         "security": [
@@ -176,11 +246,13 @@
                 "properties": {
                   "conversation_id": {
                     "type": "string",
-                    "description": "ID of the conversation to respond to"
+                    "description": "ID of the conversation to respond to",
+                    "example": "CONV-1234567890"
                   },
                   "message": {
                     "type": "string",
-                    "description": "Message to send to the agent"
+                    "description": "Message to send to the agent",
+                    "example": "Hello again"
                   }
                 },
                 "required": ["conversation_id"]
@@ -193,38 +265,7 @@
             "description": "OK",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "conversation_id": {
-                      "type": "string",
-                      "description": "ID of the conversation"
-                    },
-                    "response": {
-                      "type": "string",
-                      "description": "Response message from the agent"
-                    },
-                    "end_conversation": {
-                      "type": "boolean",
-                      "description": "Whether the conversation should be ended"
-                    },
-                    "handoff": {
-                      "type": "object",
-                      "description": "Information about handoff if applicable",
-                      "properties": {
-                        "destination": {
-                          "type": "string",
-                          "description": "Destination for the handoff"
-                        },
-                        "reason": {
-                          "type": "string",
-                          "description": "Reason for the handoff"
-                        }
-                      }
-                    }
-                  },
-                  "required": ["conversation_id", "response", "end_conversation"]
-                }
+                "schema": { "$ref": "#/components/schemas/RespondChatResponse" }
               }
             }
           },
@@ -238,6 +279,7 @@
     },
     "/{version}/{account_id}/{project_id}/chat/close": {
       "put": {
+        "operationId": "chatClose",
         "summary": "Close an existing chat conversation",
         "parameters": [
           {
@@ -245,21 +287,24 @@
             "in": "path",
             "description": "API version",
             "required": true,
-            "schema": { "type": "string" }
+            "schema": { "type": "string" },
+            "example": "v1"
           },
           {
             "name": "account_id",
             "in": "path",
             "description": "Account ID",
             "required": true,
-            "schema": { "type": "string" }
+            "schema": { "type": "string" },
+            "example": "ACCOUNT-xxxxxxxx"
           },
           {
             "name": "project_id",
             "in": "path",
             "description": "Project ID",
             "required": true,
-            "schema": { "type": "string" }
+            "schema": { "type": "string" },
+            "example": "PROJECT-xxxxxxxx"
           }
         ],
         "security": [
@@ -270,16 +315,7 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "conversation_id": {
-                    "type": "string",
-                    "description": "ID of the conversation to close"
-                  }
-                },
-                "required": ["conversation_id"]
-              }
+              "schema": { "$ref": "#/components/schemas/CloseChatRequest" }
             }
           }
         },
@@ -288,16 +324,7 @@
             "description": "OK",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "description": "Whether the conversation was successfully closed"
-                    }
-                  },
-                  "required": ["success"]
-                }
+                "schema": { "$ref": "#/components/schemas/CloseChatResponse" }
               }
             }
           },
