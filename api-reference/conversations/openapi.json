@@ -148,53 +148,39 @@
         },
         "responses": {
           "201": {
-            "description": "Accepted and delivered to the conversation runtime.",
+            "description": "Accepted."
+          },
+          "400": {
+            "description": "Malformed request (e.g., external event id not valid or not found in request).",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "received": {
-                      "type": "boolean"
-                    },
-                    "event_id": {
+                    "error_message": {
                       "type": "string"
-                    },
-                    "delivery": {
-                      "type": "object",
-                      "properties": {
-                        "bound_to_call": {
-                          "type": "boolean"
-                        },
-                        "sent_to_llm": {
-                          "type": "boolean"
-                        }
-                      }
                     }
                   }
                 },
-                "example": {
-                  "received": true,
-                  "event_id": "evt_01HF2MNW2ZQ1Z8E2S3J",
-                  "delivery": {
-                    "bound_to_call": true,
-                    "sent_to_llm": false
+                "examples": {
+                  "invalid": {
+                    "summary": "Invalid event id",
+                    "value": {
+                      "error_message": "External event id not valid"
+                    }
+                  },
+                  "missing": {
+                    "summary": "Missing event id",
+                    "value": {
+                      "error_message": "External event id not found in request"
+                    }
                   }
                 }
               }
             }
           },
-          "400": {
-            "description": "Malformed request or event id could not be found per `event_id_*`."
-          },
           "401": {
-            "description": "Missing or invalid X-Api-Key."
-          },
-          "404": {
-            "description": "Event id valid but no active conversation context."
-          },
-          "415": {
-            "description": "Unsupported content type for `payload` event id location."
+            "$ref": "#/components/responses/Unauthorized"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -208,8 +194,13 @@
           },
           {
             "lang": "bash",
-            "label": "cURL (id in header)",
-            "source": "curl -X POST \"https://api.us-1.platform.polyai.app/v1/external-events/webhook?event_id_location=headers&event_id_path=x-event-id&account_id=PLATFORM&project_id=PROJECT-123\" -H \"Content-Type: application/json\" -H \"X-Api-Key: <YOUR_API_KEY>\" -H \"X-Event-Id: evt_01HF2MNW2ZQ1Z8E2S3J\" -d '{\"status\":\"succeeded\"}'"
+            "label": "cURL (id in header, using `cid` as the header key)",
+            "source": "curl -X POST \"https://api.us-1.platform.polyai.app/v1/external-events/webhook?event_id_location=headers&event_id_path=cid&account_id=PLATFORM&project_id=PROJECT-123\" -H \"Content-Type: application/json\" -H \"X-Api-Key: <YOUR_API_KEY>\" -H \"cid: evt_01HF2MNW2ZQ1Z8E2S3J\" -d '{\"status\":\"succeeded\"}'"
+          },
+          {
+            "lang": "python",
+            "label": "Python (requests)",
+            "source": "import requests\n\nurl = \"https://api.us-1.platform.polyai.app/v1/external-events/webhook\"\nparams = {\n    \"event_id_location\": \"payload\",\n    \"event_id_path\": \"cid\",\n    \"account_id\": \"PLATFORM\",\n    \"project_id\": \"PROJECT-123\"\n}\nheaders = {\n    \"X-Api-Key\": \"<YOUR_API_KEY>\",\n    \"Content-Type\": \"application/json\"\n}\njson_payload = {\n    \"cid\": \"evt_01HF2MNW2ZQ1Z8E2S3J\",\n    \"answers\": {\"name\": \"Jane Doe\", \"amount\": 1999, \"currency\": \"GBP\"}\n}\nresp = requests.post(url, params=params, headers=headers, json=json_payload)\nprint(resp.status_code)  # 201 on success\n"
           }
         ]
       }
@@ -1141,7 +1132,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "X-Api-Key",
-        "description": "API key generated for External Events Webhook (e.g., via `poly api_key ... --name \"EXTERNAL_EVENTS_WEBHOOK\" --actions \"POST:/api/v1/webhook\"`)."
+        "description": "API key for the External Events Webhook. Contact your PolyAI representative to obtain credentials."
       }
     }
   }
