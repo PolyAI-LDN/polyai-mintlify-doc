@@ -2,7 +2,7 @@
 title: Overview
 ---
 
-The knowledge base (KB) is the brain of your agent. Each topic defines a single intent, how users might phrase it, what the agent should say, and what it should do next.
+The knowledge base (KB) is the brain of your agent. Each topic defines a single intent — how users might phrase it, what the agent should say, and what it should do next.
 
 Well-structured entries keep answers clear, safe, and meaningful.
 
@@ -10,15 +10,15 @@ Well-structured entries keep answers clear, safe, and meaningful.
 
 ![retrieval](/images/kb-rag-ven.png)
 
-The agent **does not** see the whole knowledge base every time. Instead, it uses [retrieval-augmented generation (RAG)](/knowledge-base/RAG/introduction) to find the best match for the user's message.
+The agent **does not** see the entire knowledge base every time. Instead, it uses [retrieval-augmented generation (RAG)](/knowledge-base/RAG/introduction) to find the best match for the user’s message.
 
-1. The retriever compares the user's message to the **name**, **sample questions**, and **content**.
-2. It returns the closest few topics.
-3. The model selects one and generates a reply (and may trigger an **action**).
+1. The retriever compares the message to the topic’s **name**, **sample questions**, and **content** — with higher weighting given to the name and sample questions.
+2. It returns the top few matching topics.
+3. The model selects one and generates a reply (and may trigger an **action**, **function**, or **flow transition**).
 
 ## Types of knowledge base entries
 
-We will now go through the broad categories that most knowledge base entries tend to fall into:
+Below are the broad categories that most knowledge base entries tend to fall into.
 
 ### Simple FAQ
 
@@ -31,7 +31,7 @@ One message in, one message out.
 - Add a short, helpful reply in `content`.
 - Leave `actions` empty.
 
-**Example – Pet policy (single-turn)**
+**Example – Pet policy (single turn)**
 ![simple_FAQ_single_turn-pet_policy](/images/kb-single-turn-pet-policy.png)
 
 #### Multi turn
@@ -52,8 +52,8 @@ Used when the agent should offer to connect the user to a human agent.
 
 Agent replies, then offers to transfer.
 
-- `content`: Include the answer + offer.
-- `actions`: Trigger `transfer_call` only if user accepts.
+- `content`: Include the answer and the offer.
+- `actions`: Trigger `transfer_call` (or another handoff function) only if the user accepts.
 
 **Example – Spa booking**
 ![handoff_offer-spa](/images/kb-handoff-spa.png)
@@ -70,7 +70,7 @@ Immediate transfer with no agent reply.
 
 #### Conditional
 
-Transfer based on user clarification, for example, group size, request type.
+Transfer based on user clarification — for example, group size or request type.
 
 - `content`: Ask a disambiguating question.
 - `actions`: Map each answer to the correct destination.
@@ -78,13 +78,13 @@ Transfer based on user clarification, for example, group size, request type.
 **Example – Room reservations**
 ![handoff_conditional-room_reservation](/images/kb-handoff-conditional.png)
 
-### SMS
+### Outbound messaging
 
-Used when you want to follow up with a link or info through text.
+Used when you want to follow up with a link or information by text or chat (SMS or WhatsApp).
 
 #### Offer
 
-Offer to send a link by SMS.
+Offer to send a link via message.
 
 - `content`: Include a short message and ask for consent.
 - `actions`: If accepted, call `start_sms_flow`.
@@ -94,7 +94,7 @@ Offer to send a link by SMS.
 
 #### Conditional
 
-Let the user choose which SMS to receive.
+Let the user choose which message to receive.
 
 - `content`: Ask a branching question.
 - `actions`: Map answers to different `sms_id`s.
@@ -104,27 +104,27 @@ Let the user choose which SMS to receive.
 
 ### Info only
 
-Used for reference material (like opening hours or prices). No interaction or action required.
+Used for static reference material (like opening hours or prices). No interaction or action required.
 
-- Fill `content`
-- Leave `actions` empty
+- Fill `content`.
+- Leave `actions` empty.
 
 **Example – Opening hours**
 ![misc_info_dump_opening_hours](/images/kb-misc-info.png)
 
 ## Best practices
 
-Do this:
-- Use specific topic names
-- Add 5–10 realistic sample phrasings
-- Keep replies short, helpful, and on-brand
-- Use `actions` only when necessary
-- Split multi-part flows into separate turns or topics
+**Do this:**
+- Use specific topic names.
+- Add 5–10 realistic sample phrasings.
+- Keep replies short, helpful, and on-brand.
+- Use `actions` only when necessary.
+- Split multi-part flows into separate turns or topics.
 
-Avoid this:
-- Bundling multiple intents into one topic
-- Running more than one action per turn
-- Using vague topic names like `Misc`, `Help`, or `Info`
+**Avoid this:**
+- Bundling multiple intents into one topic.
+- Running more than one action per turn.
+- Using vague topic names like `Misc`, `Help`, or `Info`.
 
 ## Resources
 
