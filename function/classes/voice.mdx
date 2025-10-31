@@ -8,7 +8,8 @@ and Microsoft Azure TTS.
 
 ## Provider classes
 
-When picking models, adjusting stability, or accessing third-party providers — use provider-specific `TTSVoice` classes:
+When picking models, adjusting stability, or accessing third-party providers — use provider-specific TTSVoice classes.
+You can also optionally adjust **clarity** and **latency_mode** to match the agent’s interaction style.
 
 ### Example: ElevenLabs
 
@@ -21,19 +22,22 @@ conv.set_voice(
         model_id="eleven_flash_v2",
         stability=0.5,
         similarity_boost=0.7,
+        clarity=0.8,            # Optional: controls crispness of enunciation
+        latency_mode="swift",   # Optional: aligns with interaction-style settings
     )
 )
 ```
 
 ### Example: AWS Polly
 
-```python
 from polyai.voice import PollyVoice
 
+```python
 conv.set_voice(
     PollyVoice(
         provider_voice_id="Joanna",
         engine="neural",
+        clarity=0.6,
     )
 )
 ```
@@ -47,14 +51,23 @@ conv.set_voice(
     AzureVoice(
         provider_voice_id="en-US-JennyNeural",
         style="cheerful",
-        role="customer-service-rep"
+        role="customer-service-rep",
+        clarity=0.9,
     )
 )
 ```
 
 ## Cache behavior
+
 * Changing `model_id` does not automatically invalidate cached audio.
 * To reset [cached audio](/audio-management/introduction):
-    * Go to **Audio > Cache** and delete existing entries.
-	* Or, create a new voice entry with a different `voice_id`.
-	* You can prepend model ID to voice ID (e.g. `eleven_flash_v2/a1b2c3`...) if you want to isolate caches across models.
+  * Go to **Audio → Cache** and delete existing entries.
+  * Or, create a new voice entry with a different voice_id.
+  * You can prepend the model ID to the voice ID (e.g. `eleven_flash_v2/a1b2c3...`) if you want to isolate caches across models.
+
+## Additional options
+
+- **clarity** – fine-tunes articulation sharpness per utterance (0.0–1.0).
+- **latency_mode** – chooses a response profile ("swift", "balanced", "precise", "turbo") consistent with [Interaction style](/audio-management/introduction#interaction-style).
+- **stability** – controls tone variability across runs.
+- **randomize_voice()** – supports external providers for weighted selection.
