@@ -45,13 +45,14 @@ The Conversation object (conv) provides access to conversation data and tools fo
     ```
   </Accordion>
 
-  <Accordion title="channel_type">
+<Accordion title="channel_type">
     **Description**: Type of channel the conversation is taking place on.
-    **Values**: "voice", "webchat", "whatsapp", "sms", "api"
+    **Values**: "sip.polyai", "webchat.polyai", "chat.polyai", plus integration-specific channel identifiers as configured.
+    **Notes**: Legacy values such as "voice" or "sms" are no longer returned. Channel types now reflect the transport namespace.
     **Example**:
     ```python
-    if conv.channel_type == "webchat":
-      log.info("Running a webchat session")
+    if conv.channel_type == "sip.polyai":
+      log.info("Running a voice call via SIP")
     ```
   </Accordion>
 
@@ -89,11 +90,13 @@ The Conversation object (conv) provides access to conversation data and tools fo
   </Accordion>
 
   <Accordion title="caller_number">
-    **Description**: Caller's phone number in E.164 format, or None on chat channels. For inbound calls, this is the customer’s number; for outbound calls, the target number.
+    **Description**: The caller's identifier.
+    For SIP calls, this is the phone number in [E.164](http://twilio.com/docs/glossary/what-e164) format, where +1 is the area code for the USA.
+    For chat channels, this may be an email address or integration-provided user ID. The value is not guaranteed to be None.
     **Example**:
     ```python
-    if conv.caller_number:
-      conv.send_sms(conv.caller_number, BUSINESS_NUMBER, "Thanks for calling!")
+    identifier = conv.caller_number
+    log.info(f"Caller identity: {identifier}")
     ```
   </Accordion>
 
