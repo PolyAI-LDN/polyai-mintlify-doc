@@ -6,11 +6,16 @@ description: Manage multiple external knowledge sources to inform your agent's r
 ![source-hub](/images/release-notes/2511/source-hub.png)
 
 <Note>
-Source Hub is in **beta**. Behavior may change as we extend supported integrations and scale performance.
+Source Hub is in **beta**. Behaviour may change as we extend supported integrations and scale performance.
 </Note>
 
-**Source Hub** lets you connect and manage multiple external knowledge sources so your agent can reference accurate, up-to-date information when responding to customer queries.
-It is designed for teams whose knowledge is distributed across articles, documentation sites, support platforms, and internal materials that change over time.
+**Source Hub** lets you connect and manage external knowledge sources so your agent can reference accurate, up-to-date information when responding to customer queries. It is designed for organisations whose knowledge is spread across documentation sites, help desk systems, PDFs and internal materials that change over time.
+
+## What is Source Hub?
+
+Source Hub is a fast, low-touch way of exposing external knowledge to your agent. You can connect URLs, files, or platform integrations, keep them synced, and toggle availability across environments or variants — without curating a separate knowledge base.
+
+Source Hub does **not** replace the Knowledge Base. They work together, and each offers different levels of control and complexity.
 
 ## Why use multiple knowledge sources?
 
@@ -22,16 +27,32 @@ Your organisation may have knowledge living in:
 - CSV, JSON or internal reference files
 - departmental or seasonal knowledge held in separate systems
 
-Source Hub allows you to bring these together, update them in-situ, and reuse them across agent projects without rewriting content.
+Source Hub brings these together, keeps them updated in situ, and lets you reuse them across projects without rewriting content.
 
-## Supported source types
+## How Source Hub differs from the Knowledge Base
 
-| Type | Examples |
-|------|----------|
-| **Upload files** | PDF, TXT, DOCX, CSV, JSON |
-| **URL scraping** | Documentation pages, help center articles |
-| **Zendesk** *(beta)* | Help center + API access |
-| **Gladly** *(beta)* | Knowledge source sync |
+Both Source Hub and the Knowledge Base expose information to your agent. The distinction lies in **control**, **complexity**, and **capability**:
+
+**Source Hub**
+- A connection layer for external knowledge.
+- Fast to set up and simple to manage.
+- Ideal for FAQ-style agents and large volumes of continuously updated content.
+- No prompting skill required; no need to curate another knowledge base.
+- **Cannot**: trigger actions, flows, SMS, hand-offs, or other agentic functions.
+- **Cannot**: specify utterances or control when/why the agent uses specific pieces of information.
+
+**Knowledge Base**
+- A curated library of topics and prompts.
+- Offers fine-grained control over utterances, behaviours, and what the agent says.
+- Can trigger functions, flows, and other agentic actions.
+- Requires more time, expertise, and maintenance — but enables anything beyond a simple FAQ bot.
+
+### TL;DR
+
+| Feature | Pain points solved | Use cases |
+| --- | --- | --- |
+| **Source Hub** | • Avoid creating another curated knowledge base<br>• Non-technical users want simple, fast knowledge management | • FAQ bots<br>• Rapidly adding/managing external knowledge<br>• Controlling data access per environment/variant |
+| **Knowledge Base** | • Need to trigger actions/functions/flows/SMS<br>• Need precise control over utterances | • Agentic agents<br>• Curated, stable knowledge<br>• Complex behaviours and logic |
 
 ## Add a new source
 
@@ -48,12 +69,34 @@ Source Hub allows you to bring these together, update them in-situ, and reuse th
 
 Your agent will begin **Syncing** the content. Once ready, the source appears in the list.
 
+## Supported source types
+
+| Type | Examples |
+|------|----------|
+| **Upload files** | PDF, TXT, DOCX, CSV, JSON |
+| **URL scraping** | Documentation pages, help centre articles |
+| **Zendesk** *(beta)* | Help centre + API access |
+| **Gladly** *(beta)* | Knowledge source sync |
+
+## What exactly gets scraped when I upload a URL?
+
+Source Hub uses a third-party scraper that traverses linked pages, but with limits:
+
+1. **Depth** → Only one level below the initial URL.
+2. **Breadth** → A maximum of 10 embedded pages.
+
+If your page contains more than 10 links, not all will be scraped. In that case, upload additional URLs individually or rely on integrations like Zendesk/Gladly for complete coverage.
+
+<Note>
+We plan to allow adjustable depth/breadth in future updates — both for performance and to avoid scraping unnecessary or duplicate pages.
+</Note>
+
 ## Keeping content fresh
 
-After content changes in your external sources:
+After external content changes:
 
 - click **Update** to re-scrape files or URLs
-- or use the **Sync** icon on individual sources
+- or use the **Sync** icon per source
 
 <Warning>
 If a URL requires login or credentials change, syncing may fail. Update access and retry.
@@ -61,16 +104,52 @@ If a URL requires login or credentials change, syncing may fail. Update access a
 
 ## Group and manage sources
 
-For large knowledge estates, you can group sources:
-
-- by product line
-- by internal team
-- by language or geography
-- by document type (legal, support, onboarding, etc.)
-
-Sources can be sorted by **newest**, **oldest**, **type**, or **name**, and each offers actions:
+Group sources by product line, team, region, or document type. Sort by **newest**, **oldest**, **type**, or **name**. Each source offers:
 
 - **Sync**
 - **Rename**
 - **Move to group**
 - **Remove**
+
+## Why isn’t my agent using the sources I connected?
+
+Several factors affect retrieval:
+
+### Data structure
+Source Hub splits content into 2000-character chunks with 500-character overlap. Very large documents or widely separated related sections may dilute relevance.
+
+**What to do:**
+- Restructure documents into smaller, tighter pieces.
+- Repeat key headings or terms.
+- Or curate the material as a Knowledge Base topic for guaranteed usage.
+
+### Update state
+Two updates must be current:
+
+- **Source Update** → keeps the data in each source fresh
+- **Agent Update** → applies Source Hub changes to the agent
+
+Both can be triggered manually. Agent updates also run automatically every few minutes.
+
+### Environments, variants, saved changes
+Each source must be enabled in the correct **environment** and **variant**. Any edits must be **saved** before leaving the page.
+
+## Conflicting information
+
+If the Knowledge Base and Source Hub contain conflicting data, **the Knowledge Base wins**. KB content is always prioritised.
+
+## Differences in URL results: Source Hub vs Knowledge Base
+
+Source Hub uses a specialised third-party scraper.
+Knowledge Base URL import uses an internal, older scraper with more limited coverage.
+
+This means URL imports in the Knowledge Base may miss pages or extract less usable content.
+
+## Tips & tricks
+
+- **Use PolyAI’s Raven LLM** for best results — it paraphrases structured and unstructured content more naturally.
+- Source Hub results receive a small bias boost to encourage use; this can be tuned if needed.
+- Source Hub data and Knowledge Base topics are merged at runtime.
+  - Any system-prompt style guidance applies to both (e.g., if you tell the agent to “speak like a cowboy,” both KB and Source Hub content will be cowboy-ified).
+
+If you remain unsure why a source isn’t being used, please reach out to your PolyAI contact.
