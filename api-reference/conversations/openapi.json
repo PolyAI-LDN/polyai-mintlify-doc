@@ -333,11 +333,11 @@
                     },
                     "descriptions": {
                       "type": "object",
-                      "description": "An dictionary of response keys and their descriptions",
+                      "description": "A dictionary of response keys and their descriptions",
                       "properties": {
                         "conversations": {
                           "type": "object",
-                          "description": "An dictionary of conversation object keys and their descriptions"
+                          "description": "A dictionary of conversation object keys and their descriptions"
                         }
                       }
                     },
@@ -396,7 +396,7 @@
           {
             "name": "start_time",
             "in": "query",
-            "description": "The start of the time for the range of the intervals, in ISO8601 format This is rounded down to the nearest 5-min date-time. `start_time` and `end_time` shouldn't be more than 1 week apart",
+            "description": "The start of the time for the range of the intervals, in ISO8601 format. This is rounded down to the nearest 5-min date-time. `start_time` and `end_time` shouldn't be more than 1 week apart.",
             "example": "2021-07-01T14:15:00.000Z",
             "schema": {
               "type": "string",
@@ -407,7 +407,7 @@
           {
             "name": "end_time",
             "in": "query",
-            "description": "The end of the time for the range of the intervals, in ISO8601 format This is rounded up to the nearest 5-min date-time. `start_time` and `end_time` shouldn't be more than 1 week apart",
+            "description": "The end of the time for the range of the intervals, in ISO8601 format. This is rounded up to the nearest 5-min date-time. `start_time` and `end_time` shouldn't be more than 1 week apart.",
             "example": "2021-07-01T16:35:00.000Z",
             "schema": {
               "type": "string",
@@ -418,7 +418,7 @@
           {
             "name": "client_env",
             "in": "query",
-            "description": "If it is set, we would return all conversations under this client_env. Client Environment can be sandbox, pre-release or live",
+            "description": "If it is set, we would return all conversations under this client_env. Client Environment can be sandbox, pre-release or live.",
             "schema": {
               "type": "string",
               "enum": [
@@ -469,7 +469,7 @@
           {
             "name": "slice_by",
             "in": "query",
-            "description": "If it is set, we slice the result intervals based on the slice_by parameter. You can slice by `variant`, `language` or `phone_number`. At the moment querying with `slice_by=language` or `slice_by=phone_number` will result in 501 Not Implemented",
+            "description": "If it is set, we slice the result intervals based on the slice_by parameter. You can slice by `variant`, `language` or `phone_number`. At the moment querying with `slice_by=language` or `slice_by=phone_number` will result in 501 Not Implemented.",
             "schema": {
               "type": "string"
             },
@@ -508,12 +508,12 @@
                           },
                           "max_concurrent_conversations": {
                             "type": "integer",
-                            "description": "The maximum number of concurrent conversations in the 5-minute interval starting from `time` This is the number after slicing based on the rest of the query parameters",
+                            "description": "The maximum number of concurrent conversations in the 5-minute interval starting from `time`. This is the number after slicing based on the rest of the query parameters.",
                             "example": 25
                           },
                           "variant_id": {
                             "type": "string",
-                            "description": "The variant ID of for this interval. This is only present if the query is sliced by a <variant> using `slice_by` query parameter.",
+                            "description": "The variant ID for this interval. This is only present if the query is sliced by a <variant> using `slice_by` query parameter.",
                             "example": "satdt"
                           },
                           "variant_name": {
@@ -523,12 +523,12 @@
                           },
                           "language": {
                             "type": "string",
-                            "description": "The variant name for this interval. This is only present if the query is sliced by a <language> using `slice_by` query parameter. This is still not implemented, and will not be visible in the current state of implementation.",
+                            "description": "The language for this interval. This is only present if the query is sliced by a <language> using `slice_by` query parameter. This is still not implemented, and will not be visible in the current state of implementation.",
                             "example": "en-GB"
                           },
                           "phone_number": {
                             "type": "string",
-                            "description": "The variant name for this interval. This is only present if the query is sliced by a <phone_number> using `slice_by` query parameter. This is still not implemented, and will not be visible in the current state of implementation.",
+                            "description": "The phone number for this interval. This is only present if the query is sliced by a <phone_number> using `slice_by` query parameter. This is still not implemented, and will not be visible in the current state of implementation.",
                             "example": "+447856838428"
                           }
                         },
@@ -596,7 +596,7 @@
     "/v1/{account_id}/{project_id}/handoff_state": {
       "get": {
         "summary": "Get handoff state information for a call; designed to be used in handoff integration",
-        "description": "Get the handoff state information (At least one of **id** or **shared_id** must be given as query parameters)",
+        "description": "Get the handoff state information (At least one of **id** or **shared_id** must be given as query parameters).",
         "parameters": [
           {
             "name": "account_id",
@@ -937,7 +937,11 @@
         "properties": {
           "user_input": {
             "type": "string",
-            "description": "The transcription of what the user spoke or typed."
+            "description": "The transcription of what the user spoke or typed. May be an empty string when no input is present."
+          },
+          "user_input_dtmf": {
+            "type": "string",
+            "description": "DTMF digits captured for this turn (e.g. keypad input). May be an empty string when no DTMF was entered."
           },
           "user_input_datetime": {
             "type": "string",
@@ -946,12 +950,24 @@
           },
           "agent_response": {
             "type": "string",
-            "description": "The transcription of the agent's response to the user."
+            "description": "The transcription of the agent's response to the user. May be an empty string when no response was produced."
           },
           "agent_response_datetime": {
             "type": "string",
             "format": "date-time",
             "description": "The time when the agent responded. For speech, this is when the agent started speaking."
+          },
+          "latency": {
+            "type": "number",
+            "description": "Agent latency for this turn (for example, time in seconds between receiving user input and starting the agent response)."
+          },
+          "translated_user_input": {
+            "type": "string",
+            "description": "User input translated into the agent's working language (typically English) if translation is enabled. May be an empty string when not applicable."
+          },
+          "english_agent_response": {
+            "type": "string",
+            "description": "Agent response in English when translation is enabled. May be an empty string when not applicable."
           },
           "intents": {
             "type": "array",
@@ -983,11 +999,11 @@
           },
           "is_ood": {
             "type": "boolean",
-            "description": "Whether the turn is classified as Out of Domain (OOD)"
+            "description": "Whether the turn is classified as Out of Domain (OOD)."
           },
           "is_silence": {
             "type": "boolean",
-            "description": "Whether the turn is classified as a silence"
+            "description": "Whether the turn is classified as a silence."
           }
         }
       },
@@ -1009,11 +1025,11 @@
           },
           "variant_id": {
             "type": "string",
-            "description": "ID of the variant this conversation is in"
+            "description": "ID of the variant this conversation is in."
           },
           "variant_name": {
             "type": "string",
-            "description": "Name of the variant this conversation is in"
+            "description": "Name of the variant this conversation is in."
           },
           "environment": {
             "type": "string",
@@ -1074,7 +1090,7 @@
           },
           "metrics": {
             "type": "object",
-            "description": "Mapping name -> value of custom metrics logged by the agent. If a metric name was written more than once, the value will be a list of the values that were written.",
+            "description": "Mapping name -> value of custom metrics logged by the agent. If a metric name was written more than once, the value will be a list of the values that were written. Timestamps, where present, use a consistent ISO8601 date-time format.",
             "additionalProperties": {
               "oneOf": [
                 {
@@ -1092,10 +1108,10 @@
             "example": {
               "CALL_DURATION": "30",
               "CALL_TURN": [
-                "2022-02-18 12:09:05.12677",
-                "2022-02-18 12:09:17.90602",
-                "2022-02-18 12:09:29.57732",
-                "2022-02-18 12:09:35.36996"
+                "2022-02-18T12:09:05.12677Z",
+                "2022-02-18T12:09:17.90602Z",
+                "2022-02-18T12:09:29.57732Z",
+                "2022-02-18T12:09:35.36996Z"
               ]
             }
           },
