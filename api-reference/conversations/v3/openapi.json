@@ -1,0 +1,1156 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "PolyAI Conversations API v3",
+    "description": "Schema for the PolyAI Conversations API v3.\n\nCompared to v1, v3:\n- Uses an event-sourced data pipeline for improved performance and reliability.\n- Exposes additional turn-level fields (latency, translated_user_input, english_agent_response).\n- Normalises empty text fields as empty strings rather than null.\n- Uses project- and region-scoped API keys generated from the Data access page in Agent Studio.\n- Provides consistent ISO8601 timestamp formatting across turns and metrics.",
+    "license": {
+      "name": "MIT"
+    },
+    "version": "3.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.us-1.platform.polyai.app",
+      "description": "US base url"
+    },
+    {
+      "url": "https://api.uk-1.platform.polyai.app",
+      "description": "UK base url"
+    },
+    {
+      "url": "https://api.euw-1.platform.polyai.app",
+      "description": "EUW base url"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "paths": {
+    "/v3/external-events/webhook": {
+      "post": {
+        "summary": "External events webhook (provider → PolyAI)",
+        "description": "External providers POST results back to the Agent runtime. PolyAI extracts the event id according to the query parameters, binds the data to the active conversation, and (optionally) feeds it to the LLM.",
+        "tags": [
+          "External Events"
+        ],
+        "security": [
+          {
+            "ExternalEventsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id_location",
+            "in": "query",
+            "required": true,
+            "description": "Where the event id is located in the incoming request.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "headers",
+                "querystring",
+                "payload"
+              ]
+            }
+          },
+          {
+            "name": "event_id_path",
+            "in": "query",
+            "required": true,
+            "description": "Name or dotted path to the event id within the chosen location (e.g. `cid` or `path.to.object.property`).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "account_id",
+            "in": "query",
+            "required": true,
+            "description": "PolyAI account id.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "description": "PolyAI project id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "examples": {
+                "json_hidden_field": {
+                  "summary": "JSON with hidden field `cid`",
+                  "value": {
+                    "cid": "evt_01HF2MNW2ZQ1Z8E2S3J",
+                    "answers": {
+                      "name": "Jane Doe",
+                      "amount": 1999,
+                      "currency": "GBP"
+                    }
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "examples": {
+                "form_encoded": {
+                  "summary": "Form-encoded payload",
+                  "value": {
+                    "cid": "evt_01HF2MNW2ZQ1Z8E2S3J",
+                    "status": "succeeded"
+                  }
+                }
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "type": "string"
+              },
+              "examples": {
+                "xml_payload": {
+                  "summary": "XML payload",
+                  "value": "<root><cid>evt_01HF2MNW2ZQ1Z8E2S3J</cid><status>succeeded</status></root>"
+                }
+              }
+            },
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              },
+              "examples": {
+                "raw_text": {
+                  "summary": "Raw text payload",
+                  "value": "cid=evt_01HF2MNW2ZQ1Z8E2S3J&status=succeeded"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Accepted."
+          },
+          "400": {
+            "description": "Malformed request (e.g., external event id not valid or not found in request).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error_message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "examples": {
+                  "invalid": {
+                    "summary": "Invalid event id",
+                    "value": {
+                      "error_message": "External event id not valid"
+                    }
+                  },
+                  "missing": {
+                    "summary": "Missing event id",
+                    "value": {
+                      "error_message": "External event id not found in request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL (JSON, id in payload at `cid`)",
+            "source": "curl -X POST \"https://api.us-1.platform.polyai.app/v3/external-events/webhook?event_id_location=payload&event_id_path=cid&account_id=PLATFORM&project_id=PROJECT-123\" -H \"Content-Type: application/json\" -H \"X-Api-Key: <YOUR_API_KEY>\" -d '{\"cid\":\"evt_01HF2MNW2ZQ1Z8E2S3J\",\"answers\":{\"name\":\"Jane Doe\",\"amount\":1999,\"currency\":\"GBP\"}}'"
+          },
+          {
+            "lang": "bash",
+            "label": "cURL (id in header, using `cid` as the header key)",
+            "source": "curl -X POST \"https://api.us-1.platform.polyai.app/v3/external-events/webhook?event_id_location=headers&event_id_path=cid&account_id=PLATFORM&project_id=PROJECT-123\" -H \"Content-Type: application/json\" -H \"X-Api-Key: <YOUR_API_KEY>\" -H \"cid: evt_01HF2MNW2ZQ1Z8E2S3J\" -d '{\"status\":\"succeeded\"}'"
+          },
+          {
+            "lang": "python",
+            "label": "Python (requests)",
+            "source": "import requests\n\nurl = \"https://api.us-1.platform.polyai.app/v3/external-events/webhook\"\nparams = {\n    \"event_id_location\": \"payload\",\n    \"event_id_path\": \"cid\",\n    \"account_id\": \"PLATFORM\",\n    \"project_id\": \"PROJECT-123\"\n}\nheaders = {\n    \"X-Api-Key\": \"<YOUR_API_KEY>\",\n    \"Content-Type\": \"application/json\"\n}\njson_payload = {\n    \"cid\": \"evt_01HF2MNW2ZQ1Z8E2S3J\",\n    \"answers\": {\"name\": \"Jane Doe\", \"amount\": 1999, \"currency\": \"GBP\"}\n}\nresp = requests.post(url, params=params, headers=headers, json=json_payload)\nprint(resp.status_code)  # 201 on success\n"
+          }
+        ]
+      }
+    },
+    "/v3/{account_id}/{project_id}/conversations": {
+      "get": {
+        "description": "Returns all conversations matching filters from the v3 event-sourced data pipeline.",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Account ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "client_env",
+            "in": "query",
+            "description": "Client Environment - sandbox, pre-release or live",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sandbox",
+                "pre-release",
+                "live"
+              ],
+              "default": "live"
+            },
+            "example": "sandbox"
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "description": "The start of the time range of the conversations to get, in ISO8601 format",
+            "example": "2021-07-01T14:15:00.000Z",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "description": "The end of the time range of the conversations to get, in ISO8601 format",
+            "example": "2021-07-01T16:35:00.000Z",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Max number of conversations to return per API call. If the result set of your query is larger than this, it will be paginated.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5000,
+              "default": 5
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Offset within result set to fetch.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "variant_id",
+            "in": "query",
+            "description": "If it is set, we would return all conversations under this variant_id. Note that you may only specify either one of the variant_id or variant_name",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "variant_name",
+            "in": "query",
+            "description": "If it is set, we would return all conversations under this variant_name. Note that you may only specify either one of the variant_id or variant_name. Also, make sure to encode any spaces in the name with \"%20\"",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "in_progress",
+            "in": "query",
+            "description": "If it is set to false, we only return finished conversations. If it is set to true, we only return conversations still in progress. By default, this parameter is None and we return all conversations",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "example": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "conversations": {
+                      "type": "array",
+                      "description": "An array of conversations returned in ascending chronological order.",
+                      "items": {
+                        "$ref": "#/components/schemas/Conversation"
+                      }
+                    },
+                    "descriptions": {
+                      "type": "object",
+                      "description": "A dictionary of response keys and their descriptions",
+                      "properties": {
+                        "conversations": {
+                          "type": "object",
+                          "description": "A dictionary of conversation object keys and their descriptions"
+                        }
+                      }
+                    },
+                    "next_offset": {
+                      "type": "integer",
+                      "description": "If present, the result is being paginated and requires another API call to fetch the next portion (pass the provided `next_offset` as the `offset` param for the next API call)."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v3/{account_id}/{project_id}/conversations/concurrency": {
+      "get": {
+        "summary": "Get distribution of the maximum number of concurrent conversations",
+        "description": "Get the maximum number of concurrent conversations in several 5-minute intervals based on given parameters from the v3 event-sourced data pipeline.",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Account ID",
+            "schema": {
+              "type": "string",
+              "example": "ACCOUNT-t53y16r3"
+            },
+            "required": true
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "schema": {
+              "type": "string",
+              "example": "PROJECT-f76d75c2"
+            },
+            "required": true
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "description": "The start of the time for the range of the intervals, in ISO8601 format. This is rounded down to the nearest 5-min date-time. `start_time` and `end_time` shouldn't be more than 1 week apart.",
+            "example": "2021-07-01T14:15:00.000Z",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": true
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "description": "The end of the time for the range of the intervals, in ISO8601 format. This is rounded up to the nearest 5-min date-time. `start_time` and `end_time` shouldn't be more than 1 week apart.",
+            "example": "2021-07-01T16:35:00.000Z",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": true
+          },
+          {
+            "name": "client_env",
+            "in": "query",
+            "description": "If it is set, we would return all conversations under this client_env. Client Environment can be sandbox, pre-release or live.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sandbox",
+                "pre-release",
+                "live"
+              ],
+              "default": "live"
+            },
+            "example": "sandbox"
+          },
+          {
+            "name": "variant_name",
+            "in": "query",
+            "description": "If it is set, we would return all conversations under this variant_name. Note that you may only specify either one of the variant_id or variant_name. Also, make sure to encode any spaces in the name with \"%20\"",
+            "schema": {
+              "type": "string"
+            },
+            "example": "variant_1"
+          },
+          {
+            "name": "variant_id",
+            "in": "query",
+            "description": "If it is set, we would return all conversations under this variant_id. Note that you may only specify either one of the variant_id or variant_name",
+            "schema": {
+              "type": "string"
+            },
+            "example": "satdt"
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "description": "If it is set, we would return all conversations under this language.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "en-GB"
+          },
+          {
+            "name": "phone_number",
+            "in": "query",
+            "description": "If it is set, we would return all conversations under phone_number.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "+447856838428"
+          },
+          {
+            "name": "slice_by",
+            "in": "query",
+            "description": "If it is set, we slice the result intervals based on the slice_by parameter. You can slice by `variant`, `language` or `phone_number`. At the moment querying with `slice_by=language` or `slice_by=phone_number` will result in 501 Not Implemented.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "variant"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "account_id": {
+                      "type": "string",
+                      "description": "Customer PolyAI Account ID",
+                      "example": "ACCOUNT-t53y16r3"
+                    },
+                    "project_id": {
+                      "type": "string",
+                      "description": "Customer PolyAI Project ID",
+                      "example": "PROJECT-f76d75c2"
+                    },
+                    "intervals": {
+                      "type": "array",
+                      "description": "An array of intervals returned in ascending chronological order.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "time": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "The UTC lower bound time for this interval in ISO8601 format.",
+                            "example": "2022-04-01T16:35:00.000Z"
+                          },
+                          "max_concurrent_conversations": {
+                            "type": "integer",
+                            "description": "The maximum number of concurrent conversations in the 5-minute interval starting from `time`. This is the number after slicing based on the rest of the query parameters.",
+                            "example": 25
+                          },
+                          "variant_id": {
+                            "type": "string",
+                            "description": "The variant ID for this interval. This is only present if the query is sliced by a <variant> using `slice_by` query parameter.",
+                            "example": "satdt"
+                          },
+                          "variant_name": {
+                            "type": "string",
+                            "description": "The variant name for this interval. This is only present if the query is sliced by a <variant> using `slice_by` query parameter.",
+                            "example": "variant_1"
+                          },
+                          "language": {
+                            "type": "string",
+                            "description": "The language for this interval. This is only present if the query is sliced by a <language> using `slice_by` query parameter. This is still not implemented, and will not be visible in the current state of implementation.",
+                            "example": "en-GB"
+                          },
+                          "phone_number": {
+                            "type": "string",
+                            "description": "The phone number for this interval. This is only present if the query is sliced by a <phone_number> using `slice_by` query parameter. This is still not implemented, and will not be visible in the current state of implementation.",
+                            "example": "+447856838428"
+                          }
+                        },
+                        "required": [
+                          "time",
+                          "max_concurrent_conversations"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "account_id",
+                    "project_id",
+                    "intervals"
+                  ]
+                },
+                "example": {
+                  "account_id": "ACCOUNT-t53y16r3",
+                  "project_id": "PROJECT-f76d75c2",
+                  "intervals": [
+                    {
+                      "variant_id": "satdt",
+                      "variant_name": "variant_1",
+                      "language": "en-GB",
+                      "time": "2022-04-01T16:35:00Z",
+                      "concurrency": 25
+                    },
+                    {
+                      "variant_id": "satdt",
+                      "variant_name": "variant_1",
+                      "language": "en-US",
+                      "time": "2022-04-01T16:40:00Z",
+                      "concurrency": 20
+                    },
+                    {
+                      "variant_id": "satdc",
+                      "variant_name": "variant_2",
+                      "language": "en-GB",
+                      "time": "2022-04-01T16:35:00Z",
+                      "concurrency": 5
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v3/{account_id}/{project_id}/handoff_state": {
+      "get": {
+        "summary": "Get handoff state information for a call; designed to be used in handoff integration",
+        "description": "Get the handoff state information (At least one of **id** or **shared_id** must be given as query parameters).",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Account ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "description": "The PolyAI ID of the conversation. API queries can include either id or shared_id, but must include at least one of them. If both are included, shared_id takes precedence for querying.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "shared_id",
+            "in": "query",
+            "description": "shared ID can be used to query information. API queries can include either id or shared_id, but must include at least one of them. If both are included, shared_id takes precedence for querying.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The PolyAI ID of the conversation",
+                      "example": "0bba04d7-38b3-4fd3-a1a8-329c34517fc1"
+                    },
+                    "shared_id": {
+                      "type": "string",
+                      "description": "shared_id can be used to query information. This is optionally visible in response based on whether there is a shared_id associated with the data",
+                      "example": "acme_inc_sdklfasdklfjasbdfklabs"
+                    },
+                    "data": {
+                      "description": "The data stored for this conversation",
+                      "type": "object",
+                      "example": {
+                        "customer_id": "12345",
+                        "handoff_reason": "successfully_identified"
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v3/conversations/dni-reservation": {
+      "post": {
+        "summary": "Reserve a DNI (Dynamic Number Insertion) for an incoming call.",
+        "description": "Reserves a DNI, associating a temporary set of Attributes to a specific Virtual Agent. The Virtual Agent is linked to the required API key in the request. Calling the DNI will result in connecting to the agent, letting it consume the Attributes. Please note that, in most cases, the API Key for this EP will be different from the API Key for other API EPs.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "attributes": {
+                    "type": "object",
+                    "description": "Attributes that will be consumed by the Virtual Agent. Highly customisable mapping of key -> value.",
+                    "additionalProperties": true,
+                    "example": {
+                      "shared_id": "1234",
+                      "customer": {
+                        "address": "test lane",
+                        "age": 25
+                      },
+                      "previous_calls": [
+                        "call_id_1",
+                        "call_id_2"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "attributes"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully reserved a DNI",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "dni": {
+                      "type": "string",
+                      "description": "The reserved DNI identifier"
+                    }
+                  }
+                },
+                "example": {
+                  "dni": "+12345"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": ""
+                    },
+                    "error": {
+                      "type": "string",
+                      "description": ""
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": ""
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "error": "Bad Request",
+                  "message": "error message"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": ""
+                    },
+                    "error": {
+                      "type": "string",
+                      "description": ""
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": ""
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "error": "Unauthorized",
+                  "message": "error message"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No route available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": ""
+                    },
+                    "error": {
+                      "type": "string",
+                      "description": ""
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": ""
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "error": "Not Found",
+                  "message": "no available route found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": ""
+                    },
+                    "error": {
+                      "type": "string",
+                      "description": ""
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": ""
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "error": "Internal Server Error",
+                  "message": "error message"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "Unauthorized": {
+        "description": "Unauthorized",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "BadRequest": {
+        "description": "Bad Request",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Not Found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "Internal Server Error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotImplementedError": {
+        "description": "Not Implemented Error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error_message": {
+            "description": "Reason for error",
+            "type": "string"
+          }
+        }
+      },
+      "ConversationTurn": {
+        "type": "object",
+        "description": "Info about a single turn.",
+        "properties": {
+          "user_input": {
+            "type": "string",
+            "description": "The transcription of what the user spoke or typed. May be an empty string when no input is present."
+          },
+          "user_input_dtmf": {
+            "type": "string",
+            "description": "DTMF digits captured for this turn (e.g. keypad input). May be an empty string when no DTMF was entered."
+          },
+          "user_input_datetime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time when the agent received the user's input. For speech, this is when ASR finished transcribing."
+          },
+          "agent_response": {
+            "type": "string",
+            "description": "The transcription of the agent's response to the user. May be an empty string when no response was produced."
+          },
+          "agent_response_datetime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time when the agent responded. For speech, this is when the agent started speaking."
+          },
+          "latency": {
+            "type": "number",
+            "description": "Agent latency for this turn (for example, time in seconds between receiving user input and starting the agent response)."
+          },
+          "translated_user_input": {
+            "type": "string",
+            "description": "User input translated into the agent's working language (typically English) if translation is enabled. May be an empty string when not applicable."
+          },
+          "english_agent_response": {
+            "type": "string",
+            "description": "Agent response in English when translation is enabled. May be an empty string when not applicable."
+          },
+          "intents": {
+            "type": "array",
+            "description": "The list of intents that were found in this turn's input.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "entities": {
+            "type": "array",
+            "description": "The list of entities that were found in this turn's input.",
+            "items": {
+              "type": "object",
+              "description": "Mapping entity name -> value(s)",
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "is_ood": {
+            "type": "boolean",
+            "description": "Whether the turn is classified as Out of Domain (OOD)."
+          },
+          "is_silence": {
+            "type": "boolean",
+            "description": "Whether the turn is classified as a silence."
+          }
+        }
+      },
+      "Conversation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique ID for this conversation",
+            "example": "CAabcd1234567abcdef1250065d4fc7389"
+          },
+          "account_id": {
+            "type": "string",
+            "description": "ID of the customer account this conversation is under."
+          },
+          "project_id": {
+            "type": "string",
+            "description": "ID of the project this conversation is under."
+          },
+          "variant_id": {
+            "type": "string",
+            "description": "ID of the variant this conversation is in."
+          },
+          "variant_name": {
+            "type": "string",
+            "description": "Name of the variant this conversation is in."
+          },
+          "environment": {
+            "type": "string",
+            "description": "Which deployment environment this conversation was handled in. Usually `live`, `sandbox`, or `pre-release`."
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time when the conversation began, in ISO8601 format."
+          },
+          "channel": {
+            "type": "string",
+            "description": "What medium the conversation took place in. Usually one of `CHAT` or `VOICE-SIP`."
+          },
+          "from_number": {
+            "type": "string",
+            "description": "Caller's phone number."
+          },
+          "to_number": {
+            "type": "string",
+            "description": "Phone number of the agent the caller was connected to."
+          },
+          "in_progress": {
+            "type": "boolean",
+            "description": "If true, the call is currently in progress, and therefore its properties may still change in the future."
+          },
+          "num_turns": {
+            "type": "integer",
+            "description": "Number of turns in the conversation."
+          },
+          "total_duration": {
+            "type": "integer",
+            "description": "Duration of the entire call, in seconds."
+          },
+          "polyai_duration": {
+            "type": "integer",
+            "description": "Duration of the portion of the call handled by the PolyAI agent, in seconds."
+          },
+          "handoff": {
+            "type": "boolean",
+            "description": "Whether or not the PolyAI agent handed the call off."
+          },
+          "handoff_reason": {
+            "type": "string",
+            "description": "Brief reason why the agent handed the call off."
+          },
+          "handoff_destination": {
+            "type": "string",
+            "description": "If there are multiple handoff destinations, which one was used."
+          },
+          "num_silences": {
+            "type": "integer",
+            "description": "Number of turns in the conversation where the caller gave no discernible input."
+          },
+          "num_ood": {
+            "type": "integer",
+            "description": "Number of turns in the conversation where the caller gave some input, but it could not be understood by our agent."
+          },
+          "metrics": {
+            "type": "object",
+            "description": "Mapping name -> value of custom metrics logged by the agent. If a metric name was written more than once, the value will be a list of the values that were written. Timestamps, where present, use a consistent ISO8601 date-time format.",
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 2
+                }
+              ]
+            },
+            "example": {
+              "CALL_DURATION": "30",
+              "CALL_TURN": [
+                "2022-02-18T12:09:05.12677Z",
+                "2022-02-18T12:09:17.90602Z",
+                "2022-02-18T12:09:29.57732Z",
+                "2022-02-18T12:09:35.36996Z"
+              ]
+            }
+          },
+          "state": {
+            "type": "object",
+            "description": "Mapping of keys -> values written to the dialogue state by the agent."
+          },
+          "turns": {
+            "type": "array",
+            "description": "Ordered list of turns in the conversation.",
+            "items": {
+              "$ref": "#/components/schemas/ConversationTurn"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "account_id",
+          "project_id",
+          "environment",
+          "started_at",
+          "channel",
+          "in_progress"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key",
+        "description": "Project- and region-scoped API key generated from the Data access page in Agent Studio. The key is tied to a specific project and region."
+      },
+      "ExternalEventsApiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Api-Key",
+        "description": "API key for the External Events Webhook. Contact your PolyAI representative to obtain credentials."
+      }
+    }
+  }
+}
