@@ -1,0 +1,185 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "PolyAI Handoff API",
+    "description": "Schema for the PolyAI Handoff state API",
+    "license": {
+      "name": "MIT"
+    },
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.us-1.platform.polyai.app",
+      "description": "US base url"
+    },
+    {
+      "url": "https://api.uk-1.platform.polyai.app",
+      "description": "UK base url"
+    },
+    {
+      "url": "https://api.euw-1.platform.polyai.app",
+      "description": "EUW base url"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "paths": {
+    "/v1/{account_id}/{project_id}/handoff_state": {
+      "get": {
+        "summary": "Get handoff state information for a call.",
+        "description": "Returns the stored handoff state for a conversation. At least one of **id** or **shared_id** must be provided as a query parameter. If both are provided, **shared_id** takes precedence.",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "PolyAI account ID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "PolyAI project ID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "description": "PolyAI conversation ID. Either `id` or `shared_id` must be provided.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "shared_id",
+            "in": "query",
+            "description": "Shared identifier used by the integrator. Either `id` or `shared_id` must be provided. If both are present, `shared_id` is used.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Handoff state successfully retrieved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request – for example, neither `id` nor `shared_id` supplied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found – no matching handoff state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HandoffState": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "PolyAI conversation ID.",
+            "example": "0bba04d7-38b3-4fd3-a1a8-329c34517fc1"
+          },
+          "shared_id": {
+            "type": "string",
+            "description": "Shared ID associated with the conversation (if present).",
+            "example": "acme_inc_sdklfasdklfjasbdfklabs"
+          },
+          "data": {
+            "type": "object",
+            "description": "Arbitrary key–value data stored for this conversation, typically used by the downstream platform.",
+            "example": {
+              "customer_id": "12345",
+              "handoff_reason": "successfully_identified"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "data"
+        ]
+      },
+      "HandoffError": {
+        "type": "object",
+        "properties": {
+          "error_message": {
+            "type": "string",
+            "description": "Reason for the error."
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key"
+      }
+    }
+  }
+}

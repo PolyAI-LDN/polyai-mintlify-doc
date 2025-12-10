@@ -1,0 +1,329 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "PolyAI Concurrent Calls API",
+    "description": "Schema for the PolyAI Concurrent Calls API",
+    "license": {
+      "name": "MIT"
+    },
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.us-1.platform.polyai.app",
+      "description": "US base url"
+    },
+    {
+      "url": "https://api.uk-1.platform.polyai.app",
+      "description": "UK base url"
+    },
+    {
+      "url": "https://api.euw-1.platform.polyai.app",
+      "description": "EUW base url"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "paths": {
+    "/v1/{account_id}/{project_id}/conversations/concurrency": {
+      "get": {
+        "summary": "Get distribution of the maximum number of concurrent conversations",
+        "description": "Returns the maximum number of concurrent conversations in several 5-minute intervals based on the given parameters.",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Account ID.",
+            "schema": {
+              "type": "string",
+              "example": "ACCOUNT-t53y16r3"
+            },
+            "required": true
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID.",
+            "schema": {
+              "type": "string",
+              "example": "PROJECT-f76d75c2"
+            },
+            "required": true
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "description": "Start of the time range in ISO8601 format. Rounded down to the nearest 5-minute datetime. `start_time` and `end_time` must be no more than 1 week apart.",
+            "example": "2021-07-01T14:15:00.000Z",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": true
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "description": "End of the time range in ISO8601 format. Rounded up to the nearest 5-minute datetime. `start_time` and `end_time` must be no more than 1 week apart.",
+            "example": "2021-07-01T16:35:00.000Z",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": true
+          },
+          {
+            "name": "client_env",
+            "in": "query",
+            "description": "If set, only include conversations in this environment. Can be `sandbox`, `pre-release` or `live`.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sandbox",
+                "pre-release",
+                "live"
+              ],
+              "default": "live"
+            },
+            "example": "sandbox"
+          },
+          {
+            "name": "variant_name",
+            "in": "query",
+            "description": "If set, only include conversations under this variant name. You may specify either variant_id or variant_name, not both. Encode spaces as \"%20\".",
+            "schema": {
+              "type": "string"
+            },
+            "example": "variant_1"
+          },
+          {
+            "name": "variant_id",
+            "in": "query",
+            "description": "If set, only include conversations under this variant ID. You may specify either variant_id or variant_name, not both.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "satdt"
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "description": "If set, only include conversations in this language.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "en-GB"
+          },
+          {
+            "name": "phone_number",
+            "in": "query",
+            "description": "If set, only include conversations for this phone number.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "+447856838428"
+          },
+          {
+            "name": "slice_by",
+            "in": "query",
+            "description": "If set, slice the result intervals based on this parameter. You can slice by `variant`, `language` or `phone_number`. Currently `language` and `phone_number` slicing are not implemented (501).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "variant"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "account_id": {
+                      "type": "string",
+                      "description": "Customer PolyAI Account ID.",
+                      "example": "ACCOUNT-t53y16r3"
+                    },
+                    "project_id": {
+                      "type": "string",
+                      "description": "Customer PolyAI Project ID.",
+                      "example": "PROJECT-f76d75c2"
+                    },
+                    "intervals": {
+                      "type": "array",
+                      "description": "Array of intervals returned in ascending chronological order.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "time": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "UTC lower bound time for this interval in ISO8601 format.",
+                            "example": "2022-04-01T16:35:00.000Z"
+                          },
+                          "max_concurrent_conversations": {
+                            "type": "integer",
+                            "description": "Maximum number of concurrent conversations in the 5-minute interval starting from `time`, after applying all filters.",
+                            "example": 25
+                          },
+                          "variant_id": {
+                            "type": "string",
+                            "description": "Variant ID for this interval if `slice_by=variant`.",
+                            "example": "satdt"
+                          },
+                          "variant_name": {
+                            "type": "string",
+                            "description": "Variant name for this interval if `slice_by=variant`.",
+                            "example": "variant_1"
+                          },
+                          "language": {
+                            "type": "string",
+                            "description": "Language for this interval if `slice_by=language` (not currently implemented).",
+                            "example": "en-GB"
+                          },
+                          "phone_number": {
+                            "type": "string",
+                            "description": "Phone number for this interval if `slice_by=phone_number` (not currently implemented).",
+                            "example": "+447856838428"
+                          }
+                        },
+                        "required": [
+                          "time",
+                          "max_concurrent_conversations"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "account_id",
+                    "project_id",
+                    "intervals"
+                  ]
+                },
+                "example": {
+                  "account_id": "ACCOUNT-t53y16r3",
+                  "project_id": "PROJECT-f76d75c2",
+                  "intervals": [
+                    {
+                      "variant_id": "satdt",
+                      "variant_name": "variant_1",
+                      "language": "en-GB",
+                      "time": "2022-04-01T16:35:00Z",
+                      "max_concurrent_conversations": 25
+                    },
+                    {
+                      "variant_id": "satdt",
+                      "variant_name": "variant_1",
+                      "language": "en-US",
+                      "time": "2022-04-01T16:40:00Z",
+                      "max_concurrent_conversations": 20
+                    },
+                    {
+                      "variant_id": "satdc",
+                      "variant_name": "variant_2",
+                      "language": "en-GB",
+                      "time": "2022-04-01T16:35:00Z",
+                      "max_concurrent_conversations": 5
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "Unauthorized": {
+        "description": "Unauthorized.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "BadRequest": {
+        "description": "Bad Request.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Not Found.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "Internal Server Error.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotImplementedError": {
+        "description": "Not Implemented Error.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error_message": {
+            "description": "Reason for error.",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key"
+      }
+    }
+  }
+}

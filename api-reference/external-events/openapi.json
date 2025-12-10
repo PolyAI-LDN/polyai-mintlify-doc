@@ -1,0 +1,234 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "PolyAI External Events API",
+    "description": "Schema for the PolyAI External Events webhook",
+    "license": {
+      "name": "MIT"
+    },
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.us-1.platform.polyai.app",
+      "description": "US base url"
+    },
+    {
+      "url": "https://api.uk-1.platform.polyai.app",
+      "description": "UK base url"
+    },
+    {
+      "url": "https://api.euw-1.platform.polyai.app",
+      "description": "EUW base url"
+    }
+  ],
+  "security": [
+    {
+      "ExternalEventsApiKey": []
+    }
+  ],
+  "paths": {
+    "/v1/external-events/webhook": {
+      "post": {
+        "summary": "External events webhook (provider → PolyAI)",
+        "description": "External providers POST results back to the Agent runtime. PolyAI extracts the external event ID according to the query parameters, binds the data to the active conversation, and (optionally) feeds it to the LLM.",
+        "tags": [
+          "External Events"
+        ],
+        "parameters": [
+          {
+            "name": "event_id_location",
+            "in": "query",
+            "required": true,
+            "description": "Where the external event ID is located in the incoming request.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "headers",
+                "querystring",
+                "payload"
+              ]
+            }
+          },
+          {
+            "name": "event_id_path",
+            "in": "query",
+            "required": true,
+            "description": "Name or dotted path to the external event ID within the chosen location (for example `cid` or `path.to.object.property`).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "account_id",
+            "in": "query",
+            "required": true,
+            "description": "PolyAI account ID.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "description": "PolyAI project ID.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "examples": {
+                "json_hidden_field": {
+                  "summary": "JSON with hidden field `cid`",
+                  "value": {
+                    "cid": "evt_01HF2MNW2ZQ1Z8E2S3J",
+                    "answers": {
+                      "name": "Jane Doe",
+                      "amount": 1999,
+                      "currency": "GBP"
+                    }
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "examples": {
+                "form_encoded": {
+                  "summary": "Form-encoded payload",
+                  "value": {
+                    "cid": "evt_01HF2MNW2ZQ1Z8E2S3J",
+                    "status": "succeeded"
+                  }
+                }
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "type": "string"
+              },
+              "examples": {
+                "xml_payload": {
+                  "summary": "XML payload",
+                  "value": "<root><cid>evt_01HF2MNW2ZQ1Z8E2S3J</cid><status>succeeded</status></root>"
+                }
+              }
+            },
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              },
+              "examples": {
+                "raw_text": {
+                  "summary": "Raw text payload",
+                  "value": "cid=evt_01HF2MNW2ZQ1Z8E2S3J&status=succeeded"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Accepted – the external event has been received and queued for processing."
+          },
+          "400": {
+            "description": "Malformed request (for example, external event ID not valid or not found in request).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalEventsError"
+                },
+                "examples": {
+                  "invalid": {
+                    "summary": "Invalid event id",
+                    "value": {
+                      "error_message": "External event id not valid"
+                    }
+                  },
+                  "missing": {
+                    "summary": "Missing event id",
+                    "value": {
+                      "error_message": "External event id not found in request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized – invalid or missing API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalEventsError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalEventsError"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL (JSON, id in payload at `cid`)",
+            "source": "curl -X POST \"https://api.us-1.platform.polyai.app/v1/external-events/webhook?event_id_location=payload&event_id_path=cid&account_id=PLATFORM&project_id=PROJECT-123\" -H \"Content-Type: application/json\" -H \"X-Api-Key: <YOUR_API_KEY>\" -d '{\"cid\":\"evt_01HF2MNW2ZQ1Z8E2S3J\",\"answers\":{\"name\":\"Jane Doe\",\"amount\":1999,\"currency\":\"GBP\"}}'"
+          },
+          {
+            "lang": "bash",
+            "label": "cURL (id in header, using `cid` as the header key)",
+            "source": "curl -X POST \"https://api.us-1.platform.polyai.app/v1/external-events/webhook?event_id_location=headers&event_id_path=cid&account_id=PLATFORM&project_id=PROJECT-123\" -H \"Content-Type: application/json\" -H \"X-Api-Key: <YOUR_API_KEY>\" -H \"cid: evt_01HF2MNW2ZQ1Z8E2S3J\" -d '{\"status\":\"succeeded\"}'"
+          },
+          {
+            "lang": "python",
+            "label": "Python (requests)",
+            "source": "import requests\n\nurl = \"https://api.us-1.platform.polyai.app/v1/external-events/webhook\"\nparams = {\n    \"event_id_location\": \"payload\",\n    \"event_id_path\": \"cid\",\n    \"account_id\": \"PLATFORM\",\n    \"project_id\": \"PROJECT-123\"\n}\nheaders = {\n    \"X-Api-Key\": \"<YOUR_API_KEY>\",\n    \"Content-Type\": \"application/json\"\n}\njson_payload = {\n    \"cid\": \"evt_01HF2MNW2ZQ1Z8E2S3J\",\n    \"answers\": {\"name\": \"Jane Doe\", \"amount\": 1999, \"currency\": \"GBP\"}\n}\nresp = requests.post(url, params=params, headers=headers, json=json_payload)\nprint(resp.status_code)  # 201 on success\n"
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ExternalEventsError": {
+        "type": "object",
+        "properties": {
+          "error_message": {
+            "type": "string",
+            "description": "Reason for the error."
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "ExternalEventsApiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Api-Key",
+        "description": "API key for the External Events webhook. Contact your PolyAI representative to obtain credentials."
+      }
+    }
+  }
+}

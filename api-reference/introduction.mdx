@@ -3,68 +3,94 @@ title: 'Getting started'
 description: 'Start integrating with PolyAI APIs'
 ---
 
-Welcome to the PolyAI API documentation. This guide introduces the core concepts you need before integrating with the PolyAI API, including regions, API versions, and authentication.
+Welcome to the PolyAI API documentation. This page gives you the minimum you need to understand before you start wiring anything up: regions, API surface, versions, and authentication.
 
 ## Regional API endpoints
 
-PolyAI provides regional API endpoints to ensure low latency and compliance with local data regulations. Use the base URL that matches your deployment region:
+PolyAI provides regional API endpoints to keep latency low and meet data residency requirements. Use the base URL that matches your deployment region:
 
 | Region | Base URL |
 | ------ | -------- |
-| US     | https://api.us-1.platform.polyai.app |
-| UK     | https://api.uk-1.platform.polyai.app |
-| EUW    | https://api.euw-1.platform.polyai.app |
+| US     | `https://api.us-1.platform.polyai.app` |
+| UK     | `https://api.uk-1.platform.polyai.app` |
+| EUW    | `https://api.euw-1.platform.polyai.app` |
 
-Every API request begins with:
+Most endpoints share this pattern:
 
 `https://api.{region}.platform.polyai.app/{version}/{account_id}/{project_id}/…`
 
+Check each API’s page for the exact path and parameters.
+
+## API surface
+
+The main externally-documented APIs are:
+
+- [Chat API](chat/introduction) – drive web/chat channels programmatically (WhatsApp, in-app widgets, email, etc.).
+- **Conversations API** – fetch full conversation records for analytics and data pipelines.
+- **Handoff API** – query handoff state for a conversation (for live-agent integrations).
+- **Concurrent Calls API** – retrieve concurrency statistics over time windows.
+- **DNI API** – reserve numbers for Dynamic Number Insertion journeys.
+- **External Events API** – let external providers POST results back into active conversations.
+
+All of these share the same regional base URLs; each has its own path and authentication requirements documented on its page.
+
 ## Conversations API versions
+
+Only the **Conversations API** is versioned. Other APIs are currently unversioned.
 
 ### v3 – current and recommended
 
 v3 is the latest and fully supported version of the Conversations API.
 
-It runs on PolyAI’s event-sourced data platform, providing:
+It runs on PolyAI’s event-sourced data platform and provides:
 
-- reliable, real-time ingestion during high volumes
-- empty strings ("") rather than `null` for empty text fields
-- additional metadata such as `latency`, `translated_user_input`, and `english_agent_response`
-- consistent timestamp formatting across all objects
+- reliable ingestion and querying at scale
+- empty strings ("") instead of null for empty text fields
+- extra turn-level fields such as latency, translated_user_input, and english_agent_response
+- consistent ISO8601 timestamps across conversations, turns, and metrics
+- project- and region-scoped API keys managed via the **Data access** page in Agent Studio
 
-<Tip>Authentication for v3 is managed internally by PolyAI.
-Customers should request API access through their PolyAI representative.</Tip>
+**Endpoint pattern**
 
 `https://api.{region}.platform.polyai.app/v3/{account_id}/{project_id}/conversations`
 
+<Tip>Authentication for v3 is managed internally by PolyAI.
+Ask your PolyAI representative to provision a v3 key and confirm the project and region it is scoped to.</Tip>
+
 ### v2
 
-v2 introduced the same data pipeline and schema improvements found in v3 but continued to use the legacy authentication model.
+v2 introduced the same schema and event-sourced backend as v3, but retained the older authentication model.
 
-It has:
+- same schema as v3
+- same event-sourced backend as v3
+- legacy auth (aligned with v1)
 
-- the same schema as v3
-- the same event-sourced backend as v3
-- an older authentication model (same as v1)
+You will generally only encounter v2 in older internal or bespoke integrations.
 
-### v1 – legacy (scheduled for deprecation on 2 March 2026)
+### v1 – legacy
 
-v1 uses an earlier, less scalable data pipeline.
+v1 uses an earlier, less scalable data pipeline and the legacy authentication model.
 
-Example:
+**Endpoint pattern**
 
 `https://api.{region}.platform.polyai.app/v1/{account_id}/{project_id}/conversations`
 
-### Choosing a version
+**Lifecycle**
 
-- All new integrations should use v3.
-- Existing v1 users are encouraged to migrate before deprecation.
-- v2 should be ignored unless you are maintaining historical internal integrations.
+- From 3 March 2026, v1 moves to best-effort support (no SLA guarantees).
+- After 31 August 2026, v1 is no longer supported. It may continue to run but should be treated as deprecated.
+
+### Which version should I use?
+
+- All new integrations must target v3.
+- If you are currently on v1, plan to migrate to v3 before support ends.
+- v2 should only be considered if you are maintaining an existing internal integration that already uses it.
 
 ## Authentication
 
-PolyAI uses API key authentication for all externally exposed endpoints.
-Include your key using the `x-api-key` header:
+PolyAI uses API keys for all externally exposed endpoints.
+
+Include your key using the x-api-key header:
 
 ```python
 GET /polyai-endpoint HTTP/1.1
@@ -74,10 +100,19 @@ x-api-key: YOUR_API_KEY
 
 ### API key provisioning
 
-- v1 keys may already exist for older deployments.
-- v3 keys are issued directly by PolyAI. Customers must request access through their PolyAI contact.
+- **Legacy keys (v1 / older integrations)**
+  May already exist for long-running deployments. These follow the legacy authentication model.
+
+- **Conversations API v3 keys**
+  Are project- and region-scoped and managed via the **Data access** page in Agent Studio.
+  Keys are provisioned by PolyAI; contact your PolyAI representative to:
+  • request a new key
+  • confirm which project(s) and region(s) it applies to
+  • discuss any custom metrics or access patterns
+
+Some specialised endpoints (for example, the External Events API) use keys with a dedicated scope, documented on their respective pages.
 
 ### Security notes
 
-API keys must be stored securely and must never appear in client-side code.
-If you suspect that your key has been exposed, contact PolyAI immediately so it can be rotated.
+- Treat API keys as secrets.
+- Never commit keys to source control or expose them in client-side code.
