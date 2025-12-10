@@ -1,0 +1,109 @@
+---
+title: "External Events API"
+sidebarTitle: "Overview"
+description: "Connect third-party systems to active PolyAI conversations via webhooks."
+---
+
+The External Events API lets third-party providers push results back into an active PolyAI conversation. Typical use cases include payment results, booking confirmations, eligibility checks, or any other asynchronous workflow that completes after the agent has asked the user to wait.
+
+When the external event arrives, PolyAI links it to the correct conversation and (optionally) feeds the data back into the agent’s reasoning and dialogue.
+
+## Endpoint
+
+The External Events API is exposed as a single POST webhook endpoint:
+
+`POST https://api.{region}.platform.polyai.app/v1/external-events/webhook`
+
+Region can be:
+- `us-1`
+- `uk-1`
+- `euw-1`
+
+| Region | Base URL |
+|-------:|----------|
+| US     | https://api.us-1.platform.polyai.app |
+| UK     | https://api.uk-1.platform.polyai.app |
+| EUW    | https://api.euw-1.platform.polyai.app |
+
+
+## Identifying the event
+
+To bind an incoming payload to the correct conversation, PolyAI needs to know where in the request the external event identifier lives.
+
+You configure this per request using two query parameters:
+
+- `event_id_location`
+  Where the external event ID is found. One of:
+  - `headers`
+  - `querystring`
+  - `payload`
+
+- `event_id_path`
+  The name or dotted path to the external event ID within that location.  
+  Examples:
+  - `cid`
+  - `path.to.object.property`
+
+You must also include:
+- `account_id`: your PolyAI account ID
+- `project_id`: your PolyAI project ID
+
+These four query parameters together tell PolyAI how to extract the correct event ID and map the payload to the right conversation.
+
+## Payload formats
+
+The webhook accepts multiple content types:
+
+- `application/json`
+  Arbitrary JSON with the event ID somewhere in the structure.
+- `application/x-www-form-urlencoded`
+  Standard form-encoded key–value pairs.
+- `application/xml`
+  XML payload containing the event ID and other fields.
+- `text/plain`
+  Raw text payloads (for example, simple key=value strings).
+
+All of these are treated as opaque data: PolyAI stores the payload and uses the configured event ID location and path to associate it with the conversation.
+
+## Authentication
+
+The External Events API uses a dedicated API key:
+
+- sent in the `X-Api-Key` header
+- scoped specifically for external events
+
+You will receive this key from your PolyAI representative.
+
+Example header:
+
+`X-Api-Key: YOUR_EXTERNAL_EVENTS_API_KEY`
+
+## Typical flow
+
+1. The PolyAI agent initiates an external workflow (for example, payment, booking, or verification) and generates an external event ID.
+2. Your system or third-party provider completes its task and sends a POST request to the webhook:
+   - targeting the correct regional base URL
+   - including `event_id_location`, `event_id_path`, `account_id`, and `project_id` as query parameters
+   - including the external event ID somewhere in the request, at the agreed location and path
+   - passing the full result payload in the body
+3. PolyAI:
+   - authenticates the request using X-Api-Key
+   - extracts the external event ID
+   - binds the payload to the right conversation
+   - updates the agent’s state so the conversation can continue or complete
+
+## Responses and error handling
+
+On success:
+- 201 Accepted  
+  The event has been received and queued for processing.
+
+Common error responses:
+- 400 Malformed request  
+  For example, the external event ID cannot be found or is invalid.
+- 401 Unauthorized  
+  Missing or invalid API key.
+- 500 Internal Server Error  
+  A transient error occurred while processing the event.
+
+In all error cases, the response body includes an `error_message` field explaining the reason, which you can log or surface in your monitoring.

@@ -1,0 +1,66 @@
+---
+title: "Handoff API"
+sidebarTitle: "Overview"
+description: "Retrieve handoff context and state for PolyAI conversations."
+---
+
+The Handoff API allows downstream platforms—such as CCaaS systems, routing layers, or CRM integrations—to retrieve structured context when a conversation is handed off from a PolyAI agent.
+
+This endpoint is typically used to support:
+- routing decisions
+- screen-pops for live agents
+- attaching metadata to tickets or workflow systems
+- passing through identifiers collected earlier in the call
+
+## What the API returns
+
+A successful response provides:
+
+- `id` – the PolyAI conversation ID
+- `shared_id` – an integrator-defined identifier, if one was stored
+- `data` – a free-form JSON object containing the handoff metadata written by the agent
+
+The data field may contain:
+- customer identifiers  
+- reasons for handoff  
+- queue or routing hints  
+- arbitrary key–value pairs describing caller state
+
+## Regional base URLs
+
+| Region | Base URL |
+|-------:|----------|
+| US     | https://api.us-1.platform.polyai.app |
+| UK     | https://api.uk-1.platform.polyai.app |
+| EUW    | https://api.euw-1.platform.polyai.app |
+
+
+Full endpoint structure:
+
+`https://api.{region}.platform.polyai.app/{account_id}/{project_id}/handoff_state`
+
+You must supply either:
+- `id` (PolyAI conversation ID), or
+- `shared_id` (a custom ID you passed into the system)
+
+If both are supplied, shared_id takes precedence.
+
+## Authentication
+
+The Handoff API uses API key authentication via the x-api-key header.  
+API keys are scoped to account, project, and region. Your PolyAI representative will confirm which key is configured for handoff retrieval.
+
+## Typical flow
+
+A downstream platform receives an inbound call that has just transitioned from the PolyAI agent.  
+It performs:
+
+`GET …/handoff_state?id={conversation_id}`
+
+The returned data can then be used to:
+- populate the agent desktop  
+- route the interaction to the correct queue  
+- enrich logs or CRM entries  
+- maintain continuity between the automated and human-handled parts of the interaction
+
+The endpoint is read-only and returns exactly the state stored by the PolyAI agent at the moment of handoff.

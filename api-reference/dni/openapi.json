@@ -1,0 +1,183 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "PolyAI DNI API",
+    "description": "Schema for the PolyAI DNI (Dynamic Number Insertion) reservation API",
+    "license": {
+      "name": "MIT"
+    },
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.us-1.platform.polyai.app",
+      "description": "US base url"
+    },
+    {
+      "url": "https://api.uk-1.platform.polyai.app",
+      "description": "UK base url"
+    },
+    {
+      "url": "https://api.euw-1.platform.polyai.app",
+      "description": "EUW base url"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "paths": {
+    "/v1/dni-reservation": {
+      "post": {
+        "summary": "Reserve a DNI (Dynamic Number Insertion) for an incoming call.",
+        "description": "Reserves a DNI, associating a temporary set of attributes to a specific virtual agent. The virtual agent is linked to the API key used in the request. When the caller dials the reserved DNI, they are routed to the agent, which can consume the provided attributes. In most cases, the API key for this endpoint is different from the key used for other API endpoints.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "attributes": {
+                    "type": "object",
+                    "description": "Attributes that will be consumed by the virtual agent. Flexible mapping of key → value.",
+                    "additionalProperties": true,
+                    "example": {
+                      "shared_id": "1234",
+                      "customer": {
+                        "address": "test lane",
+                        "age": 25
+                      },
+                      "previous_calls": [
+                        "call_id_1",
+                        "call_id_2"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "attributes"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully reserved a DNI.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "dni": {
+                      "type": "string",
+                      "description": "The reserved DNI identifier."
+                    }
+                  }
+                },
+                "example": {
+                  "dni": "+12345"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DniError"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Bad Request",
+                  "message": "error message"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DniError"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Unauthorized",
+                  "message": "error message"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No route available.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DniError"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Not Found",
+                  "message": "no available route found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DniError"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Internal Server Error",
+                  "message": "error message"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DniError": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request succeeded."
+          },
+          "error": {
+            "type": "string",
+            "description": "Short error type."
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message."
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key"
+      }
+    }
+  }
+}

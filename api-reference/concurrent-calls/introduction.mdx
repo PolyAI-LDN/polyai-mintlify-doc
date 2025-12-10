@@ -1,0 +1,112 @@
+---
+title: "Concurrent Calls API"
+sidebarTitle: "Overview"
+description: "Analyse peak concurrent conversations over time."
+---
+
+The Concurrent Calls API lets you measure how many conversations your PolyAI agent is handling at the same time. It returns a time series of 5-minute intervals with the maximum number of concurrent conversations in each slice, filtered by environment, variant, language, and more.
+
+This is useful for:
+- capacity planning and concurrency limits
+- monitoring usage during campaigns or spikes
+- comparing traffic across variants or numbers
+
+## Endpoint
+
+`GET https://api.{region}.platform.polyai.app/v1/{account_id}/{project_id}/conversations/concurrency`
+
+Where:
+- region is one of: us-1, uk-1, euw-1
+- account_id is your PolyAI account ID
+- project_id is your PolyAI project ID
+
+
+| Region | Base URL |
+|-------:|----------|
+| US     | https://api.us-1.platform.polyai.app |
+| UK     | https://api.uk-1.platform.polyai.app |
+| EUW    | https://api.euw-1.platform.polyai.app |
+
+
+Example:
+`GET https://api.uk-1.platform.polyai.app/v1/ACCOUNT-t53y16r3/PROJECT-f76d75c2/conversations/concurrency`
+
+## Required query parameters
+
+- `start_time`
+  Start of the reporting window, in ISO8601 format. Rounded down to the nearest 5-minute mark.
+
+- `end_time`
+  End of the reporting window, in ISO8601 format. Rounded up to the nearest 5-minute mark.
+
+start_time and end_time must be no more than one week apart.
+
+## Optional filters
+
+- `client_env`
+  Filter by environment: sandbox, pre-release or live. Defaults to live.
+
+- `variant_id` / `variant_name`
+  Filter to a single variant by ID or name (only one may be supplied).
+
+- `language`
+  Filter to a specific language code (for example `en-GB`).
+
+- `phone_number`
+  Filter to a specific phone number.
+
+## Slicing results
+
+Use the `slice_by` parameter to break down the time series:
+
+- `variant`
+  Returns separate series per variant, with `variant_id` and `variant_name` populated.
+
+- `language` or `phone_number`
+  Supported in the interface, but currently not implemented (returns 501 Not Implemented).
+
+When slice_by is set, each interval in the response includes additional context fields such as variant_id and variant_name.
+
+## Authentication
+
+All requests must include an API key in the x-api-key header. The key must be authorised for the Conversations and analytics endpoints for the specified account and project.
+
+Example header:
+x-api-key: YOUR_API_KEY
+
+## Response structure
+
+On success, the API returns:
+
+- `account_id`
+  The account that was queried.
+
+- `project_id`
+  The project that was queried.
+
+- `intervals`
+  An array of 5-minute intervals in ascending chronological order. Each interval includes:
+  - time: lower bound of the 5-minute window (UTC, ISO8601)
+  - max_concurrent_conversations: maximum concurrent calls in that window after filters
+  - variant_id and variant_name (when sliced by variant)
+  - optional language or phone_number fields for future slicing support
+
+You can use this time series to plot concurrency over time, to validate concurrency limits, or to correlate spikes with marketing campaigns and operational changes.
+
+## Error handling
+
+Typical error responses include:
+
+- 400 Bad Request  
+  Missing or invalid parameters (such as an invalid time range).
+
+- 401 Unauthorized / 403 Forbidden  
+  Missing, invalid, or unauthorised API key.
+
+- 404 Not Found  
+  Account or project not found.
+
+- 500 or 501  
+  Internal errors or unimplemented combinations such as `slice_by` set to `language` or `phone_number`.
+
+Log the `error_message` field in the response body to help diagnose issues.
