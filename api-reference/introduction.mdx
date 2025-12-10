@@ -3,55 +3,93 @@ title: 'Getting started'
 description: 'Start integrating with PolyAI APIs'
 ---
 
-Welcome to the PolyAI API documentation. This guide will help you get started with integrating the PolyAI API into your projects.
+Welcome to the PolyAI API documentation. This guide introduces the core concepts you need before integrating with the PolyAI API, including regions, API versions, and authentication.
 
 ## Regional API endpoints
 
-PolyAI provides API endpoints in three regions to ensure optimal performance and compliance with regional regulations. Choose the appropriate base URL for your region:
+PolyAI provides regional API endpoints to ensure low latency and compliance with local data regulations. Use the base URL that matches your deployment region:
 
-| Region | Base URL                                                                       |
-| ------ | ------------------------------------------------------------------------------ |
-| US     | [https://api.us-1.platform.polyai.app](https://api.us-1.platform.polyai.app)   |
-| UK     | [https://api.uk-1.platform.polyai.app](https://api.uk-1.platform.polyai.app)   |
-| EUW    | [https://api.euw-1.platform.polyai.app](https://api.euw-1.platform.polyai.app) |
-                                 |
+| Region | Base URL |
+| ------ | -------- |
+| US     | https://api.us-1.platform.polyai.app |
+| UK     | https://api.uk-1.platform.polyai.app |
+| EUW    | https://api.euw-1.platform.polyai.app |
 
-## API versions
+Every API request begins with:
 
-Some PolyAI APIs are versioned. For the [Conversations API](conversations):
+`https://api.{region}.platform.polyai.app/{version}/{account_id}/{project_id}/…`
 
-- `v3` is the current, recommended version for all new integrations.
-- `v1` is considered legacy and is scheduled for deprecation on **2 March 2026**.
+## Conversations API versions
 
-The base URL stays the same for your region. To use v3, change only the version segment in the path:
+### v3 – current and recommended
 
-Legacy (v1 – to be deprecated):
-```python
-GET https://api.{region}.platform.polyai.app/v1/{account_id}/{project_id}/conversations
-```
+v3 is the latest and fully supported version of the Conversations API.
 
-Current (v3 – recommended):
-```python
-GET https://api.{region}.platform.polyai.app/v3/{account_id}/{project_id}/conversations
-```
+It runs on PolyAI’s event-sourced data platform, providing:
+
+- reliable, real-time ingestion during high volumes
+- clean and consistent response schema
+- empty strings ("") rather than `null` for empty text fields
+- additional metadata such as `latency`, `translated_user_input`, and `english_agent_response`
+- consistent timestamp formatting across all objects
+
+<Tip>Authentication for v3 is managed internally by PolyAI.
+Customers should request API access through their PolyAI representative.</Tip>
+
+`https://api.{region}.platform.polyai.app/v3/{account_id}/{project_id}/conversations`
+
+### v2
+
+v2 introduced the same data pipeline and schema improvements found in v3 but continued to use the legacy authentication model.
+
+It has:
+
+- the same schema as v3
+- the same event-sourced backend as v3
+- an older authentication model (same as v1)
+
+### v1 – legacy (scheduled for deprecation on 2 March 2026)
+
+v1 uses an earlier, cron-driven data pipeline. While functional, it may experience delayed ingestion or missing records during peak traffic.
+
+Differences from v3 include:
+
+- null values instead of empty strings
+- fewer fields and no translation or latency metadata
+- inconsistent timestamp formats
+- metrics configured through legacy project files
+- older authentication workflow
+
+Example:
+
+`https://api.{region}.platform.polyai.app/v1/{account_id}/{project_id}/conversations`
+
+### Choosing a version
+
+- All new integrations should use v3.
+- Existing v1 users are encouraged to migrate before deprecation.
+- v2 should be ignored unless you are maintaining historical internal integrations.
+
+A migration guide is provided under the Conversations API documentation.
 
 ## Authentication
 
-PolyAI supports API key authentication to ensure secure access to our API endpoints. Each account, and optionally each project, will be provisioned with a unique API key. Follow the steps below to authenticate your requests using the API key.
+PolyAI uses API key authentication for all externally exposed endpoints.
+Include your key using the x-api-key header:
 
-### API Key authentication
-
-To authenticate your API requests, include the API key in the request headers. Use the `x-api-key` header to pass your API key.
-
-#### Request Header example
-
-```http
+```python
 GET /polyai-endpoint HTTP/1.1
 Host: api.{region}.platform.polyai.app
 x-api-key: YOUR_API_KEY
 ```
 
-### Securing your API key
+### API key provisioning
 
-Your API key is a sensitive credential and should be kept secure. Do not share it publicly or include it in client-side code. Always store your API key in a secure location, such as environment variables or a secrets management service.
-Contact the PolyAI team immediately if your API key is compromised.
+- v1 keys may already exist for older deployments.
+- v3 keys are issued directly by PolyAI.
+  Customers must request access through their PolyAI contact.
+
+### Security notes
+
+API keys must be stored securely and must never appear in client-side code.
+If you suspect that your key has been exposed, contact PolyAI immediately so it can be rotated.
