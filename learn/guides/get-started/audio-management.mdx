@@ -1,0 +1,85 @@
+---
+title: Audio Management and the cache
+sidebarTitle: Audio Management
+---
+
+Audio Management controls how Text-to-Speech (TTS) output is generated, cached, and replayed. Without understanding this layer, teams often think changes “didn’t apply” when they are actually hearing cached audio.
+
+**What caching is (and isn’t)**
+- Cached audio stores previously generated TTS so it can be replayed instantly.
+- This reduces latency and keeps repeated phrases consistent.
+- Audio is only cached if the **same utterance is generated at least twice within a 24-hour window**.
+- One-off utterances will *not* persist in cache by default.
+
+**Do**
+- Open **Audio Management**.
+- Review the list of cached utterances:
+  - Greeting
+  - Transfer / handoff language
+  - SMS offer phrasing
+  - Closings and confirmations
+- For any high-frequency utterance:
+  - Open it and review how often it has been used.
+  - Adjust **stability** and **clarity** *for that utterance only* if needed.
+  - Use the **play** button to preview changes.
+- If an utterance must remain stable:
+  - Generate it multiple times within 24 hours, or
+  - Upload a static audio file to overwrite the cached version.
+
+**Interaction style (response latency)**
+Interaction style controls how quickly the agent responds after detecting user speech. This directly affects interruption rate and perceived naturalness.
+
+Common modes:
+- **Turbo** (~400ms): Extremely fast, higher interruption risk.
+- **Swift** (~1200ms): Prioritises speed.
+- **Balanced** (~1600ms): Default for most use cases.
+- **Precise** (~2000ms): Slower, more deliberate, fewer interruptions.
+
+**Barge-in**
+Barge-in determines whether callers can interrupt the agent mid-speech.
+- Useful for fast modes (Turbo/Swift).
+- Can feel chaotic if enabled without careful phrasing and latency tuning.
+
+**Verify**
+- After any voice or phrasing change, start a *new* call session.
+- Confirm you are hearing updated audio, not a cached version.
+- Validate that turn-taking still feels natural after changing latency or barge-in.
+
+[ ] Pronunciations
+
+**Goal:** Ensure domain-specific terms are spoken clearly and correctly in Call.
+
+Pronunciations are defined in **Rules** and applied globally. They modify how text is converted to speech, without changing the underlying text.
+
+**When to use pronunciations**
+- Brand names or product names that are mispronounced.
+- Proper nouns (locations, people, departments).
+- Numbers or IDs that need structured read-back.
+- Any phrase where pacing matters for comprehension.
+
+**How pronunciations work**
+- Matching is done using **regular expressions**.
+- Replacements can be:
+  - **IPA** (International Phonetic Alphabet)
+  - **SSML**, such as `<break>` for pauses
+  - Regex **capture groups** (`\1`, `\2`, etc.) for reformatting.
+
+**Examples**
+
+IPA correction:
+- Regex: `\bLouvre\b`
+- Replacement: `/ˈluːvrə/`
+- Case sensitive: `FALSE`
+
+Phone number formatting with pauses:
+- Regex: `(\d{3})[ -]?(\d{3})[ -]?(\d{4})`
+- Replacement: `\1 <break time="0.5s" /> \2 <break time="0.5s" /> \3`
+
+**Do**
+- Add pronunciations incrementally.
+- Test each change in Call before adding more.
+- Prefer clarity over cleverness—overly complex regex is hard to maintain.
+
+**Verify**
+- Mispronounced terms are corrected consistently.
+- Pauses improve comprehension rather than slowing the call excessively.
