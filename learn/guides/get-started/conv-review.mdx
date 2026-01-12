@@ -2,32 +2,265 @@
 title: Conversation reviews
 ---
 
-Conversation Review shows transcripts, metadata, and diagnostic layers for both live and completed calls.
+Conversation Review is where you **understand what actually happened** in a call or chat — not what you *intended* to happen.
 
-**Do**
-- Open **Conversation review**.
-- Filter to conversations you just tested.
-- Inspect:
-  - Transcript accuracy (ASR quality).
-  - Matched KB topics.
-  - Function calls and outcomes.
-  - Handoff events.
-  - Latency and interruptions.
+This page brings together transcripts, system decisions, and diagnostics so you can trace an interaction end-to-end: what the user said, how the agent interpreted it, what it chose to do, and where friction appeared.
 
-**Use Diagnosis toggles**
-- **Topic citations**: confirms which KB topic was used.
-- **Function calls**: shows triggered actions and parameters.
-- **Flows and steps**: tracks execution paths.
-- **Variants**: shows which variant handled each turn.
-- **Entities**: validates captured structured data.
-- **Turn latency / interruptions**: highlights conversational friction.
+Treat this as your primary **quality control and learning surface**.
 
-**Annotations**
-- Mark:
-  - Wrong transcription
-  - Missing topic
-- Use annotations to guide KB expansion, ASR tuning, or rule changes.
+## What Conversation Review is for
 
-**Verify**
-- You can explain *why* the agent responded the way it did.
-- You can identify at least one concrete improvement from review data.
+Use Conversation Review to answer questions like:
+
+> Why did the agent choose this KB topic instead of another?
+>
+> Why did it offer SMS here?
+>
+> Why did it hand off — or fail to?
+>
+> Was the problem ASR, retrieval, rules, or phrasing?
+
+If you cannot explain a response using this page, the agent is not yet production-ready.
+
+## Getting oriented
+
+### Conversations table
+
+Start in **Conversations**.
+
+This table is your index of all interactions — live and completed.
+
+Key columns you’ll commonly use:
+- **Status**: Live, Ended
+- **Summary**: Auto-generated intent label
+- **Start time**: Useful for lining up with test sessions
+- **Contact**: Phone number or user identifier
+- **Duration**: Quick signal for friction or looping
+- **PolyScore** (if enabled): High-level quality signal
+
+Use **Edit table** to customise visible columns:
+- Add **Handoff reason**
+- Add **Function call**
+- Add **Variant**
+- Add **Environment**
+
+> Example:
+> Add *Variant* and *Environment* columns when testing A/B behaviour across Sandbox and Live.
+
+### Filtering effectively
+
+Use **Filter conversations** to narrow focus.
+
+Common filters during testing:
+- Environment = Sandbox
+- Start date = Today
+- Duration > 60s (often indicates confusion)
+- Handoff reason = specific queue
+- PolyScore below threshold
+
+> Example:
+> Filter to *Sandbox + Duration > 90s* to find calls where the agent struggled.
+
+## Opening a conversation
+
+Clicking a row opens **Conversation Review**.
+
+This view is split into three conceptual areas:
+
+1. **Transcript stream** (centre)
+2. **Conversation metadata** (left)
+3. **Diagnosis layers** (right / toggles)
+
+## Transcript stream
+
+The transcript shows the conversation turn by turn.
+
+For each turn, pay attention to:
+- The **spoken text** (ASR output)
+- The **agent reply**
+- Any **matched KB topics** shown beneath the turn
+
+> Example:
+> A user says “room service”
+>
+> You may see matched topics like:
+> - room_service_disambiguation
+> - room_service
+> - room_amenities
+
+This tells you retrieval worked — but *which* topic the model ultimately chose still matters.
+
+## Conversation metadata (left panel)
+
+This panel answers the *where and when* questions.
+
+Typical fields include:
+- Contact (phone number or user ID)
+- Channel (Call / Chat)
+- Language and locale
+- Timezone
+- Environment (Sandbox / Pre-release / Live)
+- Variant
+- Duration
+- Call SID / Group ID (useful for support)
+
+Use this to:
+- Confirm you are reviewing the correct test
+- Check whether the right variant handled the call
+- Verify locale and language routing
+
+## Diagnosis layers
+
+Diagnosis layers let you **see inside the agent’s decision-making**.
+
+Toggle these deliberately — not all at once.
+
+### Topic citations
+
+Shows which KB topic(s) were used for each agent response.
+
+Use this to:
+- Confirm the correct topic was retrieved
+- Spot overly broad or competing topics
+- Identify missing sample questions
+
+> Example:
+> The agent answers about checkout, but the topic cited is `general_connect_me_to`.
+>
+> This is a KB design problem, not a wording problem.
+
+### Function calls
+
+Displays every function triggered, with parameters.
+
+Use this to:
+- Confirm SMS flows were called only after consent
+- Verify correct handoff reasons
+- Check parameter values (IDs, destinations, flags)
+
+> Example:
+> start_sms_flow
+> sms_id = "room_service_ordering"
+>
+> If this fires without consent, your KB content is wrong.
+
+### Flows and steps
+
+Shows execution paths through flows.
+
+Use this when:
+- Behaviour depends on branching logic
+- Multiple steps or conditions exist
+- You suspect the agent took the wrong path
+
+> Example:
+> The agent entered a billing flow when the user asked about reservations — this indicates a misclassification upstream.
+
+### Variants
+
+Shows which variant handled each turn.
+
+Use this to:
+- Validate A/B tests
+- Confirm rollout behaviour
+- Compare responses across variants
+
+> Example:
+> Variant A offers SMS first
+> Variant B offers handoff first
+>
+> Conversation Review lets you verify this turn by turn.
+
+### Entities
+
+Lists structured data extracted from user speech.
+
+Common examples:
+- Booking reference
+- Date
+- Location
+- Account ID
+
+Use this to:
+- Validate entity capture
+- Detect ASR or phrasing issues
+- Ensure entities are not hallucinated
+
+> Example:
+> The user says “next Friday”
+>
+> Entity captured: date = null
+>
+> This suggests entity extraction needs tuning.
+
+### Turn latency and interruptions
+
+These expose conversational friction.
+
+- **Turn latency**: How long the agent took to respond
+- **Interruptions**: Where the user barged in
+
+Use these to:
+- Shorten overly long spoken responses
+- Identify places where users lose patience
+- Improve pacing and phrasing
+
+> Example:
+> Repeated interruptions during policy explanations usually mean the response is too long for voice.
+
+## Audio controls
+
+For call channels, you can:
+- Play back audio
+- Switch between **merged** and **split** audio
+- Download recordings
+
+Use split audio to:
+- Isolate ASR issues
+- Hear user speech clearly
+- Diagnose barge-in timing
+
+## Annotations
+
+Annotations turn observations into action.
+
+You can mark:
+- **Wrong transcription** (ASR error)
+- **Missing topic** (KB gap)
+
+Use annotations to:
+- Track recurring issues
+- Guide KB expansion
+- Inform ASR or rules tuning
+
+> Example:
+> Multiple “Missing topic” annotations around refunds → create a dedicated refund KB topic.
+
+Annotations can also be shared with PolyAI for support and improvement workflows.
+
+## What “good” looks like
+
+A strong Conversation Review session ends with at least one concrete insight:
+
+> Add two more sample questions to topic X
+>
+> Split topic Y into two intents
+>
+> Shorten spoken response in topic Z
+>
+> Move SMS offer earlier / later
+>
+> Add clarification instead of guessing
+
+If review feels vague or inconclusive, the agent is not yet observable enough.
+
+## Final check
+
+Before moving on, make sure:
+
+- You can explain *why* each response happened
+- You can trace responses back to KB, rules, or flows
+- You can identify at least one improvement per test session
+
+Conversation Review is not a reporting tool.
+It is how you **learn to build better agents**.

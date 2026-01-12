@@ -2,34 +2,113 @@
 title: Global ASR
 ---
 
-Automatic Speech Recognition (ASR) determines what the agent *hears*. Errors here cascade into KB misses, wrong routing, and failed actions.
+Automatic Speech Recognition (ASR) determines what the agent *hears*. Every downstream system depends on this layer: Knowledge Base retrieval, routing, response control, and handoff logic. Small transcription errors here can silently break otherwise well-designed agents.
 
-**Two main tools**
-1. **Keyphrase Boosting**
-   - Biases recognition toward important words.
-   - Best for:
-     - Product names
-     - Department names
-     - Routing-critical terms (“billing”, “refund”, “reservation”)
-2. **Transcript Corrections**
-   - Maps commonly misheard phrases to the correct text.
-   - Useful for:
-     - Accents
-     - Homophones
-     - Brand names that ASR consistently mangles
+Global ASR configuration is where you correct *systematic* listening problems before compensating elsewhere.
 
-**Do**
-- Review recent calls where the agent asked unnecessary clarifying questions.
-- Identify words that were misrecognized.
-- Add:
-  - Boosting for terms that must be recognised correctly.
-  - Corrections for repeat offenders.
+### What Global ASR is for
 
-**Guidance**
-- Start with default bias strength.
-- Increase only for critical terms.
-- Avoid over-biasing; it can reduce recognition accuracy elsewhere.
+Use Global ASR to:
+- Reduce unnecessary clarification questions.
+- Improve routing accuracy for calls.
+- Stabilise KB selection for spoken queries.
+- Correct recurring transcription errors at the source.
 
-**Verify**
-- Previously misheard phrases are now recognised correctly.
+It is not a substitute for good KB design or clear agent behaviour rules. Think of it as sharpening the agent’s ears, not teaching it new facts.
+
+### Two tools you should understand
+
+### 1. Keyphrase Boosting
+
+Keyphrase Boosting biases the ASR model toward recognising specific words or phrases more reliably.
+
+Use this when:
+- A word is important for routing or actions.
+- Misrecognition causes the agent to take the wrong path.
+- Users consistently repeat themselves for the same term.
+
+Typical candidates:
+- Department names
+  > “front desk”
+  > “billing”
+  > “room reservations”
+- Product or service names
+  > “bell desk”
+  > “late checkout”
+- Action-critical verbs
+  > “cancel”
+  > “confirm”
+
+How to configure:
+- Add the keyphrase exactly as you want it recognised.
+- Start with Default bias strength.
+- Increase toward Maximum only if errors persist.
+
+Guidance:
+- Bias strength is cumulative. Over-biasing many terms can degrade overall accuracy.
+- Avoid boosting generic words like “room” unless they are routing-critical.
+- Prefer multi-word phrases over single words when possible.
+
+> Example
+> If callers asking for the “bell desk” are frequently routed incorrectly, boost “bell desk” rather than boosting “desk”.
+
+### 2. Transcript Corrections
+
+Transcript Corrections rewrite text after transcription, mapping common errors to the intended phrase.
+
+Use this when:
+- ASR consistently hears the same wrong thing.
+- Accents or homophones cause predictable errors.
+- Brand or proper names are repeatedly mangled.
+
+Typical use cases:
+- Homophones
+  > “copper” → “hopper”
+- Accent-driven substitutions
+  > “reef fund” → “refund”
+- Brand names
+  > “Hopper Consumer” → “Hopper”
+
+How to configure:
+- Choose a match type (substring or regex).
+- Define the misheard expression.
+- Define the corrected replacement text.
+
+Guidance:
+- Prefer narrow matches over broad regex.
+- Avoid corrections that could unintentionally rewrite unrelated phrases.
+- If unsure, test in Sandbox with real call audio before promoting.
+
+> Example
+> If “cancel” is sometimes transcribed as “council,” add a correction rather than increasing bias on “cancel” alone.
+
+### A practical workflow
+
+1. Review recent calls where:
+   - The agent asked for repetition.
+   - The wrong KB topic was selected.
+   - Routing or handoff failed unexpectedly.
+2. Identify the specific word or phrase that failed.
+3. Decide:
+   - Boost if the word is correct but under-recognised.
+   - Correct if the word is consistently misheard as something else.
+4. Apply the smallest possible change.
+5. Test again in Call.
+6. Promote only after confirming improvement.
+
+### Common mistakes
+
+- Boosting everything “just in case”.
+- Using Transcript Corrections to fix KB design problems.
+- Applying maximum bias globally without testing.
+- Forgetting that local (flow-level) ASR settings override global ones.
+
+### Verify
+
+You’re done when:
+- Previously misheard phrases are transcribed correctly.
 - The agent asks fewer clarification questions for known terms.
+- Routing and KB selection stabilise in live call testing.
+- Behaviour remains consistent after promotion between environments.
+
+Global ASR tuning is iterative. Small, deliberate adjustments here pay off more than large rewrites elsewhere.

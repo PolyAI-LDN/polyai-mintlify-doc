@@ -2,67 +2,233 @@
 title: Add a simple Knowledge Base topic
 ---
 
-Create a Knowledge Base topic representing one interaction: both what users ask, and how the agent responds.
+A simple Knowledge Base (KB) topic is the foundation of every agent. It represents **one interaction**: what users ask, and how the agent responds, with no follow-up logic and no actions.
 
-**For this step**
-- Single turn.
-- No follow-up questions.
-- No actions.
+If simple KB topics are not solid, everything built on top of them—multi-turn flows, SMS, handoffs, routing—will be fragile. This step is about teaching the agent to answer cleanly, consistently, and predictably.
 
-**Do**
-- Create a new KB topic with:
-  - A **specific topic name**.
-  - **5–10 realistic sample questions** written the way users actually speak.
-  - A short **Content** answer:
-    - Lead with the answer.
-    - Add one optional next step.
-    - Avoid unnecessary context.
-- Leave **Actions** empty.
+## What “simple” means (and what it doesn’t)
 
-<Tip>
-Retrieval relies heavily on topic name and sample questions. Improve those before rewriting answers.
-</Tip>
+A simple KB topic:
 
-**Verify**
-- Ask the FAQ in multiple phrasings.
-- Confirm the same topic is selected consistently.
-- The agent answers in one clean turn.
+- Handles **one intent only**
+- Completes in **one turn**
+- Requires **no clarification**
+- Triggers **no actions**
+- Works equally well in **Chat and Call**
 
-## 3. Chat
+A simple KB topic is *not*:
+- A catch-all for loosely related questions
+- A place to explain background context
+- A place to offer handoff or SMS
+- A place to ask follow-up questions
 
-- [ ] Use Chat as your first and fastest feedback loop.
+If you feel tempted to do any of the above, you are no longer writing a simple topic.
 
-Chat testing is where you refine behaviour before adding voice complexity.
+## Before you start: define the intent
 
-**Do**
-- Open **Chat** testing.
-- Test three types of prompts:
-  - A clear, expected request.
-  - A vague request that should trigger clarification.
-  - An out-of-scope request.
+Ask yourself:
 
-- Enable visibility for:
-  - **Topic citations** (to see KB usage).
+- What is the exact question being answered?
+- Would a human answer this in one sentence?
+- Could the user reasonably ask this in five different ways?
 
-**Verify**
-- Responses are coherent and on-tone.
-- The agent does not loop or stall.
-- Clarifying questions are asked only when necessary.
+If the answer to any of these is “no,” split the topic.
 
-## 5. Call
+> Example – good single intent
+> “What time is checkout?”
 
-[ ] Validate spoken behaviour early.
+> Example – bad combined intent
+> “What time is checkout and can I stay longer?”
 
-Voice introduces new variables: ASR accuracy, pacing, and interruption handling.
+Those are two topics.
 
-**Do**
-- Start an in-browser call or use a test number.
-- Make several test calls:
-  - Ask the simple FAQ.
-  - Ask something vague.
-  - Ask something out of scope.
+## Step-by-step: creating a simple KB topic
 
-**Verify**
-- Speech recognition is acceptable.
-- Turn-taking feels natural.
-- Responses are not overly long when spoken.
+### 1. Choose a precise topic name
+
+The topic name is the strongest retrieval signal.
+
+Good topic names:
+- Are specific
+- Describe the intent, not the wording
+- Use snake_case
+
+> Good topic names
+> checkout_time
+> parking_cost
+> pet_policy
+> pool_hours
+
+> Bad topic names
+> info
+> general
+> hotel_questions
+> misc
+
+If you can’t summarize the intent in 2–3 words, the topic is too broad.
+
+### 2. Write realistic sample questions
+
+Sample questions teach the retriever how users *actually speak*.
+
+Aim for **5–10**, and include:
+- Short questions
+- Polite phrasing
+- Imperfect grammar
+- Call-style filler
+
+> Example – checkout_time sample questions
+> what time is checkout
+> checkout time
+> when do we have to leave
+> when is check out
+> what time do we need to be out by
+> uh what’s the checkout time
+
+Avoid:
+- Copying the same sentence with tiny variations
+- Writing “perfect” marketing language
+- Including answers
+
+### 3. Write the Content response
+
+Content should be:
+- Short
+- Direct
+- Spoken-language friendly
+- Complete on its own
+
+Structure:
+1. Lead with the answer
+2. Optionally offer one next step
+3. Stop
+
+> Example – checkout_time content
+> Checkout is at 11 a.m.
+>
+> If you need help with a late checkout, I can assist with that.
+
+Why this works:
+- The answer comes first
+- The follow-up is optional
+- No action is triggered yet
+
+Avoid:
+- Long explanations
+- Policy justification
+- Multiple offers
+
+> Bad example
+> Checkout is at 11 a.m., which allows our housekeeping team to prepare rooms for incoming guests and ensure a smooth experience for everyone.
+
+That sounds fine in writing, but performs poorly in Call.
+
+### 4. Leave Actions empty
+
+For a simple KB topic:
+- Do not add actions
+- Do not reference functions
+- Do not trigger handoffs
+- Do not start SMS flows
+
+Actions belong in **complex** topics only.
+
+If you add an action here “just in case,” you are creating hidden coupling that will break later.
+
+## Common simple KB patterns (with examples)
+
+### Static info
+
+> Topic name
+> pool_hours
+
+> Content
+> The pool is open daily from 7 a.m. to 9 p.m.
+
+### Policy statement
+
+> Topic name
+> pet_policy
+
+> Content
+> We allow dogs up to 50 pounds. A nightly pet fee applies.
+
+### Location info
+
+> Topic name
+> parking_location
+
+> Content
+> Parking is available in the garage beneath the hotel entrance.
+
+### Price reference
+
+> Topic name
+> parking_cost
+
+> Content
+> Self-parking is $25 per night.
+
+## Verification: test it properly
+
+### In Chat
+
+Ask:
+- Exact phrasing
+- Sloppy phrasing
+- Polite phrasing
+- Abrupt phrasing
+
+Confirm:
+- The same topic is selected every time
+- The response is identical or equivalent
+- No follow-up question is asked
+
+Turn on **Topic citations** so you can see which topic fired.
+
+### In Call
+
+Ask:
+- The same question naturally, out loud
+- With hesitation or filler words
+
+Confirm:
+- ASR transcribes correctly
+- The response sounds natural when spoken
+- The agent does not over-explain
+
+If it sounds awkward to hear, rewrite it.
+
+## When a “simple” topic stops being simple
+
+Promote the topic to a complex pattern if:
+- You need to offer SMS
+- You need to offer handoff
+- You need clarification
+- The user might say yes or no
+
+Do not force complexity into a simple topic.
+
+## Why this step matters more than it looks
+
+Most KB problems come from:
+- Vague topic names
+- Weak sample questions
+- Overwritten content
+- Premature actions
+
+Teams often rewrite content repeatedly when the real issue is retrieval.
+
+Fix the name and samples first. Always.
+
+## Final checklist
+
+Before moving on, confirm:
+
+- The topic answers exactly one question
+- Sample questions reflect real speech
+- Content is short and speakable
+- Actions are empty
+- The topic works identically in Chat and Call
+
+Once this is true, you’re ready to build on top of it.

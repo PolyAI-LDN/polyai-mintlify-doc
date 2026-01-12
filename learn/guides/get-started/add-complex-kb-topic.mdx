@@ -2,43 +2,266 @@
 title: Add complex Knowledge Base topics
 ---
 
-This topic teaches the agent how to move the user forward when information alone is not enough.
+Complex Knowledge Base (KB) topics are where agents stop being “a talking FAQ” and start behaving like a real front desk: they can offer next steps, send links by text, and route to the right place when the user’s request is ambiguous.
 
-**Do**
-- Create a KB topic covering:
-  - Requests for links, details, or instructions.
-  - Requests to speak to a person.
-- In **Content**:
-  - Ask for consent before sending SMS.
-  - Explain what the SMS contains.
-  - Clearly offer a human handoff as an alternative.
-  - Include a fallback for users who cannot receive SMS.
+They’re also where teams lose the most time. The UI looks simple, but small mistakes in structure, phrasing, or action logic can cause silent failures in Call, looping behavior, or missed retrieval.
 
-Example structure:
-- “I can send you a text with the details. Would you like me to do that now?”
-- “If you’d rather speak to someone, I can connect you.”
+This guide breaks complex KB topics down into repeatable patterns, with concrete examples you can copy, adapt, and test.
 
-**Verify**
-- In Call:
-  - SMS offers are clear and explicit.
-  - Handoff language is calm and unambiguous.
+## What makes a KB topic “complex”?
 
-Handle one case that requires clarification.
+A topic is complex if any of the following are true:
 
-Multi-turn FAQs should be simple and controlled.
+- The agent must trigger an action (SMS, handoff, routing).
+- The agent must offer options and wait for user consent.
+- The agent must ask a clarifying question before acting.
+- The topic must work reliably in Call, not just Chat.
 
-**Do**
-- Create a KB topic that:
-  - Asks **one** clarifying question.
-  - Provides the final answer once clarified.
-- Avoid turning this into a form or checklist.
-- Keep **Actions** empty.
+In the UI, complex topics almost always use both Content and Actions, and often rely on built-in functions.
 
-Good examples:
-- “Is this for today or a future date?”
-- “Is this about billing or technical support?”
+## Before you write anything
 
-**Verify**
-- The agent asks the clarification once.
-- It completes the answer after the user responds.
-- It does not guess or loop.
+Decide these upfront:
+
+- What is the single outcome?
+  Example: the user receives a link by SMS or is transferred to the front desk.
+- What happens if the user says no?
+- What happens if the user gives an unexpected answer?
+- Is this one intent, or actually two?
+  If it’s two, split it.
+
+## A safe workflow (use this every time)
+
+### Step 1: Lock retrieval first
+
+Retrieval depends most on:
+1. Topic name
+2. Sample questions
+3. Content (least important for retrieval)
+
+If retrieval is wrong, nothing else matters.
+
+> Example – good topic name
+> bill_request_previous_stay
+
+> Bad topic names
+> billing
+> help_with_bill
+> misc_billing
+
+### Step 2: Write sample questions like real users
+
+For complex topics, aim for 10–15 sample questions.
+
+Include:
+- Direct commands
+- Polite requests
+- Rambling speech
+- Synonyms
+- Call-style filler
+
+> Example – billing SMS topic sample questions
+> I need my bill
+> Can you send me my invoice
+> I stayed last week and need a receipt
+> Text me my bill
+> I need a folio from my last stay
+> Uh I need billing help
+
+### Step 3: Write Content like a call script
+
+Content should:
+- Lead with the next step
+- Ask one clear question
+- Be short enough to speak naturally
+
+Avoid explanations unless absolutely necessary.
+
+## Core complex patterns (with examples)
+
+## Pattern 1: Offer SMS with fallback to handoff
+
+Use when:
+- The user needs a link, form, or instructions.
+
+> Topic name
+> bill_request_previous_stay
+
+> Content
+> The easiest way to get a bill from a previous stay is online. I can send you a text with the link if you’d like.
+>
+> Would you like me to send that now, or would you rather speak to someone?
+
+> Actions (logic)
+> - If user agrees → start_sms_flow with sms_id="bill_request"
+> - If user declines → offer or trigger handoff to billing
+> - If SMS fails → transfer automatically
+
+Why this works:
+- Consent is explicit
+- Two options only
+- Clear fallback
+
+## Pattern 2: Conditional SMS (user chooses)
+
+Use when:
+- Multiple follow-ups exist.
+
+> Topic name
+> promotions_current
+
+> Content
+> I can send you details about this week’s promotion.
+>
+> Would you like information about today’s offer, upcoming events, or loyalty rewards?
+
+> Actions
+> - If “today” → start_sms_flow with sms_id="promo_today"
+> - If “events” → start_sms_flow with sms_id="promo_events"
+> - If “rewards” → start_sms_flow with sms_id="promo_rewards"
+
+Tip: handle loose answers like “the first one” or “events please”.
+
+## Pattern 3: Direct handoff (no agent reply)
+
+Use when:
+- The agent should not attempt resolution.
+
+> Topic name
+> out_of_scope_spanish
+
+> Content
+> (leave empty)
+
+> Actions
+> - Immediately call transfer_call with transfer_reason="SPANISH"
+
+Why:
+- No wasted turns
+- Clear ownership
+- Predictable behavior
+
+## Pattern 4: Answer, then offer handoff
+
+Use when:
+- The agent can answer, but escalation may help.
+
+> Topic name
+> late_checkout
+
+> Content
+> Standard checkout is at 11 a.m.
+>
+> If you need to check out later than that, I can connect you with the front desk to see what’s available. Would you like me to do that?
+
+> Actions
+> - If user says yes → handoff to front desk
+> - If no → end politely
+
+## Pattern 5: Clarify, then route (multi-turn FAQ)
+
+Use when:
+- The intent is ambiguous.
+
+> Topic name
+> reservation_change
+
+> Content
+> Are you looking to change an existing reservation, or make a new one?
+
+> Actions
+> - If “change” → route to reservation modification
+> - If “new” → route to booking flow
+
+Rules:
+- Ask one question only
+- Do not stack clarifications
+- Complete the flow immediately after the answer
+
+## Pattern 6: Info + action hybrid
+
+Use when:
+- The user needs information and a next step.
+
+> Topic name
+> lifeline_program
+
+> Content
+> Lifeline is a government-sponsored program that provides qualifying customers with discounted phone or broadband service.
+>
+> I can text you more details, or connect you with a specialist. Which would you prefer?
+
+> Actions
+> - Yes to SMS → start_sms_flow
+> - No → transfer_call
+
+## Pattern 7: Info-only (still “complex” in practice)
+
+Use when:
+- The topic is static but high-risk (hours, prices).
+
+> Topic name
+> housekeeping_hours
+
+> Content
+> Housekeeping is available daily from 9 a.m. to 5 p.m.
+>
+> If you need service outside those hours, I can connect you with the front desk.
+
+> Actions
+> - Optional handoff offer only if asked
+
+## Writing Content that works in Call
+
+Do:
+- Short sentences
+- One question at the end
+- One decision per turn
+
+Don’t:
+- Paragraphs
+- Internal notes
+- Multiple questions at once
+
+## Action design rules
+
+- One primary outcome per turn
+- Explicit consent before SMS
+- Safe fallback for silence or confusion
+- Prefer clarity over clever branching
+
+## Verification checklist (run this every time)
+
+Retrieval:
+- Topic triggers with at least 10 phrasing variations
+
+Chat:
+- Consent is respected
+- No looping
+
+Call:
+- Response is listenable
+- User can interrupt naturally
+- No dead ends
+
+Failure cases:
+- Unexpected answers recover cleanly
+- SMS failure routes correctly
+
+## Why this is a common time sink
+
+Teams usually struggle because they:
+1. Overload one topic with multiple intents
+2. Write perfect answers but weak retrieval
+3. Skip Call testing until late
+
+The fix:
+- Lock retrieval first
+- Keep topics single-purpose
+- Test messy, real-world phrasing early
+
+## Resources
+
+- Knowledge Base best practices (RAG and retrieval)
+- FAQ troubleshooting
+- KB maintenance and governance
