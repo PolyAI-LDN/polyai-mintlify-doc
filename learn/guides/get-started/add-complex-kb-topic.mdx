@@ -2,35 +2,25 @@
 title: Add complex Knowledge Base topics
 ---
 
-<Card>
-  <label style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-    <input type="checkbox" />
-    <div>
-      <strong>Progress</strong><br />
-      4 of 11 lessons complete
-    </div>
-  </label>
-</Card>
-
 Not all Knowledge Base topics are simple question-and-answer entries. Some need to guide the user through a decision, send information by text, or route the conversation to the right place when the request isn’t clear.
 
-This lesson explains what makes a topic “complex”, and shows a set of reliable patterns you can reuse. The goal is not cleverness, but predictability: topics that retrieve correctly, behave well in Chat and Call, and recover cleanly when users respond in unexpected ways.
+This lesson explains what makes a topic "complex", and shows a set of reliable patterns you can reuse. The goal is not cleverness, but predictability: topics that retrieve correctly, behave well in Chat and Call, and recover cleanly when users respond in unexpected ways.
 
-## What makes a Knowledge Base topic “complex”?
+## What makes a Knowledge Base topic complex?
 
 A topic is considered complex if it does more than return static information.
 
 In practice, that usually means at least one of the following:
 
-- The agent triggers an **action**, such as sending an SMS, transferring a call, or routing to another flow.
+- The agent triggers an **action**, such as sending an SMS, transferring a call, or routing to somewhere else in the project.
 - The agent presents options and waits for the user to choose before proceeding.
 - The agent must ask a clarifying question before it can act.
 
-In the UI, complex topics almost always use both **Content** and **Actions**, and often rely on built-in **functions** to control what happens next.
+In the UI, complex topics almost always use both **Content** and **Actions**, and often rely on **functions** to control what happens next.
 
 ## Before you write anything
 
-Complex topics work best when the decision-making is done *before* you start writing.
+Complex topics work best when you make some decisions and plan.
 
 Be clear on these points first:
 
@@ -39,9 +29,7 @@ Be clear on these points first:
 - What should happen if the user says no?
 - What should happen if the user gives an answer you didn’t expect?
 
-If you can’t answer those questions cleanly, the topic will usually become fragile once it’s live.
-
-## A safe workflow for complex topics
+## An example workflow for complex topics
 
 ### Step 1: Retrieval
 
@@ -51,13 +39,11 @@ If a topic doesn’t retrieve reliably, nothing else matters. Retrieval depends 
 2. Sample questions
 3. Content
 
-Most early failures come from retrieval, not logic.
+Most early failures are derived from retrieval.
 
 #### Topic naming matters more than you think
 
-The topic name is one of the strongest signals used to decide *which* content to surface. A good name should represent **one specific user intent**.
-
-**Good example**
+The topic name is one of the strongest signals used to decide *which* content to surface. A good name should represent **one specific user intent**, for example:
 
 `bill_request_previous_stay`
 
@@ -65,9 +51,9 @@ Why this works:
 - It represents a single, concrete intent.
 - It distinguishes between similar scenarios (previous stay vs current or future).
 - It mirrors how the request is interpreted internally.
-- It reduces collisions with other billing topics as your KB grows.
+- It reduces collisions with any other billing topics you may add as your knowledge base grows.
 
-**Bad examples**
+Here are some bad examples:
 
 - `billing`
 - `help_with_bill`
@@ -77,13 +63,13 @@ These fail because they are too broad. They force the system to guess, increase 
 
 ### Step 2: Write sample questions like real users
 
-Sample questions are not documentation. They are training data.
+Think of sample questions as training data.
 
-For complex topics, aim for variety rather than polish. Include:
+For complex topics, aim for variety. Include:
 
 - Direct commands
 - Polite requests
-- Rambling or incomplete phrasing
+- Incomplete phrasing
 - Synonyms and alternate terminology
 - Call-style filler language
 
@@ -94,8 +80,6 @@ For example, for a billing topic:
 - Text me my bill
 - I need a folio from my last stay
 - Uh I need billing help
-
-Messy inputs are a feature, not a problem.
 
 ### Step 3: Write Content like a call script
 
@@ -109,13 +93,9 @@ As a rule, it should:
 
 Avoid explanations unless they are strictly necessary for the decision the user is being asked to make.
 
----
-
 ## Core complex patterns (with examples)
 
 The patterns below cover most real-world use cases. You can copy them directly and adapt the wording.
-
----
 
 ### Pattern 1: Offer SMS with fallback to handoff
 
@@ -126,21 +106,23 @@ The patterns below cover most real-world use cases. You can copy them directly a
 `bill_request_previous_stay`
 
 **Content**
-> The easiest way to get a bill from a previous stay is online. I can send you a text with the link if you’d like.
->
-> Would you like me to send that now, or would you rather speak to someone?
+```text
+The easiest way to get a bill from a previous stay is online.
+I can send you a text with the link if you'd like.
+Would you like me to send that now, or would you rather speak to someone?
+```
 
 **Actions**
+```text
 - If user agrees → `start_sms_flow` with `sms_id="bill_request"`
 - If user declines → offer or trigger handoff to billing
 - If SMS fails → transfer automatically
+```
 
 **Why this works**
 - Consent is explicit
 - Only two options are presented
 - There is a clear fallback
-
----
 
 ### Pattern 2: Conditional SMS (user chooses)
 
@@ -151,18 +133,20 @@ The patterns below cover most real-world use cases. You can copy them directly a
 `promotions_current`
 
 **Content**
-> I can send you details about this week’s promotion.
->
-> Would you like information about today’s offer, upcoming events, or loyalty rewards?
+```text
+I can send you details about this week’s promotion.
+
+Would you like information about today’s offer,
+upcoming events, or loyalty rewards?
+```
 
 **Actions**
-- If “today” → `start_sms_flow` with `sms_id="promo_today"`
-- If “events” → `start_sms_flow` with `sms_id="promo_events"`
-- If “rewards” → `start_sms_flow` with `sms_id="promo_rewards"`
-
-Handle loose answers such as “the first one” or “events please”.
-
----
+```text
+- If "today" → `start_sms_flow` with `sms_id="promo_today"`
+- If "events" → `start_sms_flow` with `sms_id="promo_events"`
+- If "rewards" → `start_sms_flow` with `sms_id="promo_rewards"`
+```
+Handle loose answers such as "the first one" or "events please".
 
 ### Pattern 3: Direct handoff (no agent reply)
 
@@ -180,8 +164,6 @@ Handle loose answers such as “the first one” or “events please”.
 
 This avoids unnecessary turns and makes ownership explicit.
 
----
-
 ### Pattern 4: Answer, then offer handoff
 
 **Use when**
@@ -198,8 +180,6 @@ This avoids unnecessary turns and makes ownership explicit.
 **Actions**
 - If yes → handoff to front desk
 - If no → end politely
-
----
 
 ### Pattern 5: Clarify, then route
 
@@ -221,8 +201,6 @@ Rules:
 - Do not stack clarifications
 - Complete the flow immediately after the answer
 
----
-
 ### Pattern 6: Info + action hybrid
 
 **Use when**
@@ -239,8 +217,6 @@ Rules:
 **Actions**
 - SMS → `start_sms_flow`
 - Handoff → `transfer_call`
-
----
 
 ### Pattern 7: Info-only (still complex in practice)
 
@@ -259,8 +235,6 @@ Rules:
 - No automatic action
 - Offer handoff only if asked
 
----
-
 ## Writing Content that works in Call
 
 **Do**
@@ -273,16 +247,12 @@ Rules:
 - Include internal notes
 - Ask multiple questions at once
 
----
-
 ## Action design rules
 
 - One primary outcome per turn
 - Explicit consent before SMS
 - A safe fallback for silence or confusion
 - Prefer clarity over clever branching
-
----
 
 ## Verification checklist
 
@@ -302,8 +272,6 @@ Rules:
 - Unexpected answers recover cleanly
 - SMS failures route correctly
 
----
-
 ## Why this often takes longer than expected
 
 Teams usually struggle because they:
@@ -318,10 +286,18 @@ The fix is simple and consistent:
 - Keep topics single-purpose
 - Test messy, real-world phrasing early
 
----
-
 ## Resources
 
 - Knowledge Base best practices (RAG and retrieval)
 - FAQ troubleshooting
 - Knowledge Base maintenance and governance
+
+<Card>
+  <label style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+    <input type="checkbox" />
+    <div>
+      <strong>Progress</strong><br />
+      4 of 11 lessons complete
+    </div>
+  </label>
+</Card>
