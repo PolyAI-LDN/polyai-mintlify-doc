@@ -1,0 +1,231 @@
+---
+title: Conversation reviews (advanced)
+---
+
+At Level 2, Conversation Review stops being a sanity check and becomes a **diagnostic instrument**.
+
+You are no longer asking *“Did the agent basically work?”*
+You are asking *“Why did the agent behave this way, and how do I shape it deliberately?”*
+
+This page is where you learn to **trace behaviour back to configuration**, distinguish between upstream and downstream causes, and make changes with intent rather than guesswork.
+
+## What Conversation Review is for (Level 2)
+
+At this stage, use Conversation Review to answer questions like:
+
+> Why did the agent choose *this* KB topic instead of a near-duplicate?
+>
+> Why did Variant A behave differently from Variant B?
+>
+> Was this failure caused by ASR, retrieval, rules, response control, or phrasing?
+>
+> Why did the agent *not* call a function it was allowed to call?
+
+If you cannot point to a specific system layer and say *“this is where the decision was made”*, the agent is not yet under control.
+
+## Moving beyond the transcript
+
+At Level 1, the transcript was the primary surface.
+At Level 2, the transcript is only the **symptom**.
+
+The real work happens in:
+- Diagnosis layers
+- Function traces
+- Variant attribution
+- Latency and interruption signals
+
+You should now review conversations **with toggles on**, not just read them.
+
+## Advanced use of the Conversations table
+
+Before opening individual conversations, shape the table itself.
+
+Add these columns:
+- **Variant**
+- **Environment**
+- **Function call**
+- **Handoff reason**
+- **Duration**
+
+Use this to:
+- Compare variants side by side
+- Spot regressions after promotion
+- Identify behaviour that only occurs in Live
+
+> Example:
+> Calls with Variant = B have longer durations and more handoffs.
+>
+> This is a signal before you even open a transcript.
+
+## Comparative review patterns
+
+At Level 2, you should rarely inspect a single conversation in isolation.
+
+Common patterns:
+- Same intent, different variants
+- Same KB topic, different phrasing
+- Same user request across Chat and Call
+- Same flow before and after a KB change
+
+Conversation Review supports this by exposing **environment, variant, and function data together**.
+
+## Diagnosis layers (deep use)
+
+Toggle diagnosis layers selectively. Each answers a different class of question.
+
+### Topic citations (advanced)
+
+At this level, topic citations are not just about *correct vs incorrect*.
+
+Use them to detect:
+- Topic competition
+- Overly generic topic names
+- Sample question leakage across intents
+
+> Example:
+> Three topics are cited repeatedly for “late checkout”:
+> - late_checkout
+> - checkout_policy
+> - general_stay_questions
+>
+> This indicates retrieval ambiguity. The fix is structural, not textual.
+
+### Function calls (advanced)
+
+Function traces show **what the agent committed to doing**, not just what it said.
+
+Inspect:
+- Call order
+- Conditional execution
+- Parameters passed
+- Calls that *should* have happened but didn’t
+
+> Example:
+> The agent asks for SMS consent but never calls `start_sms_flow`.
+>
+> This usually indicates:
+> - A missing action branch in the KB
+> - A response control interrupting output
+> - A rules conflict preventing execution
+
+### Flows and steps
+
+Flows expose **decision paths**.
+
+Use them when:
+- Multiple conditions exist
+- Behaviour depends on prior turns
+- The agent appears to “jump” topics
+
+> Example:
+> A billing question enters a reservation flow.
+>
+> This is often caused by:
+> - Early entity capture
+> - Over-eager routing rules
+> - Poorly scoped flow entry conditions
+
+### Variants
+
+Variants let you attribute behaviour to configuration, not chance.
+
+Use this layer to:
+- Confirm A/B test intent
+- Validate rollout sequencing
+- Identify variant-specific failures
+
+> Example:
+> Variant A answers directly.
+> Variant B always clarifies first.
+>
+> Conversation Review lets you confirm this per turn, not anecdotally.
+
+### Entities
+
+Entities are where ASR, NLU, and logic meet.
+
+Inspect entities to:
+- Confirm values were actually captured
+- Detect silent failures (nulls)
+- Spot hallucinated structure
+
+> Example:
+> User says “tomorrow morning”
+>
+> Entity captured: date = today
+>
+> This is not a KB issue — it’s extraction or phrasing.
+
+### Turn latency and interruptions
+
+These layers reveal **experience quality**, not correctness.
+
+Use them to:
+- Identify responses that are too long for voice
+- Detect places users consistently interrupt
+- Tune pacing and verbosity
+
+> Example:
+> High interruption rate during policy explanations usually means the response is technically correct but poorly shaped for audio.
+
+## Audio analysis (calls)
+
+At Level 2, audio review is not optional.
+
+Use split audio to:
+- Isolate ASR failures
+- Hear barge-in timing
+- Compare spoken length vs transcript length
+
+This often explains why “perfectly fine” text responses fail in voice.
+
+## Annotations as a system, not notes
+
+At this stage, annotations should be **patterned**, not occasional.
+
+Use them to:
+- Track recurring KB gaps
+- Justify ASR tuning
+- Support decisions to split or retire topics
+
+> Example:
+> Five “Missing topic” annotations around refunds in one day is enough evidence to create a dedicated refund topic.
+
+Annotations turn subjective impressions into actionable signals.
+
+## What “good” looks like at Level 2
+
+A strong advanced review session ends with **specific changes**, not general feelings:
+
+> Split topic X into two intents
+> Remove sample question Y
+> Add entity clarification before flow entry
+> Move SMS offer after confirmation
+> Add response control to suppress filler
+
+You should be able to say:
+- What changed
+- Where it changed
+- Why that layer is responsible
+
+## Final standard for readiness
+
+Before treating an agent as stable at Level 2:
+
+- You can trace any response back to configuration
+- You can distinguish ASR, KB, rules, and variant causes
+- You can predict how a change will affect behaviour
+- You can verify the impact in Conversation Review
+
+At this point, the agent is no longer opaque.
+It is **inspectable, explainable, and steerable**.
+
+<Card>
+  <label style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+    <input type="checkbox" />
+    <div>
+      <strong>Progress</strong><br />
+      11 of 11 lessons complete
+    </div>
+  </label>
+</Card>
