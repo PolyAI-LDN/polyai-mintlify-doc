@@ -1,0 +1,146 @@
+---
+title: APIs
+sidebarTitle: Overview
+description: Define and call external APIs directly from Agent Studio without writing custom request code.
+---
+
+The APIs tab lets you define external HTTP APIs directly in Agent Studio and reference and include them when you are building [functions](/function/introduction) and [flows](/flows/introduction).
+
+![api-tab](/images/api-tab-create.png)
+
+It provides:
+- A shared, inspectable API definition
+- [Environment-specific](/environments-and-versions/introduction) base URLs
+- A consistent calling interface inside `conv.api`
+
+This page explains what the APIs tab does and how to call defined APIs from your agent.
+
+## What the APIs tab is for
+
+Use the APIs tab when you want your agent to:
+- Fetch or send data to an external system
+- Call internal services (CRM, ticketing, booking, payments)
+- Avoid maintaining potentially weighty custom HTTP logic in functions
+
+Typical use cases:
+- Look up a ticket, booking, or account
+- Create or update a record
+- Trigger downstream systems from a flow
+
+## How API definitions work
+
+An API definition consists of:
+1. A named API
+2. Environment-specific base URLs
+3. One or more operations
+
+## API name
+
+The API name becomes the namespace under conv.api.
+
+Example:
+- API name: `salesforce`
+- Runtime access: `conv.api.salesforce`
+
+## Base URL and environments
+
+Each API supports separate configuration for:
+- Draft / Sandbox
+- Pre-release
+- Live
+
+This allows you to:
+- Test against staging services
+- Promote safely without changing code
+- Keep flows identical across environments
+
+At runtime, the agent automatically uses the base URL for the active environment.
+
+## Operations
+
+Each operation represents a single HTTP endpoint.
+
+You define:
+- Method (GET, POST, PUT, DELETE, etc.)
+- Operation name
+- Resource path
+
+Example resource path:
+  `/tickets/{ticket_id}`
+
+Path variables are automatically exposed as arguments when calling the operation.
+
+## Referencing APIs while you are building an agent
+
+![api-tab-runtime](/images/api-tab-reference.png)
+
+All defined APIs are available inside functions under the conv.api object.
+
+The structure is:
+
+```python
+  conv.api.<api_name>.<operation_name>(...)
+  ```
+
+## Path variables
+
+You can pass path variables as positional or keyword arguments.
+
+Examples:
+
+```python
+  response = conv.api.salesforce.get_contact("123")
+```
+
+Or:
+
+```python
+  response = conv.api.salesforce.get_contact(contact_id="123")
+```
+
+## Query parameters, body, and headers
+
+Operations accept arbitrary keyword arguments at call time.
+
+You can pass:
+- Query parameters
+- JSON bodies
+- Custom headers
+
+Example:
+
+```python
+  response = conv.api.stripe.create_payment(
+    amount=100,
+    params={"expand": "customer"},
+    json={"amount": 100, "currency": "usd"},
+    headers={"X-Custom-Header": "value"}
+  )
+```
+
+This behaves similarly to a thin wrapper around a standard HTTP client.
+
+## Authentication
+
+Authentication is configured at the API level.
+
+Supported auth types include:
+- No auth
+- Header-based auth (for example, API keys)
+- Other configured mechanisms depending on deployment
+
+Auth credentials are handled by Agent Studio and are not embedded in flows or functions.
+
+## Summary
+
+The APIs tab provides:
+- Centralized API configuration
+- Environment-aware routing
+- A simple runtime interface with `conv.api`
+
+It is designed to reduce boilerplate, improve observability, and make external integrations easier to reason about across teams.
+
+For examples of API calls in context, see:
+- [Functions](/function/introduction)
+- [Flows](/flows/introduction)
+- [Conversation Review](/analytics/conversations/review)

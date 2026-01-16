@@ -1,0 +1,187 @@
+---
+title: "Conversation API client"
+sidebarTitle: "API"
+description: "Call APIs defined in the APIs tab from Python functions using conv.api."
+---
+
+`conv.api` is a dynamic API client generated from the **APIs** tab in Agent Studio.
+Each API you define there becomes a namespaced client on the Conversation object, with one callable method per operation.
+
+This lets you keep API configuration (base URLs, auth, resources) in the UI, while keeping function logic clean and environment-safe.
+
+![api-tab-runtime](/images/api-tab-reference.png)
+
+## How it works
+
+1. You define an API in **Agent Studio → APIs**
+   - Name
+   - Base URL (per environment)
+   - Auth type
+   - One or more operations (method + resource path)
+
+2. Agent Studio generates a client at runtime.
+
+3. Inside a function, you call it via:
+   `conv.api.<api_name>.<operation_name>(...)`
+
+The call is executed using the environment’s base URL and auth settings automatically.
+
+## Naming rules
+
+- API name in the UI becomes the client name under `conv.api`
+  - `sweet_booking_api` → `conv.api.sweet_booking_api`
+- Operation name becomes the callable method
+  - `create_booking` → `conv.api.sweet_booking_api.create_booking()`
+
+Use lowercase snake_case names to keep calls readable.
+
+## Basic example
+
+API defined in UI:
+- API name: `sweet_booking_api`
+- Base URL: `https://api.sweets.example`
+- Operation:
+  - Method: POST
+  - Operation name: `create_booking`
+  - Resource: `/bookings`
+
+Function usage:
+
+```python
+response = conv.api.sweet_booking_api.create_booking(
+  json={
+    "party_size": 4,
+    "date": "2026-02-01",
+    "contact_phone": conv.caller_number
+  }
+)
+```
+
+## Path variables
+
+Path parameters defined in the resource can be passed positionally or by name.
+
+Resource:
+  `/bookings/{booking_id}`
+
+Both of these are valid:
+
+```python
+response = conv.api.sweet_booking_api.get_booking("abc123")
+```
+
+```python
+response = conv.api.sweet_booking_api.get_booking(
+  booking_id="abc123"
+)
+```
+
+## Query parameters
+
+Use the `params` argument for query string parameters.
+
+```python
+response = conv.api.sweet_booking_api.list_bookings(
+  params={
+    "from": "2026-02-01",
+    "to": "2026-02-07"
+  }
+)
+```
+
+## Request body
+
+Use `json` (recommended) or `data` depending on the API.
+
+```python
+response = conv.api.sweet_booking_api.create_booking(
+  json={
+    "party_size": 6,
+    "notes": "Birthday booking"
+  }
+)
+```
+
+## Custom headers
+
+You can pass additional headers at call time.
+
+```python
+response = conv.api.sweet_booking_api.create_booking(
+  json={ "party_size": 4 },
+  headers={
+    "X-Request-Source": "polyai-agent",
+    "X-Correlation-Id": conv.id
+  }
+)
+```
+
+## Responses
+
+The return value is a standard HTTP response object.
+
+Typical fields you’ll use:
+- `response.status_code`
+- `response.json()`
+- `response.text`
+
+Example:
+
+```python
+response = conv.api.sweet_booking_api.create_booking(json=payload)
+
+if response.status_code != 201:
+  conv.log.error(
+    "Booking API failed",
+    status=response.status_code,
+    body=response.text
+  )
+  conv.say("I couldn’t complete the booking just now.")
+  return
+
+booking_id = response.json().get("id")
+conv.state.booking_id = booking_id
+```
+
+## Error handling
+
+Always check status codes explicitly.
+
+Recommended pattern:
+
+```python
+response = conv.api.vendor.operation(...)
+
+if response.status_code >= 500:
+  conv.log.error("Vendor API error", status=response.status_code)
+  conv.say("That system is unavailable right now.")
+  return
+
+if response.status_code == 404:
+  conv.say("I couldn’t find a matching record.")
+  return
+```
+
+## Logging API responses
+
+For debugging and review, log responses explicitly.
+
+```python
+response = conv.api.sweet_booking_api.create_booking(json=payload)
+conv.log_api_response(response)
+```
+
+This makes the response visible in:
+- Conversation Review → Diagnosis
+- Conversations API
+
+## Environment awareness
+
+The same function code runs across environments.
+
+`conv.api` automatically uses:
+- Sandbox base URL in Sandbox
+- Pre-release base URL in Pre-release
+- Live base URL in Live
+
+You should not branch on environment to change URLs.
