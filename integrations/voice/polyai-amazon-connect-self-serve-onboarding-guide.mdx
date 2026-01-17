@@ -1,0 +1,351 @@
+---
+0: "T"
+1: "h"
+2: "i"
+3: "s"
+4: " "
+5: "g"
+6: "u"
+7: "i"
+8: "d"
+9: "e"
+10: " "
+11: "e"
+12: "x"
+13: "p"
+14: "l"
+15: "a"
+16: "i"
+17: "n"
+18: "s"
+19: " "
+20: "h"
+21: "o"
+22: "w"
+23: " "
+24: "t"
+25: "o"
+26: " "
+27: "i"
+28: "n"
+29: "t"
+30: "e"
+31: "g"
+32: "r"
+33: "a"
+34: "t"
+35: "e"
+36: " "
+37: "y"
+38: "o"
+39: "u"
+40: "r"
+41: " "
+42: "*"
+43: "*"
+44: "A"
+45: "m"
+46: "a"
+47: "z"
+48: "o"
+49: "n"
+50: " "
+51: "C"
+52: "o"
+53: "n"
+54: "n"
+55: "e"
+56: "c"
+57: "t"
+58: "*"
+59: "*"
+60: " "
+61: "c"
+62: "o"
+63: "n"
+64: "t"
+65: "a"
+66: "c"
+67: "t"
+68: " "
+69: "c"
+70: "e"
+71: "n"
+72: "t"
+73: "r"
+74: "e"
+75: " "
+76: "w"
+77: "i"
+78: "t"
+79: "h"
+80: " "
+81: "*"
+82: "*"
+83: "P"
+84: "o"
+85: "l"
+86: "y"
+87: "A"
+88: "I"
+89: " "
+90: "A"
+91: "g"
+92: "e"
+93: "n"
+94: "t"
+95: " "
+96: "S"
+97: "t"
+98: "u"
+99: "d"
+100: "i"
+101: "o"
+102: "*"
+103: "*"
+104: " "
+105: "u"
+106: "s"
+107: "i"
+108: "n"
+109: "g"
+110: " "
+111: "a"
+112: "n"
+113: " "
+114: "A"
+115: "W"
+116: "S"
+117: " "
+118: "C"
+119: "l"
+120: "o"
+121: "u"
+122: "d"
+123: "F"
+124: "o"
+125: "r"
+126: "m"
+127: "a"
+128: "t"
+129: "i"
+130: "o"
+131: "n"
+132: " "
+133: "t"
+134: "e"
+135: "m"
+136: "p"
+137: "l"
+138: "a"
+139: "t"
+140: "e"
+141: "."
+title: "Amazon Connect × PolyAI Integration Guide"
+description: "Step-by-step self-serve guide to integrate your Amazon Connect instance with PolyAI."
+---
+
+## Prerequisites
+
+- An active **Amazon Connect** instance
+- Access to the **AWS Management Console**
+- A **PolyAI Agent Studio** project with purchased phone numbers
+- Permissions to create IAM roles, Lambda functions, DynamoDB tables, and CloudFormation stacks
+
+---
+
+## Step 1: Download the CloudFormation Template
+
+Download the CloudFormation template from the link below and save it locally:
+
+```text
+https://polyai-amazon-connect-cloudformation-artifacts-us-east-1.s3.us-east-1.amazonaws.com/template/v2/20250930-102558-addb90276bd7525c035aceff522df40e2d75a933/cloudformation.json
+```
+
+---
+
+## Step 2: Create an IAM Role
+
+Create an IAM role with the permissions required to deploy and manage the PolyAI integration resources.
+
+1. In the AWS Console, navigate to **IAM → Roles → Create role**
+2. Create a role with the policy below
+3. Replace `<aws_account_id>` with your AWS account ID
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CloudFormationPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:CreateStack",
+        "cloudformation:GetTemplate",
+        "cloudformation:DeleteStack",
+        "cloudformation:DescribeStackResources",
+        "cloudformation:UpdateStack",
+        "cloudformation:DescribeStacks",
+        "cloudformation:ValidateTemplate"
+      ],
+      "Resource": "arn:aws:cloudformation:*:<aws_account_id>:stack/*"
+    },
+    {
+      "Sid": "DynamoDBPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:CreateTable",
+        "dynamodb:UpdateTimeToLive",
+        "dynamodb:TagResource",
+        "dynamodb:UntagResource",
+        "dynamodb:DescribeTable",
+        "dynamodb:DescribeTimeToLive",
+        "dynamodb:DeleteTable",
+        "dynamodb:UpdateTable"
+      ],
+      "Resource": "arn:aws:dynamodb:*:<aws_account_id>:table/PolyAI*"
+    },
+    {
+      "Sid": "IAMPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:PassRole",
+        "iam:DetachRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:TagRole",
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:AttachRolePolicy",
+        "iam:PutRolePolicy"
+      ],
+      "Resource": [
+        "arn:aws:iam::<aws_account_id>:role/PolyAI*",
+        "arn:aws:iam::<aws_account_id>:policy/PolyAI*"
+      ]
+    },
+    {
+      "Sid": "LambdaPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:CreateFunction",
+        "lambda:UpdateFunctionCode",
+        "lambda:TagResource",
+        "lambda:AddPermission",
+        "lambda:GetFunction",
+        "lambda:UpdateFunctionConfiguration",
+        "lambda:DeleteFunction",
+        "lambda:PutFunctionConcurrency",
+        "lambda:ListTags"
+      ],
+      "Resource": "arn:aws:lambda:*:<aws_account_id>:function:PolyAI*"
+    },
+    {
+      "Sid": "CloudWatchLogsPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "logs:TagLogGroup",
+        "logs:DeleteRetentionPolicy",
+        "logs:TagResource",
+        "logs:PutRetentionPolicy",
+        "logs:CreateLogGroup",
+        "logs:DescribeLogGroups",
+        "logs:DeleteLogGroup"
+      ],
+      "Resource": "arn:aws:logs:*:<aws_account_id>:log-group:/aws/lambda/PolyAIWriteContactAttributesToDDB*"
+    },
+    {
+      "Sid": "S3ReadPermissions",
+      "Effect": "Allow",
+      "Action": "s3:Get*",
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+---
+
+## Step 3: Create the CloudFormation Stack
+
+1. Go to **AWS Console → CloudFormation**
+2. Ensure you are in the **same AWS region as your Amazon Connect instance**
+3. Click **Create stack → With new resources (standard)**
+4. Select **Upload a template file**
+5. Upload the CloudFormation JSON file downloaded in Step 1
+6. Click **Next**
+
+---
+
+## Step 4: Configure Stack Parameters
+
+### Required Parameters
+
+- **Stack name** A descriptive name to identify the PolyAI integration (no functional impact)
+- **PolyAIPhoneNumbers** Comma-separated list of phone numbers purchased in PolyAI Agent Studio Example:
+
+  ```text
+  +11234567890,+19999999999,+440000000000
+  ```
+- **amazonConnectInstanceArn** The ARN of your Amazon Connect instance
+- **s3CodeBucket** Select the bucket that matches your Amazon Connect region:
+
+  ```text
+  arn:aws:s3:::polyai-amazon-connect-cloudformation-artifacts-eu-west-2
+  arn:aws:s3:::polyai-amazon-connect-cloudformation-artifacts-us-east-1
+  arn:aws:s3:::polyai-amazon-connect-cloudformation-artifacts-ap-northeast-2
+  arn:aws:s3:::polyai-amazon-connect-cloudformation-artifacts-ap-southeast-2
+  arn:aws:s3:::polyai-amazon-connect-cloudformation-artifacts-eu-central-1
+  arn:aws:s3:::polyai-amazon-connect-cloudformation-artifacts-us-west-2
+  ```
+- **s3KeyPrefix**
+
+  ```text
+  template/v2/20250930-102558-addb90276bd7525c035aceff522df40e2d75a933/write_contact_attributes_to_ddb.zip
+  ```
+- **polyAIAssignedExternalId** The `project_id` of your PolyAI Agent Studio project
+
+---
+
+### Optional Parameters
+
+You may leave these at their default values unless customization is required:
+
+- **DDBRecordTTL**
+- **WriteContactAttributesToDDBLambdaMemorySize**
+- **WriteContactAttributesToDDBLambdaResConcurrency**
+- **WriteContactAttributesToDDBLambdaTimeout**
+- **contactAttributesDDBReadCapacity**
+- **contactAttributesDDBWriteCapacity**
+- **resourceSuffix**
+- **resourceTag**
+
+---
+
+## Step 5: Assign the IAM Role
+
+When prompted, select the **IAM role created in Step 2** to execute the CloudFormation stack.
+
+Proceed to create the stack.
+
+---
+
+## Step 6: Share Integration Details with PolyAI
+
+Once the CloudFormation stack completes successfully, provide the following details to PolyAI via the **Agent Studio Project Page → Integrations page → Amazon Connect**:
+
+- **DynamoDB table ARN**
+- **IAM Role ARN** (`PolyAIRoleToReadAndUpdateContactAttributes`)
+
+---
+
+## Step 7: PolyAI Configuration
+
+PolyAI will validate the provided values to ensure all resources are configured correctly. This validation typically takes around 30 seconds to complete. Once finished, your integration will be fully set up for the project. At this point, the PolyAI-side configuration is complete, and you can proceed to create the Amazon Connect flow by following the [instructions](/integrations/voice/amazon-connect) to begin routing calls.
+
+---
+
+## Support
+
+If you encounter any issues during setup, please contact your PolyAI representative or PolyAI Support.
