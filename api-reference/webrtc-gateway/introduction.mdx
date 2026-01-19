@@ -1,0 +1,175 @@
+---
+title: "WebRTC Gateway API"
+sidebarTitle: "Overview"
+description: "Connect a web browser to a PolyAI voice agent using WebSocket signaling and WebRTC audio."
+---
+
+The WebRTC Gateway enables real-time voice communication between a web browser and a PolyAI voice agent.
+
+It has two layers:
+
+- [WebSocket signaling for session setup, SDP exchange, and ICE candidate exchange](asyncapi)
+- [WebRTC media for bidirectional audio once the connection is established](openapi)
+
+## Prerequisites
+
+- A WebRTC-capable browser
+- Microphone permissions enabled
+- A PolyAI authentication token
+
+## Quick start
+
+1. Open a WebSocket connection to the signaling endpoint
+2. Create a WebRTC peer connection and collect microphone audio
+3. Send an offer message containing SDP and your auth token
+4. Receive an answer message containing SDP and a session identifier
+5. Exchange ICE candidates until the connection is established
+6. Audio flows bidirectionally
+
+## Signaling endpoint
+
+Signaling URL (WebSocket):
+
+`wss://your-gateway-host/api/v1/webrtc/signal`
+
+All signaling messages are JSON objects sent over the WebSocket connection.
+
+## Message structure
+
+All signaling messages follow the same top-level structure.
+
+| Field     | Required   | Description                                              |
+|----------|------------|----------------------------------------------------------|
+| type     | Yes        | Message type: offer, answer, ice-candidate, error, close |
+| sessionId| Yes        | Empty string when creating a new session                 |
+| data     | No         | Message-specific payload                                 |
+| authToken| Offer only | Authentication token                                     |
+| callSid  | No         | Optional call identifier                                 |
+| caller   | No         | Optional caller identifier                               |
+| callee   | No         | Optional callee identifier                               |
+
+## Message types
+
+### Offer (client to server)
+
+Starts a new session.
+Send with an empty sessionId.
+
+Example message:
+
+```json
+{
+  "type": "offer",
+  "sessionId": "",
+  "data": {
+    "type": "offer",
+    "sdp": "v=0 o=- 4611731400430051336 2 IN IP4 127.0.0.1"
+  },
+  "authToken": "your-auth-token",
+  "callSid": "call-unique-id",
+  "caller": "+14155551234",
+  "callee": "+14155555678"
+}
+```
+
+### Answer (server to client)
+
+Sent in response to an offer.
+Contains the SDP answer and the assigned sessionId.
+
+```json
+{
+  "type": "answer",
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+  "data": {
+    "type": "answer",
+    "sdp": "v=0 o=- 4611731400430051336 2 IN IP4 192.168.1.1"
+  }
+}
+```
+
+Store the sessionId and use it for all subsequent messages.
+
+### ICE candidate (bidirectional)
+
+Sent by both client and server to establish network connectivity.
+
+```json
+{
+  "type": "ice-candidate",
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+  "data": {
+    "candidate": "candidate:1 1 UDP 2130706431 192.168.1.1 54321 typ host",
+    "sdpMid": "0",
+    "sdpMLineIndex": 0
+  }
+}
+```
+
+### Close (client to server)
+
+Terminates the session gracefully.
+
+```json
+{
+  "type": "close",
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+### Error (server to client)
+
+Sent when an error occurs.
+
+```json
+{
+  "type": "error",
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+  "data": {
+    "code": "UNAUTHORIZED",
+    "message": "Invalid authentication token"
+  }
+}
+```
+
+## WebRTC configuration
+
+### Audio codec
+
+The gateway requires Opus audio.
+
+- MIME type: audio/opus
+- Sample rate: 48 kHz
+- Channels: stereo
+
+### ICE servers
+
+Configure your peer connection with a STUN server.
+TURN is recommended for restrictive networks.
+
+Example STUN server:
+`stun.l.google.com:19302`
+
+## Browser support
+
+- Chrome 72 or newer
+- Firefox 60 or newer
+- Safari 14.1 or newer
+- Edge 79 or newer
+
+## Troubleshooting
+
+### Unauthorized error
+
+Ensure the authentication token is valid and included in the offer message.
+
+### No audio
+
+- Confirm microphone permissions are granted
+- Verify Opus is negotiated successfully
+
+### ICE connection fails
+
+- Corporate firewalls may require TURN
+- Ensure UDP traffic is allowed
+- Configure TURN over TCP if needed

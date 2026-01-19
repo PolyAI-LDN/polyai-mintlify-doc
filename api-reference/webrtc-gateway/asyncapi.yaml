@@ -1,0 +1,205 @@
+asyncapi: 3.0.0
+info:
+  title: WebRTC Gateway Signaling API (WebSocket)
+  version: 1.0.0
+  description: |
+    WebSocket signaling API for establishing WebRTC sessions using SDP offer/answer and ICE candidates.
+
+servers:
+  production:
+    host: your-gateway-host
+    protocol: wss
+    pathname: /api/v1/webrtc/signal
+    description: WebSocket signaling endpoint
+
+channels:
+  signaling:
+    address: /api/v1/webrtc/signal
+    messages:
+      Offer:
+        name: Offer
+        title: Offer
+        summary: Start a new session using an SDP offer and auth token.
+        payload:
+          $ref: "#/components/schemas/OfferMessage"
+      Answer:
+        name: Answer
+        title: Answer
+        summary: Server response containing SDP answer and sessionId.
+        payload:
+          $ref: "#/components/schemas/AnswerMessage"
+      IceCandidate:
+        name: IceCandidate
+        title: ICE candidate
+        summary: Bidirectional ICE candidate exchange.
+        payload:
+          $ref: "#/components/schemas/ICECandidateMessage"
+      Error:
+        name: Error
+        title: Error
+        summary: Server error response.
+        payload:
+          $ref: "#/components/schemas/ErrorMessage"
+      Close:
+        name: Close
+        title: Close
+        summary: Graceful session termination.
+        payload:
+          $ref: "#/components/schemas/CloseMessage"
+
+operations:
+  sendOffer:
+    action: send
+    channel:
+      $ref: "#/channels/signaling"
+    messages:
+      - $ref: "#/channels/signaling/messages/Offer"
+
+  receiveAnswer:
+    action: receive
+    channel:
+      $ref: "#/channels/signaling"
+    messages:
+      - $ref: "#/channels/signaling/messages/Answer"
+
+  exchangeIce:
+    action: send
+    channel:
+      $ref: "#/channels/signaling"
+    messages:
+      - $ref: "#/channels/signaling/messages/IceCandidate"
+
+components:
+  schemas:
+    SDPData:
+      type: object
+      required:
+        - type
+        - sdp
+      properties:
+        type:
+          type: string
+          enum:
+            - offer
+            - answer
+        sdp:
+          type: string
+          description: Full SDP string
+
+    ICECandidateData:
+      type: object
+      required:
+        - candidate
+        - sdpMid
+        - sdpMLineIndex
+      properties:
+        candidate:
+          type: string
+        sdpMid:
+          type: string
+        sdpMLineIndex:
+          type: integer
+          minimum: 0
+
+    ErrorData:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - UNAUTHORIZED
+            - INVALID_MESSAGE
+            - HANDLER_ERROR
+            - MEDIA_BRIDGE_FAILURE
+            - AGENT_FAILURE
+        message:
+          type: string
+
+    BaseMessage:
+      type: object
+      required:
+        - type
+        - sessionId
+      properties:
+        type:
+          type: string
+          enum:
+            - offer
+            - answer
+            - ice-candidate
+            - error
+            - close
+        sessionId:
+          type: string
+          description: Empty string when creating a new session.
+        data:
+          type: object
+        callSid:
+          type: string
+        caller:
+          type: string
+        callee:
+          type: string
+
+    OfferMessage:
+      allOf:
+        - $ref: "#/components/schemas/BaseMessage"
+        - type: object
+          required:
+            - authToken
+            - data
+          properties:
+            type:
+              const: offer
+            authToken:
+              type: string
+              description: Authentication token included in the offer message.
+            data:
+              $ref: "#/components/schemas/SDPData"
+
+    AnswerMessage:
+      allOf:
+        - $ref: "#/components/schemas/BaseMessage"
+        - type: object
+          required:
+            - data
+          properties:
+            type:
+              const: answer
+            data:
+              $ref: "#/components/schemas/SDPData"
+
+    ICECandidateMessage:
+      allOf:
+        - $ref: "#/components/schemas/BaseMessage"
+        - type: object
+          required:
+            - data
+          properties:
+            type:
+              const: ice-candidate
+            data:
+              $ref: "#/components/schemas/ICECandidateData"
+
+    ErrorMessage:
+      allOf:
+        - $ref: "#/components/schemas/BaseMessage"
+        - type: object
+          required:
+            - data
+          properties:
+            type:
+              const: error
+            data:
+              $ref: "#/components/schemas/ErrorData"
+
+    CloseMessage:
+      allOf:
+        - $ref: "#/components/schemas/BaseMessage"
+        - type: object
+          properties:
+            type:
+              const: close
