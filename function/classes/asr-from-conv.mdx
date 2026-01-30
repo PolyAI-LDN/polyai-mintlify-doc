@@ -1,0 +1,161 @@
+---
+title: ASR biasing from functions
+sidebarTitle: ASR biasing
+description: Dynamically set and clear ASR biasing at runtime using the Conversation object (conv.set_asr_biasing and conv.clear_asr_biasing).
+---
+
+## Overview
+
+You can dynamically bias Automatic Speech Recognition (ASR) during a live conversation from within a Python function by calling:
+
+- `conv.set_asr_biasing()`
+- `conv.clear_asr_biasing()`
+
+This is designed for cases where you only learn the “likely words” at runtime — for example, when you fetch account details, clinician names, product SKUs, booking references, or place names from an API and want ASR to prefer those phrases for the remainder of the conversation (or until you clear them).
+
+## Key behaviours
+
+### Persists across turns (until you change it)
+
+ASR biasing set via `conv.set_asr_biasing()` persists across turns until you:
+
+- call `conv.clear_asr_biasing()`, or
+- call `conv.set_asr_biasing()` again with new values.
+
+This is intentional. It prevents you from needing to reapply biasing on every turn.
+
+### Highest precedence and merging
+
+Function-set biasing has the highest precedence and is merged with any existing ASR configuration (flow-level, step-level, or language overrides):
+
+- Keywords are merged with existing keywords.
+- Custom biases are merged with existing custom biases.
+- If the same phrase appears in multiple sources, the function-set value wins.
+
+## When to use this
+
+Use ASR biasing from functions when:
+
+- You fetch data at runtime and want ASR to reliably capture it (names, IDs, brands, locations).
+- A user is about to read out a value you already know (booking reference, customer surname, medication name).
+- You have domain terms that are frequently misheard and want to nudge recognition without rewriting prompts.
+
+This is a precision tool, not a substitute for good flow design.
+
+## conv.set_asr_biasing(keywords=None, custom_biases=None)
+
+Set ASR biasing for the conversation.
+
+### Parameters
+
+#### keywords (optional, list of strings)
+
+A list of phrases to bias equally. Use this when you have a small set of likely words and do not need different strengths.
+
+#### custom_biases (optional, dict mapping string to number)
+
+A mapping of phrase to bias weight to bias unequally. Use this when some phrases matter more than others.
+
+### Validation
+
+`conv.set_asr_biasing()` validates its inputs:
+
+- `keywords` must be a list of strings if provided
+- `custom_biases` must be a dict with string keys and numeric values (int or float)
+
+Invalid inputs raise ValueError.
+
+## Examples
+
+### 1: Bias equally toward a set of terms
+
+Use this when you want ASR to lean toward a handful of phrases with equal strength.
+
+```python
+def set_expected_terms(conv):
+    conv.set_asr_biasing(
+        keywords=["hotel", "restaurant", "booking", "cancellation"]
+    )
+```
+
+### 2: Bias unevenly with custom weights
+
+Use this when you want certain phrases to be recognised more aggressively than others.
+
+```python
+def set_weighted_terms(conv):
+    conv.set_asr_biasing(
+        custom_biases={
+            "booking reference": 3.0,
+            "cancellation": 2.5,
+            "non refundable": 2.0,
+        }
+    )
+```
+
+### 3: Combine keywords and custom biases
+
+This is common when you want a broad nudge plus one high-priority phrase.
+
+```python
+def set_mixed_biasing(conv):
+    conv.set_asr_biasing(
+        keywords=["dermatology", "eczema", "psoriasis"],
+        custom_biases={"isotretinoin": 3.0}
+    )
+```
+
+### 4: Bias toward values returned from an API
+
+Fetch runtime values, then bias toward them before asking the user to say them.
+
+```python
+def verify_booking(conv):
+    booking = conv.api.reservations.get_booking()
+
+    expected_surname = booking["surname"]
+    expected_reference = booking["reference"]
+
+    conv.set_asr_biasing(
+        custom_biases={
+            expected_surname: 3.0,
+            expected_reference: 3.0,
+        }
+    )
+
+    conv.say("Could you confirm the surname and booking reference?")
+```
+
+## Bias weights: how to think about them
+
+Bias weights are relative nudges, not guarantees. A larger number means “prefer this phrase more strongly” when the audio is ambiguous.
+
+Practical guidance:
+
+- Start small and iterate, for example 2.0 to 3.0 rather than jumping to extremes.
+- Over-biasing can backfire and create false positives.
+- Prefer a short list of high-value phrases over a large unfocused list.
+
+Provider behaviour can vary. Treat weights as a tuning knob you validate with call data.
+
+## conv.clear_asr_biasing()
+
+Clear any previously set ASR biasing for future turns.
+
+This is recommended when the expected vocabulary is only relevant for a short window, such as a verification step.
+
+### Example: set biasing for verification, then clear it
+
+```python
+def verify_reference(conv):
+    ref = conv.api.orders.get_expected_reference()
+    conv.set_asr_biasing(custom_biases={ref: 3.0})
+
+    conv.say("Please say your reference number.")
+
+    conv.clear_asr_biasing()
+```
+
+## Related docs
+
+- [Flows: ASR biasing](/flows/asr-biasing)
