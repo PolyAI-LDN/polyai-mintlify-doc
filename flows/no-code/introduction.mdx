@@ -8,110 +8,187 @@ description: "Build conversational workflows with no code."
 
 **No-code Flows** let you build conversational workflows visually — using prompts, entity extraction, and clear branching — without writing any [code](/flows/introduction) or [transition functions](/flows/transition-functions).
 
-1. Understand what the caller wants (intent)
-2. Collect key details (entities)
-3. Decide what happens next (conditions)
-4. Optionally call an API (using a Function step, if enabled)
-5. End cleanly or hand off (exit flows)
+A typical no-code flow:
 
-## Key concepts (in plain terms)
+1. Ask for information (intent)
+2. Extract structured data (entities)
+3. Route based on what was collected (conditions)
+4. Continue the conversation in the correct branch
+5. End cleanly with an exit flow
 
-- **Step (node):** A box. It represents one moment in the conversation (ask something, confirm something, collect details).
+You can build most structured interactions using Default steps alone.
+
+<Card>
+**Key concepts**
+
+- **Step (node):** A box in the editor. It represents one moment in the conversation (ask something, confirm something, collect details).
 - **Edge:** A line between steps. It represents a possible next path.
 - **Condition:** A label on an edge that explains *when* that edge should be taken.
-- **Entity:** A piece of structured information you want to collect (phone number, date, address).
+- **Entity:** A piece of structured information you want to collect (phone number, date, number of passengers).
 - **Exit flow:** A terminal end point (finish, handoff, stop).
+</Card>
 
 ## Step types
 
 ### Default step (no-code)
-Use Default steps for most of your flow:
+
+Use Default steps for most of your flow. They allow you to:
+
 - Write natural-language instructions (prompt)
 - Extract entities
-- Branch to other steps using edges + conditions
+- Branch to other steps using labeled edges
+
+Most booking, verification, and data-collection flows can be built entirely with Default steps.
+
+A common pattern:
+
+- Step 1: Collect an entity (e.g. number of passengers)
+- Step 2: Route to the correct branch (e.g. Individual Booking vs Group Booking)
+- Step 3: Continue collecting relevant details
+
+Keep each step focused on one task.
 
 ### Function step (low-code, still visual)
-Use Function steps when you need procedural work such as:
+
+Use Function steps only when you need more control, such as:
+
 - Calling an API
-- Writing metrics/state changes
-- Calculations that decide routing
+- Applying strict business rules
+- Performing numeric comparisons
+- Writing state changes
+
+If your flow starts to require complex logic, that’s when a Function step becomes appropriate.
+
+If you can express the routing clearly using labeled branches, prefer Default steps.
+
 
 ### Exit flow
+
 Use Exit flows to:
+
 - End the conversation cleanly
 - Represent a handoff
-- Make terminal paths obvious
+- Make terminal paths obvious in the editor
+
+Every flow should end in an Exit flow.
 
 ## Quickstart: build your first flow
 
 This walkthrough builds a simple booking flow:
+
 - Collect phone number (or fallback to email)
 - Collect booking details
-- Route large parties to handoff
-- Finish
+- Route large parties differently
+- Finish cleanly
 
 ### Step 1 — Create a flow
+
 1. Go to **Flows**
 2. Click **+ Create flow**
 3. Name it (example: **Make a booking**)
 
-Tip: start with a Default step as your first step for the smoothest no-code experience.
+Tip: start with a Default step as your entry point.
+
 
 ### Step 2 — Add your first Default step (entry point)
+
 1. Add a **Default step**
 2. Name it **Collect contact details**
-3. In the **Prompt**, paste something like:
+3. In the **Prompt**, write something like:
 
-> Ask for the caller’s phone number to create or look up the booking.
-> If they don’t want to provide a phone number, ask for an email address instead.
-> Confirm back what you captured in one sentence.
+Ask for the caller’s phone number to create or look up the booking.
+If they don’t want to provide a phone number, ask for an email address instead.
+Confirm what you captured in one sentence.
 
 ### Step 3 — Add entities to the step
+
 In **Collect contact details**, add:
+
 - **Phone number**
-- **Email address** (as the fallback)
+- **Email address** (fallback)
 
-This tells the system what information to extract and (where supported) validate.
+This tells the system what structured information to extract and validate.
 
-### Step 4 — Add a finish/exit step
-1. Add another **Exit flow**
+You can mark entities as required if the flow should not continue without them.
+
+### Step 4 — Add routing
+
+After collecting information, add labeled edges such as:
+
+- phone collected
+- phone missing
+- caller refuses
+
+Keep labels short and explicit.
+
+If you later add a step like **Collect Number of Passengers**, you might branch into:
+
+- Individual Booking
+- Group Booking
+
+Clear labels make routing easier to understand and maintain.
+
+### Step 5 — Add a finish/exit step
+
+1. Add an **Exit flow**
 2. Name it **Booking complete**
+3. Connect your success branches to it
 
 ## Write condition labels for humans first
-Good labels are short and unambiguous:
-- `phone collected`
-- `phone missing`
-- `party size > 10`
-- `caller refuses`
-- `unclear`
 
-Avoid labels that overlap or require interpretation:
-- `valid`
-- `ok`
-- `continue`
+Good labels are:
+
+- Short
+- Unambiguous
+- Business-focused
+
+Examples:
+
+- phone collected
+- phone missing
+- party size above 15
+- requires handoff
+- unclear
+
+Avoid vague labels like:
+
+- valid
+- ok
+- continue
+
+If someone else looks at your flow, they should understand the logic immediately from the labels alone.
 
 ## Entities
 
 Entities are structured values the agent can collect and reuse, such as:
+
 - Phone number
 - Email
-- Date/time
+- Date
+- Time
 - Address
 - Name
+- Number
+- Free text
+
+Mark an entity as **required** if the step should not move forward without a valid value.
 
 ### Validation
-Depending on the entity type and configuration, extracted values can be:
-- **Valid** (usable)
-- **Invalid** (treat as not collected; ask again or route to fallback)
+
+Depending on the entity type:
+
+- Valid values allow the flow to continue.
+- Invalid values can trigger re-asking or fallback routing.
 
 Best practice:
-- If a route depends on an entity being present, include a sibling fallback route for missing/invalid inputs.
+
+If a branch depends on an entity being present, include a clear fallback path for when it isn’t.
 
 ## Glossary
 
-- **Step (node):** A unit of conversation.
+- **Step (node):** A unit of conversation in the editor.
 - **Edge:** A connection between steps.
 - **Condition:** A label explaining when an edge should be taken.
-- **Entity:** Typed extracted data (phone, date, address, etc.).
-- **Exit flow:** A terminal node (finish/handoff).
-- **Advanced step:** A step with transition functions and custom logic.
+- **Entity:** Typed extracted data (phone, date, number, etc.).
+- **Exit flow:** A terminal node (finish or handoff).
+- **Function step:** An optional step used when business logic goes beyond simple branching.
