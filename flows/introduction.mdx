@@ -4,11 +4,13 @@ sidebarTitle: Overview
 description: 'Use flows for important, structured interactions.'
 ---
 
-<Tip>  To initiate a flow programmatically at the end of a turn, use [`conv.goto_flow`](/function/classes/conv-object/#goto-flow). </Tip>
+<Tip>
+To initiate a flow programmatically at the end of a turn, use conv.goto_flow. See How to trigger a flow below.
+</Tip>
 
-        ![example-main](/images/flow-default-page.png)
+![example-main](/images/flow-default-page.png)
 
-A flow is a structured interaction made up of **steps**, each containing a [prompt](/knowledge-base/introduction) and one or more [actions](/knowledge-base/how-to-setup-action/introduction). You use flows when an interaction requires:
+A flow is a structured interaction made up of steps, each containing a prompt and one or more actions. You use flows when an interaction requires:
 
 - Collecting user input (e.g. name, phone number, confirmation code)
 - Performing validation or retries
@@ -17,16 +19,52 @@ A flow is a structured interaction made up of **steps**, each containing a [prom
 - Following a specific sequence to meet business logic or regulatory requirements
 
 <Note>
-Use individual [knowledge base](/knowledge-base/introduction) entries for short, factual answers. Use a flow when interaction needs structure, memory, or logic.
+Use individual knowledge base entries for short, factual answers. Use a flow when an interaction needs structure, memory, or logic.
+</Note>
+
+## How to trigger a flow
+
+There are a few common ways to start a flow. The right choice depends on where you are in the product and how deterministic you need the trigger to be.
+
+### 1) Trigger a flow from code (most explicit)
+
+Use this when you are in a function and you want to start a flow deterministically.
+
+Example:
+
+```python
+    conv.goto_flow("Reservation flow")
+```
+
+This starts the named flow on the next turn.
+
+### 2) Trigger a flow from a knowledge base action (LLM-invoked)
+
+Use this when a knowledge base topic should reliably move the user into a structured interaction.
+
+Typical pattern:
+- The user asks something that requires multi-step collection or validation
+- The knowledge base topic includes an action that starts the flow
+- The flow takes over to collect entities, retry, validate, and finish cleanly
+
+### 3) Trigger a flow from inside another flow
+
+Use this when the user is already in a flow and you want to switch to another structured interaction (for example, escalation, payments, identity verification, or a separate task).
+
+Typical pattern:
+- You use a Function step (or a transition function) and call conv.goto_flow to move into a different flow
+
+<Note>
+APIs do not trigger flows directly. Instead, flows orchestrate steps, and Function steps can call APIs. If an API result should change the path, you use code to route or start the appropriate flow.
 </Note>
 
 ## How flows work
 
 Each flow is made up of:
 
-- **Steps**: Self-contained conversation states, made up of:
+- Steps: Self-contained conversation states, made up of:
   - Text prompts, just like knowledge base entries.
-  - [Global functions](/function/introduction) and [transition functions](./transition-functions): Logic blocks that validate input, call APIs, store values, and move the conversation forward.
+  - Global functions and transition functions: Logic blocks that validate input, call APIs, store values, and move the conversation forward.
 
 That means as each step is sequentially processed, the LLM sees:
 - The current step's text prompt.
@@ -37,37 +75,37 @@ What the LLM doesn't see:
 - Any system context, unless it's surfaced in the prompt or state.
 
 <Tip>
-Because previous steps are not visible, each prompt must be **self-contained**. Provide all necessary context and clear guidance in each step.
+Because previous steps are not visible, each prompt must be self-contained. Provide all necessary context and clear guidance in each step.
 </Tip>
 
 ## LLM interaction model
 
 When the agent is inside a flow step, this is the input order:
 
-1. System prompt (includes [Rules](/agent-settings/rules) and [About](/agent-settings/about) agent configuration).
-2. Any relevant [knowledge base](/knowledge-base/introduction) entries (if applicable).
+1. System prompt (includes Rules and About agent configuration).
+2. Any relevant knowledge base entries (if applicable).
 3. The conversation history.
-4. The **step prompt** (which is appended last).
+4. The step prompt (which is appended last).
 
 ### Knowledge base function visibility in flows
 
-To make [global knowledge base functions](/function/introduction) available while a flow is running, set:
+To make global knowledge base functions available while a flow is running, set:
 
-```json
-{
-  "llm": {
-    "include_kb_functions_in_flows": true
-  }
-}
-```
+```python
+    {
+      "llm": {
+        "include_kb_functions_in_flows": true
+      }
+    }
+ ```
 
 ## Key techniques
 
-- [Transition functions](./transition-functions) control the flow's routing logic.
-- Use [few-shot prompting](./few-shot-prompting) to clarify expected inputs or edge cases.
-- Set [ASR biasing](./asr-biasing) to improve voice transcription for structured or ambiguous values like confirmation codes or personal names.
+- Transition functions control the flow's routing logic.
+- Use few-shot prompting to clarify expected inputs or edge cases.
+- Set ASR biasing to improve voice transcription for structured or ambiguous values like confirmation codes or personal names.
 - Flows can include conditions to dynamically adapt responses based on user input. For example, if a user provides a specific date, the agent can check availability and guide the user accordingly.
-- Flows support the use of [variables](/variant-management/introduction) to dynamically fill in information during interactions. This allows context-aware responses.
+- Flows support the use of variables to dynamically fill in information during interactions. This allows context-aware responses.
 
 ## Connecting steps
 
@@ -75,35 +113,36 @@ In the Flow Editor:
 
 - Use `/Steps` in the prompt to connect to the next step
 - Add named transition functions to manage movement between states
-- Use the **Flow Functions** modal to see all transitions in one place
+- Use the Flow Functions modal to see all transitions in one place
 
 <Warning>
-Always include an exit step in your flow. Un-exited flows can cause <Tooltip tip="Incorrect or misleading results.">hallucinations</Tooltip>.
+Always include an exit step in your flow. Un-exited flows can cause hallucinations.
 </Warning>
 
 <Note>
-Use descriptive function names like `check_reservation_match`, not vague ones like `step_two` — this helps the LLM reason correctly.
+Use descriptive function names like check_reservation_match, not vague ones like step_two — this helps the LLM reason correctly.
 </Note>
 
 ## Standard entity types
 
-Entity types define the kind of information your agent collects from users. They help the system validate and structure input once it has been recognized by [ASR](asr-biasing).
+Entity types define the kind of information your agent collects from users. They help the system validate and structure input once it has been recognized by ASR.
 
 ### Available types
 
-- **Alphanumeric** — any mix of letters and numbers. Useful for booking references or codes.
-- **Number** — numeric values.
-- **Date** — calendar dates.
-- **Time** — clock times.
-- **Phone number** — telephone numbers.
-- **Name** — personal names.
-- **Address** — street addresses or locations.
-- **Free text** — open-ended responses without validation.
-- **Multiple choice** — selection from predefined options.
+- Alphanumeric — any mix of letters and numbers. Useful for booking references or codes.
+- Number — numeric values.
+- Date — calendar dates.
+- Time — clock times.
+- Phone number — telephone numbers.
+- Name — personal names.
+- Address — street addresses or locations.
+- Free text — open-ended responses without validation.
+- Multiple choice — selection from predefined options.
 
 ## Advanced features
 
 ### Conditional logic
+
 Flows can include conditions to dynamically adapt responses based on user input. For example:
 
 If a user provides a specific date, the agent can check availability and guide the user accordingly.
@@ -114,6 +153,6 @@ Flows support the use of variables to dynamically fill in information during int
 
 ## Further reading
 
-- Visit the [example](./example) reservation flow page.
-- Explore [ASR biasing](./asr-biasing), [few-shot prompting](./few-shot-prompting), or [transition functions](./transition-functions).
-- Visit the [Flow Python object](./object) page.
+- Visit the example reservation flow page.
+- Explore ASR biasing, few-shot prompting, or transition functions.
+- Visit the Flow Python object page.
