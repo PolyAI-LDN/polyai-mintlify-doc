@@ -1,12 +1,12 @@
 ---
 title: "No-code Flows"
 sidebarTitle: "Overview"
-description: "Build conversational workflows with no code."
+description: "Build conversational workflows visually."
 ---
 
 ![rules-examples](/images/no-code-flows/default.png)
 
-**No-code Flows** let you build conversational workflows visually — using prompts, entity extraction, and clear branching — without writing any [code](/flows/introduction) or [transition functions](/flows/transition-functions).
+**No-code Flows** let you build conversational workflows visually — using prompts, entity extraction, and clear branching — without writing code — unless you explicitly choose to use a Function step for advanced logic.
 
 A typical no-code flow:
 
@@ -23,7 +23,7 @@ You can build most structured interactions using Default steps alone.
 
 - **Step (node):** A box in the editor. It represents one moment in the conversation (ask something, confirm something, collect details).
 - **Edge:** A line between steps. It represents a possible next path.
-- **Condition:** A label on an edge that explains *when* that edge should be taken.
+- **Condition:** A label on an edge that explains when that edge should be taken.
 - **Entity:** A piece of structured information you want to collect (phone number, date, number of passengers).
 - **Exit flow:** A terminal end point (finish, handoff, stop).
 </Card>
@@ -71,6 +71,86 @@ Use Exit flows to:
 
 Every flow should end in an Exit flow.
 
+## How flow logic actually runs
+
+There are two execution models inside flows. Understanding this prevents most confusion.
+
+### Default steps (LLM-driven)
+
+In a Default step:
+
+- The LLM evaluates conditions.
+- Condition labels are meaningful.
+- “Required entities” inform the LLM what must be present before a condition can pass.
+- Routing is determined by the model.
+
+If you reference collected entities inside the prompt, you can use rich text `/entities`.
+
+In Conversation Review, you will see system functions such as:
+
+- builtin_validate_and_save_entities
+- builtin_conditions_met
+
+These represent automatic entity validation and condition evaluation.
+
+You do not need to write code for this.
+
+### Function steps (code-driven)
+
+Function steps behave differently.
+
+- Conditions are evaluated in your Python code.
+- The condition label on the edge is decorative.
+- You must explicitly move the flow forward.
+
+#### Accessing collected entities in a function
+
+Entities collected earlier in the flow are available as:
+
+```python
+    conv.entities.entity_name.value
+```
+
+Example:
+
+```python
+    email = conv.entities.email.value
+    party_size = conv.entities.number_of_passengers.value
+```
+
+#### Moving to another step from a function
+
+A Function step does not automatically transition.
+
+You must call:
+
+```python
+    flow.goto_step("step_name", "condition_name")
+```
+
+Example:
+
+```python
+    if party_size > 15:
+        flow.goto_step("Group Booking", "large party")
+    else:
+        flow.goto_step("Individual Booking", "small party")
+```
+
+If you do not call flow.goto_step, the flow will not move.
+
+### When should you use a Function step?
+
+Use one only when you need:
+
+- API calls
+- Strict numeric comparisons
+- Business-rule enforcement
+- Custom validation
+- State changes
+
+If routing can be expressed clearly with labeled branches in Default steps, prefer Default steps.
+
 ## Quickstart: build your first flow
 
 This walkthrough builds a simple booking flow:
@@ -102,12 +182,12 @@ Confirm what you captured in one sentence.
 
 In **Collect contact details**, add:
 
-- **Phone number**
-- **Email address** (fallback)
+- Phone number
+- Email address (fallback)
 
 This tells the system what structured information to extract and validate.
 
-You can mark entities as required if the flow should not continue without them.
+You can mark entities as required if the LLM should not consider a condition satisfied without a valid value. In Function steps, you must enforce this yourself in code.
 
 ### Step 4 — Add routing
 
@@ -169,7 +249,7 @@ Entities are structured values the agent can collect and reuse, such as:
 - Number
 - Free text
 
-Mark an entity as **required** if the step should not move forward without a valid value.
+Mark an entity as required if the LLM should not consider a condition satisfied without a valid value. In Function steps, you must enforce this yourself in code.
 
 ### Validation
 
