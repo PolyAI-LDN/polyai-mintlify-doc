@@ -1,98 +1,156 @@
 ---
 title: "Triggering flows"
 sidebarTitle: "Triggering flows"
-description: "All the ways a flow can be started."
+description: "How flows actually start — and how that differs from routing inside a flow."
 ---
 
-Flows can be triggered in several ways depending on where you are in the platform and how deterministic the interaction needs to be.
+A flow starts when something calls `conv.goto_flow("Flow name")`.
 
-This page provides a simple overview of every supported method.
+This page explains how `conv.goto_flow` can be used:
 
-## 1. Trigger a flow programmatically using conv.goto_flow
+## 1) Start a flow from a function
 
-This is the most explicit and reliable method.
+You can call `conv.goto_flow(...)` from any [function](/function/introduction) in Agent Studio, including:
 
-Use this inside a function when you want to start a flow deterministically.
+- A [Knowledge Base action](/knowledge-base/how-to-setup-action/introduction)
+- A [global function](/function/classes/conv-object)
+- A [transition function inside a flow](/flows/transition-functions)
 
 Example:
 
 ```python
+def start_booking(conv: Conversation):
     conv.goto_flow("Make a booking")
+    return
 ```
 
 What happens:
+- The function runs during the current turn.
+- When the turn completes, the agent enters the named flow.
+- The flow begins at its configured start step.
 
-- The current turn finishes.
-- The named flow starts on the next turn.
-- The user enters the flow at its entry step.
+## 2) Start a flow from a Knowledge Base action
 
-Use this when:
+A Knowledge Base topic can be configured to start a flow.
 
-- You need strict control.
-- An API response determines the next action.
-- You are escalating to a structured interaction.
-- You are switching from unstructured chat to guided logic.
+When a topic matches a user request, you can attach an action that starts a specific flow.
 
-## 2. Trigger a flow from a Knowledge Base action
+### How to configure this
 
-You can configure a [Knowledge Base](/knowledge-base/how-to-setup-action/introduction) topic to start a flow.
+In Agent Studio:
 
-Typical pattern:
+- Open Knowledge Base.
+- Select the topic that should trigger the workflow.
+- Add an action that starts a flow.
+- Choose the target flow.
 
-- The user asks something.
-- The topic matches.
-- The action starts the flow.
-- The flow takes over to collect input, validate, retry, or finish.
+No custom function is required if no additional logic is needed.
 
-Use this when:
+### Using the /Flow shortcut
 
-- A specific intent should always enter a structured flow.
-- You want to keep high-level intent matching in the KB layer.
-- The interaction requires multiple steps.
+![example-main](/images/create-flow-rich-text.png)
 
-This is LLM-triggered but guided by configuration.
+Inside a Knowledge Base action field, type `/Flow` and use the (+) option to create or attach a flow.
 
-## 3. Trigger a flow from inside another flow
+## 3) Start or switch flows from inside another flow
 
-You can move from one flow to another.
+Once a user is inside a flow, most movement should happen using `flow.goto_step(...)`.
 
-Common cases:
+That keeps the user inside the same workflow and simply branches to another step.
 
-- Escalation
-- Identity verification
-- Restarting a structured interaction
-- Switching task contexts
+However, sometimes you need to switch to an entirely different workflow.
 
-Implementation:
+Examples:
+- The user fails identity verification and must enter a verification flow.
+- The user requests a human agent and must enter an escalation flow.
+- A compliance rule requires a separate structured process.
+- The user changes intent entirely (e.g., from booking to cancellation).
 
-Use `conv.goto_flow` inside a function step or transition function.
+In these cases, start a new flow instead of branching.
+
+You do this by calling `conv.goto_flow("Flow name")` from a function inside the current flow.
+
+### Example: Escalating after repeated failed verification
+
+Imagine a booking flow where the user must confirm their date of birth.
+If they fail verification too many times, you want to move them into a dedicated verification flow.
+
+```python
+def check_verification(conv: Conversation, flow: Flow):
+    attempts = conv.state.verification_attempts or 0
+
+    if not conv.state.is_verified:
+        attempts += 1
+        conv.state.verification_attempts = attempts
+
+        if attempts >= 3:
+            conv.goto_flow("Identity Verification")
+            return
+
+        flow.goto_step("Retry verification")
+        return
+
+    flow.goto_step("Continue booking")
+    return
+ ```
+
+    <Warning>Important:
+
+             Inside a function, only the last `flow.goto_step(...)` call is executed. If multiple `flow.goto_step()` calls run without returning, only the final one takes effect.
+
+             Always return immediately after calling:
+             - `flow.goto_step(...)`
+             - `conv.goto_flow(...)`
+    </Warning>
+
+## Routing based on API results
+**Main article**: [`conv.api`](/function/classes/conv-api)
+
+A function may call an API using `conv.api`.
+
+After receiving a response, explicitly choose one of two actions:
+
+- Stay in the current workflow using `flow.goto_step(...)`
+- Switch workflows using `conv.goto_flow(...)`
 
 Example:
 
 ```python
-    conv.goto_flow("Escalation flow")
-```
+def check_customer_status(conv: Conversation, flow: Flow):
+    response = conv.api.crm.lookup_user(id=conv.state.user_id)
 
-The new flow begins on the next turn.
+    if response.status_code != 200:
+        flow.goto_step("API error handling")
+        return
 
-## 4. Trigger a flow after an API result
-
-Flows do not automatically trigger from APIs.
-
-Instead:
-
-- A Function step calls an API.
-- Your code evaluates the response.
-- You either:
-  - Route within the current flow using flow.goto_step
-  - Or start a new flow using conv.goto_flow
-
-Example:
-
-```python
-    response = conv.api.crm.lookup_user(id="123")
     data = response.json()
 
-    if data["status"] == "requires_verification":
+    if data.get("status") == "requires_verification":
         conv.goto_flow("Verification flow")
+        return
+
+    flow.goto_step("Continue booking")
+    return
 ```
+
+Routing decisions always happen in your function.
+
+## Routing inside a flow (not flow triggering)
+
+Once inside a flow, movement between steps uses `flow.goto_step(...)`.
+
+Example:
+
+```python
+def check_user_verified(conv: Conversation, flow: Flow):
+    if conv.state.user_verified:
+        flow.goto_step("Account details")
+        return
+
+    flow.goto_step("Verify identity")
+    return
+```
+
+Important:
+Only the last `flow.goto_step()` call in a function is executed.
+Always return immediately after calling `flow.goto_step(...)` to avoid silent overrides.
