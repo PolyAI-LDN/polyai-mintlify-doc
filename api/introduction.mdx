@@ -80,7 +80,72 @@ The structure is:
 
 ```python
   conv.api.<api_name>.<operation_name>(...)
-  ```
+```
+
+Example:
+
+```python
+  response = conv.api.salesforce.get_contact("123")
+```
+
+## What gets returned from an API call
+
+Calling an operation returns a `requests.Response`-like object (a standard Python HTTP response object).
+
+This means you can:
+- Check `response.status_code`
+- Access `response.text`
+- Call `response.json()` to parse JSON responses
+
+### Example: Reading JSON from a response
+
+Assume your API returns the following JSON:
+
+```python
+  {
+    "id": "123",
+    "status": "active",
+    "email": "customer@example.com"
+  }
+```
+
+You would handle it like this inside a function:
+
+```python
+  response = conv.api.salesforce.get_contact("123")
+
+  data = response.json()
+  status = data["status"]
+  email = data["email"]
+```
+
+You can then use those values to decide what to return to the agent.
+
+## Returning values from your function
+
+After calling an API and processing the response, your function must return a dictionary.
+
+There are two common patterns:
+
+### 1. Return natural language content
+
+Use this when you want the LLM to continue the conversation naturally:
+
+```python
+  return {"content": f"The account is currently {status}."}
+```
+
+### 2. Return a programmatic utterance
+
+Use this when you want to return a fully controlled response:
+
+```python
+  return {"utterance": "Your account is active and ready to use."}
+```
+
+In most cases:
+- `"content"` lets the model incorporate your result into a broader response.
+- `"utterance"` returns a fixed, deterministic reply.
 
 ## Path variables
 
@@ -109,7 +174,7 @@ You can pass:
 
 Example:
 
-```python
+```json
   response = conv.api.stripe.create_payment(
     amount=100,
     params={"expand": "customer"},
@@ -137,6 +202,7 @@ The APIs tab provides:
 - Centralized API configuration
 - Environment-aware routing
 - A simple runtime interface with `conv.api`
+- A `requests.Response`-like return object that you process with `response.json()`
 
 For examples of API calls in context, see:
 - [Functions](/function/introduction)
