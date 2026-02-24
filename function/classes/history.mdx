@@ -1,0 +1,76 @@
+---
+title: "History"
+description: "Work with conversation history events."
+---
+
+The `conv.history` attribute contains a chronological list of `UserInput` and `AgentResponse` objects representing the conversation so far.
+
+## `UserInput`
+
+Represents a user turn in the conversation.
+
+```python
+for event in conv.history:
+    if isinstance(event, UserInput):
+        print(f"User said: {event.text}")
+```
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `text` | str | The user's input text |
+| `role` | str | Always `"user"` |
+
+### Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `to_dict()` | dict | Returns `{"type": "user", "text": "..."}` |
+| `to_string()` | str | Returns `"User: <text>"` |
+
+## `AgentResponse`
+
+Represents an agent turn in the conversation.
+
+```python
+for event in conv.history:
+    if isinstance(event, AgentResponse):
+        print(f"Agent said: {event.text}")
+```
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `text` | str | The agent's response text |
+| `role` | str | Always `"agent"` |
+
+### Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `to_dict()` | dict | Returns `{"type": "agent", "text": "..."}` |
+| `to_string()` | str | Returns `"Agent: <text>"` |
+
+## Example: format history for logging
+
+```python
+def log_conversation(conv: Conversation):
+    for event in conv.history:
+        conv.log.info(event.to_string())
+```
+
+## Example: get last user message
+
+```python
+def get_last_user_input(conv: Conversation) -> str:
+    for event in reversed(conv.history):
+        if hasattr(event, 'role') and event.role == "user":
+            return event.text
+    return ""
+```
+
+## See also
+
+- [`conv` object](./conv-object) — full list of conversation methods and attributes.

@@ -64,6 +64,111 @@ class Address:
     country: Optional[str]
 ```
 
+## `prompt_llm`
+
+Perform a standalone LLM request with a given prompt. Useful for summarizing conversations or extracting specific information.
+
+```python
+summary = conv.utils.prompt_llm(
+  "Summarize the key points from this conversation",
+  show_history=True,
+  return_json=False,
+  model="gpt-4o"
+)
+```
+
+Parameters:
+- `prompt` (str): The system-level prompt containing instructions for the model.
+- `show_history` (bool, optional): Whether to include conversation history in the request. Default `False`.
+- `return_json` (bool, optional): Whether to return the response as a parsed JSON dict. Default `False`.
+- `model` (str, optional): The LLM to use. Default `"gpt-4o"`. Available options:
+  - `"gpt-4o"` – GPT-4o (default, balanced performance)
+  - `"gpt-4o-mini"` – GPT-4o Mini (faster, lower cost)
+  - `"gpt-4.1"`, `"gpt-4.1-mini"`, `"gpt-4.1-nano"` – GPT-4.1 series
+  - `"claude-sonnet-4"` – Claude Sonnet 4
+  - `"claude-3.5-haiku"` – Claude 3.5 Haiku (fast)
+
+Returns:
+- `str` or `dict`: The LLM response, parsed as JSON if `return_json=True`.
+
+Raises:
+- `NotImplementedError` if the feature is not enabled for your account.
+- `ChatCompletionError` if the request fails.
+
+## `validate_entity`
+
+Validate an entity value against a configuration schema.
+
+```python
+result = conv.utils.validate_entity(
+  value="john@example.com",
+  entity_config=conv.utils.EmailConfig()
+)
+if result.is_valid:
+  conv.state.email = result.normalized_value
+```
+
+Parameters:
+- `value` (str): The value to validate.
+- `entity_config` (EntityConfig): Configuration for the entity type. Available configs:
+  - `conv.utils.EmailConfig()`
+  - `conv.utils.PhoneNumberConfig()`
+  - `conv.utils.DateConfig()`
+  - `conv.utils.TimeConfig()`
+  - `conv.utils.NumericConfig()`
+  - `conv.utils.CurrencyConfig()`
+  - `conv.utils.NameConfig()`
+  - `conv.utils.AlphanumericConfig()`
+  - `conv.utils.EnumConfig()`
+  - `conv.utils.FreeTextConfig()`
+
+Returns:
+- `EntityValidationResponse` with `is_valid`, `normalized_value`, and validation details.
+
+## `geocode_address`
+
+Geocode a full address string using configured mapping services.
+
+```python
+address = conv.utils.geocode_address(
+  full_address="123 Main St, New York, NY 10001",
+  provider="google_maps"
+)
+```
+
+Parameters:
+- `full_address` (str): The complete address string to geocode.
+- `provider` (str, optional): Geocoding provider (`"google_maps"` or `"mapbox"`). Default `"google_maps"`.
+
+Returns:
+- An `Address` instance with coordinates in `other_fields` if available.
+
+<Note>This feature requires legal approval and is currently restricted to specific projects.</Note>
+
+## `extract_and_geocode_address`
+
+Extract a full address from the latest user input and geocode it in a single operation.
+
+```python
+address = conv.utils.extract_and_geocode_address(
+  country="US",
+  postcodes=["10001", "10002"],
+  biases=["123 Main St, New York"],
+  provider="google_maps"
+)
+```
+
+Parameters:
+- `country` (str, optional): Country code to bias extraction/geocoding. Default `"US"`.
+- `postcodes` (list[str], optional): Candidate postcodes to bias extraction.
+- `biases` (list[str], optional): Nearby or full addresses to bias extraction.
+- `provider` (str, optional): Geocoding provider. Default `"google_maps"`.
+
+Returns:
+- A fully geocoded `Address` with coordinates in `other_fields` if provided.
+
+<Note>This feature requires legal approval and is currently restricted to specific projects.</Note>
+
 ## Notes
 
 - **Latency**: Each method may take a few seconds to complete due to LLM processing.
