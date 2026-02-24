@@ -224,6 +224,65 @@ The Conversation object (conv) provides access to conversation data and tools fo
     ```
   </Accordion>
 
+  <Accordion title="entities">
+    **Description**: Dictionary of entity validation results collected from the conversation (dict[str, EntityValidationResult]).
+    **Example**:
+    ```python
+    if "email" in conv.entities:
+      validated_email = conv.entities.email
+    ```
+  </Accordion>
+
+  <Accordion title="functions">
+    **Description**: Executor for calling other functions defined in the project. Access functions using dot notation.
+    **Example**:
+    ```python
+    result = conv.functions.lookup_order()
+    ```
+  </Accordion>
+
+  <Accordion title="api">
+    **Description**: Executor for calling configured API integrations. Access APIs using `conv.api.{integration_name}.{operation_name}()`.
+    **Example**:
+    ```python
+    response = conv.api.salesforce.get_contact(user_id="123")
+    if response.status_code == 200:
+      contact_data = response.json()
+    ```
+  </Accordion>
+
+  <Accordion title="generic_external_events">
+    **Description**: List of external events initiated by `generate_external_event`. Each event contains `ext_event_id`, `send_to_llm`, `created_at`, `data`, and `content_type`.
+    **Example**:
+    ```python
+    for event in conv.generic_external_events:
+      if event.data:
+        log.info(f"Received webhook data: {event.data}")
+    ```
+  </Accordion>
+
+  <Accordion title="translations">
+    **Description**: Proxy for accessing localized translations. Access translation keys as attributes to get the translated text for the current language.
+    **Example**:
+    ```python
+    greeting = conv.translations.welcome_message
+    conv.say(greeting)
+    ```
+  </Accordion>
+
+  <Accordion title="response_suggestions">
+    **Description**: List of quick-reply suggestions for the next agent message. Only supported on webchat channels.
+    **Example**:
+    ```python
+    for suggestion in conv.response_suggestions:
+      print(suggestion)
+    ```
+  </Accordion>
+
+  <Accordion title="agentic_dial">
+    **Description**: Agentic dial data for the conversation, used for advanced dialing scenarios.
+  </Accordion>
+
 </AccordionGroup>
 
 ## Methods
@@ -359,7 +418,82 @@ The Conversation object (conv) provides access to conversation data and tools fo
     **Example**:
     ```python
     address = conv.utils.extract_address(country="US")
-    See Conversation utilities for the full list of available helpers.
+    ```
+    See [Conversation utilities](./conv-utils) for the full list of available helpers.
+  </Accordion>
+
+  <Accordion title="set_voice">
+    **Description**: Change the TTS voice for the current conversation moving forward.
+    **Parameters**: voice (TTSVoice) – the voice configuration to use.
+    **Example**:
+    ```python
+    from polyai.voice import ElevenLabsVoice
+    conv.set_voice(ElevenLabsVoice(provider_voice_id="abc123"))
+    ```
+  </Accordion>
+
+  <Accordion title="set_language">
+    **Description**: Change the language for the current conversation moving forward.
+    **Parameters**: language (str) – ISO 639 language code (e.g., "en-US", "es-ES", "fr-FR").
+    **Example**:
+    ```python
+    conv.set_language("es-US")
+    ```
+  </Accordion>
+
+  <Accordion title="set_asr_biasing">
+    **Description**: Dynamically configure ASR keywords and custom biases for improved speech recognition. Biasing persists across turns until cleared.
+    **Parameters**: 
+    - keywords (list[str], optional) – list of keywords to bias ASR recognition toward.
+    - custom_biases (dict[str, float], optional) – dictionary mapping phrases to bias weights.
+    **Example**:
+    ```python
+    conv.set_asr_biasing(
+      keywords=["reservation", "booking", "cancel"],
+      custom_biases={"reservation": 3.0, "cancellation": 2.5}
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="clear_asr_biasing">
+    **Description**: Clear any previously set ASR biasing for future turns.
+    **Example**:
+    ```python
+    conv.clear_asr_biasing()
+    ```
+  </Accordion>
+
+  <Accordion title="goto_csat_flow">
+    **Description**: Trigger a transition to the CSAT (Customer Satisfaction) survey flow for voice calls.
+    **Example**:
+    ```python
+    if conv.state.get("call_completed"):
+      conv.goto_csat_flow()
+    ```
+  </Accordion>
+
+  <Accordion title="send_email">
+    **Description**: Send an email from the function.
+    **Parameters**: 
+    - to (str) – recipient email address.
+    - body (str) – raw body of the email.
+    - subject (str, optional) – subject line.
+    **Example**:
+    ```python
+    conv.send_email(
+      to="customer@example.com",
+      body="Thank you for your order!",
+      subject="Order Confirmation"
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="add_response_suggestions">
+    **Description**: Add quick-reply suggestions that appear as clickable options for the user. Only supported on webchat channels.
+    **Parameters**: suggestions (list[str]) – list of suggested responses.
+    **Example**:
+    ```python
+    conv.add_response_suggestions(["Yes, confirm", "No, cancel", "More options"])
     ```
   </Accordion>
 

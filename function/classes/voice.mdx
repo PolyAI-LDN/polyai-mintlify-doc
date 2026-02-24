@@ -57,6 +57,123 @@ conv.set_voice(
 )
 ```
 
+### Example: Cartesia
+
+```python
+from polyai.voice import CartesiaVoice, Emotion, EmotionKind, EmotionIntensity
+
+conv.set_voice(
+    CartesiaVoice(
+        provider_voice_id="a1b2c3d4",
+        speed=0.0,  # -1.0 (slowest) to 1.0 (fastest)
+        emotions=[
+            Emotion(EmotionKind.POSITIVITY, EmotionIntensity.HIGH)
+        ],
+        model_id="sonic"  # or "sonic-preview"
+    )
+)
+```
+
+**Emotion options:**
+- `EmotionKind`: `ANGER`, `POSITIVITY`, `SURPRISE`
+- `EmotionIntensity`: `LOWEST`, `LOW`, `HIGH`, `HIGHEST`
+
+### Example: Rime
+
+```python
+from polyai.voice import RimeVoice
+
+conv.set_voice(
+    RimeVoice(
+        provider_voice_id="voice_id",
+        speech_alpha=1.0,  # <1.0 faster, >1.0 slower
+        model_id="mistv2"  # or "mist"
+    )
+)
+```
+
+### Example: Minimax
+
+```python
+from polyai.voice import MinimaxVoice
+
+conv.set_voice(
+    MinimaxVoice(
+        model_id="speech-02-hd",  # or speech-02-turbo, speech-01-hd, speech-01-turbo
+        voice_id="voice_id",
+        speed=1.0,      # 0.5-2.0
+        vol=1.0,        # 0-10
+        pitch=0,        # -12 to 12
+        emotion="happy" # happy, sad, angry, fearful, disgusted, surprised, neutral
+    )
+)
+```
+
+### Example: Hume
+
+```python
+from polyai.voice import HumeVoice
+
+conv.set_voice(
+    HumeVoice(
+        provider_voice_id="voice_uuid_or_name",
+        voice_description="patient, empathetic counselor",  # Optional
+        version="2",        # "1" for octave-1, "2" for octave-2
+        instant_mode=False, # Ultra-low latency mode
+        provider="HUME_AI"  # "CUSTOM_VOICE" or "HUME_AI"
+    )
+)
+```
+
+### Example: Google TTS
+
+```python
+from polyai.voice import GoogleVoice
+
+conv.set_voice(
+    GoogleVoice(
+        provider_voice_id="ja-JP-Neural2-B",
+        gender="male"  # "male", "female", or "neutral"
+    )
+)
+```
+
+### Example: Custom provider
+
+```python
+from polyai.voice import CustomVoice
+
+conv.set_voice(
+    CustomVoice(
+        provider="MY_PROVIDER",
+        provider_voice_id="voice_id",
+        custom_param="value"  # Any additional kwargs
+    )
+)
+```
+
+## Voice randomization
+
+Use `VoiceWeighting` to randomly select a voice based on weighted probabilities:
+
+```python
+from polyai.voice import VoiceWeighting, ElevenLabsVoice
+
+conv.randomize_voice([
+    VoiceWeighting(
+        voice=ElevenLabsVoice(provider_voice_id="voice1"),
+        weight=0.7
+    ),
+    VoiceWeighting(
+        voice=ElevenLabsVoice(provider_voice_id="voice2"),
+        weight=0.3
+    ),
+])
+```
+
+- Weights must sum to 1.0.
+- Voices without explicit weights share the remaining probability equally.
+
 ## Cache behavior
 
 * Changing `model_id` does not automatically invalidate cached audio.
