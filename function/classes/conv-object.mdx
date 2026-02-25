@@ -14,22 +14,27 @@ The Conversation object (conv) provides access to conversation data and tools fo
     **Description**: Unique identifier of the conversation.
     **Example**:
     ```python
-    print(conv.id)`
+    log.info(f"Conversation ID: {conv.id}")
+    # Example output: "conv_abc123xyz789"
     ```
   </Accordion>
 
   <Accordion title="account_id">
-    **Description**: PolyAI account ID that owns this project.
+    **Description**: PolyAI account ID that owns this project. This is the same account ID visible in your Studio URL: `https://studio.poly.ai/account/{account_id}/...`
     **Example**:
      ```python
     log.info(f"Account: {conv.account_id}")
+    # Example output: "acc_abc123"
     ```
   </Accordion>
 
   <Accordion title="project_id">
-    **Description**: Project ID of the current agent.
+    **Description**: Project ID of the current agent. This is the same project ID visible in your Studio URL: `https://studio.poly.ai/account/{account_id}/project/{project_id}/...`
     **Example**:
     ```python
+    log.info(f"Project ID: {conv.project_id}")
+    # Example output: "proj_abc123"
+    
     if conv.project_id == "proj_123":
       print("Running in the main deployment")
     ```
@@ -47,11 +52,19 @@ The Conversation object (conv) provides access to conversation data and tools fo
 
 <Accordion title="channel_type">
     **Description**: Type of channel the conversation is taking place on.
-    **Values**: `sip.polyai`, `webchat.polyai`, `chat.polyai`, plus integration-specific channel identifiers as configured.
+    
+    **Possible values**:
+    - `"VOICE"` – Voice calls (telephony)
+    - `"sms"` – SMS text messages
+    - `"sip.polyai"` – SIP-based voice calls
+    - Integration-specific identifiers (e.g., `"webchat.polyai"`, `"chat.polyai"`)
+    
     **Example**:
     ```python
-    if conv.channel_type == "sip.polyai":
-      log.info("Running a voice call via SIP")
+    if conv.channel_type == "VOICE":
+      log.info("Running a voice call")
+    elif conv.channel_type == "sms":
+      log.info("Running an SMS conversation")
     ```
   </Accordion>
 
@@ -73,10 +86,21 @@ The Conversation object (conv) provides access to conversation data and tools fo
   </Accordion>
 
   <Accordion title="integration_attributes">
-    **Description**: Metadata passed from an external integration (dict[str, Any]). Only available inside the start function.
+    **Description**: Metadata passed from an external integration (dict[str, Any]). These attributes are defined per project and per integration during setup.
+    
+    **Supported integrations**:
+    - [DNIs Pooling](https://docs.poly.ai/integrations/voice/dnis-pool) – Provides `shared_id` for correlating conversation outcomes
+    
+    **Best practice**: Validate and extract required attributes in the `start_function` to handle missing data appropriately.
+    
     **Example**:
     ```python
-    source = conv.integration_attributes.get("lead_source")
+    # In start_function
+    if shared_id := conv.integration_attributes.get("shared_id"):
+      conv.state.shared_id = shared_id
+      log.info(f\"Tracking with shared_id: {shared_id}\")\n    else:
+      # Handle missing integration data
+      log.warning(\"No shared_id provided by integration\")
     ```
   </Accordion>
 
@@ -90,12 +114,19 @@ The Conversation object (conv) provides access to conversation data and tools fo
 
   <Accordion title="caller_number">
     **Description**: The caller's identifier.
-    For SIP calls, this is the phone number in [E.164](http://twilio.com/docs/glossary/what-e164) format, where +1 is the area code for the USA.
-    For chat channels, this may be an email address or integration-provided user ID. The value is not guaranteed to be None.
+    
+    **For inbound calls**: The phone number of the person calling in, in [E.164](http://twilio.com/docs/glossary/what-e164) format (e.g., `+14155551234` for USA numbers).
+    
+    **For outbound calls**: The phone number being called by the agent.
+    
+    **For chat channels**: This may be an email address or integration-provided user ID.
+    
     **Example**:
     ```python
     identifier = conv.caller_number
     log.info(f"Caller identity: {identifier}")
+    # Inbound example: "+14155551234"
+    # Chat example: "user@example.com"
     ```
   </Accordion>
 
@@ -184,6 +215,11 @@ The Conversation object (conv) provides access to conversation data and tools fo
     ```python
     for event in conv.history:
       print(event.speaker, event.timestamp, event.text)
+    
+    # Example output:
+    # user 2024-01-15T10:30:00Z "I need to book a table"
+    # agent 2024-01-15T10:30:02Z "I'd be happy to help you book a table"
+    # user 2024-01-15T10:30:05Z "For 4 people at 7pm"
     ```
   </Accordion>
 
@@ -197,10 +233,16 @@ The Conversation object (conv) provides access to conversation data and tools fo
   </Accordion>
 
   <Accordion title="transcript_alternatives">
-    **Description**: List of ASR alternatives for the last user utterance.
+    **Description**: List of ASR alternatives for the last user utterance. Each alternative includes the transcribed text and a confidence score.
     **Example**:
     ```python
-    print(conv.transcript_alternatives)
+    for alt in conv.transcript_alternatives:
+      print(f"Text: {alt.text}, Confidence: {alt.confidence}")
+    
+    # Example output:
+    # Text: "book a table for two", Confidence: 0.95
+    # Text: "book a table for too", Confidence: 0.78
+    # Text: "book a table for to", Confidence: 0.65
     ```
   </Accordion>
 
@@ -215,12 +257,19 @@ The Conversation object (conv) provides access to conversation data and tools fo
   </Accordion>
 
   <Accordion title="memory">
-    **Description**: Dictionary of memory fields previously stored for the caller, retrieved from Agent Memory. The identifier used to retrieve memory is typically caller_number for voice or the integration key for chat.
+    **Description**: Dictionary of memory fields previously stored for the caller, retrieved from Agent Memory. 
+    
+    **Customer identification**: Memory is retrieved using `caller_number` for voice calls or the integration-provided user identifier for chat channels. This allows the agent to recognize returning customers and recall previous interactions.
+    
     **Example**:
     ```python
     cheese = conv.memory.get("cheese_type")
     if cheese:
       conv.say(f"You're a fan of {cheese}, right?")
+    
+    # Check if this is a returning customer
+    if conv.memory.get("last_order_date"):
+      conv.say("Welcome back!")
     ```
   </Accordion>
 
@@ -298,10 +347,22 @@ The Conversation object (conv) provides access to conversation data and tools fo
   </Accordion>
 
   <Accordion title="randomize_voice">
-    **Description**: Randomly choose a voice based on weighted probabilities. See Voice Selection docs for available voices.
+    **Description**: Randomly choose a voice based on weighted probabilities. 
+    
+    **Parameters**: 
+    - voice_weightings (list[VoiceWeighting]) – list of VoiceWeighting objects, each containing a voice and weight.
+    
+    **Available voices**: Import from `poly.voice` module (e.g., `ElevenLabsVoice`, `CartesiaVoice`, `PlayHTVoice`, `RimeVoice`). See Voice Selection docs for the full list of available voices and their IDs.
+    
     **Example**:
     ```python
-    conv.randomize_voice([VoiceWeighting(voice=Voices.en_male_calm, weight=70), VoiceWeighting(voice=Voices.en_female_warm, weight=30)])
+    from poly import VoiceWeighting
+    from poly.voice import Voices
+    
+    conv.randomize_voice([
+      VoiceWeighting(voice=Voices.en_male_calm, weight=70), 
+      VoiceWeighting(voice=Voices.en_female_warm, weight=30)
+    ])
     ```
   </Accordion>
 
@@ -356,15 +417,26 @@ The Conversation object (conv) provides access to conversation data and tools fo
 
   <Accordion title="log_api_response">
     **Description**: Logs an external API response for visibility in Conversation Review → Diagnosis and the analytics pipeline.
+    
+    **Where logs appear**:
+    - **Conversation Review**: View API responses in the Diagnosis tab for debugging
+    - **Analytics pipeline**: API response data is available for reporting and analysis
+    
     **Example**:
     ```python
     response = requests.get("https://api.example.com/user")
     conv.log_api_response(response)
+    # Response will appear in Conversation Review → Diagnosis
     ```
   </Accordion>
 
   <Accordion title="send_whatsapp">
-    **Description**: Sends a WhatsApp message with the configured WhatsApp Business API integration.
+    **Description**: Sends a plain-text WhatsApp message with the configured WhatsApp Business API integration.
+    
+    **Use case**: Send simple, unformatted WhatsApp messages.
+    
+    **Difference from send_content_template**: Use `send_whatsapp` for plain text messages. Use `send_content_template` for pre-approved WhatsApp templates with variables, rich media, or buttons.
+    
     **Example**:
     ```python
     conv.send_whatsapp(to="+441234567890", content="Hello from PolyAI!")
@@ -373,9 +445,18 @@ The Conversation object (conv) provides access to conversation data and tools fo
 
   <Accordion title="send_content_template">
     **Description**: Sends a WhatsApp or SMS template message defined in your content templates.
+    
+    **Use case**: Send pre-approved templates with dynamic variables, rich media (images, videos), or interactive buttons.
+    
+    **Difference from send_whatsapp**: Use `send_content_template` for structured messages with variables and rich content. Use `send_whatsapp` for simple plain-text messages.
+    
     **Example**:
     ```python
-    conv.send_content_template(to="+441234567890", template="order_update", parameters={"order_id": "12345"})
+    conv.send_content_template(
+      to="+441234567890", 
+      template="order_update", 
+      parameters={"order_id": "12345", "status": "shipped"}
+    )
     ```
   </Accordion>
 
@@ -414,12 +495,25 @@ The Conversation object (conv) provides access to conversation data and tools fo
   </Accordion>
 
   <Accordion title="utils">
-    **Description**: Provides helper functions for extracting structured data from user input, such as postal addresses, names, or city references.
+    **Description**: Provides LLM-powered helper functions for extracting and validating structured data from user input.
+    
+    **Available utilities**:
+    - `extract_address()` – Extract postal addresses
+    - `extract_name()` – Extract person names
+    - `extract_city()` – Extract city references
+    - `extract_date()` – Extract dates and times
+    - `extract_email()` – Extract email addresses
+    - `extract_phone()` – Extract phone numbers
+    
+    **Note**: These utilities are opt-in and may not be enabled in your workspace. Contact your admin to request access.
+    
     **Example**:
     ```python
     address = conv.utils.extract_address(country="US")
+    name = conv.utils.extract_name()
     ```
-    See [Conversation utilities](./conv-utils) for the full list of available helpers.
+    
+    See [Conversation utilities](./conv-utils) for the full list of available helpers and detailed documentation.
   </Accordion>
 
   <Accordion title="set_voice">
@@ -474,10 +568,19 @@ The Conversation object (conv) provides access to conversation data and tools fo
 
   <Accordion title="send_email">
     **Description**: Send an email from the function.
+    
+    **SMTP configuration**: Emails are sent using PolyAI's managed SMTP service. For custom SMTP servers or advanced delivery requirements, contact your PolyAI support team.
+    
+    **Delivery considerations**:
+    - Emails are sent asynchronously after the turn completes
+    - Delivery failures are logged but do not interrupt the conversation
+    - For high-volume sending, consider rate limits and reputation management
+    
     **Parameters**: 
     - to (str) – recipient email address.
     - body (str) – raw body of the email.
     - subject (str, optional) – subject line.
+    
     **Example**:
     ```python
     conv.send_email(
