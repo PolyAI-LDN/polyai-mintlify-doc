@@ -1,352 +1,432 @@
 ---
 title: 'Multi-language updates'
-description: 'Maintain and update multilingual agents.'
+description: 'Maintain and optimize multilingual agent configurations.'
 ---
 
-Agent Studio supports one language per project. If you serve multiple languages, you'll maintain separate projects for each. This page covers how to keep multilingual agents consistent and up-to-date.
+Multilingual agents can handle conversations in multiple languages. This page covers how to maintain language-specific content, voices, and configurations as your agent evolves.
 
 ## Quick reference
 
 | I need to... | Action | Time estimate |
 |--------------|--------|---------------|
-| Update content in one language | Edit that project's knowledge base | 10-20 min |
-| Sync changes across languages | Manually update each project | 30-60 min |
-| Add a new language | Create new project → Translate content | 2-4 hours |
-| Update voice for a language | Settings → Voice → Select multilingual voice | 5 min |
-| Fix translation in KB | Edit topic content in that language project | 5 min |
-| Update prompts for all languages | Edit Agent Behavior in each project | 15-30 min |
-| Test language routing | Call each project's phone number | 10 min |
+| Add a new language | Settings → Multilingual → Add language | 10 min |
+| Update language-specific knowledge | Edit topics with language variants | 5-10 min |
+| Change voice for a language | Settings → Voice → Select per language | 5 min |
+| Fix translation issues | Edit language-specific responses | 5 min |
+| Test language switching | Agent Chat → Switch language mid-call | 3 min |
+| Update language detection | Settings → Multilingual → Configure detection | 5 min |
+| Add language-specific functions | Functions → Add language parameter | 10 min |
 
-## Understanding multi-language architecture
+## Understanding multilingual agents
 
-### One language per project
+### How multilingual agents work
 
-Agent Studio requires a separate project for each language:
+Multilingual agents can:
 
-- **English project** - Handles English-speaking callers
-- **Spanish project** - Handles Spanish-speaking callers
-- **French project** - Handles French-speaking callers
+- **Detect the caller's language** automatically
+- **Switch languages mid-conversation** if the caller changes
+- **Maintain language-specific knowledge** for each language
+- **Use appropriate voices** per language
+- **Handle mixed-language queries** (code-switching)
 
-Each project has its own:
-- Knowledge base
-- Functions
-- Voice settings
-- Phone number or routing logic
+### Supported languages
 
-<Note>Contact your PolyAI representative for help setting up routing between language projects.</Note>
+PolyAI supports 30+ languages including:
 
-## What to translate vs. what to keep in English
+- English (en)
+- Spanish (es)
+- French (fr)
+- German (de)
+- Italian (it)
+- Portuguese (pt)
+- Dutch (nl)
+- Polish (pl)
+- Russian (ru)
+- Japanese (ja)
+- Korean (ko)
+- Chinese Mandarin (zh)
+- Arabic (ar)
+- Hindi (hi)
+- And many more
 
-| Element | Translate? | Notes |
-|---------|-----------|-------|
-| **Knowledge Base** | | |
-| Sample questions | ✅ Yes | Must match user input language |
-| Content/answers | ✅ Yes | For brand accuracy and natural output |
-| Topic names | ❌ No | Internal use only, not user-facing |
-| Actions | ❌ No | Internal instructions |
-| **Functions** | | |
-| Python code | ❌ No | Keep in English |
-| Function names | ❌ No | Internal identifiers |
-| Function descriptions | ❌ No | Instructions to the agent |
-| Hard-coded utterances | ✅ Yes | User-facing responses |
-| LLM prompts with examples | ✅ Yes | If showing example responses |
-| **Voice & Audio** | | |
-| ASR keywords | ✅ Yes | Must match spoken language |
-| ASR corrections | ✅ Yes | Language-specific |
-| Pronunciations | ✅ Yes | Different per language |
-| Response control | ✅ Yes | Language-specific patterns |
-| **SMS** | | |
-| SMS content | ✅ Yes | User-facing text |
-| **Agent Behavior** | | |
-| Instructions to agent | ❌ No | Keep in English |
-| Example utterances | ✅ Yes | What agent should say |
-| Style guidelines | ✅ Yes | If showing example responses |
+Check the [multilingual settings documentation](/agent-settings/multilingual) for the complete list.
 
-## Setting up a new language project
+## Adding or removing languages
 
-### Initial setup
+### Adding a new language
 
-1. **Create the project**
-   - Go to Projects → Create New Project
-   - Name it clearly (e.g., "Customer Service - Spanish")
+1. Go to **Settings** → **Multilingual**
+2. Click **Add language**
+3. Select the language from the dropdown
+4. Configure language-specific settings:
+   - Voice selection
+   - Language detection sensitivity
+   - Fallback behavior
+5. Save your changes
+6. Add language-specific knowledge (see below)
+7. Test in Agent Chat
+8. Publish when ready
 
-2. **Set the project language**
-   - Go to Settings
-   - Select the target language from the dropdown
+<Tip>Use a `multilingual_v2` voice model to ensure proper pronunciation across all languages.</Tip>
 
-3. **Choose a multilingual voice**
-   - Go to Settings → Voice
-   - Select a voice that supports your language
-   - Use a `multilingual_v2` model for best results
+### Removing a language
 
-4. **Configure Agent Behavior**
-   - Add instruction: "Always reply in [language]"
-   - Translate any example utterances
-   - Keep instructions to the agent in English
+1. Go to **Settings** → **Multilingual**
+2. Find the language to remove
+3. Click **Remove** or **Disable**
+4. Confirm the action
+5. Publish the change
 
-### Example Agent Behavior (Spanish)
+<Warning>Removing a language will cause the agent to fall back to the default language for callers speaking that language.</Warning>
 
+## Managing language-specific knowledge
+
+### Managed Topics with language variants
+
+To provide different content per language:
+
+1. Go to **Managed Topics**
+2. Create or edit a topic
+3. Add **language variants** for each supported language
+4. Provide translations or culturally-appropriate content
+5. Save and test
+
+**Example:**
+
+**English (en):**
+- Question: "What are your hours?"
+- Answer: "We're open Monday through Friday, 9 AM to 5 PM."
+
+**Spanish (es):**
+- Question: "¿Cuál es su horario?"
+- Answer: "Estamos abiertos de lunes a viernes, de 9 AM a 5 PM."
+
+**French (fr):**
+- Question: "Quelles sont vos heures d'ouverture?"
+- Answer: "Nous sommes ouverts du lundi au vendredi, de 9h à 17h."
+
+### Connected Knowledge per language
+
+For Connected Knowledge sources:
+
+- **URL sources** - Add separate URLs for each language version of your website
+- **File sources** - Upload language-specific PDFs or documents
+- **Integration sources** - Configure APIs to return language-specific data
+
+**Example setup:**
+
+- English: `https://example.com/en/faq`
+- Spanish: `https://example.com/es/preguntas-frecuentes`
+- French: `https://example.com/fr/faq`
+
+### When to use shared vs. language-specific knowledge
+
+| Use shared knowledge when... | Use language-specific knowledge when... |
+|------------------------------|------------------------------------------|
+| Information is universal (phone numbers, addresses) | Content needs translation |
+| Data is language-agnostic (product IDs, prices) | Cultural context matters (holidays, customs) |
+| You want consistency across languages | Local regulations differ by region |
+| Maintaining multiple versions is impractical | User expectations vary by language |
+
+## Updating voices for each language
+
+### Selecting language-appropriate voices
+
+1. Go to **Settings** → **Voice**
+2. Configure voices per language:
+   - **English** - Choose an English-native voice
+   - **Spanish** - Choose a Spanish-native voice
+   - **French** - Choose a French-native voice
+3. Preview each voice
+4. Save your selections
+
+### Voice quality considerations
+
+- **Use native voices** - Don't use an English voice for Spanish
+- **Match regional accents** - Use Mexican Spanish for Mexico, Castilian for Spain
+- **Test pronunciation** - Ensure the voice handles language-specific characters
+- **Consider gender and tone** - Match your brand across languages
+
+### Multilingual voice models
+
+Some TTS providers offer multilingual models that can speak multiple languages:
+
+```python
+from poly import ElevenLabsVoice
+
+voice = ElevenLabsVoice(
+    provider_voice_id="multilingual_voice_id",
+    model="eleven_multilingual_v2"  # Supports 30+ languages
+)
 ```
-If the user's query is unclear, ask for clarification. For example, if the user says "factura," ask "¿Cómo puedo ayudarle con su factura?"
 
-If the user offers their account number, say "Gracias, pero tal vez no necesite su número de cuenta. ¿Cómo puedo ayudarle hoy?"
+<Note>Multilingual models are convenient but may have slightly lower quality than language-specific models.</Note>
 
-Your responses must adhere to the following STYLE guidelines:
+## Handling language detection
 
-- Only answer in Spanish, in a register that would feel conversational and appropriate for a customer service context in North America
-- Your responses should be casual and concise, appropriate for a customer service agent in a phone conversation
+### Automatic language detection
+
+By default, agents detect the caller's language automatically:
+
+1. The caller speaks
+2. ASR (Automatic Speech Recognition) identifies the language
+3. The agent responds in the detected language
+
+### Configuring detection sensitivity
+
+Adjust how aggressively the agent switches languages:
+
+1. Go to **Settings** → **Multilingual**
+2. Adjust **Language detection sensitivity**:
+   - **High** - Switches quickly, may over-switch
+   - **Medium** - Balanced (recommended)
+   - **Low** - Switches reluctantly, may miss switches
+3. Test with mixed-language scenarios
+
+### Explicit language selection
+
+Allow callers to choose their language explicitly:
+
+1. Create a Managed Topic for language selection
+2. Add options like "Press 1 for English, 2 for Spanish"
+3. Use a function to set the language:
+
+```python
+def set_language(language_code):
+    conv.set_language(language_code)
+    return {"utterance": f"Switching to {language_code}."}
 ```
 
-## Maintaining consistency across languages
+### Handling code-switching
 
-### Content synchronization workflow
+Code-switching is when callers mix languages in a single conversation:
 
-When you update content in one language, you need to manually sync to others:
+- **Example:** "I need to hacer una reservación for mañana."
 
-1. **Make changes in primary language** (e.g., English)
-2. **Document what changed** - Keep a changelog
-3. **Translate updates** - Use professional translators or DeepL integration
-4. **Update each language project** - Apply changes manually
-5. **Test each language** - Verify translations are accurate
-6. **Promote all projects** - Keep versions aligned
+To handle this:
 
-### Using a changelog
+- Enable **flexible language detection**
+- Use multilingual voice models
+- Test with realistic mixed-language scenarios
+- Consider your target audience's code-switching patterns
 
-Track changes across language projects:
+## Fixing translation issues
 
-| Date | Change | English | Spanish | French | Status |
-|------|--------|---------|---------|--------|--------|
-| 2025-02-15 | Added holiday hours | ✅ Done | ✅ Done | ⏳ Pending | In progress |
-| 2025-02-10 | Updated pricing | ✅ Done | ✅ Done | ✅ Done | Complete |
-| 2025-02-05 | New product FAQ | ✅ Done | ⏳ Pending | ⏳ Pending | In progress |
+### Common translation problems
 
-### Translation best practices
+| Issue | Likely cause | Solution |
+|-------|--------------|----------|
+| Awkward phrasing | Direct translation, not localization | Rewrite for natural language |
+| Cultural mismatches | Literal translation of idioms | Use culturally-appropriate equivalents |
+| Incorrect terminology | Generic translation | Use domain-specific terms |
+| Formatting issues | Date/time/number formats differ | Localize formats per language |
+| Missing context | Translation without understanding | Provide context to translators |
 
-- **Use professional translators** - For customer-facing content
-- **Maintain glossaries** - Keep consistent terminology
-- **Consider regional variations** - Spanish (Spain) vs. Spanish (Mexico)
-- **Test with native speakers** - Verify naturalness
-- **Use DeepL integration** - For quick translations that need review
+### Updating translations
 
-## Common maintenance scenarios
+To fix a translation issue:
 
-### Updating business hours
+1. Identify the problematic response in Conversation Review
+2. Find the corresponding Managed Topic or function
+3. Edit the language-specific variant
+4. Test in Agent Chat with native speakers
+5. Publish when satisfied
 
-1. Update hours in English project knowledge base
-2. Translate new hours to each language
-3. Update each language project's knowledge base
-4. Test by asking about hours in each language
-5. Publish and promote all projects
+### Using professional translators
 
-### Adding a new product or service
+For high-quality translations:
 
-1. Create content in primary language
-2. Translate product names, descriptions, FAQs
-3. Add to each language project's knowledge base
-4. Update any related functions with translated utterances
-5. Test product inquiries in each language
-6. Promote all projects together
+- **Export knowledge** - Download Managed Topics as CSV
+- **Send to translators** - Provide context and domain glossary
+- **Import translations** - Upload the translated CSV
+- **Review and test** - Verify quality before publishing
 
-### Fixing a translation error
+## Language-specific functions
 
-1. Identify the incorrect translation (from call logs or feedback)
-2. Find the topic or function containing the error
-3. Correct the translation
-4. Test in Agent Chat
-5. Publish and promote
+### Adding language parameters to functions
 
-### Seasonal content updates
+Functions can behave differently per language:
 
-1. Prepare seasonal content in all languages
-2. Add to each project's knowledge base
-3. Enable in Sandbox for testing
-4. Promote to Live when season begins
-5. Disable or remove when season ends
+```python
+def get_store_hours(location, language="en"):
+    # Fetch hours from API
+    hours = api.get_hours(location)
+    
+    # Format response based on language
+    if language == "es":
+        return {"utterance": f"Estamos abiertos de {hours['open']} a {hours['close']}."}
+    elif language == "fr":
+        return {"utterance": f"Nous sommes ouverts de {hours['open']} à {hours['close']}."}
+    else:
+        return {"utterance": f"We're open from {hours['open']} to {hours['close']}."}
+```
 
-## Managing language-specific features
+### Accessing the current language
 
-### ASR corrections
+Get the caller's language in functions:
 
-Each language needs its own ASR corrections:
+```python
+def dynamic_response():
+    current_language = conv.language
+    conv.log.info(f"Caller language: {current_language}")
+    
+    # Use language-specific logic
+    if current_language == "es":
+        return {"utterance": "Respuesta en español"}
+    else:
+        return {"utterance": "Response in English"}
+```
 
-**English:**
-- "PolyAI" → Correct spelling
-- "API" → Spell out or pronounce
+### Language-specific API calls
 
-**Spanish:**
-- "PolyAI" → Same correction
-- Numbers → May need different formatting
+Some APIs require language parameters:
 
-**French:**
-- "PolyAI" → Same correction
-- Accented words → Ensure proper recognition
-
-### Pronunciations
-
-Pronunciation rules are language-specific:
-
-1. Go to Response Control → Pronunciations in each project
-2. Add IPA pronunciations for that language
-3. Test with native speakers
-
-### Response controls
-
-Stop keywords and response patterns differ by language:
-
-**English:**
-- Stop "Let me transfer you" → Trigger handoff
-
-**Spanish:**
-- Stop "Déjame transferirte" → Trigger handoff
-
-**French:**
-- Stop "Je vais vous transférer" → Trigger handoff
+```python
+def search_products(query):
+    language = conv.language
+    
+    # Call API with language parameter
+    results = requests.get(
+        "https://api.example.com/search",
+        params={"q": query, "lang": language}
+    )
+    
+    return {"utterance": format_results(results, language)}
+```
 
 ## Testing multilingual agents
 
-### Testing each language
+### Test in Agent Chat
 
-1. **Use Agent Chat** - Test in each project's Sandbox
-2. **Make test calls** - Call each language's phone number
-3. **Review transcripts** - Check ASR accuracy
-4. **Verify translations** - Ensure responses are natural
-5. **Test edge cases** - Numbers, dates, special characters
+1. Open Agent Chat
+2. Select a language from the dropdown
+3. Speak or type in that language
+4. Verify the agent responds correctly
+5. Try switching languages mid-conversation
 
-### Common issues to check
+### Test language detection
 
-- **ASR accuracy** - Are words transcribed correctly?
-- **Translation quality** - Do responses sound natural?
-- **Voice quality** - Is the voice clear and appropriate?
-- **Pronunciation** - Are brand names and terms correct?
-- **Consistency** - Do all languages provide the same information?
+1. Start a conversation in one language
+2. Switch to another language mid-call
+3. Verify the agent detects and switches
+4. Check for false positives (switching when it shouldn't)
 
-## Routing between languages
+### Test with native speakers
 
-### Language detection
+- **Recruit testers** - Find native speakers of each language
+- **Provide scenarios** - Give realistic test cases
+- **Gather feedback** - Ask about naturalness, accuracy, and cultural appropriateness
+- **Iterate** - Refine based on feedback
 
-Options for routing callers to the right language:
+### Common test scenarios
 
-1. **Separate phone numbers** - One per language (simplest)
-2. **IVR menu** - "Press 1 for English, 2 for Spanish"
-3. **Automatic detection** - Use language detection function
-4. **Caller preference** - Store language preference in CRM
+- **Language switching** - Start in English, switch to Spanish
+- **Mixed queries** - Ask questions with code-switching
+- **Accents and dialects** - Test regional variations
+- **Background noise** - Verify ASR works in noisy environments
+- **Edge cases** - Test with uncommon words or phrases
 
-<Note>Contact your PolyAI representative for help implementing language routing.</Note>
+## Troubleshooting multilingual issues
 
-### Example language detection function
+### Common issues and solutions
 
-```python
-def detect_language(user_input):
-    # Simple language detection (use a proper library in production)
-    spanish_keywords = ["hola", "gracias", "ayuda", "necesito"]
-    french_keywords = ["bonjour", "merci", "aide", "besoin"]
-    
-    input_lower = user_input.lower()
-    
-    if any(word in input_lower for word in spanish_keywords):
-        # Transfer to Spanish project
-        return {"transfer": "spanish_project_number"}
-    elif any(word in input_lower for word in french_keywords):
-        # Transfer to French project
-        return {"transfer": "french_project_number"}
-    else:
-        # Default to English
-        return {"utterance": "How can I help you today?"}
-```
+| Issue | Likely cause | Solution |
+|-------|--------------|----------|
+| Agent doesn't detect language | ASR not configured for language | Verify language is enabled in settings |
+| Agent switches languages incorrectly | Detection sensitivity too high | Lower sensitivity in settings |
+| Voice sounds unnatural | Wrong voice model for language | Use language-native voice |
+| Translations are awkward | Direct translation | Rewrite for natural language |
+| Knowledge not available in language | Missing language variants | Add language-specific content |
+| Function responses in wrong language | Function doesn't check language | Add language parameter to function |
+| ASR accuracy is low | Accent or dialect not supported | Test with different voice models |
 
-## Version management across languages
+### Debugging language issues
 
-### Keeping versions aligned
-
-Best practice: Keep all language projects on the same version schedule
-
-1. **Develop in Sandbox** - Make changes to all languages
-2. **Test thoroughly** - Verify each language works
-3. **Promote to Pre-release** - All languages together
-4. **UAT in all languages** - Test with native speakers
-5. **Promote to Live** - All languages at once
-
-### Handling urgent updates
-
-If you need to update one language urgently:
-
-1. Make the change in that language project
-2. Publish and promote immediately
-3. Document the change
-4. Update other languages as soon as possible
-5. Bring all projects back into alignment
-
-## Using DeepL for translations
-
-If you have the DeepL integration:
-
-1. Create content in your primary language
-2. Use DeepL to translate to target languages
-3. Review translations for accuracy
-4. Edit as needed for context and tone
-5. Add to each language project
-
-<Tip>DeepL is excellent for initial translations, but always have native speakers review customer-facing content.</Tip>
+1. **Check Conversation Review** - See which language was detected
+2. **Review Diagnosis logs** - Look for language-related errors
+3. **Test in Agent Chat** - Reproduce the issue
+4. **Verify settings** - Ensure language is properly configured
+5. **Check knowledge coverage** - Confirm content exists for that language
 
 ## Best practices
 
 ### Content management
 
-- **Maintain a source of truth** - One primary language (usually English)
-- **Document all changes** - Use a changelog or version control
-- **Translate promptly** - Don't let languages drift out of sync
-- **Review regularly** - Audit translations quarterly
+- **Maintain parity** - Ensure all languages have equivalent content
+- **Localize, don't just translate** - Adapt for cultural context
+- **Use consistent terminology** - Create a glossary for domain terms
+- **Update all languages together** - Don't let translations lag behind
 
-### Quality assurance
+### Voice and audio
 
-- **Native speaker review** - Essential for customer-facing content
-- **Test in context** - Translations that work in isolation may fail in conversation
-- **Monitor call logs** - Look for confusion or errors
-- **Gather feedback** - Ask users about language quality
+- **Use native voices** - Never use a non-native voice for a language
+- **Match regional preferences** - Consider accent and dialect
+- **Test pronunciation** - Verify proper handling of special characters
+- **Adjust speech rate** - Some languages sound better at different speeds
+
+### Testing and quality
+
+- **Test with native speakers** - Don't rely on non-native testers
+- **Monitor language distribution** - Track which languages are used most
+- **Review low-confidence calls** - Identify language detection issues
+- **A/B test translations** - Try different phrasings to find what works best
 
 ### Maintenance routine
 
-- **Weekly** - Review call logs for each language
-- **Monthly** - Sync any content changes across languages
-- **Quarterly** - Full audit of translations and consistency
-- **Annually** - Review voice selection and ASR performance
+- **Monthly language audit** - Review content parity across languages
+- **Quarterly voice review** - Ensure voices still sound natural
+- **Regular translation updates** - Keep content current in all languages
+- **Monitor language-specific metrics** - Track performance per language
 
 ## Common workflows
 
-### Adding a new FAQ across all languages
+### Adding a new language to an existing agent
 
-1. Write FAQ in primary language
-2. Translate to all supported languages
-3. Add to each project's knowledge base
-4. Test in each language
-5. Publish all projects
-6. Promote to Pre-release for UAT
-7. Promote to Live
+1. Enable the language in Settings → Multilingual
+2. Select an appropriate voice for the language
+3. Export existing Managed Topics
+4. Translate content (use professional translators)
+5. Import translated content
+6. Add language-specific Connected Knowledge sources
+7. Update functions to handle the new language
+8. Test thoroughly with native speakers
+9. Publish to Sandbox
+10. Run Test Sets for the new language
+11. Promote to Pre-release for UAT
+12. Promote to Live
 
-### Updating a function with translated utterances
+### Updating translations across all languages
 
-1. Update function code in primary language project
-2. Identify hard-coded utterances that need translation
-3. Translate utterances
-4. Update function in each language project
-5. Test function in each language
-6. Publish and promote all projects
+1. Identify the content to update (e.g., new business hours)
+2. Update the default language version
+3. Export Managed Topics
+4. Send to translators with context
+5. Import translated updates
+6. Test each language in Agent Chat
+7. Publish and promote
 
-### Launching a new language
+### Fixing a language detection issue
 
-1. Create new project for the language
-2. Translate all knowledge base content
-3. Configure voice and ASR settings
-4. Translate function utterances
-5. Set up phone number or routing
-6. Test extensively with native speakers
-7. Soft launch to limited users
-8. Gather feedback and refine
-9. Full launch
+1. Review calls where language switching was incorrect
+2. Check Diagnosis logs for language detection events
+3. Adjust detection sensitivity in Settings
+4. Test with the problematic scenario
+5. If needed, add explicit language selection option
+6. Publish and monitor
+
+### Optimizing for a specific language
+
+1. Review analytics for that language
+2. Identify common queries and issues
+3. Add language-specific knowledge
+4. Adjust voice settings (rate, pitch)
+5. Test with native speakers
+6. Iterate based on feedback
 
 ## Related pages
 
-- [Multi-language settings](/agent-settings/multilingual) - Configure language-specific settings
-- [DeepL integration](/integrations/deepl) - Automated translation support
-- [Voice settings](/voice/introduction) - Selecting multilingual voices
-- [Global ASR](/learn/guides/advanced/global-asr) - Language-specific ASR configuration
+- [Multilingual settings](/agent-settings/multilingual) - Configure language support
+- [Voice settings](/voice/introduction) - Select voices per language
+- [Managed Topics](/managed-topics/introduction) - Add language variants
+- [Connected Knowledge](/connected-knowledge/introduction) - Language-specific sources
+- [Functions](/function/introduction) - Handle language in code
