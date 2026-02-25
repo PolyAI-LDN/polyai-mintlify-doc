@@ -1,0 +1,426 @@
+---
+title: 'Function maintenance'
+description: 'Update, debug, and optimize your agent functions.'
+---
+
+Functions are Python scripts that handle complex logic, API integrations, and custom workflows. This page covers how to maintain functions as your agent evolves.
+
+## Quick reference
+
+| I need to... | Action | Time estimate |
+|--------------|--------|---------------|
+| Update function code | Edit in Function Editor → Save | 5-15 min |
+| Debug a function error | Conversation Review → Diagnosis → Check logs | 10 min |
+| Update API credentials | Secrets → Edit secret → Save | 3 min |
+| Add logging to function | Use `conv.log.info()` in code | 2 min |
+| Test function changes | Agent Chat → Trigger function | 5 min |
+| Update function description | Edit description field → Save | 2 min |
+| Fix function not triggering | Review KB action or rules → Clarify prompt | 10 min |
+| Update API integration | API Integrations → Edit endpoint | 5 min |
+
+## When to update functions
+
+Update your functions when:
+
+- **API endpoints change** - External services update their URLs or parameters
+- **Business logic evolves** - New requirements or edge cases emerge
+- **Credentials expire** - API keys or tokens need rotation
+- **Performance issues** - Functions are too slow or timing out
+- **Error patterns emerge** - Logs show repeated failures
+- **New features needed** - You want to add capabilities
+
+## How to update function code
+
+### Basic update workflow
+
+1. Go to **Functions** in the Build tab
+2. Select the function you want to update
+3. Edit the Python code in the Function Editor
+4. Click **Save**
+5. Test in Agent Chat
+6. Review logs in Conversation Review → Diagnosis
+7. Publish when satisfied
+
+<Tip>Always test function changes in Sandbox before promoting to Live.</Tip>
+
+### Using version control
+
+While Agent Studio doesn't have built-in version control for functions:
+
+- **Document changes** - Add comments explaining what changed and why
+- **Use version descriptions** - When publishing, note function updates
+- **Keep backups** - Copy function code to external files before major changes
+- **Test incrementally** - Make small changes and test frequently
+
+### Example: Updating a booking function
+
+**Before:**
+```python
+def book_reservation(date, time, party_size):
+    # Old API endpoint
+    response = requests.post(
+        "https://api.example.com/v1/bookings",
+        json={"date": date, "time": time, "guests": party_size}
+    )
+    return {"utterance": "Your reservation is confirmed."}
+```
+
+**After:**
+```python
+def book_reservation(date, time, party_size, special_requests=None):
+    # Updated to v2 API with new parameters
+    conv.log.info(f"Booking for {party_size} guests on {date} at {time}")
+    
+    payload = {
+        "date": date,
+        "time": time,
+        "guests": party_size,
+        "special_requests": special_requests or ""
+    }
+    
+    response = requests.post(
+        "https://api.example.com/v2/bookings",
+        json=payload,
+        headers={"Authorization": f"Bearer {secret_vault('booking_api_key')}"}
+    )
+    
+    if response.status_code == 200:
+        conv.log.info("Booking successful")
+        return {"utterance": "Your reservation is confirmed."}
+    else:
+        conv.log.error(f"Booking failed: {response.text}")
+        return {"utterance": "I'm having trouble completing your reservation. Let me transfer you to someone who can help."}
+```
+
+## Debugging function errors
+
+### Using conv.log for debugging
+
+Add structured logging to your functions:
+
+```python
+# Info level - general flow tracking
+conv.log.info("Starting payment processing")
+
+# Warning level - potential issues
+conv.log.warning("Customer account has low balance")
+
+# Error level - failures
+conv.log.error(f"Payment API returned error: {error_message}")
+
+# Mark as PII if logging sensitive data
+conv.log.info("Processing order for customer", pii=True)
+```
+
+Logs appear in:
+- **Conversation Review → Diagnosis** (after calls)
+- **Agent Chat** (during testing)
+- **Conversations API** (for programmatic access)
+
+### Common debugging steps
+
+1. **Identify the issue**
+   - Review Conversation Review → Diagnosis
+   - Check function input/output in logs
+   - Look for error messages
+
+2. **Reproduce in Agent Chat**
+   - Test the exact scenario that failed
+   - Watch logs in real-time
+   - Try variations to isolate the problem
+
+3. **Check function inputs**
+   - Are parameters being passed correctly?
+   - Is the LLM extracting the right values?
+   - Are there type mismatches?
+
+4. **Validate external calls**
+   - Test API endpoints directly (Postman, curl)
+   - Verify credentials are current
+   - Check for rate limiting or timeouts
+
+5. **Review function description**
+   - Is it clear when the function should trigger?
+   - Are parameter descriptions accurate?
+   - Does the LLM understand the purpose?
+
+### Common function errors
+
+| Error | Likely cause | Solution |
+|-------|--------------|----------|
+| Function not triggering | Unclear description or KB action | Simplify function description; clarify when to call it |
+| Wrong parameters passed | LLM misunderstanding | Improve parameter names and descriptions |
+| Timeout errors | Slow API or complex logic | Add delay controls; optimize code; use async |
+| Authentication failures | Expired credentials | Update secrets; check API key permissions |
+| Import errors | Missing library | Add library to imports; check availability |
+| Type errors | Unexpected data format | Add validation; handle edge cases |
+| Rate limit errors | Too many API calls | Add caching; implement retry logic |
+
+## Managing secrets and credentials
+
+### Updating secrets
+
+When API keys or credentials change:
+
+1. Go to **Secrets** in the left navigation
+2. Find the secret you need to update
+3. Click **Edit**
+4. Enter the new value
+5. Save
+
+<Warning>Updating a secret affects all functions using it. Test thoroughly after updating.</Warning>
+
+### Using secrets in functions
+
+Access secrets securely:
+
+```python
+from poly import secret_vault
+
+# Retrieve a secret
+api_key = secret_vault("my_api_key")
+
+# Use in API calls
+headers = {"Authorization": f"Bearer {api_key}"}
+response = requests.get("https://api.example.com/data", headers=headers)
+```
+
+### Secret management best practices
+
+- **Rotate regularly** - Update credentials every 90 days
+- **Use descriptive names** - `stripe_live_api_key` not `key1`
+- **Document dependencies** - Note which functions use which secrets
+- **Test after rotation** - Verify all functions still work
+- **Limit permissions** - Use least-privilege API keys
+
+### Checking secret access
+
+To see which secrets a function can access:
+
+1. Open the function in the Function Editor
+2. Look at the **Secrets** box in the top right
+3. Click to see available secrets and copy code snippets
+
+If a secret is missing, check **Access Control for Secrets** to grant permissions.
+
+## Managing API integrations
+
+### Updating API integrations
+
+The API Integrations feature lets you configure endpoints per environment:
+
+1. Go to **API Integrations**
+2. Select the integration to update
+3. Update base URLs, authentication, or parameters
+4. Configure per environment (Sandbox, Pre-release, Live)
+5. Save and test
+
+**Supported authentication types:**
+- No Auth
+- Basic Auth
+- API Key
+- OAuth 2.0
+
+### Using API integrations in functions
+
+Call configured APIs using `conv.api`:
+
+```python
+# Call a configured API integration
+result = conv.api.booking_system.create_reservation(
+    date="2025-03-15",
+    time="19:00",
+    guests=4
+)
+
+# Log the response for debugging
+conv.log.info(f"API response: {result}")
+```
+
+### Environment-specific configurations
+
+Configure different endpoints per environment:
+
+- **Sandbox** - Use test/staging API endpoints
+- **Pre-release** - Use UAT endpoints
+- **Live** - Use production endpoints
+
+This ensures you don't accidentally call production APIs during testing.
+
+## Optimizing function performance
+
+### Reducing latency
+
+If functions are slow:
+
+1. **Use delay controls** - Add filler phrases for long-running functions
+2. **Cache results** - Store frequently-accessed data
+3. **Optimize API calls** - Reduce unnecessary requests
+4. **Use async operations** - Don't block on slow operations
+5. **Simplify logic** - Remove unnecessary processing
+
+### Delay controls
+
+For functions that take time, use delay controls to keep the conversation flowing:
+
+```python
+from poly import DelayControl
+
+def slow_function():
+    delay = DelayControl(
+        delay_seconds=1.0,
+        filler_utterances=["Let me check that for you.", "One moment please."]
+    )
+    
+    # Long-running operation
+    result = call_slow_api()
+    
+    return {"utterance": f"Here's what I found: {result}"}
+```
+
+<Note>Delay timing starts when the function begins executing, not when the user stops speaking. Account for LLM and ASR latency.</Note>
+
+### Monitoring performance
+
+Track function performance:
+
+- **Review call logs** - Check function execution times
+- **Monitor API latency** - Identify slow external services
+- **Use conv.log** - Log timing information
+- **Analyze patterns** - Look for performance degradation over time
+
+## Improving function triggering
+
+### When functions don't trigger
+
+If the agent isn't calling your function when expected:
+
+1. **Simplify the description** - Make it crystal clear when to call
+2. **Update KB actions** - Ensure topics reference the function correctly
+3. **Review agent rules** - Add explicit instructions about when to use the function
+4. **Test parameter extraction** - Verify the LLM can extract required values
+5. **Check for conflicts** - Ensure other functions aren't being called instead
+
+### Function description best practices
+
+**Bad:**
+```python
+# Description: "Handles reservations"
+```
+
+**Good:**
+```python
+# Description: "Call this function when the user wants to book a table. 
+# Required: date, time, party_size. 
+# Only call after confirming all three parameters with the user."
+```
+
+### Using stop keywords
+
+Prevent unwanted function triggers with stop keywords:
+
+1. Go to **Response Control** → **Stop Keywords**
+2. Add patterns that should halt the response
+3. Optionally trigger a function when matched
+
+Example: Stop the agent from saying "Let me transfer you" and trigger a handoff function instead.
+
+## Testing function changes
+
+### Test in Agent Chat
+
+1. Open Agent Chat
+2. Select the Sandbox environment
+3. Trigger the function with realistic scenarios
+4. Review logs in the Diagnosis panel
+5. Verify outputs are correct
+
+### Use Test Cases and Test Sets
+
+Create automated tests for functions:
+
+1. Go to **Test Cases**
+2. Create scenarios that trigger your function
+3. Add to a Test Set
+4. Run automatically on publish/promote
+
+### Manual testing checklist
+
+- [ ] Function triggers when expected
+- [ ] Parameters are extracted correctly
+- [ ] API calls succeed
+- [ ] Error handling works
+- [ ] Logs are informative
+- [ ] Response is natural and accurate
+- [ ] Performance is acceptable
+
+## Common workflows
+
+### Updating an API endpoint
+
+1. Identify which function uses the endpoint
+2. Update the URL in the function code or API Integration
+3. Test in Sandbox with Agent Chat
+4. Review logs to verify success
+5. Publish and promote to Pre-release
+6. Run Test Set to validate
+7. Promote to Live
+
+### Rotating API credentials
+
+1. Generate new credentials in the external service
+2. Update the secret in Agent Studio
+3. Test all functions using that secret
+4. Monitor for authentication errors
+5. Deactivate old credentials after confirming new ones work
+
+### Adding error handling
+
+1. Identify common failure modes from logs
+2. Add try/except blocks to function code
+3. Use conv.log.error() to track failures
+4. Return graceful fallback responses
+5. Test error scenarios in Agent Chat
+6. Monitor error rates after deployment
+
+### Debugging a production issue
+
+1. Review recent calls in Conversation Review
+2. Filter for calls with errors
+3. Check Diagnosis logs for the failing function
+4. Reproduce in Sandbox
+5. Fix the issue
+6. Test thoroughly
+7. Publish and promote urgently if critical
+
+## Best practices
+
+### Code quality
+
+- **Use descriptive names** - `book_restaurant_reservation` not `func1`
+- **Add comments** - Explain complex logic
+- **Handle errors gracefully** - Don't let exceptions crash the agent
+- **Validate inputs** - Check parameters before using them
+- **Log strategically** - Info for flow, warnings for issues, errors for failures
+
+### Maintenance routine
+
+- **Weekly log review** - Check for new error patterns
+- **Monthly credential rotation** - Update API keys and secrets
+- **Quarterly function audit** - Remove unused functions, optimize slow ones
+- **Test after updates** - Always verify changes in Sandbox first
+
+### Documentation
+
+- **Document function purpose** - What does it do and why?
+- **List dependencies** - Which APIs, secrets, or integrations does it use?
+- **Note edge cases** - What scenarios need special handling?
+- **Track changes** - Keep a changelog of major updates
+
+## Related pages
+
+- [Functions overview](/function/introduction) - Learn about function capabilities
+- [Using secrets in functions](/secrets/how-to-invoke-from-kb) - Secure credential management
+- [Function logging (conv.log)](/function/classes/conv-log) - Structured logging for debugging
+- [Delay controls](/function/delay-control) - Managing latency in functions
+- [API integrations](/releases/notes/25.12) - Configuring external endpoints

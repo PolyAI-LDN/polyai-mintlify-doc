@@ -1,0 +1,427 @@
+---
+title: 'Version management'
+description: 'Manage versions, compare changes, and rollback safely.'
+---
+
+Version management allows you to track changes, test updates safely, and rollback if needed. This page covers how to work with versions across environments.
+
+## Quick reference
+
+| I need to... | Action | Time estimate |
+|--------------|--------|---------------|
+| Publish a new version | Click Publish → Add description | 2 min |
+| Promote to Pre-release | Select version → Promote → Pre-release | 2 min |
+| Promote to Live | Select version → Promote → Live | 2 min |
+| Rollback to previous version | Find old version → Promote to Live | 3 min |
+| Compare two versions | Select versions → Compare | 5 min |
+| View version history | Environments & Versions tab | 2 min |
+| Test a version | Agent Chat → Select environment | 5 min |
+| Schedule a promotion | Promote → Set date/time | 3 min |
+
+## Understanding environments and versions
+
+### The three environments
+
+PolyAI uses a three-tier deployment model:
+
+1. **Sandbox** - Development and testing environment
+   - Make changes freely
+   - Test without affecting users
+   - No real customer traffic
+
+2. **Pre-release** - User Acceptance Testing (UAT) environment
+   - Validate changes before production
+   - Test with select users or internal team
+   - Mirrors Live configuration
+
+3. **Live** - Production environment
+   - Serves real customer traffic
+   - Requires careful change management
+   - Should always be stable
+
+### How versions work
+
+- **Versions are immutable** - Once published, they can't be changed
+- **Each environment has one active version** - Sandbox, Pre-release, and Live each run a specific version
+- **Versions flow upward** - Sandbox → Pre-release → Live
+- **You can skip environments** - Promote directly from Sandbox to Live (not recommended)
+- **Rollback is just promotion** - Promote an older version to go back
+
+## Publishing a new version
+
+### When to publish
+
+Publish a new version when you've made changes in Sandbox and want to:
+
+- Test in a clean environment
+- Prepare for promotion to Pre-release or Live
+- Create a checkpoint before major changes
+- Document a set of related updates
+
+### How to publish
+
+1. Make your changes in Sandbox
+2. Test thoroughly in Agent Chat
+3. Click **Publish** in the top right
+4. Add a **version description**:
+   - Summarize what changed
+   - Note any breaking changes
+   - Reference ticket numbers if applicable
+5. Click **Publish**
+
+**Example descriptions:**
+- "Added Spanish language support with new voice"
+- "Fixed booking function timeout issue"
+- "Updated business hours for holiday season"
+- "Added 50 new FAQ topics from customer feedback"
+
+<Tip>Use clear, descriptive version descriptions. You'll thank yourself later when comparing versions or rolling back.</Tip>
+
+### What gets included in a version
+
+A published version includes:
+
+- All Managed Topics
+- Connected Knowledge source configurations (not the content itself)
+- Functions and their code
+- Agent settings (voice, multilingual, etc.)
+- Response Controls
+- Routing and handoff rules
+- API integrations
+- Test Cases and Test Sets
+
+<Note>Connected Knowledge content is synced separately. Sync sources before publishing to ensure the latest content is available.</Note>
+
+## Promoting versions
+
+### Promoting to Pre-release
+
+Use Pre-release for UAT before going live:
+
+1. Go to **Environments & Versions**
+2. Find the version you want to promote
+3. Click **Promote** → **Pre-release**
+4. Optionally schedule the promotion for a specific time
+5. Confirm
+
+**When to use Pre-release:**
+- Testing with internal team
+- Validating with select customers
+- Final checks before production
+- Compliance or security review
+
+### Promoting to Live
+
+Promote to Live when you're confident the version is ready:
+
+1. Go to **Environments & Versions**
+2. Find the version (usually from Pre-release)
+3. Click **Promote** → **Live**
+4. Optionally schedule the promotion
+5. Confirm
+
+<Warning>Promoting to Live affects real customers immediately. Always test in Pre-release first.</Warning>
+
+### Scheduled promotions
+
+Schedule promotions for off-peak hours:
+
+1. Click **Promote**
+2. Select **Schedule promotion**
+3. Choose date and time
+4. Confirm
+
+**Use cases:**
+- Deploy during low-traffic hours (e.g., 2 AM)
+- Coordinate with marketing campaigns
+- Align with business events (e.g., new product launch)
+- Minimize customer impact
+
+### Skipping environments
+
+You can promote directly from Sandbox to Live, but this is **not recommended**:
+
+- **Risk:** Untested changes go straight to production
+- **Use only for:** Emergency hotfixes or trivial changes
+- **Best practice:** Always test in Pre-release first
+
+## Comparing versions
+
+### Why compare versions
+
+Comparing versions helps you:
+
+- Understand what changed between versions
+- Identify the cause of issues
+- Decide whether to promote or rollback
+- Document changes for stakeholders
+
+### How to compare
+
+1. Go to **Environments & Versions**
+2. Select two versions to compare
+3. Click **Compare**
+4. Review the diff:
+   - **Green** - Added content
+   - **Red** - Removed content
+   - **Yellow** - Modified content
+
+### What you can compare
+
+- Managed Topics (questions and answers)
+- Function code
+- Agent settings
+- Response Controls
+- Routing rules
+- Connected Knowledge configurations
+
+<Note>The comparison shows configuration changes, not Connected Knowledge content changes.</Note>
+
+## Rolling back
+
+### When to rollback
+
+Rollback to a previous version when:
+
+- New version has critical bugs
+- Performance degrades significantly
+- Customer complaints spike
+- Functions fail unexpectedly
+- You need to buy time to fix an issue
+
+### How to rollback
+
+1. Go to **Environments & Versions**
+2. Find the last known good version
+3. Click **Promote** → **Live** (or Pre-release)
+4. Confirm
+
+**The version is now active again.**
+
+<Tip>Rollback is just promoting an older version. There's no special "rollback" button.</Tip>
+
+### Rollback best practices
+
+- **Act quickly** - Don't let bad versions run longer than necessary
+- **Communicate** - Notify your team and stakeholders
+- **Investigate** - Understand what went wrong
+- **Fix forward** - After rolling back, fix the issue and re-promote
+- **Document** - Record what happened and how you fixed it
+
+### Emergency rollback procedure
+
+For critical production issues:
+
+1. **Identify the issue** - Confirm it's version-related
+2. **Find last good version** - Check Environments & Versions
+3. **Promote immediately** - Don't wait for scheduled time
+4. **Notify team** - Alert stakeholders
+5. **Monitor** - Verify the rollback fixed the issue
+6. **Post-mortem** - Analyze what went wrong
+
+**Time to rollback:** 2-5 minutes
+
+## Version management workflows
+
+### Standard deployment workflow
+
+1. **Develop in Sandbox**
+   - Make changes
+   - Test in Agent Chat
+   - Run Test Sets
+   - Iterate until satisfied
+
+2. **Publish version**
+   - Add descriptive version description
+   - Document changes
+
+3. **Promote to Pre-release**
+   - Test with internal team
+   - Run full Test Sets
+   - Validate with select customers
+   - Monitor for issues
+
+4. **Promote to Live**
+   - Schedule for off-peak hours
+   - Monitor closely after promotion
+   - Be ready to rollback if needed
+
+**Total time:** 1-3 days depending on testing needs
+
+### Hotfix workflow
+
+For urgent fixes:
+
+1. **Identify the issue** in Live
+2. **Reproduce in Sandbox**
+3. **Fix the issue**
+4. **Test quickly** but thoroughly
+5. **Publish version**
+6. **Promote to Pre-release** (brief testing)
+7. **Promote to Live** immediately
+8. **Monitor closely**
+
+**Total time:** 30 minutes to 2 hours
+
+### Feature release workflow
+
+For major new features:
+
+1. **Develop in Sandbox** over multiple sessions
+2. **Publish checkpoint versions** as you go
+3. **Test extensively** with Test Sets
+4. **Promote to Pre-release**
+5. **UAT with stakeholders** (1-2 weeks)
+6. **Gather feedback** and iterate
+7. **Promote to Live** when approved
+8. **Monitor and optimize**
+
+**Total time:** 2-4 weeks
+
+### Seasonal update workflow
+
+For recurring seasonal changes (e.g., holiday hours):
+
+1. **Find last year's version** in history
+2. **Review what changed**
+3. **Apply similar changes** in Sandbox
+4. **Update dates and details**
+5. **Test and publish**
+6. **Promote to Pre-release** (brief testing)
+7. **Schedule promotion to Live** for the right date
+8. **Revert after season ends**
+
+**Total time:** 1-2 hours
+
+## Best practices
+
+### Version descriptions
+
+- **Be specific** - "Fixed booking timeout" not "Bug fix"
+- **Include context** - Reference ticket numbers or customer reports
+- **Note breaking changes** - Warn about incompatibilities
+- **Use consistent format** - Establish a team standard
+
+**Good examples:**
+- "TICKET-123: Added Spanish support with ElevenLabs voice"
+- "Hotfix: Fixed payment API authentication error"
+- "Feature: New loyalty program integration with 20 FAQs"
+- "Seasonal: Updated holiday hours for Dec 2025"
+
+### Testing before promotion
+
+- **Run Test Sets** - Automated regression testing
+- **Manual testing** - Try realistic scenarios
+- **Edge cases** - Test unusual inputs
+- **Performance** - Check latency and quality
+- **Integrations** - Verify external APIs work
+
+### Monitoring after promotion
+
+- **First 30 minutes** - Watch closely for immediate issues
+- **First 24 hours** - Monitor key metrics
+- **First week** - Track trends and patterns
+- **Be ready to rollback** - Have the process ready
+
+### Version hygiene
+
+- **Publish regularly** - Don't accumulate too many changes
+- **Clean up old versions** - Archive or delete very old versions
+- **Document major versions** - Keep notes on significant releases
+- **Use semantic versioning** - Consider v1.0, v1.1, v2.0 naming
+
+## Troubleshooting version issues
+
+### Version won't promote
+
+**Possible causes:**
+- Validation errors
+- Missing required fields
+- Conflicting configurations
+
+**Solutions:**
+1. Check error messages
+2. Review version configuration
+3. Fix issues in Sandbox
+4. Publish new version
+5. Try promoting again
+
+### Changes not appearing after promotion
+
+**Possible causes:**
+- Wrong environment selected
+- Caching issues
+- Version didn't fully deploy
+
+**Solutions:**
+1. Verify correct environment in Agent Chat
+2. Refresh the page
+3. Check Environments & Versions for active version
+4. Wait a few minutes for propagation
+5. Contact support if persists
+
+### Can't find a specific version
+
+**Possible causes:**
+- Version was deleted
+- Looking in wrong project
+- Version was never published
+
+**Solutions:**
+1. Check version history
+2. Verify project selection
+3. Search by description or date
+4. Check with team members
+
+### Rollback didn't fix the issue
+
+**Possible causes:**
+- Issue is not version-related
+- External dependency problem
+- Data issue (not configuration)
+
+**Solutions:**
+1. Compare current and previous versions
+2. Check external APIs and integrations
+3. Review Connected Knowledge content
+4. Check for infrastructure issues
+5. Investigate non-version factors
+
+## Advanced version management
+
+### Using variants with versions
+
+Variants allow different configurations within the same version:
+
+- **Location-specific** - Different menus per restaurant
+- **A/B testing** - Test different approaches
+- **Customer segments** - Different experiences per user type
+
+Variants are included in versions, so promoting a version promotes all its variants.
+
+### Version tagging
+
+While not a built-in feature, you can use version descriptions for tagging:
+
+- `[HOTFIX]` - Emergency fixes
+- `[FEATURE]` - New capabilities
+- `[BUGFIX]` - Non-urgent fixes
+- `[SEASONAL]` - Temporary changes
+- `[EXPERIMENT]` - A/B tests
+
+### Version branching strategies
+
+For complex projects, consider:
+
+- **Main branch** - Stable, production-ready versions
+- **Development branch** - Active development
+- **Hotfix branch** - Emergency fixes
+
+Coordinate with your team on which Sandbox instances to use for each branch.
+
+## Related pages
+
+- [Environments and versions overview](/environments-and-versions/introduction) - Understanding the deployment model
+- [Testing your agent](/test-cases/introduction) - Creating Test Sets for validation
+- [Performance monitoring](/learn/maintain/performance-monitoring) - Tracking version performance
+- [Health checks](/learn/maintain/health-checks) - Proactive version monitoring
