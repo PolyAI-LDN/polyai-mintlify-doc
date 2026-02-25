@@ -1,240 +1,299 @@
 ---
 title: Response Control
-icon: "thought-bubble"
+icon: "shield-halved"
 ---
 
-Response Controls regulate the agent’s *own output*. They run **after** the model generates text and before anything is spoken or sent to the user.
+<Info>
+  **Level 2 — Lesson 2 of 6** — Master response controls to regulate agent output and enforce tone.
+</Info>
+
+Response Controls regulate the agent's *own output*. They run **after** the model generates text and before anything is spoken or sent to the user.
 
 They are one of the most powerful tools for improving tone, safety, and conversational flow — and one of the easiest to misuse if patterns are too broad.
 
 ## What Response Controls are
 
-Response Controls are **string- or regex-based rules** that inspect the agent’s generated response.
+Response Controls are **string- or regex-based rules** that inspect the agent's generated response.
 
-They can be used to:
+<CardGroup cols={2}>
+  <Card title="Halt responses" icon="octagon">
+    Prevent specific phrases from being spoken
+  </Card>
+  <Card title="Trigger routing" icon="route">
+    Activate corrective or fallback behaviour
+  </Card>
+  <Card title="Log patterns" icon="chart-line">
+    Track unwanted patterns for analysis
+  </Card>
+  <Card title="Enforce tone" icon="palette">
+    Maintain brand voice consistency
+  </Card>
+</CardGroup>
 
-- Halt responses entirely
-- Prevent specific phrases from being spoken
-- Trigger corrective routing or fallback behaviour
-- Log unwanted patterns for later analysis
-
-They are not about what the *user* says — they are about what the *agent* says.
+<Note>
+  They are not about what the *user* says — they are about what the *agent* says.
+</Note>
 
 ## When to use Response Controls
 
 Use Response Controls when you want to fix or prevent:
 
-- Redundant preambles
-  > “Let me check that for you…”
-  > “Please hold while I look into this…”
+<Tabs>
+  <Tab title="Redundant preambles">
+    **Examples:**
+    - "Let me check that for you…"
+    - "Please hold while I look into this…"
+  </Tab>
+  
+  <Tab title="Looping behavior">
+    **Examples:**
+    - Repeating the greeting mid-call
+    - Restarting the conversation after silence
+  </Tab>
+  
+  <Tab title="Off-brand phrasing">
+    **Examples:**
+    - Overly apologetic language
+    - Internal system explanations
+  </Tab>
+  
+  <Tab title="Unsafe output">
+    **Examples:**
+    - Speculation
+    - Policy invention
+    - Meta commentary about limitations
+  </Tab>
+</Tabs>
 
-- Looping or restart behaviour
-  > Repeating the greeting mid-call
-  > Restarting the conversation after silence
-
-- Off-brand phrasing
-  > Overly apologetic language
-  > Internal system explanations
-
-- Unsafe or disallowed output
-  > Speculation
-  > Policy invention
-  > Meta commentary about limitations
-
-If the issue is about *recognition*, use ASR tools.
-If the issue is about *retrieval*, fix the Managed Topics.
-If the issue is about *how the agent speaks*, use Response Controls.
+<Tip>
+  - If the issue is about *recognition*, use ASR tools
+  - If the issue is about *retrieval*, fix the Managed Topics
+  - If the issue is about *how the agent speaks*, use Response Controls
+</Tip>
 
 ## How Response Controls work
 
-1. The LLM generates a response.
-2. Response Controls scan the output using regex patterns.
-3. If a pattern matches:
-   - The response may be halted
-   - A function may be triggered
-   - The event may be logged for analytics
+<Steps>
+  <Step title="LLM generates response">
+    The model creates text based on context and prompts
+  </Step>
+  <Step title="Response Controls scan output">
+    Regex patterns are evaluated against the generated text
+  </Step>
+  <Step title="Action taken if matched">
+    - The response may be halted
+    - A function may be triggered
+    - The event may be logged for analytics
+  </Step>
+</Steps>
 
-Controls are evaluated in real time and apply consistently across Chat and Call.
+<Note>
+  Controls are evaluated in real time and apply consistently across Chat and Call.
+</Note>
 
 ## Core fields
 
 Each Response Control includes:
 
-- **ID**
-  A short, descriptive identifier used for tracking and debugging.
+<AccordionGroup>
+  <Accordion title="ID" icon="fingerprint">
+    A short, descriptive identifier used for tracking and debugging.
+  </Accordion>
 
-- **Description**
-  Optional, but strongly recommended. Explains *why* the rule exists.
+  <Accordion title="Description" icon="file-lines">
+    Optional, but strongly recommended. Explains *why* the rule exists.
+  </Accordion>
 
-- **Regular Expression**
-  The exact pattern that will be matched against agent output.
+  <Accordion title="Regular Expression" icon="code">
+    The exact pattern that will be matched against agent output.
+  </Accordion>
 
-- **Say phrases** (Boolean)
-  - ON: matching output is stopped
-  - OFF: matching output is logged but allowed
+  <Accordion title="Say phrases (Boolean)" icon="toggle-on">
+    - **ON**: matching output is stopped
+    - **OFF**: matching output is logged but allowed
+  </Accordion>
 
-- **Function (optional)**
-  A fallback action to run when the phrase is detected.
+  <Accordion title="Function (optional)" icon="function">
+    A fallback action to run when the phrase is detected.
+  </Accordion>
+</AccordionGroup>
 
 ## Best practices
 
-### Start narrow
+<CardGroup cols={2}>
+  <Card title="Start narrow" icon="crosshairs">
+    Broad patterns are hard to debug and can suppress valid responses.
+    
+    ❌ `.*sorry.*`
+    
+    ✅ `\b(sorry for the inconvenience|apologies for the delay)\b`
+  </Card>
 
-Broad patterns are hard to debug and can suppress valid responses.
+  <Card title="Target symptoms" icon="bullseye">
+    Encode *specific phrases* you have observed, not abstract concepts.
+    
+    ❌ "Prevent the agent from being verbose"
+    
+    ✅ `\b(let me explain how|to give you some background)\b`
+  </Card>
 
-> Bad pattern
-> `.*sorry.*`
+  <Card title="Prefer halting" icon="hand">
+    If a phrase should *never* appear, halt it rather than replacing it.
+  </Card>
 
-> Better pattern
-> `\b(sorry for the inconvenience|apologies for the delay)\b`
-
-### Target symptoms, not intent
-
-Do not try to encode “bad behaviour” abstractly. Encode *specific phrases* you have observed.
-
-> Instead of:
-> “Prevent the agent from being verbose”
-
-> Use:
-> `\b(let me explain how|to give you some background)\b`
-
-### Prefer halting over rewriting
-
-If a phrase should *never* appear, halt it rather than replacing it. Replacement can mask deeper issues.
+  <Card title="Test thoroughly" icon="vial">
+    Verify in both Chat and Call to catch unnatural truncation.
+  </Card>
+</CardGroup>
 
 ## Common use cases
 
-### 1. Removing redundant preambles
+<Tabs>
+  <Tab title="Removing preambles">
+    LLMs often add filler before answering or executing actions.
 
-LLMs often add filler before answering or executing actions.
+    **Example unwanted output:**
+    "Let me check that for you. Please hold…"
 
-> Example unwanted output
-> “Let me check that for you. Please hold…”
+    **Suggested control:**
+    - **ID:** `flow_redundancy_cutoff`
+    - **Regex:** `\b(let me check|please hold|one moment while I)\b`
+    - **Say phrases:** TRUE
 
-**Suggested control**
+    **Result:** The agent proceeds directly to the answer or action.
+  </Tab>
 
-- ID: `flow_redundancy_cutoff`
-- Regex: `\b(let me check|please hold|one moment while I)\b`
-- Say phrases: TRUE
+  <Tab title="Preventing greeting loops">
+    Sometimes the agent restarts the conversation mid-call.
 
-Result:
-The agent proceeds directly to the answer or action.
+    **Example unwanted output:**
+    "Thank you for calling Hopper…"
 
-### 2. Preventing greeting loops
+    **Suggested control:**
+    - **ID:** `greet_loop`
+    - **Regex:** `(thank you for calling|you have reached|hi thanks for calling)`
+    - **Say phrases:** TRUE
 
-Sometimes the agent restarts the conversation mid-call.
+    <Tip>
+      Optional: attach a function that routes to a recovery flow instead of restarting.
+    </Tip>
+  </Tab>
 
-> Example unwanted output
-> “Thank you for calling Hopper…”
+  <Tab title="Blocking dead ends">
+    Agents sometimes respond with unhelpful refusals instead of routing.
 
-**Suggested control**
+    **Example unwanted output:**
+    "I don't have information about that."
 
-- ID: `greet_loop`
-- Regex:
-  `(thank you for calling|you have reached|hi thanks for calling)`
-- Say phrases: TRUE
+    **Suggested control:**
+    - **ID:** `default_no_info`
+    - **Regex:** `I don't have (any|specific)? information`
+    - **Say phrases:** TRUE
+    - **Function:** `prompt_OOS_Check`
 
-Optional: attach a function that routes to a recovery flow instead of restarting.
+    **Result:** Instead of dead-ending, the agent routes to out-of-scope handling.
+  </Tab>
 
-### 3. Blocking “I don’t have information” dead ends
+  <Tab title="Brand tone enforcement">
+    Prevent phrasing that violates brand voice.
 
-Agents sometimes respond with unhelpful refusals instead of routing.
+    **Example unwanted output:**
+    "Unfortunately, I'm unable to…"
 
-> Example unwanted output
-> “I don’t have information about that.”
+    **Suggested control:**
+    - **ID:** `tone_softener`
+    - **Regex:** `\b(unfortunately|sadly|regret to inform)\b`
+    - **Say phrases:** TRUE
 
-**Suggested control**
-
-- ID: `default_no_info`
-- Regex:
-  `I don't have (any|specific)? information`
-- Say phrases: TRUE
-- Function: `prompt_OOS_Check`
-
-Result:
-Instead of dead-ending, the agent routes to out-of-scope handling.
-
-### 4. Brand tone enforcement
-
-Prevent phrasing that violates brand voice.
-
-> Example unwanted output
-> “Unfortunately, I’m unable to…”
-
-**Suggested control**
-
-- ID: `tone_softener`
-- Regex: `\b(unfortunately|sadly|regret to inform)\b`
-- Say phrases: TRUE
-
-This forces the agent to rephrase without negative framing.
+    **Result:** Forces the agent to rephrase without negative framing.
+  </Tab>
+</Tabs>
 
 ## Logging-only controls
 
-Not all controls need to halt output.
+Not all controls need to halt output. You can use Response Controls purely for **monitoring**.
 
-You can use Response Controls purely for **monitoring**.
+<AccordionGroup>
+  <Accordion title="Example: tracking hedging language" icon="chart-mixed">
+    - **ID:** `hedge_language_monitor`
+    - **Regex:** `\b(might|maybe|possibly)\b`
+    - **Say phrases:** FALSE
 
-> Example: tracking hedging language
-
-- ID: `hedge_language_monitor`
-- Regex: `\b(might|maybe|possibly)\b`
-- Say phrases: FALSE
-
-This allows you to analyze uncertainty trends without disrupting users.
+    This allows you to analyze uncertainty trends without disrupting users.
+  </Accordion>
+</AccordionGroup>
 
 ## Testing and verification
 
 After adding or updating a Response Control:
 
-- Test in **Chat**
-  - Confirm the phrase no longer appears
-  - Ensure the response still completes cleanly
+<Steps>
+  <Step title="Test in Chat">
+    - Confirm the phrase no longer appears
+    - Ensure the response still completes cleanly
+  </Step>
 
-- Test in **Call**
-  - Listen for unnatural truncation
-  - Ensure turn-taking still feels natural
+  <Step title="Test in Call">
+    - Listen for unnatural truncation
+    - Ensure turn-taking still feels natural
+  </Step>
 
-- Review **Conversation logs**
-  - Check whether the rule is triggering too often
-  - Look for false positives
+  <Step title="Review Conversation logs">
+    - Check whether the rule is triggering too often
+    - Look for false positives
+  </Step>
+</Steps>
 
 ## Common mistakes
 
-- Using overly broad regex patterns
-- Blocking phrases that appear in legitimate answers
-- Using Response Controls to fix retrieval problems
-- Forgetting to test in voice after chat validation
+<Warning>
+  **Avoid these pitfalls:**
+  - Using overly broad regex patterns
+  - Blocking phrases that appear in legitimate answers
+  - Using Response Controls to fix retrieval problems
+  - Forgetting to test in voice after chat validation
+</Warning>
 
 ## Pronunciations (related but separate)
 
-Response Controls affect *what* is said.
-Pronunciations affect *how* it is spoken.
+<CardGroup cols={2}>
+  <Card title="Response Controls" icon="shield-halved">
+    Affect *what* is said
+  </Card>
+  <Card title="Pronunciations" icon="volume">
+    Affect *how* it is spoken
+  </Card>
+</CardGroup>
 
 Use **Pronunciations** when:
-
 - Names are mispronounced
 - Numbers need pacing
 - Domain terms require IPA or SSML guidance
 
-Do not use Response Controls to solve pronunciation issues.
+<Note>
+  Do not use Response Controls to solve pronunciation issues.
+</Note>
 
 ## Summary
 
 Response Controls are a surgical tool.
 
-Used well, they:
-- Eliminate friction
-- Enforce tone
-- Prevent loops and dead ends
+<CardGroup cols={2}>
+  <Card title="Used well" icon="circle-check">
+    - Eliminate friction
+    - Enforce tone
+    - Prevent loops and dead ends
+  </Card>
+  <Card title="Used poorly" icon="circle-xmark">
+    - Suppress valid responses
+    - Create silent failures
+    - Obscure deeper configuration issues
+  </Card>
+</CardGroup>
 
-Used poorly, they:
-- Suppress valid responses
-- Create silent failures
-- Obscure deeper configuration issues
-
-Treat them as the final layer of polish — not the first fix.
-
+<Tip>
+  Treat them as the final layer of polish — not the first fix.
+</Tip>
 
 <Card>
     <label style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
