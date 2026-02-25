@@ -65,14 +65,93 @@ The Conversations API uses API key authentication.
 v3 keys are project- and region-scoped and are issued by PolyAI.
 Your PolyAI representative will confirm the appropriate scope and provision access.
 
-## Example: Retrieve a conversation (v3)
+## Query parameters
 
-`GET https://api.{region}.platform.polyai.app/v3/{account_id}/{project_id}/conversations/{conversation_id}`
+The Conversations API supports several query parameters for filtering and controlling the response:
+
+### Required parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `start_time` | Start of time range (ISO8601) |
+| `end_time` | End of time range (ISO8601) |
+
+### Optional filters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `client_env` | Environment: `sandbox`, `pre-release`, or `live` | `live` |
+| `variant_id` | Filter by variant ID | — |
+| `variant_name` | Filter by variant name (URL-encode spaces with `%20`) | — |
+| `in_progress` | Filter by conversation status: `true` for in-progress, `false` for finished | all |
+| `limit` | Max conversations per request (1–5000) | 5 |
+| `offset` | Pagination offset | 0 |
+
+### Optional response fields
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `include_latency` | Include latency metrics per conversation | `false` |
+| `include_context_state` | Include agent's internal dialogue state at conversation end | `false` |
+| `include_turn_metadata` | Include genai metadata for each turn | `false` |
+
+## Response structure
+
+### Conversation object
+
+| Field | Description |
+|-------|-------------|
+| `id` | Unique conversation ID |
+| `account_id` | Customer account ID |
+| `project_id` | Project ID |
+| `variant_id` | Variant ID |
+| `variant_name` | Variant name |
+| `environment` | Deployment environment (`live`, `sandbox`, `pre-release`) |
+| `started_at` | Conversation start time (ISO8601) |
+| `channel` | Medium: `CHAT`, `VOICE-SIP`, etc. |
+| `from_number` | Caller phone number |
+| `to_number` | Agent phone number |
+| `in_progress` | Whether call is still active |
+| `num_turns` | Number of turns |
+| `total_duration` | Total call duration (seconds) |
+| `polyai_duration` | PolyAI-handled duration (seconds) |
+| `handoff` | Whether handoff occurred |
+| `handoff_reason` | Brief handoff reason |
+| `handoff_destination` | Handoff destination |
+| `num_silences` | Count of silence turns |
+| `num_ood` | Count of out-of-domain turns |
+| `metrics` | Custom metrics logged by agent |
+| `state` | Dialogue state key-value pairs |
+| `turns` | Ordered list of conversation turns |
+
+### Turn object
+
+| Field | Description |
+|-------|-------------|
+| `user_input` | User's transcribed text |
+| `user_input_datetime` | When agent received input (ISO8601) |
+| `barge_in` | Whether user interrupted the agent |
+| `agent_response` | Agent's response text |
+| `agent_response_datetime` | When agent responded (ISO8601) |
+| `intents` | Detected intents |
+| `entities` | Detected entities (name → value mapping) |
+| `is_ood` | Whether turn was out-of-domain |
+| `is_silence` | Whether turn was a silence |
+| `translated_user_input` | Translated user input (when enabled) |
+| `english_agent_response` | English version of response (when enabled) |
+
+## Pagination
+
+When results exceed the limit, the response includes `next_offset`. Use this value as the `offset` parameter in your next request to fetch the next page.
+
+## Example: Retrieve conversations (v3)
+
+`GET https://api.{region}.platform.polyai.app/v3/{account_id}/{project_id}/conversations`
 
 A successful response includes:
 
 - complete turn-by-turn transcript
 - consistent timestamps
-- latency metrics
+- latency metrics (when `include_latency=true`)
 - translation outputs (when enabled)
 - handoff metadata (if applicable)
