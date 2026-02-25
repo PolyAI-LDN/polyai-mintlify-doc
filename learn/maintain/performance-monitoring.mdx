@@ -1,404 +1,476 @@
 ---
 title: 'Performance monitoring'
-description: 'Identify and fix agent performance issues.'
+description: 'Identify and fix latency, ASR, and quality issues in your agent.'
 ---
 
-Monitoring your agent's performance helps you catch issues early and continuously improve the customer experience. This page covers key metrics, common issues, and how to diagnose problems.
+Monitoring your agent's performance helps you identify issues before they impact customers. This page covers how to track key metrics, diagnose problems, and optimize performance.
 
 ## Quick reference
 
 | I need to... | Action | Time estimate |
-|--------------|--------|---------------|
-| Check recent call quality | Conversation Review → Filter by date | 5 min |
-| Identify ASR errors | Annotations → Filter "Wrong transcription" | 10 min |
-| Find knowledge gaps | Annotations → Filter "Missing topic" | 10 min |
-| Review handoff rate | Analytics → Handoff metrics | 5 min |
-| Check function errors | Conversation Review → Diagnosis → Filter errors | 10 min |
-| Monitor latency issues | Review call logs for timing | 15 min |
-| Analyze trends | Agent Analysis → Run scheduled batch | 10 min |
-| Test specific scenario | Agent Chat → Reproduce issue | 5 min |
+|--------------|--------|------------------|
+| Check overall agent performance | Analytics → Performance dashboard | 2 min |
+| Identify slow responses | Conversation Review → Filter by latency | 5 min |
+| Debug ASR accuracy issues | Diagnosis → Check transcription | 5 min |
+| Find knowledge gaps | Analytics → Unhandled queries | 10 min |
+| Monitor handoff rates | Analytics → Handoff metrics | 3 min |
+| Check function errors | Conversation Review → Filter by errors | 5 min |
+| Review call quality | Listen to recordings | 10-30 min |
+| Track version performance | Compare versions in Analytics | 10 min |
 
 ## Key performance metrics
 
-### Metrics to monitor
+### Response latency
 
-| Metric | What it measures | Target | Red flag |
-|--------|------------------|--------|----------|
-| **Containment rate** | % of calls resolved without handoff | >80% | <70% |
-| **ASR accuracy** | % of utterances transcribed correctly | >95% | <90% |
-| **Average call duration** | Time from start to resolution | Varies by use case | Sudden increases |
-| **Handoff rate** | % of calls transferred to human | <20% | >30% |
-| **Function success rate** | % of function calls that succeed | >98% | <95% |
-| **Response latency** | Time from user stops speaking to agent responds | <2s | >3s |
-| **Topic coverage** | % of queries matched to knowledge base | >90% | <80% |
-| **Customer satisfaction** | Post-call survey scores | >4/5 | <3.5/5 |
+**What it measures:** Time from when the user stops speaking to when the agent starts responding.
 
-### Where to find metrics
+**Target:** < 2 seconds for most queries
 
-- **Conversation Review** - Individual call analysis
-- **Analytics** - Aggregate metrics and trends
-- **Agent Analysis** - Automated insights and categorization
-- **Diagnosis** - Function logs and technical details
-- **Annotations** - Flagged issues from manual review
+**How to check:**
+1. Go to **Analytics** → **Performance**
+2. Review average response time
+3. Filter by time period, environment, or variant
 
-## Common performance issues
+**Common causes of high latency:**
+- Slow function execution
+- Complex knowledge retrieval
+- External API delays
+- Network issues
+- Overly complex agent logic
 
-### ASR (transcription) problems
+### ASR (Automatic Speech Recognition) accuracy
+
+**What it measures:** How accurately the agent transcribes what the caller says.
+
+**Target:** > 95% word accuracy
+
+**How to check:**
+1. Go to **Conversation Review**
+2. Review transcriptions
+3. Compare to audio recordings
+4. Look for patterns in errors
+
+**Common causes of low accuracy:**
+- Background noise
+- Strong accents or dialects
+- Poor phone connection
+- Uncommon words or jargon
+- Fast or unclear speech
+
+### Containment rate
+
+**What it measures:** Percentage of calls handled without human handoff.
+
+**Target:** Varies by use case (typically 60-90%)
+
+**How to check:**
+1. Go to **Analytics** → **Handoffs**
+2. Review handoff rate over time
+3. Analyze reasons for handoffs
+
+**Common causes of low containment:**
+- Knowledge gaps
+- Complex queries beyond agent capability
+- Caller preference for human
+- Technical issues or errors
+
+### Task completion rate
+
+**What it measures:** Percentage of calls where the agent successfully completes the intended task.
+
+**Target:** > 80%
+
+**How to check:**
+1. Define success criteria (booking made, question answered, etc.)
+2. Use Test Sets to track completion
+3. Review Conversation Review for outcomes
+
+**Common causes of low completion:**
+- Unclear agent responses
+- Missing information
+- Function failures
+- Poor conversation flow
+
+## Monitoring tools
+
+### Analytics dashboard
+
+The Analytics dashboard provides high-level metrics:
+
+- **Call volume** - Total calls over time
+- **Average call duration** - How long calls last
+- **Handoff rate** - Percentage transferred to humans
+- **Top intents** - Most common user requests
+- **Performance trends** - Latency and quality over time
+
+**How to use it:**
+1. Go to **Analytics**
+2. Select date range
+3. Filter by environment, variant, or version
+4. Export data for deeper analysis
+
+### Conversation Review
+
+Conversation Review lets you drill into individual calls:
+
+- **Search and filter** - Find specific calls or patterns
+- **Listen to recordings** - Hear actual conversations
+- **Review transcriptions** - See what was said
+- **Check Diagnosis** - View technical details
+
+**How to use it:**
+1. Go to **Conversation Review**
+2. Apply filters (date, handoff, error, etc.)
+3. Select a call to review
+4. Listen and analyze
+
+### Diagnosis panel
+
+The Diagnosis panel shows technical details for each call:
+
+- **Function logs** - Output from conv.log
+- **Knowledge retrieval** - Which sources were used
+- **LLM prompts and responses** - What the model generated
+- **Timing information** - Latency breakdown
+- **Errors and warnings** - Technical issues
+
+**How to use it:**
+1. Open a call in Conversation Review
+2. Click **Diagnosis** tab
+3. Review logs and timing
+4. Identify bottlenecks or errors
+
+### Test Sets
+
+Test Sets provide automated performance tracking:
+
+- **Regression testing** - Ensure changes don't break existing functionality
+- **Version comparison** - Compare performance across versions
+- **Continuous monitoring** - Run tests on schedule
+
+**How to use it:**
+1. Create Test Cases for key scenarios
+2. Group into Test Sets
+3. Run automatically on publish/promote
+4. Review results and trends
+
+## Identifying performance issues
+
+### High latency
 
 **Symptoms:**
-- Agent misunderstands user input
-- Incorrect responses to clear questions
-- Annotations flagged as "Wrong transcription"
+- Long pauses before agent responds
+- Callers repeat themselves
+- Complaints about slow service
 
-**Diagnosis:**
-1. Go to Conversation Review
-2. Filter for calls with annotations
-3. Review transcripts vs. audio
-4. Identify patterns (specific words, accents, background noise)
+**Diagnosis steps:**
+1. Go to Conversation Review → Filter by high latency
+2. Review Diagnosis → Check timing breakdown
+3. Identify the bottleneck:
+   - **Function execution** - Slow API calls or complex logic
+   - **Knowledge retrieval** - Large or slow sources
+   - **LLM generation** - Complex prompts or long responses
+   - **TTS generation** - Slow voice provider
 
 **Solutions:**
-- Add ASR corrections for commonly misheard words
-- Use ASR biasing for expected input types
-- Adjust microphone sensitivity settings
-- Add pronunciations for domain-specific terms
+- Optimize slow functions (see [Function maintenance](/learn/maintain/function-maintenance))
+- Use cached audio for common phrases
+- Switch to faster TTS provider (e.g., Cartesia)
+- Simplify knowledge sources
+- Add delay controls to manage user expectations
 
-**Example:**
-```
-User says: "I need help with my API key"
-ASR hears: "I need help with my 80 key"
-Fix: Add ASR correction "80 key" → "API key"
-```
-
-### Knowledge base gaps
+### Low ASR accuracy
 
 **Symptoms:**
-- Agent says "I don't have that information"
-- Handoffs for questions that should be answerable
-- Annotations flagged as "Missing topic"
+- Agent misunderstands callers
+- Frequent "I didn't catch that" responses
+- Incorrect information provided
 
-**Diagnosis:**
-1. Review Conversation Review for unanswered questions
-2. Check Analytics for common unmatched queries
-3. Use Agent Analysis to identify topic clusters
+**Diagnosis steps:**
+1. Review transcriptions in Conversation Review
+2. Compare to audio recordings
+3. Identify patterns:
+   - Specific words consistently wrong
+   - Certain accents or dialects problematic
+   - Background noise interference
 
 **Solutions:**
-- Add new topics to Managed Topics
-- Expand existing topic coverage
-- Add Connected Knowledge sources
-- Improve sample questions for better matching
+- Add custom vocabulary for domain-specific terms
+- Adjust ASR sensitivity settings
+- Use noise cancellation features
+- Test with different ASR models
+- Add clarification prompts for ambiguous input
 
-### High handoff rate
+### Knowledge gaps
 
 **Symptoms:**
-- More calls transferred than expected
-- Handoffs for routine questions
-- Increasing handoff trend over time
+- Agent says "I don't know"
+- High handoff rates for specific topics
+- Callers frustrated by lack of information
 
-**Diagnosis:**
-1. Go to Analytics → Handoff metrics
-2. Review reasons for handoffs
-3. Check if handoffs are appropriate or avoidable
+**Diagnosis steps:**
+1. Go to Analytics → Unhandled queries
+2. Review common questions without answers
+3. Check Conversation Review for "no knowledge" patterns
 
 **Solutions:**
-- Add missing knowledge base topics
-- Improve function reliability
-- Clarify when handoffs should occur
-- Train agent to handle more scenarios
+- Add missing topics to Managed Topics
+- Add relevant Connected Knowledge sources
+- Update existing knowledge with more detail
+- Improve knowledge retrieval with better descriptions
 
 ### Function errors
 
 **Symptoms:**
-- Functions failing to execute
+- Agent apologizes for technical issues
+- Tasks fail to complete
 - Error messages in Diagnosis logs
-- Incomplete transactions
 
-**Diagnosis:**
-1. Go to Conversation Review → Diagnosis
-2. Filter for function errors
-3. Review input parameters and error messages
-4. Check `conv.log` entries for details
+**Diagnosis steps:**
+1. Go to Conversation Review → Filter by errors
+2. Review Diagnosis → Check function logs
+3. Identify error patterns:
+   - API failures
+   - Authentication issues
+   - Timeout errors
+   - Invalid parameters
 
 **Solutions:**
-- Fix code errors in functions
-- Update API credentials in Secrets
-- Add error handling and fallbacks
-- Improve parameter validation
+- Fix function code (see [Function maintenance](/learn/maintain/function-maintenance))
+- Update API credentials
+- Add error handling and retries
+- Optimize for performance
+- Add logging for better debugging
 
-**Common function errors:**
-- Authentication failures → Update secrets
-- Timeout errors → Optimize code or add delay controls
-- Type errors → Validate inputs
-- API rate limits → Add caching or retry logic
-
-### Latency issues
+### High handoff rates
 
 **Symptoms:**
-- Long pauses before agent responds
-- Users complaining about slow responses
-- Calls feel unnatural or robotic
+- Many calls transferred to humans
+- Low containment rate
+- Specific topics always escalate
 
-**Diagnosis:**
-1. Review call recordings for timing
-2. Check Diagnosis logs for function execution times
-3. Identify slow functions or API calls
-
-**Solutions:**
-- Switch to faster TTS provider (e.g., Cartesia)
-- Use cached audio for common phrases
-- Optimize slow functions
-- Add delay controls with filler phrases
-- Adjust interaction style (Swift or Turbo mode)
-
-### Poor response quality
-
-**Symptoms:**
-- Responses are inaccurate or off-brand
-- Agent repeats itself or loops
-- Responses are too verbose or too brief
-
-**Diagnosis:**
-1. Review call transcripts
-2. Check Agent Behavior rules
-3. Review knowledge base content quality
+**Diagnosis steps:**
+1. Go to Analytics → Handoffs
+2. Review handoff reasons
+3. Identify patterns:
+   - Specific intents always handoff
+   - Knowledge gaps
+   - Caller preference
+   - Technical failures
 
 **Solutions:**
-- Update Agent Behavior with clearer instructions
-- Improve knowledge base content
-- Add Response Controls to prevent unwanted patterns
-- Refine prompts in topic actions
+- Add knowledge for common handoff reasons
+- Improve agent capabilities for those scenarios
+- Adjust handoff rules to be less aggressive
+- Add self-service options before handoff
 
-## Using Conversation Review
-
-### Filtering and searching
-
-Find specific issues quickly:
-
-1. **Filter by date** - Focus on recent calls
-2. **Filter by annotations** - Find flagged issues
-3. **Search by keyword** - Find calls about specific topics
-4. **Filter by outcome** - Handoffs, completions, errors
-
-### Annotations
-
-Flag issues for later review:
-
-- **Wrong transcription** - ASR problems
-- **Missing topic** - Knowledge gaps
-- **Custom annotations** - Your own categories
-
-**Workflow:**
-1. Review calls regularly (daily or weekly)
-2. Annotate issues as you find them
-3. Build a list of fixes
-4. Prioritize by frequency and impact
-5. Implement fixes in batches
-
-### Diagnosis panel
-
-The Diagnosis panel shows:
-
-- **Function calls** - Inputs, outputs, errors
-- **conv.log entries** - Custom logging from functions
-- **API calls** - Requests and responses
-- **Timing information** - Latency breakdown
-
-**Use Diagnosis to:**
-- Debug function errors
-- Verify API integrations
-- Identify performance bottlenecks
-- Understand agent decision-making
-
-## Using Analytics
-
-### Key reports
-
-- **Call volume** - Track usage trends
-- **Containment rate** - Measure self-service success
-- **Handoff analysis** - Understand why calls transfer
-- **Topic coverage** - See which topics are used most
-- **Function performance** - Track success rates
-
-### Agent Analysis
-
-Automated analysis with pre-built templates:
-
-1. Go to Agent Analysis
-2. Select a template (e.g., "Call categorization", "Issue detection")
-3. Run on recent calls
-4. Review insights and trends
-5. Schedule for automatic daily/weekly runs
-
-**Benefits:**
-- Identify patterns across many calls
-- Track changes over time
-- Spot emerging issues early
-- Quantify improvement efforts
-
-## Proactive monitoring
-
-### Daily checks (5-10 minutes)
-
-- [ ] Review overnight calls for errors
-- [ ] Check for new annotations
-- [ ] Verify function success rate
-- [ ] Scan for unusual patterns
-
-### Weekly reviews (30-60 minutes)
-
-- [ ] Analyze handoff trends
-- [ ] Review ASR accuracy
-- [ ] Check knowledge base coverage
-- [ ] Test recent changes in Sandbox
-- [ ] Review analytics dashboard
-
-### Monthly audits (2-4 hours)
-
-- [ ] Deep dive into call quality
-- [ ] Analyze customer satisfaction scores
-- [ ] Review all annotations and fix root causes
-- [ ] Test edge cases and unusual scenarios
-- [ ] Update knowledge base based on gaps
-- [ ] Optimize slow functions
-- [ ] Review and update Agent Behavior
-
-## Troubleshooting workflows
-
-### Diagnosing a spike in handoffs
-
-1. Go to Analytics → Handoff metrics
-2. Identify when the spike started
-3. Review calls from that period
-4. Look for common patterns:
-   - New type of question?
-   - Function failures?
-   - ASR issues?
-   - Knowledge base gap?
-5. Implement fix based on root cause
-6. Monitor to verify improvement
-
-### Fixing ASR accuracy issues
-
-1. Review calls with wrong transcriptions
-2. Identify commonly misheard words or phrases
-3. Go to Global ASR → ASR Corrections
-4. Add corrections for misheard terms
-5. Test in Agent Chat
-6. Publish and monitor improvement
-
-### Improving response quality
-
-1. Identify calls with poor responses
-2. Determine root cause:
-   - Wrong topic retrieved?
-   - Topic content inadequate?
-   - Agent Behavior unclear?
-   - Function returned wrong info?
-3. Update the relevant component
-4. Test in Agent Chat
-5. Publish and verify improvement
+## Optimizing performance
 
 ### Reducing latency
 
-1. Identify slow calls in Conversation Review
-2. Check Diagnosis for timing breakdown
-3. Find the bottleneck:
-   - Slow TTS provider?
-   - Long-running function?
-   - External API delay?
-4. Implement solution:
-   - Switch TTS provider
-   - Optimize function code
-   - Add caching
-   - Use delay controls
-5. Test and measure improvement
+**Quick wins:**
+- Enable audio caching for common phrases
+- Switch to Cartesia for faster TTS
+- Use Turbo or Swift interaction mode
+- Optimize slow functions
+- Cache API responses
 
-## Testing and validation
+**Advanced optimizations:**
+- Use delay controls for long-running functions
+- Implement async operations
+- Reduce knowledge source size
+- Simplify LLM prompts
+- Pre-compute common responses
 
-### Before promoting to Live
+### Improving ASR accuracy
 
-- [ ] Test in Agent Chat with realistic scenarios
-- [ ] Make test calls to Sandbox number
-- [ ] Review Diagnosis logs for errors
-- [ ] Verify functions execute correctly
-- [ ] Check ASR accuracy
-- [ ] Confirm response quality
-- [ ] Test edge cases
-- [ ] Run Test Sets if configured
+**Quick wins:**
+- Add custom vocabulary for domain terms
+- Use clarification prompts for ambiguous input
+- Enable noise cancellation
+- Test with different ASR models
 
-### A/B testing with variants
+**Advanced optimizations:**
+- Train custom ASR models (enterprise feature)
+- Use context-aware ASR
+- Implement spelling confirmation for critical data
+- Add phonetic alternatives for names
 
-Use variants to test changes:
+### Increasing containment
 
-1. Create variant with proposed change
-2. Route portion of traffic to variant
-3. Compare metrics between variants
-4. Choose better-performing version
-5. Roll out to all traffic
+**Quick wins:**
+- Add missing knowledge
+- Improve handoff rules
+- Add self-service options
+- Clarify agent capabilities upfront
 
-## Best practices
+**Advanced optimizations:**
+- Use functions for complex tasks
+- Implement multi-step workflows
+- Add proactive suggestions
+- Personalize based on caller history
 
-### Monitoring routine
+### Enhancing quality
 
-- **Set up alerts** - Get notified of critical issues
-- **Review regularly** - Don't wait for problems to escalate
-- **Track trends** - Monitor changes over time
-- **Document issues** - Keep a log of problems and fixes
-- **Share insights** - Keep your team informed
+**Quick wins:**
+- Fix pronunciation issues
+- Improve response clarity
+- Add personality and warmth
+- Test with real users
 
-### Data-driven improvements
+**Advanced optimizations:**
+- A/B test different approaches
+- Use sentiment analysis
+- Implement dynamic responses
+- Personalize based on context
 
-- **Measure before and after** - Quantify impact of changes
-- **Focus on high-impact issues** - Fix frequent problems first
-- **Test hypotheses** - Validate assumptions with data
-- **Iterate continuously** - Small, frequent improvements
+## Monitoring workflows
 
-### Quality assurance
+### Daily health check
 
-- **Listen to calls** - Don't just read transcripts
-- **Get user feedback** - Ask customers about their experience
-- **Test edge cases** - Don't just test happy paths
-- **Monitor after changes** - Verify fixes work as expected
+1. Review Analytics dashboard for anomalies
+2. Check handoff rate vs. baseline
+3. Review recent errors in Conversation Review
+4. Verify no critical function failures
+5. Check for ASR accuracy issues
 
-## Common workflows
+**Time:** 10-15 minutes
 
 ### Weekly performance review
 
-1. Open Analytics dashboard
-2. Review key metrics vs. targets
-3. Identify any concerning trends
-4. Go to Conversation Review
-5. Filter for annotated calls
-6. Review and categorize issues
-7. Create fix list prioritized by impact
-8. Implement top 3-5 fixes
-9. Test in Sandbox
-10. Publish and promote
+1. Analyze performance trends over the week
+2. Review top unhandled queries
+3. Listen to sample calls (5-10)
+4. Identify patterns in handoffs
+5. Check function performance
+6. Review Test Set results
+7. Plan improvements for next week
 
-### Responding to a performance issue
+**Time:** 30-60 minutes
 
-1. Identify the issue (alert, report, observation)
-2. Quantify the impact (how many calls affected?)
-3. Review affected calls in Conversation Review
-4. Use Diagnosis to understand root cause
-5. Develop and test fix in Sandbox
-6. If urgent, promote to Live immediately
-7. If not urgent, batch with other fixes
-8. Monitor to verify resolution
+### Monthly deep dive
 
-### Continuous improvement cycle
+1. Compare performance month-over-month
+2. Analyze containment rate trends
+3. Review all handoff reasons
+4. Audit knowledge coverage
+5. Optimize slow functions
+6. Update Test Sets
+7. Plan major improvements
 
-1. **Measure** - Review metrics and call quality
-2. **Analyze** - Identify patterns and root causes
-3. **Improve** - Implement fixes and enhancements
-4. **Test** - Validate changes in Sandbox
-5. **Deploy** - Promote to Live
-6. **Monitor** - Verify improvement
-7. **Repeat** - Start the cycle again
+**Time:** 2-4 hours
+
+### Version comparison
+
+When deploying a new version:
+
+1. Run Test Sets on both versions
+2. Compare key metrics:
+   - Response latency
+   - Containment rate
+   - Task completion
+   - Error rates
+3. Review sample calls from each version
+4. Identify regressions or improvements
+5. Decide whether to promote or rollback
+
+**Time:** 30-60 minutes
+
+## Troubleshooting common issues
+
+### Sudden latency spike
+
+**Possible causes:**
+- External API slowdown
+- Increased call volume
+- New function introduced
+- Network issues
+
+**Steps:**
+1. Check Analytics for timing breakdown
+2. Review recent changes (functions, knowledge)
+3. Test external APIs directly
+4. Check system status
+5. Rollback if needed
+
+### ASR accuracy drop
+
+**Possible causes:**
+- ASR model change
+- New vocabulary not recognized
+- Increased background noise
+- Phone line quality issues
+
+**Steps:**
+1. Review recent transcriptions
+2. Compare to previous period
+3. Check for new terms or patterns
+4. Test with different ASR settings
+5. Add custom vocabulary if needed
+
+### Containment rate decline
+
+**Possible causes:**
+- Knowledge gaps
+- New caller expectations
+- Seasonal changes
+- Agent changes
+
+**Steps:**
+1. Review handoff reasons
+2. Identify new patterns
+3. Add missing knowledge
+4. Adjust handoff rules
+5. Test improvements
+
+### Function failure spike
+
+**Possible causes:**
+- API changes
+- Credential expiration
+- Rate limiting
+- Code bugs
+
+**Steps:**
+1. Review function logs
+2. Test APIs directly
+3. Check credentials
+4. Review recent code changes
+5. Fix and redeploy
+
+## Best practices
+
+### Proactive monitoring
+
+- **Set up alerts** - Get notified of anomalies
+- **Review daily** - Catch issues early
+- **Track trends** - Identify gradual degradation
+- **Compare versions** - Ensure changes improve performance
+
+### Data-driven optimization
+
+- **Use Test Sets** - Measure impact of changes
+- **A/B test** - Compare approaches
+- **Listen to calls** - Understand real user experience
+- **Analyze patterns** - Find root causes, not symptoms
+
+### Continuous improvement
+
+- **Regular reviews** - Weekly and monthly check-ins
+- **Prioritize issues** - Focus on high-impact problems
+- **Iterate quickly** - Make small, frequent improvements
+- **Document learnings** - Build institutional knowledge
+
+### Collaboration
+
+- **Share insights** - Keep team informed
+- **Involve stakeholders** - Get feedback from business owners
+- **Escalate issues** - Don't let problems linger
+- **Celebrate wins** - Recognize improvements
 
 ## Related pages
 
-- [Conversation Review](/learn/guides/get-started/conv-review) - Analyzing individual calls
-- [QA and analytics](/learn/maintain/qa-analytics) - Using analytics tools
-- [Global ASR](/learn/guides/advanced/global-asr) - Improving transcription accuracy
-- [Function maintenance](/learn/maintain/function-maintenance) - Debugging and optimizing functions
-- [Health checks](/learn/maintain/health-checks) - Proactive monitoring checklist
+- [QA and analytics](/learn/maintain/qa-analytics) - Using analytics to improve your agent
+- [Function maintenance](/learn/maintain/function-maintenance) - Optimizing function performance
+- [Voice and audio updates](/learn/maintain/voice-audio-updates) - Improving audio quality
+- [Health checks](/learn/maintain/health-checks) - Proactive monitoring routines
