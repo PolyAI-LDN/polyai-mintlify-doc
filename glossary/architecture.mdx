@@ -25,29 +25,47 @@ flowchart LR
 
 The telephony layer handles the phone connection between the caller and your agent. PolyAI supports multiple telephony providers including Twilio, Amazon Connect, and SIP-based systems.
 
-### 2. Speech recognition
+### 2. Speech recognition (ASR)
 
 The caller's speech is converted to text using automatic speech recognition (ASR). PolyAI uses advanced models optimized for conversational accuracy, with support for:
 
 - Multiple languages and accents
 - Industry-specific vocabulary
 - Real-time transcription
+- ASR biasing and keyphrase boosting for domain-specific terms
+
+See also: [ASR](/glossary/introduction#asr-automatic-speech-recognition), [ASR biasing](/glossary/introduction#asr-biasing)
 
 ### 3. Agent service
 
 The agent service is the core of the system. It receives the transcribed user input and coordinates:
 
-- **Language understanding**: Interprets what the user said and their intent
-- **Decision making**: Determines the appropriate response based on your configured Managed Topics, flows, and rules
+- **Language understanding (NLU)**: Interprets what the user said, their intent, and extracts entities
+- **Decision making (Policy engine)**: Determines the appropriate response based on your configured Managed Topics, flows, and rules by executing nodes in priority order
 - **Action execution**: Triggers any necessary function calls or API integrations
+- **Context management**: Maintains dialogue context and turn history throughout the conversation
+
+See also: [NLU](/glossary/introduction#nlu-natural-language-understanding), [Policy engine](/glossary/introduction#policy-engine), [Node](/glossary/introduction#node)
 
 ### 4. Response generation
 
-Based on the decision engine's output, the system generates an appropriate response using your agent's configured voice, tone, and knowledge.
+Based on the decision engine's output, the system generates an appropriate response using your agent's configured voice, tone, and knowledge. This may involve:
 
-### 5. Text-to-speech
+- Retrieving relevant information using RAG (Retrieval-Augmented Generation)
+- Applying global rules and response control filters
+- Generating contextually appropriate responses via the LLM
 
-The generated response is converted to natural-sounding speech and played back to the caller.
+See also: [RAG](/glossary/introduction#rag-retrieval-augmented-generation), [LLM](/glossary/introduction#llm-large-language-model), [Response control](/glossary/introduction#response-control)
+
+### 5. Text-to-speech (TTS)
+
+The generated response is converted to natural-sounding speech and played back to the caller. PolyAI supports:
+
+- Multiple TTS providers and custom voices
+- SSML markup for fine-grained control over pronunciation, pauses, and emphasis
+- Custom pronunciations using IPA notation
+
+See also: [TTS](/glossary/introduction#tts-text-to-speech), [SSML](/glossary/introduction#ssml-speech-synthesis-markup-language), [Pronunciations](/glossary/introduction#pronunciations)
 
 ## Data storage
 
@@ -55,9 +73,12 @@ During a conversation, PolyAI maintains several types of data:
 
 | Data type | Purpose | Retention |
 |-----------|---------|-----------|
-| Conversation context | Tracks the full dialogue history for the current call | Duration of call |
-| Turn data | Stores individual exchanges for analytics and review | Configurable |
+| Dialogue context | Tracks the full dialogue history, state variables, and turn data for the current call | Duration of call |
+| Turn data | Stores individual exchanges (user input, agent response, intents, entities) for analytics and review | Configurable |
+| Conversation metadata | Records conversation-level information (duration, variant, environment) | Configurable |
 | Metrics | Records events for reporting and dashboards | Configurable |
+
+See also: [Dialogue context](/glossary/introduction#dialogue-context), [Turn](/glossary/introduction#turn), [Conversation metadata](/glossary/introduction#conversation-metadata)
 
 ## Key components you configure
 
@@ -75,24 +96,26 @@ Each turn in a conversation follows this sequence:
 
 <Steps>
   <Step title="Receive input">
-    The system captures and transcribes the caller's speech.
+    The system captures and transcribes the caller's speech using ASR.
   </Step>
   <Step title="Understand intent">
-    The language understanding component analyzes what the caller wants.
+    The NLU component analyzes what the caller wants and extracts entities.
   </Step>
   <Step title="Retrieve knowledge">
-    Relevant information is fetched from your Managed Topics using RAG (Retrieval-Augmented Generation).
+    Relevant information is fetched from your Managed Topics using RAG (Retrieval-Augmented Generation) via the Ragdoll service.
   </Step>
   <Step title="Execute logic">
-    Any active flows or functions are evaluated and executed.
+    The policy engine evaluates nodes and any active flows or functions are executed.
   </Step>
   <Step title="Generate response">
-    The system composes a response based on all available context.
+    The LLM composes a response based on all available context, applying global rules and response control filters.
   </Step>
   <Step title="Deliver response">
-    The response is synthesized to speech and played to the caller.
+    The response is synthesized to speech via TTS and played to the caller.
   </Step>
 </Steps>
+
+See also: [Turn](/glossary/introduction#turn), [Policy engine](/glossary/introduction#policy-engine)
 
 ## Related resources
 
