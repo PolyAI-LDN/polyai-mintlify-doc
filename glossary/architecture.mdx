@@ -23,29 +23,64 @@ flowchart LR
 
 ### 1. Telephony layer
 
-The telephony layer handles the phone connection between the caller and your agent. PolyAI supports multiple telephony providers including Twilio, Amazon Connect, and SIP-based systems.
+The telephony layer handles the phone connection between the caller and your agent. PolyAI's enterprise-ready telephony infrastructure is built for reliability, scalability, and seamless failover.
+
+**Architecture highlights:**
+
+- **Kamilio load balancer**: Distributes incoming calls across multiple media servers for optimal performance
+- **Multiple Asterisk media servers**: Redundant media processing ensures continuous service availability
+- **Automatic failover**: If a primary service experiences issues, calls are automatically routed to secondary services
+- **Contact center transfer**: Automatic transfer back to your contact center if the PolyAI service goes down, ensuring zero dropped calls
+- **Enterprise reliability**: Designed for high-volume, mission-critical voice applications
+
+**Supported telephony providers:**
+
+- Twilio
+- Amazon Connect
+- SIP-based systems
+- Custom telephony integrations
+
+This multi-layered approach ensures your voice agents remain available and responsive even during peak traffic or service disruptions.
+
+See also: [Voice integrations](/integrations/voice/introduction)
 
 ### 2. Speech recognition (ASR)
 
-The caller's speech is converted to text using automatic speech recognition (ASR). PolyAI uses advanced models optimized for conversational accuracy, with support for:
+The caller's speech is converted to text using automatic speech recognition (ASR). PolyAI's platform integrates with multiple ASR providers to ensure reliability, accuracy, and flexibility across different use cases and languages.
+
+**Supported ASR providers:**
+
+- Google Cloud Speech-to-Text
+- Amazon Transcribe
+- Microsoft Azure Speech Services
+- Deepgram
+- Custom ASR integrations
+
+The platform automatically routes requests to the optimal provider based on language, domain, and availability. This multi-provider approach ensures enterprise-grade reliability with automatic fallback if a primary service experiences issues.
+
+**Key capabilities:**
 
 - Multiple languages and accents
 - Industry-specific vocabulary
-- Real-time transcription
+- Real-time transcription with low latency
 - ASR biasing and keyphrase boosting for domain-specific terms
+- Automatic provider failover for high availability
 
-See also: [ASR](/glossary/introduction#asr-automatic-speech-recognition), [ASR biasing](/glossary/introduction#asr-biasing)
+See also: [ASR](/glossary/introduction#asr-automatic-speech-recognition), [ASR biasing](/glossary/introduction#asr-biasing), [Global ASR configuration](/learn/guides/advanced/global-asr)
 
 ### 3. Agent service
 
-The agent service is the core of the system. It receives the transcribed user input and coordinates:
+The agent service is the core of the system, powered by PolyAI's LLM-native architecture. It receives the transcribed user input and coordinates:
 
-- **Language understanding (NLU)**: Interprets what the user said, their intent, and extracts entities
-- **Decision making (Policy engine)**: Determines the appropriate response based on your configured Managed Topics, flows, and rules by executing nodes in priority order
-- **Action execution**: Triggers any necessary function calls or API integrations
+- **Language understanding**: Uses large language models (LLMs) to interpret what the user said, their intent, and extract entities in a conversational, context-aware manner
+- **Decision making (Policy engine)**: Determines the appropriate response based on your configured [Managed Topics](/managed-topics/introduction), [flows](/flows/introduction), and [rules](/agent-settings/rules) by executing nodes in priority order
+- **Knowledge retrieval**: Leverages RAG (Retrieval-Augmented Generation) to pull relevant information from both [Managed Topics](/managed-topics/introduction) and [Connected Knowledge](/connected-knowledge/introduction) sources
+- **Action execution**: Triggers any necessary [function calls](/function/introduction) or API integrations
 - **Context management**: Maintains dialogue context and turn history throughout the conversation
 
-See also: [NLU](/glossary/introduction#nlu-natural-language-understanding), [Policy engine](/glossary/introduction#policy-engine), [Node](/glossary/introduction#node)
+The LLM-native approach enables more natural, flexible conversations compared to traditional intent-based NLU systems, allowing the agent to understand nuanced requests and maintain context across complex multi-turn dialogues.
+
+See also: [LLM](/glossary/introduction#llm-large-language-model), [Policy engine](/glossary/introduction#policy-engine), [Node](/glossary/introduction#node), [RAG](/glossary/introduction#rag-retrieval-augmented-generation)
 
 ### 4. Response generation
 
@@ -59,36 +94,99 @@ See also: [RAG](/glossary/introduction#rag-retrieval-augmented-generation), [LLM
 
 ### 5. Text-to-speech (TTS)
 
-The generated response is converted to natural-sounding speech and played back to the caller. PolyAI supports:
+The generated response is converted to natural-sounding speech and played back to the caller. PolyAI integrates with multiple TTS providers to deliver high-quality, natural-sounding voices across languages and use cases.
 
-- Multiple TTS providers and custom voices
+**Supported TTS providers:**
+
+- Google Cloud Text-to-Speech
+- Amazon Polly
+- Microsoft Azure Speech Services
+- ElevenLabs
+- Custom TTS integrations
+
+**Audio management and caching:**
+
+PolyAI's audio management system optimizes user experience and reduces latency through intelligent caching:
+
+- **Audio cache**: Frequently used phrases (greetings, confirmations, transfer messages) are cached for instant playback, reducing latency and ensuring consistency
+- **Cache requirements**: Audio is cached when the same utterance is generated at least twice within a 24-hour window
+- **Regeneration control**: Edit cached audio directly in Agent Studio to adjust stability, clarity, and pronunciation
+- **UX optimization**: Fine-tune voice quality for critical phrases without regenerating audio on every call
+
+**Additional capabilities:**
+
 - SSML markup for fine-grained control over pronunciation, pauses, and emphasis
 - Custom pronunciations using IPA notation
+- Multiple voice options and custom voice cloning
+- Real-time audio streaming for low-latency responses
 
-See also: [TTS](/glossary/introduction#tts-text-to-speech), [SSML](/glossary/introduction#ssml-speech-synthesis-markup-language), [Pronunciations](/glossary/introduction#pronunciations)
+See also: [TTS](/glossary/introduction#tts-text-to-speech), [SSML](/glossary/introduction#ssml-speech-synthesis-markup-language), [Pronunciations](/glossary/introduction#pronunciations), [Audio Management](/learn/guides/advanced/audio-management)
 
-## Data storage
+## Data storage and synchronization
 
-During a conversation, PolyAI maintains several types of data:
+During and after a conversation, PolyAI captures, stores, and synchronizes several types of data to support analytics, compliance, and operational workflows.
 
-| Data type | Purpose | Retention |
-|-----------|---------|-----------|
-| Dialogue context | Tracks the full dialogue history, state variables, and turn data for the current call | Duration of call |
-| Turn data | Stores individual exchanges (user input, agent response, intents, entities) for analytics and review | Configurable |
-| Conversation metadata | Records conversation-level information (duration, variant, environment) | Configurable |
-| Metrics | Records events for reporting and dashboards | Configurable |
+### Data types and retention
 
-See also: [Dialogue context](/glossary/introduction#dialogue-context), [Turn](/glossary/introduction#turn), [Conversation metadata](/glossary/introduction#conversation-metadata)
+| Data type | Purpose | Nature | Retention |
+|-----------|---------|--------|-----------|
+| Dialogue context | Tracks the full dialogue history, state variables, and turn data for the current call | Real-time, in-memory during call | Duration of call |
+| Turn data | Stores individual exchanges (user input, agent response, intents, entities) for analytics and review | Structured conversation logs | Configurable |
+| Conversation metadata | Records conversation-level information (duration, variant, environment, handoff state) | Structured metadata | Configurable |
+| Audio recordings | Full call recordings for quality assurance and compliance | Audio files (WAV/MP3) | Configurable |
+| Transcripts | Complete text transcripts of conversations | Structured text | Configurable |
+| Metrics and events | Records events for reporting and dashboards | Time-series data | Configurable |
+
+### Data synchronization and access
+
+PolyAI provides multiple methods to access and synchronize conversation data with your systems:
+
+- **[Studio transcripts](/call-data/studio-transcripts)**: Review transcripts and recordings directly in the PolyAI platform
+- **[Conversations API](/call-data/conversations-api/list-conversations)**: Programmatically retrieve conversation metadata, transcripts, and recordings
+- **[AWS S3 integration](/call-data/s3-to-s3)**: Automatically sync call data to your AWS S3 bucket for long-term storage and compliance
+- **[Handoff metadata](/api-reference/handoff/introduction)**: Share real-time conversation state with live agents during transfers
+
+All data handling follows enterprise security standards and can be configured to meet compliance requirements such as HIPAA, GDPR, and PCI-DSS.
+
+See also: [Dialogue context](/glossary/introduction#dialogue-context), [Turn](/glossary/introduction#turn), [Conversation metadata](/glossary/introduction#conversation-metadata), [Call data documentation](/call-data/introduction)
 
 ## Key components you configure
 
 As a builder in Agent Studio, you control how the agent behaves through:
 
-- **[Managed Topics](/managed-topics/introduction)**: Information the agent uses to answer questions
+- **[Managed Topics](/managed-topics/introduction)**: Curated knowledge with fine-grained control over utterances and actions. Use for structured, stable information that requires precise agent behavior. Can trigger functions, flows, and other agentic actions.
+- **[Connected Knowledge](/connected-knowledge/introduction)**: Fast integration of external knowledge sources (URLs, files, Zendesk, Gladly, ServiceNow). Ideal for FAQ-style content and large volumes of continuously updated information. Cannot trigger actions or flows.
 - **[Flows](/flows/introduction)**: Structured conversation paths for complex tasks
 - **[Functions](/function/introduction)**: Custom logic and external integrations
 - **[Rules](/agent-settings/rules)**: Global behavior constraints
 - **[Voice settings](/voice/introduction)**: How the agent sounds
+
+### Managed Topics vs. Connected Knowledge
+
+Both expose information to your agent, but serve different purposes:
+
+**When to use Managed Topics:**
+- You need to trigger actions, functions, flows, or SMS
+- You want precise control over what the agent says and when
+- Information is relatively stable and structured
+- You need fine-grained control over agent behavior
+
+**When to use Connected Knowledge:**
+- Content lives in external systems (documentation sites, help desks)
+- Information changes frequently and is maintained by other teams
+- You want automatic updates from external sources
+- You need a simple, fast way to expose FAQ-style content
+
+**Supported Connected Knowledge integrations:**
+- Zendesk
+- Gladly
+- ServiceNow
+- Salesforce _(coming soon)_
+- Notion _(coming soon)_
+
+If both contain conflicting information, **Managed Topics always takes priority**.
+
+See also: [Managed Topics overview](/managed-topics/introduction), [Connected Knowledge overview](/connected-knowledge/introduction)
 
 ## Processing a single turn
 
@@ -99,10 +197,10 @@ Each turn in a conversation follows this sequence:
     The system captures and transcribes the caller's speech using ASR.
   </Step>
   <Step title="Understand intent">
-    The NLU component analyzes what the caller wants and extracts entities.
+    The LLM analyzes what the caller wants and extracts entities in a context-aware manner.
   </Step>
   <Step title="Retrieve knowledge">
-    Relevant information is fetched from your Managed Topics using RAG (Retrieval-Augmented Generation) via the Ragdoll service.
+    Relevant information is fetched from Managed Topics and Connected Knowledge using RAG (Retrieval-Augmented Generation).
   </Step>
   <Step title="Execute logic">
     The policy engine evaluates nodes and any active flows or functions are executed.
@@ -125,5 +223,11 @@ See also: [Turn](/glossary/introduction#turn), [Policy engine](/glossary/introdu
   </Card>
   <Card title="Getting started" icon="rocket" href="/get-started/quickstart">
     Build your first agent step by step.
+  </Card>
+  <Card title="Integrations" icon="plug" href="/integrations/introduction">
+    Explore available platform integrations.
+  </Card>
+  <Card title="Call data" icon="database" href="/call-data/introduction">
+    Learn about data storage and synchronization options.
   </Card>
 </CardGroup>
