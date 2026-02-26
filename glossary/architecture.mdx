@@ -128,24 +128,65 @@ During and after a conversation, PolyAI captures, stores, and synchronizes sever
 
 ### Data types and retention
 
-| Data type | Purpose | Retention |
-|-----------|---------|-----------|
-| Dialogue context | Tracks the full dialogue history, state variables, and turn data for the current call | Duration of call |
-| Turn data | Stores individual exchanges (user input, agent response, intents, entities) for analytics and review | Configurable |
-| Conversation metadata | Records conversation-level information (duration, variant, environment) | Configurable |
-| Metrics | Records events for reporting and dashboards | Configurable |
+| Data type | Purpose | Nature | Retention |
+|-----------|---------|--------|-----------|
+| Dialogue context | Tracks the full dialogue history, state variables, and turn data for the current call | Real-time, in-memory during call | Duration of call |
+| Turn data | Stores individual exchanges (user input, agent response, intents, entities) for analytics and review | Structured conversation logs | Configurable |
+| Conversation metadata | Records conversation-level information (duration, variant, environment, handoff state) | Structured metadata | Configurable |
+| Audio recordings | Full call recordings for quality assurance and compliance | Audio files (WAV/MP3) | Configurable |
+| Transcripts | Complete text transcripts of conversations | Structured text | Configurable |
+| Metrics and events | Records events for reporting and dashboards | Time-series data | Configurable |
 
-See also: [Dialogue context](/glossary/introduction#dialogue-context), [Turn](/glossary/introduction#turn), [Conversation metadata](/glossary/introduction#conversation-metadata)
+### Data synchronization and access
+
+PolyAI provides multiple methods to access and synchronize conversation data with your systems:
+
+- **[Studio transcripts](/call-data/studio-transcripts)**: Review transcripts and recordings directly in the PolyAI platform
+- **[Conversations API](/call-data/conversations-api/list-conversations)**: Programmatically retrieve conversation metadata, transcripts, and recordings
+- **[AWS S3 integration](/call-data/s3-to-s3)**: Automatically sync call data to your AWS S3 bucket for long-term storage and compliance
+- **[Handoff metadata](/api-reference/handoff/introduction)**: Share real-time conversation state with live agents during transfers
+
+All data handling follows enterprise security standards and can be configured to meet compliance requirements such as HIPAA, GDPR, and PCI-DSS.
+
+See also: [Dialogue context](/glossary/introduction#dialogue-context), [Turn](/glossary/introduction#turn), [Conversation metadata](/glossary/introduction#conversation-metadata), [Call data documentation](/call-data/introduction)
 
 ## Key components you configure
 
 As a builder in Agent Studio, you control how the agent behaves through:
 
-- **[Managed Topics](/managed-topics/introduction)**: Information the agent uses to answer questions
+- **[Managed Topics](/managed-topics/introduction)**: Curated knowledge with fine-grained control over utterances and actions. Use for structured, stable information that requires precise agent behavior. Can trigger functions, flows, and other agentic actions.
+- **[Connected Knowledge](/connected-knowledge/introduction)**: Fast integration of external knowledge sources (URLs, files, Zendesk, Gladly, ServiceNow). Ideal for FAQ-style content and large volumes of continuously updated information. Cannot trigger actions or flows.
 - **[Flows](/flows/introduction)**: Structured conversation paths for complex tasks
 - **[Functions](/function/introduction)**: Custom logic and external integrations
 - **[Rules](/agent-settings/rules)**: Global behavior constraints
 - **[Voice settings](/voice/introduction)**: How the agent sounds
+
+### Managed Topics vs. Connected Knowledge
+
+Both expose information to your agent, but serve different purposes:
+
+**When to use Managed Topics:**
+- You need to trigger actions, functions, flows, or SMS
+- You want precise control over what the agent says and when
+- Information is relatively stable and structured
+- You need fine-grained control over agent behavior
+
+**When to use Connected Knowledge:**
+- Content lives in external systems (documentation sites, help desks)
+- Information changes frequently and is maintained by other teams
+- You want automatic updates from external sources
+- You need a simple, fast way to expose FAQ-style content
+
+**Supported Connected Knowledge integrations:**
+- Zendesk
+- Gladly
+- ServiceNow
+- Salesforce _(coming soon)_
+- Notion _(coming soon)_
+
+If both contain conflicting information, **Managed Topics always takes priority**.
+
+See also: [Managed Topics overview](/managed-topics/introduction), [Connected Knowledge overview](/connected-knowledge/introduction)
 
 ## Processing a single turn
 
@@ -156,10 +197,10 @@ Each turn in a conversation follows this sequence:
     The system captures and transcribes the caller's speech using ASR.
   </Step>
   <Step title="Understand intent">
-    The NLU component analyzes what the caller wants and extracts entities.
+    The LLM analyzes what the caller wants and extracts entities in a context-aware manner.
   </Step>
   <Step title="Retrieve knowledge">
-    Relevant information is fetched from your Managed Topics using RAG (Retrieval-Augmented Generation) via the Ragdoll service.
+    Relevant information is fetched from Managed Topics and Connected Knowledge using RAG (Retrieval-Augmented Generation).
   </Step>
   <Step title="Execute logic">
     The policy engine evaluates nodes and any active flows or functions are executed.
@@ -182,5 +223,11 @@ See also: [Turn](/glossary/introduction#turn), [Policy engine](/glossary/introdu
   </Card>
   <Card title="Getting started" icon="rocket" href="/get-started/quickstart">
     Build your first agent step by step.
+  </Card>
+  <Card title="Integrations" icon="plug" href="/integrations/introduction">
+    Explore available platform integrations.
+  </Card>
+  <Card title="Call data" icon="database" href="/call-data/introduction">
+    Learn about data storage and synchronization options.
   </Card>
 </CardGroup>
