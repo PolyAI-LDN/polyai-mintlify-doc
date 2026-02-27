@@ -1,0 +1,109 @@
+---
+title: 'CSV imports'
+description: 'Bulk import and update variants using CSV files'
+---
+
+CSV imports allow you to create or update multiple variants at once. This is useful for managing multi-site deployments or making bulk changes to variant attributes.
+
+## Export your current variants
+
+Before importing, export your existing variants to understand the file format:
+
+1. Navigate to **Variant management** in Agent Studio
+2. Click **Export CSV**
+3. Save the file to your local machine
+
+The exported CSV contains all your variants with their attributes and configurations.
+
+## CSV file format
+
+The CSV file must include these columns:
+
+| Column | Required | Description |
+| ------ | -------- | ----------- |
+| `id` | No | Leave empty for new variants. Include existing IDs to update variants. |
+| `name` | Yes | Unique name for the variant |
+| `is_default` | Yes | `true` or `false`. Only one variant can be default. |
+| `attribute_*` | No | Custom attributes (e.g., `attribute_phone_number`, `attribute_address`) |
+
+### Example CSV
+
+```csv
+id,name,is_default,attribute_phone_number,attribute_opening_hours
+,London Bridge,false,+442012345678,9am-5pm Mon-Fri
+,Manchester,false,+441612345678,9am-6pm Mon-Sat
+,Birmingham,true,+441212345678,24/7
+```
+
+## Import process
+
+1. **Prepare your CSV**
+   - Keep column headers exactly as exported
+   - Leave `id` empty for new variants
+   - Include `id` values for variants you want to update
+   - Ensure only one variant has `is_default` set to `true`
+
+2. **Upload the file**
+   - Navigate to **Variant management**
+   - Click **Import CSV**
+   - Select your CSV file
+
+3. **Review changes**
+   - The platform shows a diff of what will change
+   - New variants are highlighted
+   - Updated fields are shown side-by-side
+
+4. **Confirm import**
+   - Review the diff carefully
+   - Click **Confirm import** to apply changes
+   - Changes take effect immediately
+
+## Best practices
+
+- **Test in sandbox first** - Import to your sandbox environment before production
+- **Keep a backup** - Export before importing to preserve your current state
+- **Validate data** - Check phone numbers, URLs, and other data before importing
+- **Use consistent naming** - Follow a naming convention that scales (e.g., `City-Location`)
+- **One default only** - Ensure exactly one variant is marked as default
+
+## Common use cases
+
+### Adding new locations
+
+Export your CSV, add new rows with empty `id` fields, and import to create new variants.
+
+### Updating phone numbers
+
+Export, update the `attribute_phone_number` column, keep the `id` values, and import.
+
+### Changing default variant
+
+Export, change which row has `is_default=true`, and import.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Import fails with 'duplicate name' error">
+    Variant names must be unique. Check for duplicate entries in your CSV.
+  </Accordion>
+
+  <Accordion title="Changes don't appear after import">
+    Refresh the page. If changes still don't appear, check the import confirmation screen for errors.
+  </Accordion>
+
+  <Accordion title="Can't set a variant as default">
+    Only one variant can be default. Ensure no other variants have `is_default=true`.
+  </Accordion>
+
+  <Accordion title="Attribute columns not recognized">
+    Attribute columns must start with `attribute_`. Check your column headers.
+  </Accordion>
+</AccordionGroup>
+
+## Limits
+
+- Maximum 1000 variants per project
+- Maximum 50 custom attributes per variant
+- CSV file size limit: 10MB
+
+<Note>For larger imports or complex migrations, contact your PolyAI representative for assistance.</Note>
