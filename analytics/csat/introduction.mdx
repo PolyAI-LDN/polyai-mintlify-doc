@@ -30,14 +30,16 @@ PolyAI supports two types of CSAT surveys:
 
 ## Configuration
 
-### Enable CSAT surveys
+### Voice CSAT configuration
+
+#### Enable voice CSAT surveys
 
 1. Navigate to **Settings** in Agent Studio
 2. Scroll to the **CSAT** section
 3. Toggle **Enable CSAT** to on
 4. Configure your survey messages
 
-### Survey messages
+#### Survey messages
 
 <ParamField path="lead_in_message" type="string">
   Message to introduce the survey. Keep it brief and natural.
@@ -51,12 +53,108 @@ PolyAI supports two types of CSAT surveys:
   **Example:** "On a scale of 1 to 5, where 1 is very dissatisfied and 5 is very satisfied, how would you rate this call?"
 </ParamField>
 
-### Best practices
+#### Best practices
 
 - **Keep it short** - Customers are more likely to respond to brief surveys
 - **Be clear about the scale** - Explicitly state what 1 and 5 mean
 - **Natural language** - Write messages that sound conversational, not robotic
 - **Test thoroughly** - Try different phrasings in sandbox before deploying
+
+### SMS CSAT configuration
+
+SMS CSAT surveys are configured through the Advanced Configuration JSON in your project settings.
+
+<Warning>
+SMS CSAT is only available for GenAI projects. If using a hybrid project, it must use GenAI handoffs.
+</Warning>
+
+#### Basic SMS setup
+
+Add the `csat_sms` configuration to your Advanced Configuration JSON:
+
+```json
+{
+  "csat_sms": {
+    "enabled": true,
+    "sms_question_template": "Thanks for calling. How was your experience with the agent who assisted you today? Reply 1-5 (1=poor, 5=excellent). Reply STOP to opt out.",
+    "sms_response_template": "Thank you for your feedback!",
+    "contained_calls": {
+      "enabled": true,
+      "percentage": 100,
+      "weekly_cap": 1000,
+      "delay_minutes": 6
+    },
+    "uncontained_calls": {
+      "enabled": false
+    },
+    "call_center_calls": {
+      "enabled": false
+    },
+    "wait_for_response_hours": 12
+  }
+}
+```
+
+#### Configuration options
+
+<ParamField path="enabled" type="boolean">
+  Enable or disable SMS CSAT surveys globally.
+</ParamField>
+
+<ParamField path="sms_question_template" type="string">
+  The SMS message containing your survey question. Must clearly explain the 1-5 scale and include opt-out instructions.
+  
+  **Example:** "Thanks for calling. How was your experience with the agent who assisted you today? Reply 1-5 (1=poor, 5=excellent). Reply STOP to opt out."
+</ParamField>
+
+<ParamField path="sms_response_template" type="string">
+  Confirmation message sent after the customer responds.
+  
+  **Example:** "Thank you for your feedback!"
+</ParamField>
+
+<ParamField path="wait_for_response_hours" type="number">
+  How many hours to wait for customer responses before closing the survey window.
+  
+  **Default:** 12 hours
+</ParamField>
+
+#### Call type settings
+
+Configure SMS surveys separately for different call outcomes:
+
+<ParamField path="contained_calls" type="object">
+  Calls that were fully handled by the AI agent without transferring to a human.
+  
+  - `enabled` (boolean) - Enable surveys for contained calls
+  - `percentage` (number 0-100) - Percentage of contained calls that receive surveys
+  - `weekly_cap` (number) - Maximum SMS messages to send per week for this call type
+  - `delay_minutes` (number) - Minutes to wait after call ends before sending SMS (minimum 6 for Twilio)
+</ParamField>
+
+<ParamField path="uncontained_calls" type="object">
+  Calls where the AI agent transferred to a human agent or call center.
+  
+  Same configuration options as `contained_calls`.
+</ParamField>
+
+<ParamField path="call_center_calls" type="object">
+  Calls that were routed directly to the call center without AI agent interaction.
+  
+  Same configuration options as `contained_calls`.
+</ParamField>
+
+#### Call routing for experiments
+
+You can route a percentage of calls directly to your call center to compare AI vs. human agent CSAT scores:
+
+```json
+{
+  "CSAT_EARLY_ROUTING_PERCENTAGE": 50
+}
+```
+
+This variable controls what percentage of calls route to the call center (0-100). The remaining calls go to your AI agent. Both groups can receive SMS CSAT surveys based on your `call_center_calls` and `contained_calls` configuration.
 
 ## Implementing CSAT in your end function
 
