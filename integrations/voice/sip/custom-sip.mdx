@@ -81,6 +81,20 @@ In addition to configuring call handoffs in the UI, you can initiate SIP transfe
 
 You can use two methods: **INVITE** and **REFER**. These are mutually exclusive with UI-based `Call Handoffs` and require manual setup.
 
+### When to use INVITE vs REFER
+
+**Use SIP INVITE when:**
+- You want PolyAI to remain in the call as a bridge between the caller and the target
+- You need to monitor or record the transferred call
+- You want to inject custom SIP headers for the outbound leg
+- You're transferring to a PSTN number or external SIP URI
+
+**Use SIP REFER when:**
+- You want the Session Border Controller (SBC) to handle the transfer directly
+- You want to remove PolyAI from the call path after transfer (reduces latency and infrastructure load)
+- Your SBC supports REFER and has "Take Back and Transfer" enabled
+- You're performing an attended or blind transfer within the same SIP domain
+
 ### SIP INVITE
 
 This creates a new call and bridges the user with the target. Use this when you want PolyAI to act as a bridge.
@@ -92,7 +106,7 @@ return {
     "invite": {
       "phone_number": "2222222",  // SIP URI or PSTN number
       "outbound_caller_id": conv.caller_number,
-      "outbound_endpoint": "YOUR_OUTBOUND_ENDPOINT_NAME",
+      "outbound_endpoint": "YOUR_OUTBOUND_ENDPOINT_NAME",  // Provided by PolyAI during setup
       "sip_headers": {
         "X-Customer-ID": conv.state.customer_id,
         "X-Call-Type": "Support"
@@ -101,6 +115,10 @@ return {
   }
 }
 ```
+
+<Info>
+The `outbound_endpoint` value is provided by PolyAI during your SIP integration setup. Contact your PolyAI account manager or [support@poly.ai](mailto:support@poly.ai) if you need this value.
+</Info>
 
 ### SIP REFER
 
