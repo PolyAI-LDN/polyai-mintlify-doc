@@ -28,6 +28,91 @@
     }
   ],
   "paths": {
+    "/internal/v1/agentic-dial/bridge-ended": {
+      "post": {
+        "summary": "Bridge ended notification",
+        "description": "Internal endpoint that receives notifications when a call bridge (transfer) completes. Triggered automatically by the telephony system after a bridged call ends, allowing configured project functions to process bridge metadata and call duration information.",
+        "tags": [
+          "External Events"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "conversation_id",
+                  "bridge_duration_seconds",
+                  "call_duration_seconds"
+                ],
+                "properties": {
+                  "conversation_id": {
+                    "type": "string",
+                    "description": "The unique identifier for the conversation"
+                  },
+                  "bridge_duration_seconds": {
+                    "type": "number",
+                    "description": "Duration of the bridge/transfer in seconds"
+                  },
+                  "call_duration_seconds": {
+                    "type": "number",
+                    "description": "Total call duration in seconds"
+                  }
+                }
+              },
+              "examples": {
+                "bridge_ended": {
+                  "summary": "Bridge ended notification",
+                  "value": {
+                    "conversation_id": "conv_abc123xyz",
+                    "bridge_duration_seconds": 180,
+                    "call_duration_seconds": 300
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bridge ended notification received and processed successfully."
+          },
+          "400": {
+            "description": "Malformed request (for example, missing required fields).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalEventsError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalEventsError"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl -X POST \"https://api.us-1.platform.polyai.app/internal/v1/agentic-dial/bridge-ended\" -H \"Content-Type: application/json\" -d '{\"conversation_id\":\"conv_abc123xyz\",\"bridge_duration_seconds\":180,\"call_duration_seconds\":300}'"
+          },
+          {
+            "lang": "python",
+            "label": "Python (requests)",
+            "source": "import requests\n\nurl = \"https://api.us-1.platform.polyai.app/internal/v1/agentic-dial/bridge-ended\"\nheaders = {\"Content-Type\": \"application/json\"}\npayload = {\n    \"conversation_id\": \"conv_abc123xyz\",\n    \"bridge_duration_seconds\": 180,\n    \"call_duration_seconds\": 300\n}\nresp = requests.post(url, headers=headers, json=payload)\nprint(resp.status_code)  # 200 on success\n"
+          }
+        ]
+      }
+    },
     "/v1/external-events/webhook": {
       "post": {
         "summary": "External events webhook (provider → PolyAI)",
