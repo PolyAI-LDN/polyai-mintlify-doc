@@ -1,0 +1,113 @@
+---
+title: 'Snapcall'
+description: 'Integrate PolyAI agents with Snapcall for seamless voice and video calling'
+---
+
+Snapcall is a click-to-call platform that enables instant voice and video calls directly from your website or app. Integrate PolyAI agents with Snapcall to provide automated voice support through Snapcall's calling interface.
+
+## Overview
+
+The PolyAI-Snapcall integration allows you to:
+
+- Provide instant voice support through Snapcall's widget
+- Route calls to PolyAI agents before escalating to human agents
+- Maintain conversation context when transferring to live agents
+- Track call analytics across both platforms
+
+## Prerequisites
+
+- Active PolyAI account with a configured agent
+- Snapcall account with API access
+- SIP connector configured in PolyAI
+
+## Setup
+
+### 1. Configure PolyAI connector
+
+1. Navigate to **Settings** → **Integrations** in Agent Studio
+2. Select **Voice** → **SIP**
+3. Create a new SIP connector or use an existing one
+4. Note the SIP URI provided by PolyAI
+
+### 2. Configure Snapcall routing
+
+1. Log in to your Snapcall dashboard
+2. Navigate to **Settings** → **Call routing**
+3. Add PolyAI as a routing destination:
+   - **Type**: SIP endpoint
+   - **SIP URI**: Your PolyAI SIP URI from step 1
+   - **Priority**: Set based on your routing strategy
+
+### 3. Set up call flow
+
+Configure your Snapcall call flow to route to PolyAI:
+
+1. In Snapcall, go to **Call flows**
+2. Create or edit a call flow
+3. Add PolyAI as the first destination
+4. Configure fallback routing to human agents if needed
+
+## Call handoff
+
+To transfer calls from PolyAI to Snapcall agents, use the `call_handoff` method in your functions:
+
+```python
+def handle_escalation(conv):
+    conv.call_handoff(
+        destination="snapcall_agents",
+        reason="customer_request",
+        utterance="Let me connect you with a specialist."
+    )
+```
+
+Configure the handoff destination in your PolyAI project settings to point to your Snapcall agent queue.
+
+## Passing context
+
+Pass conversation context to Snapcall agents using SIP headers:
+
+```python
+def start(conv):
+    # Store customer information in state
+    conv.state.customer_id = "12345"
+    conv.state.issue_type = "billing"
+    
+    # Context will be available in SIP headers during handoff
+```
+
+## Best practices
+
+- **Test call quality** - Verify audio quality between PolyAI and Snapcall before going live
+- **Configure timeouts** - Set appropriate timeout values for agent availability
+- **Monitor handoffs** - Track handoff rates and reasons in both platforms
+- **Optimize routing** - Use PolyAI for common queries, escalate complex issues to Snapcall agents
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Calls not routing to PolyAI">
+    - Verify SIP URI is correctly configured in Snapcall
+    - Check that your PolyAI connector is active
+    - Ensure firewall rules allow SIP traffic
+  </Accordion>
+
+  <Accordion title="Audio quality issues">
+    - Check network latency between Snapcall and PolyAI
+    - Verify codec compatibility (G.711, Opus recommended)
+    - Review bandwidth requirements for your call volume
+  </Accordion>
+
+  <Accordion title="Handoffs failing">
+    - Confirm handoff destination is configured in PolyAI
+    - Verify Snapcall agent queue is available
+    - Check SIP header format for context passing
+  </Accordion>
+</AccordionGroup>
+
+## Support
+
+For integration support:
+- **PolyAI**: Contact your PolyAI representative
+- **Snapcall**: Visit [Snapcall support](https://snapcall.io/support)
+
+<Note>This integration requires coordination between PolyAI and Snapcall support teams. Contact your PolyAI representative to initiate the setup process.</Note>
