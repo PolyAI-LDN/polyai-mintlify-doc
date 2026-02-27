@@ -1,0 +1,274 @@
+---
+title: 'Outbound calling API'
+description: 'Trigger outbound calls and check call status programmatically.'
+---
+
+The Outbound Calling API allows you to programmatically initiate outbound calls and check their status. This is useful for proactive customer outreach, appointment reminders, and automated notifications.
+
+## Prerequisites
+
+- An active PolyAI agent with outbound calling enabled
+- A valid connector token with outbound integration configured
+- Outbound phone numbers provisioned in your account
+
+<Note>
+Contact your PolyAI representative to enable outbound calling for your agent.
+</Note>
+
+## Authentication
+
+All outbound API requests require authentication using a connector token in the request header:
+
+```
+X-PolyAi-Auth-Token: your_connector_token
+```
+
+## Endpoints
+
+### Trigger an outbound call
+
+Initiate a new outbound call to a specified phone number.
+
+**Endpoint:** `POST /trigger`
+
+**Headers:**
+```json
+{
+  "X-PolyAi-Auth-Token": "your_connector_token",
+  "Content-Type": "application/json"
+}
+```
+
+**Request body:**
+```json
+{
+  "to_number": "+14155551234",
+  "country_code": "US",
+  "encryption": "tls_srtp",
+  "metadata": {
+    "customer_id": "12345",
+    "appointment_id": "apt_789",
+    "custom_field": "value"
+  }
+}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `to_number` | string | Yes | Phone number to call in E.164 format (e.g., `+14155551234`) |
+| `country_code` | string | No | ISO country code for phone number validation (e.g., `US`, `GB`). Defaults to `ZZ` (unknown region) |
+| `encryption` | string | No | Telephony encryption type. Defaults to `tls_srtp` |
+| `metadata` | object | No | Custom key-value pairs to pass to the conversation. Accessible via `conv.integration_attributes` |
+
+**Response:**
+
+```json
+{
+  "call_sid": "OUT-550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+The `call_sid` is a unique identifier for the outbound call, which you can use to check the call status.
+
+**Example request:**
+
+```bash
+curl -X POST https://api.poly.ai/outbound/trigger \
+  -H "X-PolyAi-Auth-Token: your_connector_token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to_number": "+14155551234",
+    "country_code": "US",
+    "metadata": {
+      "customer_id": "12345",
+      "campaign": "appointment_reminder"
+    }
+  }'
+```
+
+### Get call status
+
+Check the status of an outbound call using its call SID.
+
+**Endpoint:** `GET /status/{call_sid}`
+
+**Headers:**
+```json
+{
+  "X-PolyAi-Auth-Token": "your_connector_token"
+}
+```
+
+**Path parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `call_sid` | string | Yes | The unique call identifier returned from the trigger endpoint |
+
+**Response:**
+
+```json
+{
+  "status": "completed",
+  "reason": "normal_clearing"
+}
+```
+
+**Status values:**
+
+| Status | Description |
+|--------|-------------|
+| `queued` | Call has been queued for processing |
+| `ringing` | Call is ringing |
+| `in_progress` | Call is active and in progress |
+| `completed` | Call has ended successfully |
+| `failed` | Call failed to connect |
+| `busy` | Called party was busy |
+| `no_answer` | Called party did not answer |
+| `cancelled` | Call was cancelled before connecting |
+
+**Example request:**
+
+```bash
+curl -X GET https://api.poly.ai/outbound/status/OUT-550e8400-e29b-41d4-a716-446655440000 \
+  -H "X-PolyAi-Auth-Token: your_connector_token"
+```
+
+## Using metadata in conversations
+
+Metadata passed in the trigger request is accessible in your agent's functions via `conv.integration_attributes`:
+
+```python
+def start_function(conv: Conversation):
+    # Access metadata from the outbound call trigger
+    customer_id = conv.integration_attributes.get("customer_id")
+    appointment_id = conv.integration_attributes.get("appointment_id")
+    
+    if customer_id:
+        # Fetch customer data and personalize the conversation
+        customer_data = fetch_customer_data(customer_id)
+        conv.set_memory("customer_name", customer_data["name"])
+```
+
+<Warning>
+Metadata is base64-encoded and has a size limit of approximately 26KB. Keep metadata concise to avoid exceeding this limit.
+</Warning>
+
+## Phone number format
+
+Phone numbers must be in E.164 format:
+- Start with `+` followed by country code
+- No spaces, dashes, or parentheses
+- Example: `+14155551234` (US), `+442071234567` (UK)
+
+The API validates phone numbers against the provided `country_code`. If validation fails, the request will return a 400 Bad Request error.
+
+## Error responses
+
+| Status Code | Error | Description |
+|-------------|-------|-------------|
+| 400 | Bad request | Invalid request parameters or phone number format |
+| 401 | Unauthorized | Invalid or missing connector token |
+| 404 | Call SID not found | The specified call SID does not exist |
+| 500 | Could not originate call | Internal error when attempting to place the call |
+| 500 | Could not get call status | Internal error when retrieving call status |
+
+**Example error response:**
+
+```json
+{
+  "error": "Bad request",
+  "message": "to_number is not a valid number for this country_code"
+}
+```
+
+## Best practices
+
+<AccordionGroup>
+  <Accordion title="Validate phone numbers before calling">
+    Always validate phone numbers on your end before triggering calls to reduce failed attempts and improve success rates.
+  </Accordion>
+
+  <Accordion title="Use meaningful metadata">
+    Include relevant context in metadata to personalize conversations and improve customer experience. Examples: customer ID, appointment details, order numbers.
+  </Accordion>
+
+  <Accordion title="Monitor call status">
+    Poll the status endpoint to track call outcomes and handle failures appropriately in your application.
+  </Accordion>
+
+  <Accordion title="Handle rate limits">
+    Implement retry logic with exponential backoff for failed requests. Contact your PolyAI representative for information about rate limits.
+  </Accordion>
+
+  <Accordion title="Test in sandbox first">
+    Always test outbound calling workflows in your sandbox environment before deploying to production.
+  </Accordion>
+</AccordionGroup>
+
+## Common use cases
+
+### Appointment reminders
+
+```python
+# Trigger a call to remind customer about upcoming appointment
+response = requests.post(
+    "https://api.poly.ai/outbound/trigger",
+    headers={"X-PolyAi-Auth-Token": token},
+    json={
+        "to_number": customer_phone,
+        "country_code": "US",
+        "metadata": {
+            "appointment_id": "apt_123",
+            "appointment_time": "2025-03-01T14:00:00Z",
+            "doctor_name": "Dr. Smith"
+        }
+    }
+)
+```
+
+### Order status updates
+
+```python
+# Notify customer about order delivery
+response = requests.post(
+    "https://api.poly.ai/outbound/trigger",
+    headers={"X-PolyAi-Auth-Token": token},
+    json={
+        "to_number": customer_phone,
+        "country_code": "GB",
+        "metadata": {
+            "order_id": "ORD-456",
+            "delivery_status": "out_for_delivery",
+            "tracking_number": "TRK789"
+        }
+    }
+)
+```
+
+### Survey or feedback collection
+
+```python
+# Call customer for post-service feedback
+response = requests.post(
+    "https://api.poly.ai/outbound/trigger",
+    headers={"X-PolyAi-Auth-Token": token},
+    json={
+        "to_number": customer_phone,
+        "country_code": "US",
+        "metadata": {
+            "service_id": "SVC-789",
+            "service_date": "2025-02-25",
+            "survey_type": "satisfaction"
+        }
+    }
+)
+```
+
+## Related pages
+
+- [Functions](/function/introduction) - Use metadata in your agent's logic
+- [Conversation object](/function/classes/conv-object) - Access integration attributes
+- [Telephony](/telephony/introduction) - Configure phone numbers
