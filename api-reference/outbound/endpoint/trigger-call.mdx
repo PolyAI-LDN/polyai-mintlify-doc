@@ -1,0 +1,138 @@
+---
+title: 'Trigger an outbound call'
+api: 'POST /outbound/trigger'
+description: 'Initiate an outbound call to a phone number'
+---
+
+Triggers a new outbound call to the specified phone number. The call will be queued and processed by the outbound calling system.
+
+## Request
+
+### Headers
+
+<ParamField header="X-PolyAi-Auth-Token" type="string" required>
+  Connector authentication token for outbound calls
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  Must be `application/json`
+</ParamField>
+
+### Body
+
+<ParamField body="to_number" type="string" required>
+  Phone number to call in E.164 format (e.g., `+14155552671`)
+</ParamField>
+
+<ParamField body="country_code" type="string" default="ZZ">
+  ISO 3166-1 alpha-2 country code for phone number validation (e.g., `US`, `GB`, `FR`). Defaults to `ZZ` (unknown region).
+</ParamField>
+
+<ParamField body="encryption" type="string" default="TLS/SRTP">
+  Encryption method for the call. Options: `TLS/SRTP`, `UDP/RTP`
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Custom metadata to pass to the conversation. This data will be available in functions via `conv.integration_attributes`.
+  
+  <Warning>Metadata must be less than 26KB when base64-encoded. Larger payloads will be rejected.</Warning>
+</ParamField>
+
+## Response
+
+<ResponseField name="call_sid" type="string">
+  Unique identifier for the triggered call. Use this to check call status.
+</ResponseField>
+
+## Example
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.us-1.platform.polyai.app/outbound/trigger \
+  -H "X-PolyAi-Auth-Token: YOUR_CONNECTOR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to_number": "+14155552671",
+    "country_code": "US",
+    "metadata": {
+      "customer_id": "12345",
+      "appointment_time": "2024-03-15T10:00:00Z"
+    }
+  }'
+```
+
+```python Python
+import requests
+
+url = "https://api.us-1.platform.polyai.app/outbound/trigger"
+headers = {
+    "X-PolyAi-Auth-Token": "YOUR_CONNECTOR_TOKEN",
+    "Content-Type": "application/json"
+}
+payload = {
+    "to_number": "+14155552671",
+    "country_code": "US",
+    "metadata": {
+        "customer_id": "12345",
+        "appointment_time": "2024-03-15T10:00:00Z"
+    }
+}
+
+response = requests.post(url, json=payload, headers=headers)
+call_sid = response.json()["call_sid"]
+print(f"Call triggered: {call_sid}")
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.us-1.platform.polyai.app/outbound/trigger', {
+  method: 'POST',
+  headers: {
+    'X-PolyAi-Auth-Token': 'YOUR_CONNECTOR_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    to_number: '+14155552671',
+    country_code: 'US',
+    metadata: {
+      customer_id: '12345',
+      appointment_time: '2024-03-15T10:00:00Z'
+    }
+  })
+});
+
+const data = await response.json();
+console.log('Call triggered:', data.call_sid);
+```
+
+</CodeGroup>
+
+## Response example
+
+```json
+{
+  "call_sid": "OUT-550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+## Error responses
+
+<ResponseField name="400 Bad Request">
+  Invalid request parameters. Check phone number format and metadata size.
+</ResponseField>
+
+<ResponseField name="401 Unauthorized">
+  Invalid or missing authentication token.
+</ResponseField>
+
+<ResponseField name="500 Internal Server Error">
+  Failed to queue the outbound call. Retry with exponential backoff.
+</ResponseField>
+
+## Notes
+
+- Phone numbers must be in E.164 format (international format with + prefix)
+- The `country_code` parameter helps validate the phone number format
+- Metadata is optional but useful for passing context to your conversation functions
+- The returned `call_sid` starts with `OUT-` to distinguish outbound calls
+- Use the [Get call status](/api-reference/outbound/endpoint/get-call-status) endpoint to monitor call progress
