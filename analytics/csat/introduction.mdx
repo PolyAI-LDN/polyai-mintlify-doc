@@ -186,9 +186,9 @@ The CSAT survey must be triggered from the end function. Calling it elsewhere ma
 
 ## Viewing CSAT data
 
-### Dashboards
+### Agent Studio dashboards
 
-CSAT scores appear in your analytics dashboards:
+CSAT scores appear in your analytics dashboards within Agent Studio:
 
 1. Navigate to **Analytics** → **Dashboards**
 2. Select the **CSAT** dashboard
@@ -197,14 +197,27 @@ CSAT scores appear in your analytics dashboards:
    - Score distribution (1-5)
    - CSAT trends over time
    - Response rate
+   - CSAT correlation with containment and resolution rates
 
 ### Conversation-level data
 
 Individual CSAT scores are also visible in conversation records:
 
 1. Go to **Analytics** → **Conversations**
-2. Select a conversation
-3. Look for the **CSAT Score** field in the conversation details
+2. Filter the conversations table to show only calls with CSAT responses
+3. Select a conversation
+4. View CSAT metrics in the conversation details including:
+   - `PLATFORM_CSAT_CALL_TYPE` - Type of call (contained/uncontained/call_center)
+   - `PLATFORM_CSAT_RAW_RESP` - Raw customer response (1-5 score)
+   - `PLATFORM_CSAT_RESPONSE_RECV` - Whether a response was received (True/False)
+   - `PLATFORM_CSAT_SCORE` - Processed CSAT score
+
+### Conversations API
+
+CSAT scores are included as structured fields in Conversations API responses. You can export this data for:
+- Integration with your existing analytics or reporting tools
+- Building custom dashboards
+- Ingesting into client systems
 
 ### Smart Analyst
 
@@ -212,7 +225,18 @@ You can query CSAT data using Smart Analyst for custom analysis and reporting. S
 
 ### Tracked metrics
 
-The following metrics are automatically tracked for SMS CSAT surveys:
+The following metrics are automatically tracked for CSAT surveys:
+
+#### Voice CSAT metrics
+
+- `CSAT_OFFERED` - Whether the survey was offered (boolean)
+- `CSAT_ACCEPTED` - Whether the customer accepted the survey (boolean)
+- `CSAT_DENIED` - Whether the customer declined the survey (boolean)
+- `CSAT_SCORE` - Customer rating (numeric 1-5)
+- `CSAT_FREE_FEEDBACK` - Verbatim customer feedback (string, if collected)
+- `CSAT_COMPLETED` - Whether the survey was completed (boolean)
+
+#### SMS CSAT metrics
 
 - `PLATFORM_CSAT_CALL_TYPE` - Type of call (contained/uncontained/call_center)
 - `PLATFORM_CSAT_RAW_RESP` - Raw customer response (1-5 score)
@@ -220,6 +244,10 @@ The following metrics are automatically tracked for SMS CSAT surveys:
 - `PLATFORM_CSAT_SCORE` - Processed CSAT score
 
 These metrics are attached to the original call record and can be used for analysis and reporting.
+
+<Note>
+For SMS CSAT, the system creates a separate SMS conversation ID (child conversation) that is linked to the original call via the `parent_conversation_id` metric. When multiple calls occur from the same number, the SMS response is recorded on the most recent call.
+</Note>
 
 ## Rating scale
 
@@ -232,6 +260,22 @@ The standard CSAT scale is 1-5:
 | 3 | Neutral |
 | 2 | Dissatisfied |
 | 1 | Very dissatisfied |
+
+### CSAT calculation methods
+
+CSAT scores can be calculated in different ways depending on your reporting needs:
+
+**Standard average**
+Simple average of all CSAT scores (e.g., 4.06 out of 5.0)
+
+**Net Promoter style**
+Some organizations calculate CSAT using a Net Promoter Score approach:
+- CSAT Score = (Promoters - Detractors) / Total responses
+- Promoters: Scores of 4-5
+- Detractors: Scores of 1-2
+- Neutral: Score of 3 (not included in calculation)
+
+Example: If 70% of customers rate 4-5 and 10% rate 1-2, the CSAT score would be 60%.
 
 ## Troubleshooting
 
@@ -252,6 +296,20 @@ The standard CSAT scale is 1-5:
     - Allow up to 15 minutes for data to appear
     - Verify the conversation completed successfully
     - Check that the customer actually provided a rating
+  </Accordion>
+
+  <Accordion title="SMS CSAT not sending">
+    - Verify the customer has a mobile phone number (not a landline)
+    - Check that SMS consent has been obtained (required in US)
+    - Ensure the delay_minutes is set to at least 6 minutes for Twilio
+    - Verify the project is using GenAI or GenAI handoffs
+    - Check that the weekly_cap has not been reached
+  </Accordion>
+
+  <Accordion title="SMS response not linking to call">
+    - SMS responses are automatically linked to the original call via parent_conversation_id
+    - If multiple calls occur from the same number, the response is recorded on the most recent call
+    - Check the SMS conversation record to verify the parent_conversation_id is set correctly
   </Accordion>
 </AccordionGroup>
 
@@ -303,6 +361,8 @@ Consult with your legal team before implementing SMS CSAT to ensure compliance w
 - For hybrid projects, must use GenAI handoffs
 - Minimum delay of 6 minutes required for Twilio
 - SMS CSAT is not yet available for webchat channels
+- Requires customer to have a mobile phone number (landlines cannot receive SMS)
+- SMS responses must be received within the configured wait_for_response_hours window (default 12 hours)
 
 <Note>
 For custom survey requirements or multi-question surveys, contact your PolyAI representative to discuss advanced options.
