@@ -5,7 +5,14 @@ description: 'Measure customer satisfaction with post-call surveys'
 
 Customer Satisfaction (CSAT) surveys allow you to collect feedback from customers at the end of their conversation with your agent. The agent asks customers to rate their experience, and responses are tracked in your analytics dashboards.
 
-## How it works
+## Survey types
+
+PolyAI supports two types of CSAT surveys:
+
+- **Voice CSAT** - In-call surveys where the agent asks customers to rate their experience before ending the conversation
+- **SMS CSAT** - Post-call surveys sent via text message after the conversation ends
+
+## How voice CSAT works
 
 1. **Customer completes conversation** - The agent finishes helping the customer
 2. **Lead-in message** - Agent introduces the survey (e.g., "Before you go, I'd like to ask you a quick question")
@@ -13,16 +20,21 @@ Customer Satisfaction (CSAT) surveys allow you to collect feedback from customer
 4. **Customer responds** - Customer provides a rating (typically 1-5)
 5. **Data collection** - Rating is stored and appears in your dashboards
 
+## How SMS CSAT works
+
+1. **Call completes** - The conversation with your agent ends
+2. **Delay period** - System waits a configured number of minutes (minimum 6 minutes for Twilio)
+3. **SMS sent** - Customer receives a text message with the survey question
+4. **Customer responds** - Customer replies with a rating (1-5)
+5. **Data collection** - Response is linked to the original call and appears in your analytics
+
 ## Configuration
 
-### Enable CSAT surveys
+### Voice CSAT configuration
 
-1. Navigate to **Settings** in Agent Studio
-2. Scroll to the **CSAT** section
-3. Toggle **Enable CSAT** to on
-4. Configure your survey messages
+Voice CSAT surveys are triggered programmatically in your end function. The survey messages (lead-in and question) are configured through your agent's conversation flow.
 
-### Survey messages
+#### Survey message best practices
 
 <ParamField path="lead_in_message" type="string">
   Message to introduce the survey. Keep it brief and natural.
@@ -36,12 +48,117 @@ Customer Satisfaction (CSAT) surveys allow you to collect feedback from customer
   **Example:** "On a scale of 1 to 5, where 1 is very dissatisfied and 5 is very satisfied, how would you rate this call?"
 </ParamField>
 
-### Best practices
-
+**Tips for effective surveys:**
 - **Keep it short** - Customers are more likely to respond to brief surveys
 - **Be clear about the scale** - Explicitly state what 1 and 5 mean
 - **Natural language** - Write messages that sound conversational, not robotic
 - **Test thoroughly** - Try different phrasings in sandbox before deploying
+
+### SMS CSAT configuration
+
+SMS CSAT surveys are configured through the Advanced Configuration JSON in your project settings.
+
+<Warning>
+SMS CSAT is only available for GenAI projects. If using a hybrid project, it must use GenAI handoffs.
+</Warning>
+
+#### Basic SMS setup
+
+Add the `csat_sms` configuration to your Advanced Configuration JSON:
+
+```json
+{
+  "csat_sms": {
+    "enabled": true,
+    "sms_question_template": "Thanks for calling. How was your experience with the agent who assisted you today? Reply 1-5 (1=poor, 5=excellent). Reply STOP to opt out.",
+    "sms_response_template": "Thank you for your feedback!",
+    "contained_calls": {
+      "enabled": true,
+      "percentage": 100,
+      "weekly_cap": 1000,
+      "delay_minutes": 6
+    },
+    "uncontained_calls": {
+      "enabled": false
+    },
+    "call_center_calls": {
+      "enabled": false
+    },
+    "wait_for_response_hours": 12
+  }
+}
+```
+
+#### Configuration options
+
+<ParamField path="enabled" type="boolean">
+  Enable or disable SMS CSAT surveys globally.
+</ParamField>
+
+<ParamField path="sms_question_template" type="string">
+  The SMS message containing your survey question. Must clearly explain the 1-5 scale and include opt-out instructions.
+  
+  **Example:** "Thanks for calling. How was your experience with the agent who assisted you today? Reply 1-5 (1=poor, 5=excellent). Reply STOP to opt out."
+</ParamField>
+
+<ParamField path="sms_response_template" type="string">
+  Confirmation message sent after the customer responds.
+  
+  **Example:** "Thank you for your feedback!"
+</ParamField>
+
+<ParamField path="wait_for_response_hours" type="number">
+  How many hours to wait for customer responses before closing the survey window.
+  
+  **Default:** 12 hours
+</ParamField>
+
+#### Call type settings
+
+Configure SMS surveys separately for different call outcomes:
+
+<ParamField path="contained_calls" type="object">
+  Calls that were fully handled by the AI agent without transferring to a human.
+  
+  - `enabled` (boolean) - Enable surveys for contained calls
+  - `percentage` (number 0-100) - Percentage of contained calls that receive surveys
+  - `weekly_cap` (number) - Maximum SMS messages to send per week for this call type
+  - `delay_minutes` (number) - Minutes to wait after call ends before sending SMS (minimum 6 for Twilio)
+</ParamField>
+
+<ParamField path="uncontained_calls" type="object">
+  Calls where the AI agent transferred to a human agent or call center.
+  
+  Same configuration options as `contained_calls`.
+</ParamField>
+
+<ParamField path="call_center_calls" type="object">
+  Calls that were routed directly to the call center without AI agent interaction.
+  
+  Same configuration options as `contained_calls`.
+</ParamField>
+
+#### Sampling and volume control
+
+Use the `percentage` and `weekly_cap` settings to control survey volume:
+
+- **Percentage** - Survey a sample of calls rather than 100% to reduce SMS costs and customer survey fatigue
+- **Weekly cap** - Set a maximum number of SMS messages per week to control costs and comply with messaging limits
+
+Example configuration for 50% sampling with a weekly cap:
+
+```json
+{
+  "csat_sms": {
+    "contained_calls": {
+      "enabled": true,
+      "percentage": 50,
+      "weekly_cap": 500,
+      "delay_minutes": 6
+    }
+  }
+}
+```
 
 ## Implementing CSAT in your end function
 
@@ -89,6 +206,21 @@ Individual CSAT scores are also visible in conversation records:
 2. Select a conversation
 3. Look for the **CSAT Score** field in the conversation details
 
+### Smart Analyst
+
+You can query CSAT data using Smart Analyst for custom analysis and reporting. Smart Analyst provides access to all CSAT metrics and can generate custom reports.
+
+### Tracked metrics
+
+The following metrics are automatically tracked for SMS CSAT surveys:
+
+- `PLATFORM_CSAT_CALL_TYPE` - Type of call (contained/uncontained/call_center)
+- `PLATFORM_CSAT_RAW_RESP` - Raw customer response (1-5 score)
+- `PLATFORM_CSAT_RESPONSE_RECV` - Whether a response was received (True/False)
+- `PLATFORM_CSAT_SCORE` - Processed CSAT score
+
+These metrics are attached to the original call record and can be used for analysis and reporting.
+
 ## Rating scale
 
 The standard CSAT scale is 1-5:
@@ -123,13 +255,67 @@ The standard CSAT scale is 1-5:
   </Accordion>
 </AccordionGroup>
 
+## Legal and compliance considerations
+
+### SMS consent requirements
+
+When implementing SMS CSAT surveys, you must comply with regional SMS regulations:
+
+#### United States
+
+In the US, you need **explicit consent** from customers to send SMS messages. This creates implementation challenges for calls routed directly to call centers, as consent must be collected before the call routing decision is made.
+
+Consider these approaches:
+- Collect SMS consent during IVR before routing
+- Only enable SMS CSAT for calls handled by your AI agent (where consent can be obtained during the conversation)
+- Obtain consent through other channels (web forms, account signup, etc.)
+
+#### United Kingdom
+
+UK regulations are more flexible for service-related SMS messages. You can send CSAT surveys without explicit prior consent if:
+- The message is service-related (following up on a call the customer just made)
+- You comply with basic GDPR requirements
+- You include opt-out instructions (e.g., "Reply STOP to opt out")
+
+#### Best practices
+
+Regardless of region:
+- Always include clear opt-out instructions in your SMS template
+- Respect opt-out requests immediately
+- Keep messages concise and clearly service-related
+- Document your consent collection process
+
+<Warning>
+Consult with your legal team before implementing SMS CSAT to ensure compliance with local regulations in your operating regions.
+</Warning>
+
 ## Limitations
 
-- CSAT surveys are only available for voice calls (not chat or SMS)
+### Voice CSAT limitations
+
 - The rating scale is fixed at 1-5
 - Only one CSAT survey can be triggered per conversation
 - Survey must be triggered from the end function
 
+### SMS CSAT limitations
+
+- Only available for GenAI projects
+- For hybrid projects, must use GenAI handoffs
+- Minimum delay of 6 minutes required for Twilio
+- SMS CSAT is not yet available for webchat channels
+
 <Note>
 For custom survey requirements or multi-question surveys, contact your PolyAI representative to discuss advanced options.
+</Note>
+
+## Coming soon
+
+PolyAI is continuously improving CSAT capabilities. Upcoming features include:
+
+- **Simplified configuration** - Configure SMS CSAT surveys through the Agent Studio UI without editing JSON
+- **Webchat support** - CSAT surveys for webchat channels
+- **Enhanced analytics** - Additional reporting and insights for CSAT data
+
+<Note>
+Interested in these features or have specific CSAT requirements? Contact your PolyAI representative to discuss your needs.
 </Note>
