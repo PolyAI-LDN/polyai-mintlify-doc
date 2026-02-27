@@ -1,0 +1,135 @@
+---
+title: 'CSAT surveys'
+description: 'Measure customer satisfaction with post-call surveys'
+---
+
+Customer Satisfaction (CSAT) surveys allow you to collect feedback from customers at the end of their conversation with your agent. The agent asks customers to rate their experience, and responses are tracked in your analytics dashboards.
+
+## How it works
+
+1. **Customer completes conversation** - The agent finishes helping the customer
+2. **Lead-in message** - Agent introduces the survey (e.g., "Before you go, I'd like to ask you a quick question")
+3. **Survey question** - Agent asks the rating question (e.g., "On a scale of 1 to 5, how satisfied were you with this call?")
+4. **Customer responds** - Customer provides a rating (typically 1-5)
+5. **Data collection** - Rating is stored and appears in your dashboards
+
+## Configuration
+
+### Enable CSAT surveys
+
+1. Navigate to **Settings** in Agent Studio
+2. Scroll to the **CSAT** section
+3. Toggle **Enable CSAT** to on
+4. Configure your survey messages
+
+### Survey messages
+
+<ParamField path="lead_in_message" type="string">
+  Message to introduce the survey. Keep it brief and natural.
+  
+  **Example:** "Before you go, I'd like to ask you a quick question about your experience today."
+</ParamField>
+
+<ParamField path="survey_question" type="string">
+  The actual rating question. Be clear about the scale.
+  
+  **Example:** "On a scale of 1 to 5, where 1 is very dissatisfied and 5 is very satisfied, how would you rate this call?"
+</ParamField>
+
+### Best practices
+
+- **Keep it short** - Customers are more likely to respond to brief surveys
+- **Be clear about the scale** - Explicitly state what 1 and 5 mean
+- **Natural language** - Write messages that sound conversational, not robotic
+- **Test thoroughly** - Try different phrasings in sandbox before deploying
+
+## Implementing CSAT in your end function
+
+To trigger the CSAT survey, add this code to your [end function](/function/end-function):
+
+```python
+def end_function(conv: Conversation):
+    # Your existing end function logic here
+    
+    # Trigger CSAT survey
+    conv.trigger_csat_survey()
+    
+    return {}
+```
+
+The `trigger_csat_survey()` method will:
+- Play the lead-in message
+- Ask the survey question
+- Collect the customer's rating
+- Store the result in analytics
+
+<Warning>
+The CSAT survey must be triggered from the end function. Calling it elsewhere may result in unexpected behavior.
+</Warning>
+
+## Viewing CSAT data
+
+### Dashboards
+
+CSAT scores appear in your analytics dashboards:
+
+1. Navigate to **Analytics** → **Dashboards**
+2. Select the **CSAT** dashboard
+3. View metrics including:
+   - Average CSAT score
+   - Score distribution (1-5)
+   - CSAT trends over time
+   - Response rate
+
+### Conversation-level data
+
+Individual CSAT scores are also visible in conversation records:
+
+1. Go to **Analytics** → **Conversations**
+2. Select a conversation
+3. Look for the **CSAT Score** field in the conversation details
+
+## Rating scale
+
+The standard CSAT scale is 1-5:
+
+| Rating | Interpretation |
+| ------ | -------------- |
+| 5 | Very satisfied |
+| 4 | Satisfied |
+| 3 | Neutral |
+| 2 | Dissatisfied |
+| 1 | Very dissatisfied |
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="CSAT survey not triggering">
+    - Verify CSAT is enabled in Settings
+    - Check that `conv.trigger_csat_survey()` is called in your end function
+    - Ensure the end function is being executed (check conversation logs)
+  </Accordion>
+
+  <Accordion title="Customers not responding to survey">
+    - Simplify your survey messages
+    - Make the scale clearer (explicitly state what 1 and 5 mean)
+    - Consider the timing - surveys work best after successful resolutions
+  </Accordion>
+
+  <Accordion title="CSAT data not appearing in dashboards">
+    - Allow up to 15 minutes for data to appear
+    - Verify the conversation completed successfully
+    - Check that the customer actually provided a rating
+  </Accordion>
+</AccordionGroup>
+
+## Limitations
+
+- CSAT surveys are only available for voice calls (not chat or SMS)
+- The rating scale is fixed at 1-5
+- Only one CSAT survey can be triggered per conversation
+- Survey must be triggered from the end function
+
+<Note>
+For custom survey requirements or multi-question surveys, contact your PolyAI representative to discuss advanced options.
+</Note>
