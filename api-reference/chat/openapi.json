@@ -13,6 +13,10 @@
     {
       "url": "https://api.uk-1.platform.polyai.app",
       "description": "Hostname for UK-1 region"
+    },
+    {
+      "url": "https://api.euw-1.platform.polyai.app",
+      "description": "Hostname for EUW-1 region"
     }
   ],
   "components": {
@@ -56,6 +60,45 @@
           }
         }
       },
+      "CreateChatRequest": {
+        "type": "object",
+        "properties": {
+          "integration_attributes": {
+            "type": "object",
+            "description": "Custom metadata passed from external integrations. Accessible in functions via conv.integration_attributes.",
+            "example": {
+              "customer_id": "12345",
+              "source": "mobile_app"
+            }
+          },
+          "variant_id": {
+            "type": "string",
+            "description": "Specify which variant to use for this conversation. Useful for multi-site deployments.",
+            "example": "VARIANT-xxxxxxxx"
+          },
+          "channel": {
+            "type": "string",
+            "description": "Channel identifier for the conversation.",
+            "example": "webchat",
+            "enum": ["webchat", "whatsapp", "sms", "api"]
+          },
+          "asr_lang_code": {
+            "type": "string",
+            "description": "Language code for speech recognition (ISO 639-1 with region).",
+            "example": "en-US"
+          },
+          "tts_lang_code": {
+            "type": "string",
+            "description": "Language code for text-to-speech (ISO 639-1 with region).",
+            "example": "en-US"
+          },
+          "initial_message": {
+            "type": "string",
+            "description": "Optional initial message from the user to start the conversation.",
+            "example": "Hello, I need help"
+          }
+        }
+      },
       "CreateChatResponse": {
         "type": "object",
         "properties": {
@@ -71,6 +114,22 @@
           }
         },
         "required": ["conversation_id", "response"]
+      },
+      "RespondChatRequest": {
+        "type": "object",
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "description": "ID of the conversation to respond to",
+            "example": "CONV-1234567890"
+          },
+          "message": {
+            "type": "string",
+            "description": "Message to send to the agent",
+            "example": "Hello again"
+          }
+        },
+        "required": ["conversation_id", "message"]
       },
       "RespondChatResponse": {
         "type": "object",
@@ -172,6 +231,7 @@
       "post": {
         "operationId": "chatCreate",
         "summary": "Create a new chat conversation",
+        "description": "Creates a new chat conversation and returns the conversation ID along with the agent's initial response.",
         "parameters": [
           { "$ref": "#/components/parameters/ApiKeyHeader" },
           { "$ref": "#/components/parameters/TokenHeader" },
@@ -200,6 +260,14 @@
             "example": "PROJECT-xxxxxxxx"
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateChatRequest" }
+            }
+          }
+        },
         "security": [
           { "ApiKeyAuth": [] },
           { "TokenAuth": [] }
@@ -225,6 +293,7 @@
       "post": {
         "operationId": "chatRespond",
         "summary": "Send a message to an existing chat conversation",
+        "description": "Sends a user message to an existing conversation and returns the agent's response.",
         "parameters": [
           { "$ref": "#/components/parameters/ApiKeyHeader" },
           { "$ref": "#/components/parameters/TokenHeader" },
@@ -261,22 +330,7 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "conversation_id": {
-                    "type": "string",
-                    "description": "ID of the conversation to respond to",
-                    "example": "CONV-1234567890"
-                  },
-                  "message": {
-                    "type": "string",
-                    "description": "Message to send to the agent",
-                    "example": "Hello again"
-                  }
-                },
-                "required": ["conversation_id"]
-              }
+              "schema": { "$ref": "#/components/schemas/RespondChatRequest" }
             }
           }
         },
@@ -301,6 +355,7 @@
       "put": {
         "operationId": "chatClose",
         "summary": "Close an existing chat conversation",
+        "description": "Closes an active chat conversation and marks it as complete.",
         "parameters": [
           { "$ref": "#/components/parameters/ApiKeyHeader" },
           { "$ref": "#/components/parameters/TokenHeader" },

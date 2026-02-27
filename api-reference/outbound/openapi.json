@@ -1,0 +1,245 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "PolyAI Outbound Calling API",
+    "version": "1.0.0",
+    "description": "Trigger outbound calls and check call status programmatically"
+  },
+  "servers": [
+    {
+      "url": "https://api.us-1.platform.polyai.app",
+      "description": "US Region"
+    },
+    {
+      "url": "https://api.uk-1.platform.polyai.app",
+      "description": "UK Region"
+    },
+    {
+      "url": "https://api.euw-1.platform.polyai.app",
+      "description": "EU West Region"
+    }
+  ],
+  "security": [
+    {
+      "ConnectorToken": []
+    }
+  ],
+  "paths": {
+    "/outbound/trigger": {
+      "post": {
+        "summary": "Trigger an outbound call",
+        "description": "Initiates a new outbound call to the specified phone number. The call will be queued and processed by the outbound calling system.",
+        "operationId": "triggerOutboundCall",
+        "tags": ["Outbound Calling"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["to_number"],
+                "properties": {
+                  "to_number": {
+                    "type": "string",
+                    "description": "Phone number to call in E.164 format (e.g., +14155552671)",
+                    "example": "+14155552671"
+                  },
+                  "country_code": {
+                    "type": "string",
+                    "description": "ISO 3166-1 alpha-2 country code for phone number validation (e.g., US, GB, FR). Defaults to ZZ (unknown region).",
+                    "default": "ZZ",
+                    "example": "US"
+                  },
+                  "encryption": {
+                    "type": "string",
+                    "description": "Encryption method for the call",
+                    "enum": ["TLS/SRTP", "UDP/RTP"],
+                    "default": "TLS/SRTP",
+                    "example": "TLS/SRTP"
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "description": "Custom metadata to pass to the conversation. This data will be available in functions via conv.integration_attributes. Must be less than 26KB when base64-encoded.",
+                    "additionalProperties": true,
+                    "example": {
+                      "customer_id": "12345",
+                      "appointment_time": "2024-03-15T10:00:00Z"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Call successfully queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "call_sid": {
+                      "type": "string",
+                      "description": "Unique identifier for the triggered call. Use this to check call status.",
+                      "example": "OUT-550e8400-e29b-41d4-a716-446655440000"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing authentication token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error - Failed to queue the outbound call",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/outbound/status/{call_sid}": {
+      "get": {
+        "summary": "Get call status",
+        "description": "Retrieves the current status and reason for an outbound call. Use this endpoint to monitor call progress after triggering a call.",
+        "operationId": "getCallStatus",
+        "tags": ["Outbound Calling"],
+        "parameters": [
+          {
+            "name": "call_sid",
+            "in": "path",
+            "required": true,
+            "description": "The unique call identifier returned from the trigger endpoint (starts with OUT-)",
+            "schema": {
+              "type": "string",
+              "example": "OUT-550e8400-e29b-41d4-a716-446655440000"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Call status retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "description": "Current status of the call",
+                      "enum": [
+                        "queued",
+                        "ringing",
+                        "in-progress",
+                        "completed",
+                        "failed",
+                        "no-answer",
+                        "busy",
+                        "cancelled"
+                      ],
+                      "example": "completed"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "description": "Additional context about the call status (may be empty for some statuses)",
+                      "example": "call ended normally"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Invalid call SID format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing authentication token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found - Call SID not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error - Failed to retrieve call status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ConnectorToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-PolyAi-Auth-Token",
+        "description": "Connector authentication token for outbound calls"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message"
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code"
+          }
+        }
+      }
+    }
+  }
+}
