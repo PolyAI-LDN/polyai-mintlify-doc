@@ -1,157 +1,154 @@
 ---
-title: 'CSV imports'
-description: 'Bulk import and export data using CSV files for variants and knowledge base content.'
+title: "CSV imports"
+description: "Bulk import and export format details for Managed Topics and variants."
 ---
 
-CSV imports allow you to bulk update or create content in Agent Studio. You can export data, edit it in a spreadsheet, and reimport it to update your agent.
+CSV imports allow you to bulk-create or update content in Agent Studio. This is useful for:
 
-## What you can import/export
-
-### Managed Topics
-
-Export and import your knowledge base content as CSV files.
-
-**Use cases:**
-- Bulk editing of answers and questions
-- Adding multiple topics at once
-- Professional translation workflows
+- Updating multiple Managed Topics at once
+- Managing variants across multiple sites or locations
 - Migrating content between agents or environments
+- Keeping your knowledge base in sync with external tools
 
-### Variants
+## How CSV imports work
 
-Export and import variant data for multi-site configurations.
+1. **Export** your current data to get the correct format
+2. **Edit** the CSV file in your spreadsheet application
+3. **Import** the updated file back into Agent Studio
+4. **Review** the diff to see what will change
+5. **Confirm** to apply the changes
 
-**Use cases:**
-- Updating contact numbers or opening hours across multiple locations
-- Scaling configurations across sites
-- Syncing with external tools
-- Migrating variants between agents
+<Tip>
+Always export first to ensure you have the correct column headers and format.
+</Tip>
 
-## How to export
+## Managed Topics CSV format
 
-1. Navigate to the relevant section (Managed Topics or Variant Management)
-2. Click **Export CSV**
-3. Download the CSV file
+### Required columns
 
-**File naming convention for Managed Topics:**
+When importing Managed Topics, your CSV must include these columns:
+
+| Column | Description | Required | Example |
+|--------|-------------|----------|---------|
+| `ID` | Unique identifier for the topic | Yes (for updates) | `topic_123` |
+| `Title` | Topic name | Yes | `Store hours` |
+| `Answer` | The response text | Yes | `We're open Monday to Friday, 9am to 5pm.` |
+| `Sample questions` | Example user queries (pipe-separated) | No | `What are your hours?\|When are you open?\|What time do you close?` |
+| `Active` | Whether the topic is active | No | `Y` or `N` |
+
+### File format rules
+
+- **Column headers**: Must match exactly as exported (case-sensitive)
+- **IDs**: 
+  - Leave existing IDs intact when editing topics
+  - Leave ID blank or omit for new topics (system will auto-generate)
+- **Sample questions**: Separate multiple questions with pipe character (`|`)
+- **Active status**: Use `Y` for active, `N` for inactive
+- **Encoding**: UTF-8
+- **Line endings**: Any (Windows, Mac, or Unix)
+
+### Example CSV
+
+```csv
+ID,Title,Answer,Sample questions,Active
+topic_001,Store hours,We're open Monday to Friday from 9am to 5pm.,What are your hours?|When are you open?|What time do you close?,Y
+topic_002,Return policy,You can return items within 30 days of purchase.,What's your return policy?|Can I return this?|How long do I have to return?,Y
+,New topic,This is a new topic that will be created.,Sample question 1|Sample question 2,Y
 ```
-{agentName}_{Env}_{Timestamp}_{versionCode}_KB.csv
+
+## Variants CSV format
+
+### Required columns
+
+When importing variants, your CSV must include:
+
+| Column | Description | Required | Example |
+|--------|-------------|----------|---------|
+| `variant_id` | Unique identifier | Yes (for updates) | `location_001` |
+| `variant_name` | Display name | Yes | `Downtown Store` |
+| Custom columns | Your variant-specific data | Varies | `phone_number`, `address`, etc. |
+
+### File format rules
+
+- **Column headers**: Must match your variant schema
+- **IDs**: Leave intact for updates, blank for new variants
+- **Custom columns**: Add any columns needed for your use case
+- **Encoding**: UTF-8
+
+### Example CSV
+
+```csv
+variant_id,variant_name,phone_number,address,opening_hours
+var_001,Downtown Store,555-0100,123 Main St,9am-6pm Mon-Fri
+var_002,Uptown Store,555-0200,456 Oak Ave,10am-8pm Mon-Sat
+,New Location,555-0300,789 Pine Rd,9am-5pm Mon-Fri
 ```
-
-Note: Draft exports exclude the version code.
-
-## How to import
-
-1. Edit your CSV file in a spreadsheet application
-2. **Keep column headers exactly as exported**
-3. For updates: Leave IDs intact for existing items
-4. For new items: Add new rows (IDs will be auto-generated)
-5. Save as CSV
-6. Click **Import CSV** in Agent Studio
-7. Review the diff showing what will change
-8. Click **Confirm import**
-
-## CSV format requirements
-
-### General rules
-
-- Keep all column headers exactly as they appear in the export
-- Use UTF-8 encoding
-- Preserve the structure of the exported file
-- Don't modify ID columns for existing items
-
-### Managed Topics columns
-
-When you export Managed Topics, the CSV includes:
-
-- **ID** - Unique identifier (leave intact for updates, blank for new topics)
-- **Topic** - The topic name
-- **Questions** - Sample questions that trigger this topic
-- **Answer** - The response content
-- **Active** - `Y` or `N` to activate/deactivate the topic
-- Additional metadata columns
-
-### Variant columns
-
-When you export variants, the CSV includes variant-specific fields configured for your agent.
 
 ## Best practices
 
-<AccordionGroup>
-  <Accordion title="Test in Sandbox first">
-    Always import to your Sandbox environment first to verify changes before promoting to Live.
-  </Accordion>
+### Before importing
 
-  <Accordion title="Keep backups">
-    Export and save a copy before making bulk changes so you can revert if needed.
-  </Accordion>
+1. **Export first**: Always start with an export to get the correct format
+2. **Back up**: Keep a copy of your original export
+3. **Test small**: Try importing 1-2 rows first to verify format
+4. **Use Sandbox**: Import to Sandbox environment first
 
-  <Accordion title="Use the diff review">
-    Carefully review the diff before confirming import to catch any unintended changes.
-  </Accordion>
+### During editing
 
-  <Accordion title="Professional translations">
-    For high-quality translations:
-    1. Export knowledge as CSV
-    2. Send to translators with context and domain glossary
-    3. Import translated CSV
-    4. Review and test before publishing
-  </Accordion>
-</AccordionGroup>
+1. **Don't change headers**: Column names must match exactly
+2. **Preserve IDs**: Don't modify existing IDs unless you want to create new entries
+3. **Check encoding**: Save as UTF-8 to preserve special characters
+4. **Validate data**: Check for missing required fields before importing
 
-## Common workflows
+### After importing
 
-### Bulk editing 10-20 topics
+1. **Review the diff**: Check what will change before confirming
+2. **Test thoroughly**: Use Agent Chat to verify changes
+3. **Promote carefully**: Follow [version management](/learn/maintain/version-management) best practices
 
-**Time estimate:** 15 minutes
+## Common issues
 
-1. Export CSV
-2. Edit in spreadsheet
-3. Import CSV
-4. Review diff
-5. Confirm
+### Import fails with "Invalid format"
 
-### Bulk editing 50+ topics
+**Cause**: Column headers don't match expected format
 
-**Time estimate:** 30 minutes
+**Solution**: Export a fresh CSV and copy your data into it
 
-1. Export CSV
-2. Make extensive edits in spreadsheet
-3. Import CSV
-4. Carefully review diff
-5. Confirm
+### Special characters appear as �
 
-### Multi-site variant updates
+**Cause**: File encoding is not UTF-8
 
-1. Export variants from one agent
-2. Update location-specific data (phone numbers, hours, etc.)
-3. Import to other agents
-4. Test in each environment
+**Solution**: Save your CSV as UTF-8 in your spreadsheet app
 
-## Troubleshooting
+### Changes don't appear after import
 
-<AccordionGroup>
-  <Accordion title="Import fails with validation error">
-    - Check that column headers match exactly
-    - Verify data types (e.g., Active column should be Y or N)
-    - Ensure required fields are not empty
-    - Check for special characters that need escaping
-  </Accordion>
+**Cause**: You're viewing a different environment
 
-  <Accordion title="Changes not appearing">
-    - Verify you're in the correct environment
-    - Check if topics are marked as Active (Y)
-    - Ensure you clicked Confirm import after reviewing the diff
-  </Accordion>
+**Solution**: Check you're in the correct environment (Sandbox/Pre-release/Live)
 
-  <Accordion title="Duplicate topics created">
-    - Make sure you kept the ID column intact for existing topics
-    - Only leave ID blank for genuinely new topics
-  </Accordion>
-</AccordionGroup>
+### Duplicate topics created instead of updating
+
+**Cause**: ID column is missing or empty for existing topics
+
+**Solution**: Keep the ID column intact when editing existing topics
+
+## File naming convention
+
+Exported files follow this naming pattern:
+
+```
+{agentName}_{environment}_{timestamp}_{versionCode}_KB.csv
+```
+
+Example: `MyAgent_Sandbox_20250227_v123_KB.csv`
+
+<Note>
+Draft exports exclude the version code from the filename.
+</Note>
 
 ## Related pages
 
+- [Maintaining your knowledge base](/learn/maintain/knowledge-base) - How to use CSV imports for knowledge base updates
+- [Variant management](/variant-management/introduction) - Using CSV imports for multi-site configuration
+- [Version management](/learn/maintain/version-management) - Promoting changes across environments
 - [Managed Topics](/managed-topics/introduction) - Complete knowledge base documentation
-- [Variant Management](/variant-management/introduction) - Multi-site configuration
-- [Environments & versions](/learn/guides/get-started/environments) - Testing and promotion workflow
