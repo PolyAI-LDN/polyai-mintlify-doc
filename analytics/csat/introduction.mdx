@@ -12,12 +12,46 @@ PolyAI supports two types of CSAT surveys:
 - **Voice CSAT** - In-call surveys where the agent asks customers to rate their experience before ending the conversation
 - **SMS CSAT** - Post-call surveys sent via text message after the conversation ends
 
+## Configuring voice CSAT
+
+Voice CSAT is configured from a dedicated settings page in Agent Studio.
+
+### Step 1: Enable the survey
+
+At the top of the CSAT settings page, toggle **Enable in-call voice survey** to on. This activates the CSAT feature for your project. Until enabled, no surveys run.
+
+### Step 2: Connect to your hang-up logic
+
+Copy the function call `conv.goto_csat_flow()` shown on the page and paste it into your existing hang-up function in the **Tools** editor. This instructs the agent to route callers into the survey flow before ending the call.
+
+<Warning>
+This step is required. If you skip it, the survey never triggers—even if the toggle is on.
+</Warning>
+
+### Step 3: Define survey content
+
+Configure the two text fields in the **Content** section:
+
+<ParamField path="Lead-in message" type="string">
+  What the agent says before asking the question. Keep it short and clear to prevent hang-ups.
+  
+  **Example:** "Please stay on the line to answer a quick survey about your experience."
+</ParamField>
+
+<ParamField path="Survey question" type="string">
+  The actual rating question. You must include a 1–5 scale in the wording—the system does not infer a scale.
+  
+  **Example:** "On a scale of 1 to 5, how well was your issue resolved today?"
+</ParamField>
+
+Once configured, every time your hang-up function executes, the caller routes into the CSAT flow before the call ends.
+
 ## How voice CSAT works
 
 1. **Customer completes conversation** - The agent finishes helping the customer
-2. **Lead-in message** - Agent introduces the survey (e.g., "Before you go, I'd like to ask you a quick question")
-3. **Survey question** - Agent asks the rating question (e.g., "On a scale of 1 to 5, how satisfied were you with this call?")
-4. **Customer responds** - Customer provides a rating (typically 1-5)
+2. **Lead-in message** - Agent introduces the survey
+3. **Survey question** - Agent asks the 1–5 rating question
+4. **Customer responds** - Customer provides a rating
 5. **Data collection** - Rating is stored and appears in your dashboards
 
 ## How SMS CSAT works
@@ -30,27 +64,11 @@ PolyAI supports two types of CSAT surveys:
 
 ## Configuration
 
-### Voice CSAT configuration
-
-Voice CSAT surveys are triggered programmatically in your end function. The survey messages (lead-in and question) are configured through your agent's conversation flow.
-
-#### Survey message best practices
-
-<ParamField path="lead_in_message" type="string">
-  Message to introduce the survey. Keep it brief and natural.
-  
-  **Example:** "Before you go, I'd like to ask you a quick question about your experience today."
-</ParamField>
-
-<ParamField path="survey_question" type="string">
-  The actual rating question. Be clear about the scale.
-  
-  **Example:** "On a scale of 1 to 5, where 1 is very dissatisfied and 5 is very satisfied, how would you rate this call?"
-</ParamField>
+### Voice CSAT best practices
 
 **Tips for effective surveys:**
 - **Keep it short** - Customers are more likely to respond to brief surveys
-- **Be clear about the scale** - Explicitly state what 1 and 5 mean
+- **Be clear about the scale** - Explicitly state what 1 and 5 mean in your survey question
 - **Natural language** - Write messages that sound conversational, not robotic
 - **Test thoroughly** - Try different phrasings in sandbox before deploying
 
@@ -162,19 +180,19 @@ Example configuration for 50% sampling with a weekly cap:
 
 ## Implementing CSAT in your end function
 
-To trigger the CSAT survey, add this code to your [end function](/function/end-function):
+To trigger the CSAT survey, add `conv.goto_csat_flow()` to your [end function](/function/end-function):
 
 ```python
 def end_function(conv: Conversation):
     # Your existing end function logic here
     
-    # Trigger CSAT survey
-    conv.trigger_csat_survey()
+    # Route to CSAT survey flow
+    conv.goto_csat_flow()
     
     return {}
 ```
 
-The `trigger_csat_survey()` method will:
+The `goto_csat_flow()` method will:
 - Play the lead-in message
 - Ask the survey question
 - Collect the customer's rating
@@ -281,8 +299,8 @@ Example: If 70% of customers rate 4-5 and 10% rate 1-2, the CSAT score would be 
 
 <AccordionGroup>
   <Accordion title="CSAT survey not triggering">
-    - Verify CSAT is enabled in Settings
-    - Check that `conv.trigger_csat_survey()` is called in your end function
+    - Verify **Enable in-call voice survey** is toggled on in CSAT settings
+    - Check that `conv.goto_csat_flow()` is called in your end function
     - Ensure the end function is being executed (check conversation logs)
   </Accordion>
 
@@ -372,7 +390,6 @@ For custom survey requirements or multi-question surveys, contact your PolyAI re
 
 PolyAI is continuously improving CSAT capabilities. Upcoming features include:
 
-- **Simplified configuration** - Configure SMS CSAT surveys through the Agent Studio UI without editing JSON
 - **Webchat support** - CSAT surveys for webchat channels
 - **Enhanced analytics** - Additional reporting and insights for CSAT data
 
