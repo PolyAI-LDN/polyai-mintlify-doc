@@ -29,6 +29,40 @@ To create a new handoff destination:
      - **[SIP REFER](https://www.ietf.org/rfc/rfc3515.txt)** (default) – PolyAI specifies a transfer destination to the client <Tooltip tip="This is a network element that manages and secures SIP calls. SBCs handle call routing, security, and interoperability between different VoIP networks.">Session Border Controller</Tooltip> (SBC), then drops from the call.
      - **[SIP INVITE](https://datatracker.ietf.org/doc/html/rfc3261#section-13.3.1)** – PolyAI creates a new call with the destination and acts as a bridge between the client SBC and the destination.
      - **[SIP BYE](https://www.rfc-editor.org/rfc/rfc3261.html)** – PolyAI signals that its call leg is over, allowing the client SBC to take the call back over.
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant PolyAI
+    participant SBC as Client SBC
+    participant Dest as Destination
+
+    rect rgb(240, 248, 255)
+        Note over Caller,Dest: SIP REFER
+        Caller->>PolyAI: Active call
+        PolyAI->>SBC: REFER (transfer to Dest)
+        PolyAI--xCaller: Drops from call
+        SBC->>Dest: Routes call
+        Caller->>Dest: Connected
+    end
+
+    rect rgb(255, 248, 240)
+        Note over Caller,Dest: SIP INVITE
+        Caller->>PolyAI: Active call
+        PolyAI->>Dest: INVITE (new call)
+        PolyAI->>PolyAI: Bridges both legs
+        Caller->>PolyAI: Leg 1
+        PolyAI->>Dest: Leg 2
+    end
+
+    rect rgb(240, 255, 240)
+        Note over Caller,Dest: SIP BYE
+        Caller->>PolyAI: Active call
+        PolyAI->>SBC: BYE (end PolyAI leg)
+        SBC->>SBC: Takes over call
+        Caller->>SBC: Continues with SBC
+    end
+```
    - **Route**: Specify the destination SIP URI or extension (only applies to SIP INVITE and SIP REFER).
    - **SIP headers**: Add optional **[SIP headers](https://www.iana.org/assignments/sip-parameters/sip-parameters.xhtml)** to include metadata or routing instructions.
 
