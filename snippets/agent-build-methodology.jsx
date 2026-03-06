@@ -206,6 +206,9 @@ export const AgentBuildMethodology = () => {
                 <feGaussianBlur stdDeviation="4" result="blur"/>
                 <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
               </filter>
+              <marker id="arrowhead" markerWidth="5" markerHeight="5" refX="2.5" refY="2.5" orient="auto">
+                <polygon points="0 0, 5 2.5, 0 5" fill={MACAW} opacity={0.5} />
+              </marker>
             </defs>
 
             {/* Outer decorative ring */}
@@ -339,11 +342,6 @@ export const AgentBuildMethodology = () => {
               strokeOpacity={0.5} strokeDasharray="3 3"
               markerEnd="url(#arrowhead)"
             />
-            <defs>
-              <marker id="arrowhead" markerWidth="5" markerHeight="5" refX="2.5" refY="2.5" orient="auto">
-                <polygon points="0 0, 5 2.5, 0 5" fill={MACAW} opacity={0.5} />
-              </marker>
-            </defs>
             <text x={CX} y={442} textAnchor="middle"
               fill={FAINT} fontSize={9} fontFamily="'Space Mono', monospace"
               letterSpacing="0.15em"
