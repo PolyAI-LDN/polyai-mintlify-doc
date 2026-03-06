@@ -99,7 +99,7 @@ const stages = [
 ];
 
 // ── PolyAI logo mark — the "dot speaker grille" pattern ─────────────────────
-function PolyDotMark({ size = 32, color = MACAW }) {
+const PolyDotMark = ({ size = 32, color = MACAW }) => {
   const dots = [
     [0,0],[1,0],[2,0],
     [0,1],[1,1],[2,1],
@@ -122,20 +122,20 @@ function PolyDotMark({ size = 32, color = MACAW }) {
       ))}
     </svg>
   );
-}
+};
 
 // ── Polar helpers ─────────────────────────────────────────────────────────────
-function polar(angleDeg, r, ox = 0, oy = 0) {
+const polar = (angleDeg, r, ox = 0, oy = 0) => {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
   return { x: ox + Math.cos(rad) * r, y: oy + Math.sin(rad) * r };
-}
+};
 
-function arcD(cx, cy, r, a1, a2) {
+const arcD = (cx, cy, r, a1, a2) => {
   const p1 = polar(a1, r, cx, cy);
   const p2 = polar(a2, r, cx, cy);
   const large = (a2 - a1 + 360) % 360 > 180 ? 1 : 0;
   return `M ${p1.x} ${p1.y} A ${r} ${r} 0 ${large} 1 ${p2.x} ${p2.y}`;
-}
+};
 
 // ── Main component ────────────────────────────────────────────────────────────
 export const AgentBuildMethodology = () => {
