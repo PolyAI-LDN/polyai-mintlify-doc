@@ -1,32 +1,19 @@
-import { useState, useEffect } from "react";
-
-// ── PolyAI Brand System ──────────────────────────────────────────────────────
-// Primary:   Macaw (#C8E32A) — vibrant lime-yellow, the "invasive" brand green
-// Dark:      #0C0C0C / #111111 — near-black backgrounds
-// Mid:       #1A1A1A / #222222 — card/surface
-// Border:    #2A2A2A — subtle rule
-// Text:      #F5F5F5 (primary), #888 (muted), #555 (faint)
-// Secondary: warm pastel accents (#E8D5B4, #B4D4E8, #E8B4C8)
-// Fonts:     "Outfit" (≈ Matter SQ), "Space Mono" (≈ Basis Grotesque Mono)
+import { useState } from "react";
 
 const MACAW      = "#C8E32A";
-const MACAW_DIM  = "#8FA81A";
 const MACAW_GLOW = "rgba(200,227,42,0.18)";
 const MACAW_SOFT = "rgba(200,227,42,0.08)";
 const BG         = "#0C0C0C";
 const SURFACE    = "#161616";
-const CARD       = "#1C1C1C";
 const BORDER     = "#282828";
 const BORDER_LT  = "#333333";
 const TEXT       = "#F0F0F0";
 const MUTED      = "#888888";
 const FAINT      = "#444444";
 
-// Each stage gets a warm-pastel secondary tint used for subtle accents
 const stages = [
   {
     id: 1, label: "Define", short: "DEF",
-    tint: "#D4EAFF", tintDim: "rgba(212,234,255,0.12)",
     description: "Establish what success looks like before touching the platform.",
     steps: [
       "Document the use case and caller intent",
@@ -38,7 +25,6 @@ const stages = [
   },
   {
     id: 2, label: "Design", short: "DES",
-    tint: "#FFE8D4", tintDim: "rgba(255,232,212,0.12)",
     description: "Apply Agent Design principles to the use case before writing a single line of content.",
     steps: [
       "Choose greeting — brief, open-ended, trust-building",
@@ -50,7 +36,6 @@ const stages = [
   },
   {
     id: 3, label: "Build", short: "BLD",
-    tint: "#D4FFE8", tintDim: "rgba(212,255,232,0.12)",
     description: "Construct in a deliberate sequence — each layer depends on the one before it.",
     steps: [
       "① Agent Rules — personality, scope, and limits first",
@@ -62,7 +47,6 @@ const stages = [
   },
   {
     id: 4, label: "Test", short: "TST",
-    tint: "#FFF4D4", tintDim: "rgba(255,244,212,0.12)",
     description: "Verify every change in Local Chat before it touches any live environment.",
     steps: [
       "Test expected caller utterances in Local Chat",
@@ -74,7 +58,6 @@ const stages = [
   },
   {
     id: 5, label: "Promote", short: "PRO",
-    tint: "#EED4FF", tintDim: "rgba(238,212,255,0.12)",
     description: "Move changes through Environments and Branches — staging before production.",
     steps: [
       "Promote change to a staging branch",
@@ -86,7 +69,6 @@ const stages = [
   },
   {
     id: 6, label: "Review", short: "REV",
-    tint: "#FFD4D4", tintDim: "rgba(255,212,212,0.12)",
     description: "Post-launch is the start of the improvement loop, not the end of the build.",
     steps: [
       "Use Conversation Review to hear specific calls",
@@ -98,7 +80,6 @@ const stages = [
   },
 ];
 
-// ── PolyAI logo mark — the "dot speaker grille" pattern ─────────────────────
 const PolyDotMark = ({ size = 32, color = MACAW }) => {
   const dots = [
     [0,0],[1,0],[2,0],
@@ -124,7 +105,6 @@ const PolyDotMark = ({ size = 32, color = MACAW }) => {
   );
 };
 
-// ── Polar helpers ─────────────────────────────────────────────────────────────
 const polar = (angleDeg, r, ox = 0, oy = 0) => {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
   return { x: ox + Math.cos(rad) * r, y: oy + Math.sin(rad) * r };
@@ -137,23 +117,29 @@ const arcD = (cx, cy, r, a1, a2) => {
   return `M ${p1.x} ${p1.y} A ${r} ${r} 0 ${large} 1 ${p2.x} ${p2.y}`;
 };
 
-// ── Main component ────────────────────────────────────────────────────────────
 export const AgentBuildMethodology = () => {
   const [active, setActive] = useState(0);
-  const [animTick, setAnimTick] = useState(0);
-
-  useEffect(() => {
-    const t = setInterval(() => setAnimTick(n => n + 1), 60);
-    return () => clearInterval(t);
-  }, []);
 
   const stage = stages[active];
   const CX = 240, CY = 240, OR = 168, NR = 30;
   const total = stages.length;
 
+  const a1 = (active / total) * 360;
+  const a2 = ((active + 1) / total) * 360;
+  const activeArc = (
+    <path
+      d={arcD(CX, CY, OR, a1, a2)}
+      fill="none"
+      stroke={MACAW}
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      filter="url(#softBloom)"
+      opacity={0.9}
+    />
+  );
+
   return (
     <div style={{
-      minHeight: "100vh",
       background: BG,
       fontFamily: "'Outfit', 'DM Sans', system-ui, sans-serif",
       display: "flex",
@@ -163,7 +149,6 @@ export const AgentBuildMethodology = () => {
       padding: "32px 16px",
     }}>
 
-      {/* ── Header ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 36 }}>
         <PolyDotMark size={36} color={MACAW} />
         <div>
@@ -179,14 +164,12 @@ export const AgentBuildMethodology = () => {
         </div>
       </div>
 
-      {/* ── Main layout ── */}
       <div style={{
         display: "flex", flexWrap: "wrap", gap: 32,
         alignItems: "center", justifyContent: "center",
         width: "100%", maxWidth: 920,
       }}>
 
-        {/* ── Orbit Diagram ── */}
         <div style={{ flexShrink: 0 }}>
           <svg width={480} height={480} viewBox="0 0 480 480" style={{ overflow: "visible" }}>
             <defs>
@@ -211,41 +194,19 @@ export const AgentBuildMethodology = () => {
               </marker>
             </defs>
 
-            {/* Outer decorative ring */}
             <circle cx={CX} cy={CY} r={OR + 48} fill="none" stroke={BORDER} strokeWidth={1} strokeDasharray="2 8" />
-
-            {/* Orbit track */}
             <circle cx={CX} cy={CY} r={OR} fill="none" stroke={FAINT} strokeWidth={1} />
 
-            {/* Active arc highlight — spans from active to next */}
-            {(() => {
-              const a1 = (active / total) * 360;
-              const a2 = ((active + 1) / total) * 360;
-              return (
-                <path
-                  d={arcD(CX, CY, OR, a1, a2)}
-                  fill="none"
-                  stroke={MACAW}
-                  strokeWidth={2.5}
-                  strokeLinecap="round"
-                  filter="url(#softBloom)"
-                  opacity={0.9}
-                />
-              );
-            })()}
+            {activeArc}
 
-            {/* Center glow for active */}
             <circle cx={CX} cy={CY} r={88}
               fill="url(#macawGlow)"
               filter="url(#macawBloom)"
               opacity={0.6}
             />
-
-            {/* Center circle */}
             <circle cx={CX} cy={CY} r={72} fill="url(#centerGrad)" stroke={BORDER_LT} strokeWidth={1} />
             <circle cx={CX} cy={CY} r={58} fill="none" stroke={MACAW} strokeWidth={1} strokeOpacity={0.2} />
 
-            {/* Center PolyAI dots */}
             {[0,1,2,3,4,5,6,7,8].map(i => {
               const col = i % 3, row = Math.floor(i / 3);
               const cx2 = CX - 14 + col * 14;
@@ -260,7 +221,6 @@ export const AgentBuildMethodology = () => {
               );
             })}
 
-            {/* Stage number */}
             <text x={CX} y={CY + 22} textAnchor="middle"
               fill={MACAW} fontSize={11}
               fontFamily="'Space Mono', monospace"
@@ -269,41 +229,33 @@ export const AgentBuildMethodology = () => {
               {String(active + 1).padStart(2, '0')} / 06
             </text>
 
-            {/* Stage nodes */}
             {stages.map((s, i) => {
               const angle = (i / total) * 360;
               const { x: nx, y: ny } = polar(angle, OR, CX, CY);
               const isActive = i === active;
               const labelOff = polar(angle, OR + 48, CX, CY);
-
-              // Anchor text based on position
               const ta = labelOff.x < CX - 10 ? "end"
                        : labelOff.x > CX + 10 ? "start"
                        : "middle";
-
               return (
                 <g key={s.id} style={{ cursor: "pointer" }} onClick={() => setActive(i)}>
-                  {/* Glow for active */}
                   {isActive && (
                     <circle cx={nx} cy={ny} r={NR + 14}
                       fill={MACAW_GLOW}
                       filter="url(#macawBloom)"
                     />
                   )}
-                  {/* Ring */}
                   <circle cx={nx} cy={ny} r={NR + 5}
                     fill="none"
                     stroke={isActive ? MACAW : BORDER}
                     strokeWidth={isActive ? 1.5 : 1}
                     strokeOpacity={isActive ? 0.6 : 1}
                   />
-                  {/* Node fill */}
                   <circle cx={nx} cy={ny} r={NR}
                     fill={isActive ? MACAW : SURFACE}
                     stroke={isActive ? MACAW : BORDER_LT}
                     strokeWidth={1}
                   />
-                  {/* Number */}
                   <text x={nx} y={ny - 5} textAnchor="middle"
                     fill={isActive ? BG : MUTED}
                     fontSize={9} fontFamily="'Space Mono', monospace"
@@ -311,7 +263,6 @@ export const AgentBuildMethodology = () => {
                   >
                     {String(i + 1).padStart(2, '0')}
                   </text>
-                  {/* Short label inside node */}
                   <text x={nx} y={ny + 10} textAnchor="middle"
                     fill={isActive ? BG : "#666"}
                     fontSize={8} fontFamily="'Space Mono', monospace"
@@ -319,8 +270,6 @@ export const AgentBuildMethodology = () => {
                   >
                     {s.short}
                   </text>
-
-                  {/* Label outside */}
                   <text x={labelOff.x} y={labelOff.y + 4}
                     textAnchor={ta}
                     fill={isActive ? MACAW : MUTED}
@@ -335,7 +284,6 @@ export const AgentBuildMethodology = () => {
               );
             })}
 
-            {/* Loop arrow — small curved arrow at bottom center to show cyclical nature */}
             <path
               d="M 210 418 Q 240 432 270 418"
               fill="none" stroke={MACAW} strokeWidth={1.5}
@@ -351,10 +299,8 @@ export const AgentBuildMethodology = () => {
           </svg>
         </div>
 
-        {/* ── Detail Panel ── */}
         <div style={{ flex: "1 1 280px", maxWidth: 360 }}>
 
-          {/* Stage badge */}
           <div style={{
             display: "inline-flex", alignItems: "center", gap: 8,
             background: MACAW_SOFT, border: `1px solid ${MACAW}33`,
@@ -369,7 +315,6 @@ export const AgentBuildMethodology = () => {
             </span>
           </div>
 
-          {/* Stage title */}
           <h2 style={{
             fontSize: 32, fontWeight: 700, color: TEXT,
             margin: "0 0 8px", letterSpacing: "-0.03em", lineHeight: 1,
@@ -377,7 +322,6 @@ export const AgentBuildMethodology = () => {
             {stage.label}
           </h2>
 
-          {/* Description */}
           <p style={{
             fontSize: 13, color: MUTED, lineHeight: 1.6, margin: "0 0 20px",
             fontWeight: 300,
@@ -385,10 +329,8 @@ export const AgentBuildMethodology = () => {
             {stage.description}
           </p>
 
-          {/* Divider */}
           <div style={{ height: 1, background: BORDER, marginBottom: 20 }} />
 
-          {/* Steps */}
           <div style={{ marginBottom: 20 }}>
             {stage.steps.map((step, i) => (
               <div key={i} style={{
@@ -416,7 +358,6 @@ export const AgentBuildMethodology = () => {
             ))}
           </div>
 
-          {/* Principle callout */}
           <div style={{
             background: SURFACE, borderRadius: 6,
             borderLeft: `3px solid ${MACAW}`,
@@ -438,7 +379,6 @@ export const AgentBuildMethodology = () => {
             </p>
           </div>
 
-          {/* Nav buttons */}
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={() => setActive((active - 1 + 6) % 6)}
@@ -472,7 +412,6 @@ export const AgentBuildMethodology = () => {
         </div>
       </div>
 
-      {/* ── Stage pills ── */}
       <div style={{
         display: "flex", gap: 6, marginTop: 36,
         flexWrap: "wrap", justifyContent: "center",
@@ -497,7 +436,6 @@ export const AgentBuildMethodology = () => {
         ))}
       </div>
 
-      {/* Footer */}
       <div style={{
         marginTop: 28, display: "flex", alignItems: "center", gap: 8,
       }}>
@@ -511,4 +449,4 @@ export const AgentBuildMethodology = () => {
       </div>
     </div>
   );
-}
+};
