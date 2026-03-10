@@ -1,0 +1,756 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "PolyAI Alerts API",
+    "version": "1.0.0",
+    "description": "Create alert rules, inspect active alerts, register webhook endpoints, and receive signed webhook notifications when alert thresholds are breached."
+  },
+  "servers": [
+    {
+      "url": "https://api.poly.ai"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key"
+      }
+    },
+    "parameters": {
+      "RuleId": {
+        "name": "rule_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "EndpointId": {
+        "name": "endpoint_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "EnabledFilter": {
+        "name": "enabled",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "MetricFilter": {
+        "name": "metric",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/Metric"
+        }
+      },
+      "ProjectIdFilter": {
+        "name": "project_id",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "StateFilter": {
+        "name": "state",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/AlertState"
+        }
+      },
+      "EventTypeFilter": {
+        "name": "event_type",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/WebhookEventType"
+        }
+      }
+    },
+    "schemas": {
+      "Metric": {
+        "type": "string",
+        "enum": [
+          "turn_latency_p50",
+          "turn_latency_p95",
+          "api_errors",
+          "function_errors",
+          "call_crashes",
+          "call_volume"
+        ]
+      },
+      "ComparisonOperator": {
+        "type": "string",
+        "enum": [">", "<", ">=", "<="]
+      },
+      "AlertState": {
+        "type": "string",
+        "enum": ["ok", "alert", "no_data", "unknown"]
+      },
+      "WebhookEventType": {
+        "type": "string",
+        "enum": ["alerts.triggered"]
+      },
+      "AlertRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "metric",
+          "operator",
+          "threshold_value",
+          "window_duration_seconds",
+          "enabled",
+          "current_state",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "project_id": { "type": ["string", "null"] },
+          "metric": { "$ref": "#/components/schemas/Metric" },
+          "operator": { "$ref": "#/components/schemas/ComparisonOperator" },
+          "threshold_value": { "type": "integer", "minimum": 0 },
+          "window_duration_seconds": { "type": "integer", "minimum": 1 },
+          "enabled": { "type": "boolean", "default": true },
+          "current_state": { "$ref": "#/components/schemas/AlertState" },
+          "since": { "type": ["string", "null"], "format": "date-time" },
+          "last_evaluated_at": { "type": ["string", "null"], "format": "date-time" },
+          "current_value": { "type": ["integer", "null"] },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateAlertRuleRequest": {
+        "type": "object",
+        "required": ["name", "metric", "operator", "threshold_value", "window_duration_seconds"],
+        "properties": {
+          "name": { "type": "string" },
+          "project_id": { "type": ["string", "null"] },
+          "metric": { "$ref": "#/components/schemas/Metric" },
+          "operator": { "$ref": "#/components/schemas/ComparisonOperator" },
+          "threshold_value": { "type": "integer", "minimum": 0 },
+          "window_duration_seconds": { "type": "integer", "minimum": 1 },
+          "enabled": { "type": "boolean", "default": true }
+        },
+        "additionalProperties": false,
+        "example": {
+          "name": "High turn latency (p95)",
+          "project_id": "proj_abc123",
+          "metric": "turn_latency_p95",
+          "operator": ">=",
+          "threshold_value": 1500,
+          "window_duration_seconds": 300,
+          "enabled": true
+        }
+      },
+      "UpdateAlertRuleAttributes": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "project_id": { "type": ["string", "null"] },
+          "metric": { "$ref": "#/components/schemas/Metric" },
+          "operator": { "$ref": "#/components/schemas/ComparisonOperator" },
+          "threshold_value": { "type": "integer", "minimum": 0 },
+          "window_duration_seconds": { "type": "integer", "minimum": 1 },
+          "enabled": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      },
+      "UpdateAlertRuleRequest": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["type", "id", "attributes"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "alert-rules"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "attributes": {
+                "$ref": "#/components/schemas/UpdateAlertRuleAttributes"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false,
+        "example": {
+          "data": {
+            "type": "alert-rules",
+            "id": "00aa00aa-bb11-cc22-dd33-eeeeeeeeeeee",
+            "attributes": {
+              "threshold_value": 2000,
+              "enabled": false
+            }
+          }
+        }
+      },
+      "AlertRuleListResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AlertRule" }
+          }
+        }
+      },
+      "ActiveAlert": {
+        "type": "object",
+        "required": [
+          "alert_rule_id",
+          "name",
+          "metric",
+          "operator",
+          "threshold_value",
+          "window_duration_seconds",
+          "since"
+        ],
+        "properties": {
+          "alert_rule_id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "project_id": { "type": ["string", "null"] },
+          "metric": { "$ref": "#/components/schemas/Metric" },
+          "operator": { "$ref": "#/components/schemas/ComparisonOperator" },
+          "threshold_value": { "type": "integer" },
+          "window_duration_seconds": { "type": "integer" },
+          "since": { "type": "string", "format": "date-time" },
+          "last_evaluated_at": { "type": ["string", "null"], "format": "date-time" },
+          "current_value": { "type": ["integer", "null"] }
+        }
+      },
+      "ActiveAlertListResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ActiveAlert" }
+          }
+        }
+      },
+      "WebhookEndpoint": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "url",
+          "enabled",
+          "event_types",
+          "timeout_ms",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string", "minLength": 1, "maxLength": 255 },
+          "url": { "type": "string", "format": "uri" },
+          "enabled": { "type": "boolean", "default": true },
+          "event_types": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/WebhookEventType" }
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": { "type": "string" },
+            "default": {}
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 30000,
+            "default": 5000
+          },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "WebhookEndpointCreateResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/WebhookEndpoint" },
+          {
+            "type": "object",
+            "required": ["signing_secret"],
+            "properties": {
+              "signing_secret": {
+                "type": "string",
+                "description": "Returned only once during endpoint creation. Store it securely."
+              }
+            }
+          }
+        ]
+      },
+      "CreateWebhookEndpointRequest": {
+        "type": "object",
+        "required": ["name", "url", "event_types"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 255 },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          },
+          "event_types": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/WebhookEventType" },
+            "minItems": 1
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 30000,
+            "default": 5000
+          },
+          "enabled": { "type": "boolean", "default": true }
+        },
+        "additionalProperties": false,
+        "example": {
+          "name": "Production alerts",
+          "url": "https://example.com/webhooks/polyai",
+          "event_types": ["alerts.triggered"],
+          "headers": {
+            "X-Custom-Header": "my-value"
+          },
+          "timeout_ms": 5000,
+          "enabled": true
+        }
+      },
+      "UpdateWebhookEndpointAttributes": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 255 },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          },
+          "event_types": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/WebhookEventType" },
+            "minItems": 1
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 30000
+          },
+          "enabled": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      },
+      "UpdateWebhookEndpointRequest": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["type", "id", "attributes"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "webhook-endpoints"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "attributes": {
+                "$ref": "#/components/schemas/UpdateWebhookEndpointAttributes"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false,
+        "example": {
+          "data": {
+            "type": "webhook-endpoints",
+            "id": "ff44ff44-aa55-bb66-cc77-dddddddddddd",
+            "attributes": {
+              "url": "https://example.com/webhooks/polyai-v2",
+              "enabled": false
+            }
+          }
+        }
+      },
+      "WebhookEndpointListResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/WebhookEndpoint" }
+          }
+        }
+      },
+      "WebhookAlert": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "metric",
+          "operator",
+          "threshold_value",
+          "triggered_at"
+        ],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "project_id": { "type": ["string", "null"] },
+          "metric": { "$ref": "#/components/schemas/Metric" },
+          "operator": { "$ref": "#/components/schemas/ComparisonOperator" },
+          "threshold_value": { "type": "integer" },
+          "current_value": { "type": ["integer", "null"] },
+          "previous_state": {
+            "type": ["string", "null"],
+            "enum": ["ok", "alert", "no_data", "unknown", null]
+          },
+          "triggered_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "WebhookEvent": {
+        "type": "object",
+        "required": ["event_type", "alert"],
+        "properties": {
+          "event_type": { "$ref": "#/components/schemas/WebhookEventType" },
+          "alert": { "$ref": "#/components/schemas/WebhookAlert" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string" }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Validation error.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid API key.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "InternalServerError": {
+        "description": "Internal server error.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/v1/alert-rules": {
+      "get": {
+        "summary": "List alert rules",
+        "operationId": "listAlertRules",
+        "parameters": [
+          { "$ref": "#/components/parameters/EnabledFilter" },
+          { "$ref": "#/components/parameters/MetricFilter" },
+          { "$ref": "#/components/parameters/ProjectIdFilter" },
+          { "$ref": "#/components/parameters/StateFilter" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Alert rules retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AlertRuleListResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      },
+      "post": {
+        "summary": "Create an alert rule",
+        "operationId": "createAlertRule",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateAlertRuleRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Alert rule created successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AlertRule" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/v1/alert-rules/{rule_id}": {
+      "get": {
+        "summary": "Get an alert rule",
+        "operationId": "getAlertRule",
+        "parameters": [{ "$ref": "#/components/parameters/RuleId" }],
+        "responses": {
+          "200": {
+            "description": "Alert rule retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AlertRule" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      },
+      "patch": {
+        "summary": "Update an alert rule",
+        "operationId": "updateAlertRule",
+        "parameters": [{ "$ref": "#/components/parameters/RuleId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateAlertRuleRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Alert rule updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AlertRule" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      },
+      "delete": {
+        "summary": "Delete an alert rule",
+        "operationId": "deleteAlertRule",
+        "parameters": [{ "$ref": "#/components/parameters/RuleId" }],
+        "responses": {
+          "204": {
+            "description": "Alert rule deleted successfully."
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/v1/alerts": {
+      "get": {
+        "summary": "List active alerts",
+        "operationId": "listActiveAlerts",
+        "parameters": [
+          { "$ref": "#/components/parameters/ProjectIdFilter" },
+          { "$ref": "#/components/parameters/MetricFilter" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active alerts retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ActiveAlertListResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/v1/webhook-endpoints": {
+      "get": {
+        "summary": "List webhook endpoints",
+        "operationId": "listWebhookEndpoints",
+        "parameters": [
+          { "$ref": "#/components/parameters/EnabledFilter" },
+          { "$ref": "#/components/parameters/EventTypeFilter" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Webhook endpoints retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WebhookEndpointListResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      },
+      "post": {
+        "summary": "Create a webhook endpoint",
+        "operationId": "createWebhookEndpoint",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateWebhookEndpointRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Webhook endpoint created successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WebhookEndpointCreateResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/v1/webhook-endpoints/{endpoint_id}": {
+      "get": {
+        "summary": "Get a webhook endpoint",
+        "operationId": "getWebhookEndpoint",
+        "parameters": [{ "$ref": "#/components/parameters/EndpointId" }],
+        "responses": {
+          "200": {
+            "description": "Webhook endpoint retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WebhookEndpoint" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      },
+      "patch": {
+        "summary": "Update a webhook endpoint",
+        "operationId": "updateWebhookEndpoint",
+        "parameters": [{ "$ref": "#/components/parameters/EndpointId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateWebhookEndpointRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Webhook endpoint updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WebhookEndpoint" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      },
+      "delete": {
+        "summary": "Delete a webhook endpoint",
+        "operationId": "deleteWebhookEndpoint",
+        "parameters": [{ "$ref": "#/components/parameters/EndpointId" }],
+        "responses": {
+          "204": {
+            "description": "Webhook endpoint deleted successfully."
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    }
+  },
+  "webhooks": {
+    "alertsTriggered": {
+      "post": {
+        "summary": "alerts.triggered webhook",
+        "description": "Sent when an alert rule transitions into a firing state.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WebhookEvent" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Your endpoint acknowledged the event."
+          }
+        }
+      }
+    }
+  }
+}
