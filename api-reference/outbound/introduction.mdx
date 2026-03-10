@@ -9,7 +9,8 @@ The Outbound Calling API allows you to programmatically initiate outbound calls 
 
 - An active PolyAI project with outbound calling enabled
 - A connector configured for outbound calls
-- API authentication token (X-PolyAi-Auth-Token)
+- Your account ID and project ID
+- Connector ID for authentication
 
 <Note>Contact your PolyAI representative to enable outbound calling for your project and obtain the necessary credentials.</Note>
 
@@ -23,27 +24,36 @@ Use the regional endpoint that matches your deployment:
 | UK     | `https://api.uk-1.platform.polyai.app` |
 | EUW    | `https://api.euw-1.platform.polyai.app` |
 
+## Endpoint paths
+
+All outbound calling endpoints include your account and project IDs in the path:
+
+```
+/api/v1/{account_id}/{project_id}/outbound-call/...
+```
+
 ## Authentication
 
-All outbound calling endpoints require authentication using the `X-PolyAi-Auth-Token` header:
+All outbound calling endpoints require authentication using the `X-CONNECTOR-ID` header:
 
 ```bash
-curl -X POST https://api.{region}.platform.polyai.app/outbound/trigger \
-  -H "X-PolyAi-Auth-Token: YOUR_CONNECTOR_TOKEN" \
+curl -X POST https://api.{region}.platform.polyai.app/api/v1/{account_id}/{project_id}/outbound-call/trigger \
+  -H "X-CONNECTOR-ID: YOUR_CONNECTOR_ID" \
   -H "Content-Type: application/json"
 ```
 
 ## Call flow
 
-1. **Trigger call** - POST to `/outbound/trigger` with phone number and metadata
-2. **Receive call SID** - API returns a unique call identifier
-3. **Check status** - GET `/outbound/status/{call_sid}` to monitor call progress
+1. **Trigger call** - POST to `/api/v1/{account_id}/{project_id}/outbound-call/trigger` with phone number
+2. **Receive conversation ID** - API returns a unique call identifier (starts with `OUT-`)
+3. **Check status** - GET `/api/v1/{account_id}/{project_id}/outbound-call/status/{call_sid}` to monitor call progress
 4. **Handle completion** - Call status updates to `completed`, `failed`, or `no-answer`
 
 ## Call statuses
 
 | Status | Description |
 | ------ | ----------- |
+| `CREATED` | Call record has been created |
 | `queued` | Call has been queued for processing |
 | `ringing` | Call is ringing at the destination |
 | `in-progress` | Call is active and connected |
@@ -53,6 +63,12 @@ curl -X POST https://api.{region}.platform.polyai.app/outbound/trigger \
 | `busy` | Destination was busy |
 | `cancelled` | Call was cancelled before connection |
 
+## Status data retention
+
+<Warning>
+Call status data is retained for approximately **2 hours** after the call ends. After this period, the status endpoint will return a 404 Not Found error. If you need to retain call data longer, poll and store the status data before it expires.
+</Warning>
+
 ## Rate limits
 
 Outbound calling is subject to rate limits based on your account configuration. Contact your PolyAI representative to adjust limits for your use case.
@@ -61,6 +77,6 @@ Outbound calling is subject to rate limits based on your account configuration. 
 
 - **Validate phone numbers** - Ensure numbers are in E.164 format before triggering calls
 - **Handle failures gracefully** - Implement retry logic with exponential backoff
-- **Monitor status** - Poll the status endpoint to track call progress
-- **Use metadata** - Pass context in the metadata field to personalize conversations
+- **Monitor status promptly** - Poll the status endpoint within 2 hours of call completion
+- **Store status data** - If you need call status beyond 2 hours, store it in your own system
 - **Respect time zones** - Schedule calls during appropriate hours for the destination region
