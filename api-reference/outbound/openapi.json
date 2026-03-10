@@ -21,50 +21,48 @@
   ],
   "security": [
     {
-      "ConnectorToken": []
+      "ConnectorId": []
     }
   ],
   "paths": {
-    "/outbound/trigger": {
+    "/api/v1/{account_id}/{project_id}/outbound-call/trigger": {
       "post": {
         "summary": "Trigger an outbound call",
         "description": "Initiates a new outbound call to the specified phone number. The call will be queued and processed by the outbound calling system.",
         "operationId": "triggerOutboundCall",
         "tags": ["Outbound Calling"],
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "description": "Your PolyAI account ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "description": "Your PolyAI project ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["to_number"],
+                "required": ["phone_number"],
                 "properties": {
-                  "to_number": {
+                  "phone_number": {
                     "type": "string",
                     "description": "Phone number to call in E.164 format (e.g., +14155552671)",
                     "example": "+14155552671"
-                  },
-                  "country_code": {
-                    "type": "string",
-                    "description": "ISO 3166-1 alpha-2 country code for phone number validation (e.g., US, GB, FR). Defaults to ZZ (unknown region).",
-                    "default": "ZZ",
-                    "example": "US"
-                  },
-                  "encryption": {
-                    "type": "string",
-                    "description": "Encryption method for the call",
-                    "enum": ["TLS/SRTP", "UDP/RTP"],
-                    "default": "TLS/SRTP",
-                    "example": "TLS/SRTP"
-                  },
-                  "metadata": {
-                    "type": "object",
-                    "description": "Custom metadata to pass to the conversation. This data will be available in functions via conv.integration_attributes. Must be less than 26KB when base64-encoded.",
-                    "additionalProperties": true,
-                    "example": {
-                      "customer_id": "12345",
-                      "appointment_time": "2024-03-15T10:00:00Z"
-                    }
                   }
                 }
               }
@@ -79,7 +77,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "call_sid": {
+                    "conversation_id": {
                       "type": "string",
                       "description": "Unique identifier for the triggered call. Use this to check call status.",
                       "example": "OUT-550e8400-e29b-41d4-a716-446655440000"
@@ -100,7 +98,7 @@
             }
           },
           "401": {
-            "description": "Unauthorized - Invalid or missing authentication token",
+            "description": "Unauthorized - Invalid or missing connector ID",
             "content": {
               "application/json": {
                 "schema": {
@@ -122,13 +120,31 @@
         }
       }
     },
-    "/outbound/status/{call_sid}": {
+    "/api/v1/{account_id}/{project_id}/outbound-call/status/{call_sid}": {
       "get": {
         "summary": "Get call status",
-        "description": "Retrieves the current status and reason for an outbound call. Use this endpoint to monitor call progress after triggering a call.",
+        "description": "Retrieves the current status and history for an outbound call. Use this endpoint to monitor call progress after triggering a call. Note: Call status data is retained for approximately 2 hours after the call ends.",
         "operationId": "getCallStatus",
         "tags": ["Outbound Calling"],
         "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "description": "Your PolyAI account ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "description": "Your PolyAI project ID",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "call_sid",
             "in": "path",
@@ -148,10 +164,36 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "call_sid": {
+                      "type": "string",
+                      "description": "The call identifier"
+                    },
+                    "account_id": {
+                      "type": "string",
+                      "description": "The account ID"
+                    },
+                    "project_id": {
+                      "type": "string",
+                      "description": "The project ID"
+                    },
+                    "client_env": {
+                      "type": "string",
+                      "description": "The client environment"
+                    },
+                    "connector_id": {
+                      "type": "string",
+                      "description": "The connector ID"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "When the call was created"
+                    },
                     "status": {
                       "type": "string",
                       "description": "Current status of the call",
                       "enum": [
+                        "CREATED",
                         "queued",
                         "ringing",
                         "in-progress",
@@ -163,10 +205,20 @@
                       ],
                       "example": "completed"
                     },
-                    "reason": {
+                    "last_updated": {
                       "type": "string",
-                      "description": "Additional context about the call status (may be empty for some statuses)",
-                      "example": "call ended normally"
+                      "format": "date-time",
+                      "description": "When the status was last updated"
+                    },
+                    "event_history": {
+                      "type": "array",
+                      "description": "List of status change events",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      }
                     }
                   }
                 }
@@ -184,7 +236,7 @@
             }
           },
           "401": {
-            "description": "Unauthorized - Invalid or missing authentication token",
+            "description": "Unauthorized - Invalid or missing connector ID",
             "content": {
               "application/json": {
                 "schema": {
@@ -194,7 +246,7 @@
             }
           },
           "404": {
-            "description": "Not Found - Call SID not found",
+            "description": "Not Found - Call SID not found or status data has expired (data retained for ~2 hours)",
             "content": {
               "application/json": {
                 "schema": {
@@ -219,11 +271,11 @@
   },
   "components": {
     "securitySchemes": {
-      "ConnectorToken": {
+      "ConnectorId": {
         "type": "apiKey",
         "in": "header",
-        "name": "X-PolyAi-Auth-Token",
-        "description": "Connector authentication token for outbound calls"
+        "name": "X-CONNECTOR-ID",
+        "description": "Connector ID for outbound calls"
       }
     },
     "schemas": {
