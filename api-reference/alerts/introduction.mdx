@@ -1,0 +1,249 @@
+---
+title: "Alerts API"
+sidebarTitle: "Overview"
+description: "Configure alert rules for operational metrics and receive webhook notifications when thresholds are breached."
+---
+
+The Alerts API lets you monitor your voice agents in real time. Configure alert rules to watch key operational metrics, then receive webhook notifications when something goes wrong.
+
+## Key features
+
+- **Alert rules** - Monitor metrics like turn latency, API errors, function errors, call crashes, and call volume
+- **Webhook notifications** - Receive signed HTTP POST requests when alerts trigger
+- **Project scoping** - Scope alerts to specific projects or monitor account-wide
+
+## Available metrics
+
+| Metric | Description | Unit |
+|--------|-------------|------|
+| `turn_latency_p50` | Median turn latency | milliseconds |
+| `turn_latency_p95` | 95th percentile turn latency | milliseconds |
+| `api_errors` | Number of API errors | count |
+| `function_errors` | Number of function execution errors | count |
+| `call_crashes` | Number of call crashes | count |
+| `call_volume` | Number of calls | count |
+
+## Alert states
+
+| State | Description |
+|-------|-------------|
+| `ok` | The metric is within the configured threshold |
+| `alert` | The metric has breached the threshold and the alert is firing |
+| `no_data` | No data is available for evaluation |
+| `unknown` | The state could not be determined |
+
+## Quick start
+
+### 1. Create an alert rule
+
+```bash
+curl -X POST https://api.poly.ai/v1/alert-rules \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "High turn latency (p95)",
+    "project_id": "proj_abc123",
+    "metric": "turn_latency_p95",
+    "operator": ">=",
+    "threshold_value": 1500,
+    "window_duration_seconds": 300
+  }'
+```
+
+### 2. Register a webhook endpoint
+
+```bash
+curl -X POST https://api.poly.ai/v1/webhook-endpoints \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Production alert notifications",
+    "url": "https://example.com/webhooks/polyai",
+    "event_types": ["alerts.triggered"]
+  }'
+```
+
+<Warning>
+The `signing_secret` is returned only once when you create a webhook endpoint. Store it securely immediately.
+</Warning>
+
+### 3. Check active alerts
+
+```bash
+curl https://api.poly.ai/v1/alerts \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+## Webhook delivery
+
+### Event types
+
+| Event | Description |
+|-------|-------------|
+| `alerts.triggered` | Sent when an alert rule transitions into a firing state |
+
+### Webhook payload
+
+```json
+{
+  "event_type": "alerts.triggered",
+  "alert": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "High turn latency (p95)",
+    "project_id": "proj_abc123",
+    "metric": "turn_latency_p95",
+    "operator": ">=",
+    "threshold_value": 1500,
+    "current_value": 1823,
+    "previous_state": "ok",
+    "triggered_at": "2024-03-15T10:30:00Z"
+  }
+}
+```
+
+### Webhook headers
+
+Each webhook request includes these headers:
+
+| Header | Description |
+|--------|-------------|
+| `X-PolyAI-Timestamp` | Unix timestamp (seconds) when the webhook was sent |
+| `X-PolyAI-Signature` | HMAC-SHA256 signature for verification |
+| `X-PolyAI-Event-ID` | Unique event identifier for deduplication |
+
+### Retry policy
+
+Failed webhook deliveries are retried with exponential backoff:
+
+| Attempt | Delay | Cumulative time |
+|---------|-------|-----------------|
+| 1 | Immediate | 0 |
+| 2 | 1 minute | 1 minute |
+| 3 | 5 minutes | 6 minutes |
+| 4 | 15 minutes | 21 minutes |
+| 5 | 1 hour | ~1.5 hours |
+| 6 | 4 hours | ~5.5 hours |
+
+Retried failures:
+- Timeout
+- Network error
+- HTTP 408, 429, 5xx
+
+Not retried:
+- Other 4xx errors
+
+## Signature verification
+
+Verify webhook signatures to ensure requests are from PolyAI.
+
+**Algorithm:** HMAC-SHA256
+
+**Signed message format:** `{timestamp}.{raw_request_body}`
+
+<Tabs>
+  <Tab title="Python">
+```python
+import hmac
+import hashlib
+import time
+
+def verify_webhook(payload: bytes, timestamp: str, signature: str, secret: str) -> bool:
+    # Reject requests older than 5 minutes
+    if abs(time.time() - int(timestamp)) > 300:
+        return False
+    
+    # Compute expected signature
+    message = f"{timestamp}.{payload.decode('utf-8')}"
+    expected = hmac.new(
+        secret.encode('utf-8'),
+        message.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+    
+    # Constant-time comparison
+    return hmac.compare_digest(expected, signature)
+```
+  </Tab>
+  <Tab title="JavaScript">
+```javascript
+const crypto = require('crypto');
+
+function verifyWebhook(payload, timestamp, signature, secret) {
+  // Reject requests older than 5 minutes
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - parseInt(timestamp)) > 300) {
+    return false;
+  }
+  
+  // Compute expected signature
+  const message = `${timestamp}.${payload}`;
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(message)
+    .digest('hex');
+  
+  // Constant-time comparison
+  return crypto.timingSafeEqual(
+    Buffer.from(expected),
+    Buffer.from(signature)
+  );
+}
+```
+  </Tab>
+  <Tab title="Go">
+```go
+package main
+
+import (
+    "crypto/hmac"
+    "crypto/sha256"
+    "encoding/hex"
+    "math"
+    "strconv"
+    "time"
+)
+
+func verifyWebhook(payload []byte, timestamp, signature, secret string) bool {
+    // Reject requests older than 5 minutes
+    ts, err := strconv.ParseInt(timestamp, 10, 64)
+    if err != nil {
+        return false
+    }
+    if math.Abs(float64(time.Now().Unix()-ts)) > 300 {
+        return false
+    }
+    
+    // Compute expected signature
+    message := timestamp + "." + string(payload)
+    mac := hmac.New(sha256.New, []byte(secret))
+    mac.Write([]byte(message))
+    expected := hex.EncodeToString(mac.Sum(nil))
+    
+    // Constant-time comparison
+    return hmac.Equal([]byte(expected), []byte(signature))
+}
+```
+  </Tab>
+</Tabs>
+
+<Tip>
+Use `X-PolyAI-Event-ID` for deduplication since retries can deliver the same event more than once.
+</Tip>
+
+## Authentication
+
+All Alerts API endpoints use API key authentication via the `x-api-key` header. Resources are automatically scoped to your account.
+
+```bash
+curl https://api.poly.ai/v1/alerts \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+## Error responses
+
+| Status | Description |
+|--------|-------------|
+| 400 | Validation error - check request body or parameters |
+| 401 | Missing or invalid API key |
+| 404 | Resource not found |
+| 500 | Internal server error |
