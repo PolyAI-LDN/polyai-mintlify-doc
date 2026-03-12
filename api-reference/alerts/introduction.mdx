@@ -14,23 +14,36 @@ The Alerts API lets you monitor your voice agents in real time. Configure alert 
 
 ## Available metrics
 
-| Metric | Description | Unit |
-|--------|-------------|------|
-| `turn_latency_p50` | Median turn latency | milliseconds |
-| `turn_latency_p95` | 95th percentile turn latency | milliseconds |
-| `api_errors` | Number of API errors | count |
-| `function_errors` | Number of function execution errors | count |
-| `call_crashes` | Number of call crashes | count |
-| `call_volume` | Number of calls | count |
+All count-based metrics represent **absolute counts within the evaluation window**, not rates. For example, if you set `window_duration_seconds: 300` and `threshold_value: 10` for `api_errors`, the alert triggers when there are 10 or more API errors in the 5-minute window.
+
+| Metric | Description | Unit | Typical threshold guidance |
+|--------|-------------|------|---------------------------|
+| `turn_latency_p50` | Median turn latency | milliseconds | 800-1500ms depending on use case |
+| `turn_latency_p95` | 95th percentile turn latency | milliseconds | 1500-3000ms depending on use case |
+| `api_errors` | Number of API errors in window | count | Consider 0 for critical flows |
+| `function_errors` | Number of function execution errors in window | count | Consider 0 for critical functions |
+| `call_crashes` | Number of call crashes in window | count | Typically 0 (any crash is concerning) |
+| `call_volume` | Number of calls in window | count | Depends on expected traffic patterns |
+
+<Tip>
+When setting thresholds, consider the metric type and business impact:
+- **Error metrics** (`api_errors`, `function_errors`, `call_crashes`): Consider setting threshold to 0 for critical flows where any error requires attention
+- **Latency metrics**: Use longer windows (5-15 minutes) to smooth out transient spikes
+- **Volume metrics**: Base thresholds on historical traffic patterns and expected business hours
+</Tip>
 
 ## Alert states
 
-| State | Description |
-|-------|-------------|
-| `ok` | The metric is within the configured threshold |
-| `alert` | The metric has breached the threshold and the alert is firing |
-| `no_data` | No data is available for evaluation |
-| `unknown` | The state could not be determined |
+| State | Description | When it occurs |
+|-------|-------------|----------------|
+| `ok` | The metric is within the configured threshold | After successful evaluation shows metric below threshold |
+| `alert` | The metric has breached the threshold and the alert is firing | Metric exceeds threshold during evaluation |
+| `no_data` | No data is available for evaluation | No metric data reported during the evaluation window (e.g., no calls) |
+| `unknown` | The state could not be determined | Initial state before first evaluation, or evaluation system error |
+
+<Note>
+**`no_data` vs `unknown`:** Use `no_data` to detect when your agents aren't receiving traffic (which may itself be a problem). `unknown` is typically only seen briefly when a rule is first created or if there's an evaluation system issue.
+</Note>
 
 ## Quick start
 
@@ -65,6 +78,8 @@ curl -X POST https://api.poly.ai/v1/webhook-endpoints \
 
 <Warning>
 The `signing_secret` is returned only once when you create a webhook endpoint. Store it securely immediately.
+
+**Lost your signing secret?** You must delete the webhook endpoint and create a new one. There is no way to retrieve or rotate the secret after creation.
 </Warning>
 
 ### 3. Check active alerts
@@ -81,6 +96,12 @@ curl https://api.poly.ai/v1/alerts \
 | Event | Description |
 |-------|-------------|
 | `alerts.triggered` | Sent when an alert rule transitions into a firing state |
+
+<Warning>
+**No `alerts.resolved` event:** Webhooks only fire when an alert transitions **into** the firing state. There is no automatic notification when alerts recover. To detect recovery, poll `GET /v1/alerts` or `GET /v1/alert-rules` to check when the `current_state` changes back to `ok`.
+
+If you're building a PagerDuty-style integration, you'll need to implement polling to auto-resolve incidents.
+</Warning>
 
 ### Webhook payload
 
@@ -247,3 +268,68 @@ curl https://api.poly.ai/v1/alerts \
 | 401 | Missing or invalid API key |
 | 404 | Resource not found |
 | 500 | Internal server error |
+
+### Example error response
+
+```json
+{
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "threshold_value",
+      "message": "must be a non-negative integer"
+    },
+    {
+      "field": "metric",
+      "message": "must be one of: turn_latency_p50, turn_latency_p95, api_errors, function_errors, call_crashes, call_volume"
+    }
+  ]
+}
+```
+
+## Pagination
+
+List endpoints currently return all results without pagination. For accounts with many alert rules or webhook endpoints, consider filtering by `project_id`, `metric`, or `enabled` status to reduce response size.
+
+## Update request format
+
+<Warning>
+**Important:** PATCH requests use a JSON:API-style envelope, which differs from the flat JSON used in POST/create requests.
+
+**Creating** a resource (POST) uses flat JSON:
+```json
+{
+  "name": "My alert rule",
+  "metric": "api_errors",
+  "threshold_value": 10
+}
+```
+
+**Updating** a resource (PATCH) requires a JSON:API envelope:
+```json
+{
+  "data": {
+    "type": "alert-rules",
+    "id": "00aa00aa-bb11-cc22-dd33-eeeeeeeeeeee",
+    "attributes": {
+      "threshold_value": 20
+    }
+  }
+}
+```
+
+The `id` in the request body must match the `rule_id` or `endpoint_id` in the URL path.
+</Warning>
+
+## Window duration
+
+The `window_duration_seconds` field accepts values from **60 seconds (1 minute) to 86400 seconds (24 hours)**. 
+
+Recommended ranges:
+- **Latency alerts:** 300-900 seconds (5-15 minutes) to smooth transient spikes
+- **Error count alerts:** 60-300 seconds (1-5 minutes) for faster detection
+- **Volume alerts:** 300-3600 seconds (5-60 minutes) depending on traffic patterns
+
+<Note>
+Very short windows (under 60 seconds) may produce noisy alerts due to metric collection intervals. Very long windows (over 1 hour) may delay alert detection significantly.
+</Note>
