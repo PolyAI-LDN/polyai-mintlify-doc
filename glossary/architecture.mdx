@@ -7,23 +7,30 @@ This page provides a high-level overview of how PolyAI's conversational AI syste
 
 ## How conversations flow
 
-When a caller connects to your PolyAI agent, the conversation passes through several key stages:
+When a user connects to your PolyAI agent, the conversation passes through several key stages. The exact path depends on the channel—voice (telephony), webchat, or SMS.
 
 ```mermaid
 flowchart LR
-    A[Caller] --> B[Telephony]
-    B --> C[Speech Recognition]
-    C --> D[Agent Service]
-    D --> E[Language Understanding]
-    E --> F[Decision Engine]
-    F --> G[Response Generation]
-    G --> H[Text-to-Speech]
-    H --> B
+    A[User] --> B{Channel}
+    B -->|Voice| C[Telephony]
+    B -->|Chat| D[HTTP/WebSocket]
+    C --> E[Speech Recognition]
+    D --> F[Agent Service]
+    E --> F
+    F --> G[Language Understanding]
+    G --> H[Decision Engine]
+    H --> I[Response Generation]
+    I -->|Voice| J[Text-to-Speech]
+    I -->|Chat| K[Text Response]
+    J --> C
+    K --> D
 ```
 
-### 1. Telephony layer
+### 1. Connection layer
 
-The telephony layer handles the phone connection between the caller and your agent. PolyAI's enterprise-ready telephony infrastructure is built for reliability, scalability, and seamless failover.
+The connection layer handles how users reach your agent. For voice, this is telephony; for webchat, it's HTTP/WebSocket connections. PolyAI's enterprise-ready infrastructure is built for reliability, scalability, and seamless failover across all channels.
+
+#### Voice (Telephony)
 
 **Architecture highlights:**
 
@@ -42,11 +49,32 @@ The telephony layer handles the phone connection between the caller and your age
 
 This multi-layered approach ensures your voice agents remain available and responsive even during peak traffic or service disruptions.
 
-See also: [Voice integrations](/integrations/voice/introduction)
+#### Webchat
 
-### 2. Speech recognition (ASR)
+For webchat interactions, users connect via HTTP/WebSocket:
 
-The caller's speech is converted to text using automatic speech recognition (ASR). PolyAI's platform integrates with multiple ASR providers to ensure reliability, accuracy, and flexibility across different use cases and languages.
+- **Instant connection**: No telephony latency—conversations begin immediately
+- **Persistent sessions**: Maintains conversation state across page reloads
+- **Customizable widget**: Embed directly in your website or application
+
+See also: [Webchat integration](/webchat/introduction)
+
+#### SMS
+
+SMS interactions are handled through integrated messaging providers, allowing agents to send and receive text messages.
+
+See also: [SMS integration](/sms/introduction), [Voice integrations](/integrations/voice/introduction)
+
+### 2. Input processing
+
+How user input reaches the agent depends on the channel:
+
+- **Voice**: Speech is converted to text using automatic speech recognition (ASR)
+- **Webchat/SMS**: Text input is received directly—no ASR needed
+
+#### Speech recognition (ASR) — Voice only
+
+For voice interactions, the user's speech is converted to text using automatic speech recognition (ASR). PolyAI's platform integrates with multiple ASR providers to ensure reliability, accuracy, and flexibility across different use cases and languages.
 
 **Supported ASR providers:**
 
@@ -92,9 +120,16 @@ Based on the decision engine's output, the system generates an appropriate respo
 
 See also: [RAG](/glossary/introduction#rag-retrieval-augmented-generation), [LLM](/glossary/introduction#llm-large-language-model), [Response control](/glossary/introduction#response-control)
 
-### 5. Text-to-speech (TTS)
+### 5. Response delivery
 
-The generated response is converted to natural-sounding speech and played back to the caller. PolyAI integrates with multiple TTS providers to deliver high-quality, natural-sounding voices across languages and use cases.
+How responses reach the user depends on the channel:
+
+- **Voice**: Text is converted to speech using TTS and streamed to the user
+- **Webchat/SMS**: Text responses are delivered directly
+
+#### Text-to-speech (TTS) — Voice only
+
+For voice interactions, the generated response is converted to natural-sounding speech and played back to the user. PolyAI integrates with multiple TTS providers to deliver high-quality, natural-sounding voices across languages and use cases.
 
 **Supported TTS providers:**
 
@@ -194,10 +229,10 @@ Each turn in a conversation follows this sequence:
 
 <Steps>
   <Step title="Receive input">
-    The system captures and transcribes the caller's speech using ASR.
+    The system receives user input—speech is transcribed using ASR (voice), or text is received directly (webchat/SMS).
   </Step>
   <Step title="Understand intent">
-    The LLM analyzes what the caller wants and extracts entities in a context-aware manner.
+    The LLM analyzes what the user wants and extracts entities in a context-aware manner.
   </Step>
   <Step title="Retrieve knowledge">
     Relevant information is fetched from Managed Topics and Connected Knowledge using RAG (Retrieval-Augmented Generation).
@@ -209,7 +244,7 @@ Each turn in a conversation follows this sequence:
     The LLM composes a response based on all available context, applying global rules and response control filters.
   </Step>
   <Step title="Deliver response">
-    The response is synthesized to speech via TTS and played to the caller.
+    The response is delivered to the user—synthesized to speech via TTS (voice) or sent as text (webchat/SMS).
   </Step>
 </Steps>
 
