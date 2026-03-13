@@ -5,6 +5,14 @@ description: "Create, style, and deploy chat widgets."
 
 Create and deploy chat widgets in **Channels > Chat**. [Configure chat](/webchat/chat-configuration) first.
 
+## Prerequisites
+
+Before installing the widget, ensure you have:
+
+- The web domain where you'll embed the agent
+- Access to your website's HTML templates _or_ your tag manager (e.g., Google Tag Manager)
+- [Chat configuration](/webchat/chat-configuration) completed in Agent Studio
+
 ## Creating a widget
 
 If no widgets exist, you'll see an empty state with a **Create chat widget** button.
@@ -16,7 +24,7 @@ Click **Create chat widget** to open the creation modal:
 </ParamField>
 
 <ParamField path="Website URL" type="string" required>
-  The URL where this widget will be deployed.
+  The URL where this widget will be deployed. The widget will only load on this domain.
 </ParamField>
 
 <ParamField path="Variant" type="dropdown" required>
@@ -140,19 +148,210 @@ Each widget displays:
 - **Script tag** - The code to copy and embed on your site
 - **Last published** - Timestamp of the most recent deployment
 
-### Deploying the widget
+## Installation
 
-1. Review the widget status and ensure it shows the correct environment.
-2. Copy the script tag from the code block.
-3. Paste the script before the closing `</body>` tag on your website.
+Choose **one** installation method:
+
+- **Option A: Direct HTML embed** (recommended for most sites)
+- **Option B: Tag Manager** if your organization prefers deployments through a tag manager (e.g., Google Tag Manager)
+
+<Tip>
+If you're unsure which route to use, start with **Option A**.
+</Tip>
+
+### Step 1: Generate a widget tag in Agent Studio
+
+1. Navigate to **Channels > Chat** in Agent Studio
+2. Enable Chat as a channel
+3. Enter the domain name you wish to publish the widget on
+4. Configure [styling](#styling-tab) and [content](#content-tab) settings
+5. Click **Save and publish**
+6. Navigate to the **Embed** tab
+7. Copy the unique script tag—it should look like:
 
 ```html
-<script src="https://widget.polyai.app/widget.js?id=YOUR_WIDGET_ID"></script>
+<script src="https://messaging.poly.ai/widget/YOUR_UNIQUE_CODE.js"></script>
 ```
 
-<Warning>
-If you update widget settings, click **Save and publish** for changes to take effect. The script tag itself does not need to be replaced unless you create a new widget.
-</Warning>
+### Option A: Direct HTML embed (recommended)
+
+1. Open the HTML template that loads on **every page** (often called your global layout, base template, or `index.html`)
+2. Paste the script tag **just before the closing `</body>` tag**
+3. Publish your website changes
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <!-- Your existing head content -->
+  </head>
+  <body>
+    <!-- Your page content -->
+    
+    <!-- Paste the widget script here, before </body> -->
+    <script src="https://messaging.poly.ai/widget/YOUR_UNIQUE_CODE.js"></script>
+  </body>
+</html>
+```
+
+### Option B: Tag Manager (GTM)
+
+Use this if your organization deploys scripts using Google Tag Manager or a similar tool.
+
+1. In your Tag Manager, create a new **Custom HTML** tag
+2. Paste the script tag:
+
+```html
+<script src="https://messaging.poly.ai/widget/YOUR_UNIQUE_CODE.js"></script>
+```
+
+3. Set the trigger to **All Pages**
+4. Publish the container
+
+## Verification checklist
+
+After publishing, verify the following:
+
+<Steps>
+<Step title="Widget appears">
+  The widget icon appears on the page (usually bottom-right corner).
+</Step>
+<Step title="Chat opens">
+  Clicking the widget opens the chat interface successfully.
+</Step>
+<Step title="Messages work">
+  The assistant can send and receive messages.
+</Step>
+<Step title="Optional features">
+  If configured:
+  - A **Call** button appears and tapping it starts a call
+  - A **QR code** appears and scanning it works
+</Step>
+</Steps>
+
+### Quick verification steps
+
+1. Open your website in a **private/incognito window**
+2. Hard refresh the page (`Ctrl+Shift+R` or `Cmd+Shift+R`) to bypass cached scripts
+3. Test on:
+   - A desktop browser (Chrome or Edge)
+   - A mobile device (iOS Safari or Android Chrome)
+
+## Troubleshooting
+
+<AccordionGroup>
+
+<Accordion title="Widget does not appear">
+
+**Possible causes:**
+- The snippet is not loading on that page
+- The script is blocked by a Content Security Policy (CSP)
+- An ad blocker or privacy extension is blocking the script
+- Tag Manager or website code has syntax errors (missing quotes, unclosed tags)
+
+**What to try:**
+1. Confirm the snippet is present in the page source and placed before `</body>`
+2. Temporarily disable ad blockers and retry
+3. Open Developer Tools → **Console** tab and look for script load errors
+4. Verify any Tag Manager configuration has proper punctuation and syntax
+
+</Accordion>
+
+<Accordion title="CSP or security headers block the widget">
+
+If your site uses Content Security Policy (CSP), your policy may need to allow the widget script.
+
+**What to try:**
+1. Ask your web team to add the widget CDN domain to your CSP allowlist
+2. Check your CSP header for `script-src` directives that may block external scripts
+3. If your CSP is strict, you may also need to allow any required destinations used by the widget
+
+<Note>
+If your organization requires a formal security review, share your CSP errors and current CSP header with PolyAI support.
+</Note>
+
+</Accordion>
+
+<Accordion title="Cookie consent banner overlaps the widget">
+
+**What to try:**
+1. Adjust your cookie banner placement or `z-index`
+2. Configure the widget position (if your PolyAI team has enabled positioning options)
+3. Test on mobile, where banners often cover more screen space
+
+</Accordion>
+
+<Accordion title="iFrame or embed restrictions">
+
+If your website is primarily rendered inside an iFrame, some browser rules can restrict behavior.
+
+**What to try:**
+1. Test the widget on the top-level page (not embedded in an iFrame)
+2. Check your iFrame `sandbox` attributes and whether scripts and top navigation are allowed
+
+</Accordion>
+
+<Accordion title="tel: links do not launch calls">
+
+**Possible causes:**
+- Desktop browsers may not have a default calling app
+- Some managed devices block `tel:` links
+
+**What to try:**
+1. Test on a mobile device
+2. Confirm your number is valid and in international format
+3. Verify device policies allow phone links
+
+</Accordion>
+
+<Accordion title="QR code does not scan">
+
+**Possible causes:**
+- Low contrast or too small on mobile
+- Camera permissions or scanner limitations
+
+**What to try:**
+1. Increase the QR size (if configurable)
+2. Test with a different scanner app
+3. Ensure screen brightness is sufficient
+
+</Accordion>
+
+<Accordion title="Ad blockers prevent loading">
+
+**What to try:**
+1. Confirm the issue reproduces with extensions disabled
+2. If your audience often uses ad blockers, consider adding installation guidance to your help center
+
+</Accordion>
+
+</AccordionGroup>
+
+## Best practices
+
+### Placement and UX
+
+- Place the widget in a **bottom corner** and keep it consistent across pages
+- Avoid overlapping key UI elements:
+  - Cookie banners
+  - Accessibility controls
+  - "Back to top" buttons
+  - Mobile navigation
+- If you use a sticky footer, test the widget on mobile to ensure it remains tappable
+
+### Performance
+
+- Load the widget **asynchronously** (the snippets above do this by default)
+- Avoid duplicating the snippet in multiple places
+- For performance-sensitive sites, consider loading the widget only on:
+  - Support and contact pages
+  - High-intent pages (checkout, booking, etc.)
+
+### Privacy and security
+
+- Only include the widget on domains you control
+- Review your privacy policy to ensure it covers chat interactions
+- If you use cookie consent, confirm whether chat functionality should wait until consent is granted
 
 ## Testing
 
@@ -175,3 +374,16 @@ You can create multiple widgets for different use cases:
 - Different environments for testing vs. production
 
 Use the widget selector dropdown in the header to switch between widgets.
+
+## Support
+
+If you contact support, include:
+
+- The affected **page URL(s)**
+- The **date and time** the issue occurred
+- **Browser and version** (e.g., Chrome 122)
+- **Device and OS** (e.g., iPhone 15, iOS 17)
+- Whether ad blockers, VPN, or privacy tools are enabled
+- A screenshot of:
+  - The page with the widget missing or broken
+  - Any errors in the browser console
