@@ -26,7 +26,7 @@ Use **variant management** to manage multiple locations within the same agent, e
 Attributes defined in variant management are accessible in your Managed Topics rules, templates, and actions. For example, you can use `${variant_foo}` to populate responses dynamically with location-specific information.
 
 ### Flexible routing
-Set up phone number-based routing in the [start function](/function/start-function) to direct callers to the appropriate variant. Variants can also be used to tailor SMS messages dynamically.
+Set up routing in the [start function](/function/start-function) to direct users to the appropriate variant. For voice, route based on phone numbers or SIP headers; for webchat, use URL parameters or session data. Variants can also be used to tailor SMS messages dynamically.
 
 ### Advanced functions
 Use the [`conv.variant`](/function/classes/conv-object#set-variant) object to retrieve variant attributes during conversations or to make decisions based on variant data. Use functions to set, retrieve, or act on variant-specific attributes.
@@ -38,7 +38,7 @@ You can now select a specific variant when making in-app test calls. The variant
 
 ## Real-life use case
 
-A hotel chain with multiple branches worldwide uses Variant Management to manage its agent. Each branch (e.g., "London" and "New York") has a variant configured with attributes like phone numbers, addresses, and check-in hours. When a guest calls, the agent identifies the branch based on the caller's phone number and tailors the response accordingly.
+A hotel chain with multiple branches worldwide uses Variant Management to manage its agent. Each branch (e.g., "London" and "New York") has a variant configured with attributes like phone numbers, addresses, and check-in hours. When a guest contacts the agent, the branch is identified based on the user's context—phone number for voice, URL parameters for webchat—and the response is tailored accordingly.
 
 ## Variants and attributes
 
@@ -107,8 +107,10 @@ Alternatively, create functions such as `set_variant1`, `set_variant2` to switch
 
 ## Advanced: Accessing variants in functions
 
-This example demonstrates how to dynamically assign variants based on a caller's phone number. Using the `conv.variant` object,
-you can retrieve and set the appropriate variant to ensure responses are tailored to the caller's location or context.
+This example demonstrates how to dynamically assign variants based on user context. Using the `conv.variant` object,
+you can retrieve and set the appropriate variant to ensure responses are tailored to the user's location or context.
+
+### Voice example (phone number-based)
 
 ```python
 def start_function(conv: Conversation):
@@ -118,6 +120,18 @@ def start_function(conv: Conversation):
     }
     if conv.callee_number:
         conv.set_variant(phone_numbers[conv.callee_number])
+```
+
+### Webchat example (URL parameter-based)
+
+For webchat interactions, you can use URL parameters or session data to determine the variant:
+
+```python
+def start_function(conv: Conversation):
+    # Get variant from webchat metadata (e.g., URL parameter)
+    location = conv.metadata.get("location")
+    if location and location in conv.variants:
+        conv.set_variant(location)
 ```
 
 ## Useful links
