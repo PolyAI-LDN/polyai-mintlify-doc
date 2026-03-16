@@ -9,12 +9,12 @@ Your agent's voice is a critical part of the customer experience. This page cove
 
 | I need to... | Action | Time estimate |
 |--------------|--------|---------------|
-| Change the agent's voice | Settings → Voice → Select new voice | 5 min |
-| Adjust speech speed | Settings → Voice → Modify rate/speed | 2 min |
-| Fix a mispronunciation | Response Control → Pronunciations → Add IPA | 5 min |
+| Change the agent's voice | Channels > Voice > Agent Voice → Change | 5 min |
+| Adjust voice parameters | Channels > Voice > Agent Voice → Settings gear | 2 min |
+| Fix a mispronunciation | Channels > Voice > Response Control → Pronunciations | 5 min |
 | Update cached audio | Audio Management → Edit → Sync | 3 min |
-| Change interaction style (latency) | Settings → Interaction style → Select mode | 2 min |
-| Enable/disable barge-in | Settings → Enable barge-in toggle | 1 min |
+| Change interaction style (latency) | Settings menu → Interaction style | 2 min |
+| Enable/disable barge-in | Settings menu → Enable barge-in toggle | 1 min |
 | Upload custom audio file | Audio Management → Upload | 5 min |
 
 ## Changing your agent's voice
@@ -31,16 +31,12 @@ Consider updating your agent's voice when:
 
 ### How to change the voice
 
-1. Go to **Settings** in the left navigation
-2. Scroll to the **Voice** section
-3. Click **Select voice** or **Change voice**
-4. Choose from available TTS providers:
-   - **ElevenLabs** - High-quality, natural-sounding voices
-   - **Cartesia** - Fast, low-latency voices with emotion control
-   - **PlayHT** - Conversational style options
-   - **Rime** - Custom voice configurations
-5. Preview the voice by playing sample audio
-6. Save your selection
+1. Go to **Channels > Voice > Agent Voice**
+2. Click **Change** next to the **Assistant** or **Disclaimer** section
+3. The [Voice Library](/voice/voice-library) opens with **Explore** and **Favorites** tabs
+4. Filter voices by **Language**, **Region**, and **Gender**
+5. Preview voices using the play button or enter custom text
+6. Click **Select** to apply the voice
 7. Test in Agent Chat before publishing
 
 <Tip>For non-English projects, use a `multilingual_v2` model to ensure proper language support.</Tip>
@@ -51,47 +47,46 @@ If you're using voice settings in functions, you can configure provider-specific
 
 **ElevenLabs:**
 ```python
-from poly import ElevenLabsVoice
+from polyai.voice import ElevenLabsVoice
 
-voice = ElevenLabsVoice(
-    provider_voice_id="a1b2C3d4E5f6G7h8I9j0",
-    stability=0.5,        # 0.0-1.0: consistency of tone
-    similarity_boost=0.7  # 0.0-1.0: match to original voice
+conv.set_voice(
+    ElevenLabsVoice(
+        provider_voice_id="a1b2C3d4E5f6G7h8I9j0",
+        stability=0.5,        # 0.0-1.0: consistency of tone
+        similarity_boost=0.7  # 0.0-1.0: match to original voice
+    )
 )
 ```
 
 **Cartesia:**
 ```python
-from poly import CartesiaVoice
+from polyai.voice import CartesiaVoice, Emotion, EmotionKind, EmotionIntensity
 
-voice = CartesiaVoice(
-    provider_voice_id="cartesia_ai_voice",
-    pitch=1.1,      # Pitch adjustment
-    rate=0.9,       # Speech speed (0.9 = 10% slower)
-    language="en",
-    emotion="neutral"  # or "happy", "sad", etc.
-)
-```
-
-**PlayHT:**
-```python
-from poly import PlayHTVoice
-
-voice = PlayHTVoice(
-    provider_voice_id="en_us_male_1",
-    style="conversational"  # or "professional", "friendly"
+conv.set_voice(
+    CartesiaVoice(
+        provider_voice_id="cartesia_ai_voice",
+        speed=0.0,  # -1.0 (slowest) to 1.0 (fastest)
+        emotions=[
+            Emotion(EmotionKind.POSITIVITY, EmotionIntensity.HIGH)
+        ],
+        model_id="sonic"
+    )
 )
 ```
 
 **Rime:**
 ```python
-from poly import RimeVoice
+from polyai.voice import RimeVoice
 
-voice = RimeVoice(
-    provider_voice_id="s3://path/to/manifest.json",
-    speed_alpha=1.0  # 1.0 = normal speed
+conv.set_voice(
+    RimeVoice(
+        provider_voice_id="s3://path/to/manifest.json",
+        speech_alpha=1.0  # <1.0 faster, >1.0 slower
+    )
 )
 ```
+
+See [Add a voice](/voice/add-a-new-voice) for more provider examples.
 
 ## Adjusting speech speed and timing
 
@@ -99,10 +94,10 @@ voice = RimeVoice(
 
 To adjust how fast your agent speaks:
 
-1. Go to **Settings** → **Voice**
-2. Adjust the **Rate** or **Speed** slider
-3. Test with sample phrases
-4. Publish when satisfied
+1. Go to **Channels > Voice > Agent Voice**
+2. Click the **Settings** gear icon next to the voice
+3. Adjust the **Stability** and **Clarity and Similarity** sliders
+4. Click **Done** to save, then test with sample phrases
 
 **Recommended ranges:**
 - **0.9-1.0** - Slightly slower, clearer for complex information
@@ -113,7 +108,7 @@ To adjust how fast your agent speaks:
 
 Control how quickly your agent responds after the user stops speaking:
 
-1. Go to **Settings** → **Interaction style**
+1. Locate the **Interaction style** section in the **Settings** menu
 2. Choose a mode:
    - **Turbo** (400ms) - Ultra-fast, may interrupt more
    - **Swift** (1200ms) - Fast responses, good for simple queries
@@ -126,8 +121,8 @@ Control how quickly your agent responds after the user stops speaking:
 
 Barge-in allows callers to interrupt the agent mid-sentence:
 
-1. Go to **Settings**
-2. Toggle **Enable barge-in**
+1. Find **Enable barge-in** in the **Settings** menu
+2. Toggle it on or off
 3. Test in Agent Chat to ensure it feels natural
 
 **When to enable:**
@@ -191,7 +186,7 @@ For maximum control, upload pre-recorded audio:
 
 When the agent mispronounces words, use the Pronunciations feature:
 
-1. Go to **Response Control** → **Pronunciations**
+1. Go to **Channels > Voice > Response Control** and open the **Pronunciations** tab
 2. Click **Add pronunciation**
 3. Enter the word or phrase as it appears in text
 4. Provide the IPA (International Phonetic Alphabet) pronunciation
@@ -229,7 +224,7 @@ You can also use SSML (Speech Synthesis Markup Language) in pronunciations:
 | Issue | Likely cause | Solution |
 |-------|--------------|----------|
 | Voice sounds robotic | Low-quality TTS provider | Switch to ElevenLabs or upgrade voice model |
-| Agent speaks too fast | Rate set too high | Reduce rate to 0.9-1.0 in Settings |
+| Agent speaks too fast | Rate set too high | Adjust voice settings via the gear icon in Channels > Voice > Agent Voice |
 | Agent interrupts frequently | Turbo mode without barge-in | Enable barge-in or switch to Balanced mode |
 | Mispronunciations | TTS doesn't recognize word | Add pronunciation in Response Control |
 | Inconsistent audio quality | Not using cached audio | Enable Audio Management for key phrases |
@@ -275,8 +270,8 @@ After making audio updates:
 
 ### Updating voice for a new brand
 
-1. Select new voice in Settings
-2. Adjust rate and pitch to match brand personality
+1. Select a new voice from the [Voice Library](/voice/voice-library) at **Channels > Voice > Agent Voice**
+2. Adjust stability and clarity via the settings gear icon
 3. Update cached audio for key phrases
 4. Add pronunciations for brand-specific terms
 5. Test thoroughly in Sandbox
@@ -287,7 +282,7 @@ After making audio updates:
 ### Fixing a pronunciation issue
 
 1. Identify the mispronounced word from call recordings
-2. Go to Response Control → Pronunciations
+2. Go to **Channels > Voice > Response Control** → **Pronunciations** tab
 3. Add the word with correct IPA pronunciation
 4. Test in Agent Chat
 5. Publish and promote if working correctly
@@ -305,5 +300,6 @@ After making audio updates:
 
 - [Audio Management overview](/audio-management/introduction) - Learn about audio caching and optimization
 - [Response Control](/response-control/introduction) - Manage pronunciations and output controls
-- [Voice settings](/voice/introduction) - Detailed voice configuration options
-- [Agent settings](/agent-settings/multilingual) - Multi-language voice setup
+- [Voice Library](/voice/voice-library) - Browse and select voices
+- [Agent Voice](/voice/agent) - Voice configuration options
+- [Multi-language setup](/agent-settings/multilingual) - Configure language support
