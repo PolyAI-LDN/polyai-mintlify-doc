@@ -1,66 +1,92 @@
 ---
 title: 'Multi-language'
-description: 'Set up multiple versions of your agent so that it is ready to speak more than one language.'
+description: 'Configure your agent to handle conversations in multiple languages with automatic detection and switching.'
 ---
 
-Agent Studio supports multiple approaches to multi-language deployments. You can create separate projects for each language or use a single project with language detection and switching.
+Agent Studio supports multilingual agents that can detect a caller's language, switch languages mid-conversation, and maintain language-specific content — all within a single project.
 
-## Recommended approach: separate projects per language
+## Setting up multi-language support
 
-For most use cases, we recommend creating a separate project for each language. This approach provides:
+1. Go to **Settings** → **Multilingual**
+2. Click **Add language**
+3. Select the language from the dropdown
+4. Configure language-specific settings:
+   - Voice selection
+   - Language detection sensitivity
+   - Fallback behavior
+5. Save your changes
 
-- Clear separation of content and configuration
-- Easier testing and maintenance
-- Better performance and reliability
-- Simpler routing logic
+<Tip>Use a `multilingual_v2` voice model to ensure proper pronunciation across all languages.</Tip>
 
-<Note>Contact your PolyAI representative for help setting up routing between language-specific projects.</Note>
+### Supported languages
 
-## Setting up a non-English project
+PolyAI supports 30+ languages including English, Spanish, French, German, Italian, Portuguese, Dutch, Polish, Russian, Japanese, Korean, Chinese Mandarin, Arabic, Hindi, and many more.
 
-When configuring a project for a language other than English:
+## How multilingual agents work
 
-![response-language](/images/choose-response-language.png)
+Multilingual agents can:
 
-* Set the **project language** under **Settings**.
-* Choose a **voice** that supports your language. Use PolyVoice for the best quality and lowest latency.
-* Update **Agent Behaviour** to instruct the agent to respond in your target language (e.g., "Always reply in Spanish").
+- **Detect the caller's language** automatically via ASR
+- **Switch languages mid-conversation** if the caller changes
+- **Maintain language-specific knowledge** for each supported language
+- **Use appropriate voices** per language
+- **Handle mixed-language queries** (code-switching)
+
+## Configuring voices per language
+
+Select a language-appropriate voice for each supported language:
+
+1. Go to **Settings** → **Voice**
+2. Configure voices per language
+3. Preview each voice
+4. Save your selections
+
+**Voice quality tips:**
+
+- Use native voices — don't use an English voice for Spanish
+- Match regional accents — use Mexican Spanish for Mexico, Castilian for Spain
+- Test pronunciation for language-specific characters
+
+Some TTS providers offer multilingual models that can speak multiple languages:
+
+```python
+from poly import ElevenLabsVoice
+
+voice = ElevenLabsVoice(
+    provider_voice_id="multilingual_voice_id",
+    model="eleven_multilingual_v2"  # Supports 30+ languages
+)
+```
+
+<Note>Multilingual models are convenient but may have slightly lower quality than language-specific models.</Note>
+
+## What to translate
+
+Some project content needs to be translated, and some does not:
+
+| Area               | Element                                          | Translate? | Notes                                                            |
+| ------------------| ------------------------------------------------ | :--------: | ---------------------------------------------------------------- |
+| **Knowledge Base**| Sample questions                                 | <Icon icon="check" iconType="solid" color="#2ecc71" size={14} /> | Must match user input language for retrieval                     |
+|                   | Content                                          | <Icon icon="check" iconType="solid" color="#2ecc71" size={14} /> | Translate for brand accuracy and better output                   |
+|                   | Topic names and actions                          | <Icon icon="x" iconType="solid" color="#e74c3c" size={14} /> | Keep in English (used internally, not user-facing)               |
+| **SMS**           | SMS content                                      | <Icon icon="check" iconType="solid" color="#2ecc71" size={14} /> | Translate anything user-facing                                   |
+| **ASR & Voice**   | ASR keywords and corrections                     | <Icon icon="check" iconType="solid" color="#2ecc71" size={14} /> | Leave in native language — these may differ significantly from English |
+|                   | Response control and pronunciations              | <Icon icon="check" iconType="solid" color="#2ecc71" size={14} /> | Leave in native language — these may differ significantly from English |
+| **Functions**     | Python code                                      | <Icon icon="x" iconType="solid" color="#e74c3c" size={14} /> | Leave in English                                                 |
+|                   | Function names and descriptions                  | <Icon icon="x" iconType="solid" color="#e74c3c" size={14} /> | Leave in English                                                 |
+|                   | Hard-coded responses and LLM prompts             | <Icon icon="check" iconType="solid" color="#2ecc71" size={14} /> | Translate only user-facing content (e.g., utterances)            |
 
 ## General rules
 
 * Keep **instructions** in English (e.g., "Ask for the user's phone number")
 * Translate **example utterances** or scripted responses
-* If it's directed at the **Agent**, keep it in English. If it's going to be spoken aloud directly to the customer, then translate it.
+* If it's directed at the **agent**, keep it in English. If it's going to be spoken aloud directly to the customer, translate it.
 
-> `Ask the user for their number by saying “¿Me puedes dar tu número de teléfono?”`
+> `Ask the user for their number by saying "¿Me puedes dar tu número de teléfono?"`
 
-## What to translate
+### Function examples
 
-Some project content needs to be translated, and some does not. Here's a breakdown:
-
-| Area               | Element                                          | Yes | No | Notes                                                            |
-| ------------------| ------------------------------------------------ | :---------------------------------------------------------------: | :-------------------------------------------------------------: | ---------------------------------------------------------------- |
-| **Knowledge Base**| Sample questions                                 | <Icon icon="check" iconType="solid" color="#2ecc71" size={14} /> |                                                                   | Must match user input language for retrieval                     |
-|                   | Content                                          | <Icon icon="check" iconType="solid" color="#2ecc71" size={14} /> |                                                                   | Translate for brand accuracy and better output                   |
-|                   | Topic names and actions                          |                                                                     | <Icon icon="x" iconType="solid" color="#e74c3c" size={14} />     | Keep in English (used internally, not user-facing)               |
-| **SMS**           | SMS content                                      | <Icon icon="check" iconType="solid" color="#2ecc71" size={14} /> |                                                                   | Translate anything user-facing                                   |
-| **ASR & Voice**   | ASR keywords and corrections                     | <Icon icon="check" iconType="solid" color="#2ecc71" size={14} /> |                                                                   | Leave in native language. These might be very different to the English configuration                                      |
-|                   | Response control and pronunciations              | <Icon icon="check" iconType="solid" color="#2ecc71" size={14} /> |                                                                   | Leave in native language. These might be very different to the English configuration                            |
-| **Functions**     | Python code                                      |                                                                     | <Icon icon="x" iconType="solid" color="#e74c3c" size={14} />     | Leave in English                                                 |
-|                   | Function names and descriptions                  |                                                                     | <Icon icon="x" iconType="solid" color="#e74c3c" size={14} />     | Leave in English                                                 |
-|                   | Hard-coded responses and LLM prompts             | <Icon icon="check" iconType="solid" color="#2ecc71" size={14} /> |                                                                   | Translate only user-facing content (e.g., utterances)            |                          | Translate only user-facing content (e.g., utterances)            |
-
-### Example
-
-If you're using a function like:
-
-```python
-return {
-  "utterance": "Hard-coded response in Spanish here"
-}
-```
-
-That string should be translated.
+If you're using a function with a hard-coded response, translate the user-facing string:
 
 ```python
 return {
@@ -68,7 +94,7 @@ return {
 }
 ```
 
-If you're re-prompting the LLM:
+If you're re-prompting the LLM, you only need to translate example responses:
 
 ```python
 return {
@@ -76,7 +102,19 @@ return {
 }
 ```
 
-You only need to translate if you're giving an example response.
+### Accessing the current language in functions
+
+You can access the caller's detected language in functions:
+
+```python
+def dynamic_response():
+    current_language = conv.language
+    
+    if current_language == "es":
+        return {"utterance": "Respuesta en español"}
+    else:
+        return {"utterance": "Response in English"}
+```
 
 ## Translating prompts
 
@@ -90,9 +128,9 @@ Prompts are found in:
 ### Sample excerpt (Spanish)
 
 ```
-If the user's query is unclear, ask for clarification. For example, if the user says ‘‘factura,’’ ask ‘‘¿Cómo puedo ayudarle con su factura?’’ Or if the user says ‘‘problema con la factura,’’ ask ‘‘¿Me puede dar más detalles sobre el problema con su factura?’’
+If the user's query is unclear, ask for clarification. For example, if the user says ''factura,'' ask ''¿Cómo puedo ayudarle con su factura?'' Or if the user says ''problema con la factura,'' ask ''¿Me puede dar más detalles sobre el problema con su factura?''
 
-If the user offers you their 10- or 11-digit account number, say ‘‘Gracias, pero tal vez no necesite su número de cuenta. ¿Cómo puedo ayudarle hoy?’’
+If the user offers you their 10- or 11-digit account number, say ''Gracias, pero tal vez no necesite su número de cuenta. ¿Cómo puedo ayudarle hoy?''
 
 When discussing making payments (online, by phone, payment methods, etc.):
 
@@ -105,4 +143,8 @@ When discussing making payments (online, by phone, payment methods, etc.):
 - Your responses should be **casual and concise**, appropriate for a **customer service agent in a phone conversation**
 ```
 
-If you have questions about setting up multi-lingual support or want to share your team's approach, please reach out to your PolyAI representative.
+## Next steps
+
+- [Multi-language updates](/learn/maintain/multi-language-updates) — Maintain and optimize your multilingual agent over time
+- [Voice settings](/voice/introduction) — Configure voice options per language
+- [Managed Topics](/managed-topics/introduction) — Add language-specific knowledge variants
