@@ -9,12 +9,11 @@ Multilingual agents can handle conversations in multiple languages. This page co
 
 | I need to... | Action | Time estimate |
 |--------------|--------|---------------|
-| Add a new language | Settings → Multilingual → Add language | 10 min |
+| Add a new language | Add a voice in the target language from the [Voice Library](/voice/voice-library) | 10 min |
 | Update language-specific knowledge | Edit topics with language variants | 5-10 min |
-| Change voice for a language | Settings → Voice → Select per language | 5 min |
+| Change voice for a language | Channels > Voice > Agent Voice → Change | 5 min |
 | Fix translation issues | Edit language-specific responses | 5 min |
 | Test language switching | Agent Chat → Switch language mid-call | 3 min |
-| Update language detection | Settings → Multilingual → Configure detection | 5 min |
 | Add language-specific functions | Functions → Add language parameter | 10 min |
 
 ## Understanding multilingual agents
@@ -55,15 +54,12 @@ Check the [multilingual settings documentation](/agent-settings/multilingual) fo
 
 ### Adding a new language
 
-1. Go to **Settings** → **Multilingual**
-2. Click **Add language**
-3. Select the language from the dropdown
-4. Configure language-specific settings:
-   - Voice selection
-   - Language detection sensitivity
-   - Fallback behavior
-5. Save your changes
-6. Add language-specific knowledge (see below)
+1. Go to **Channels > Voice > Agent Voice**
+2. Click **Change** to open the [Voice Library](/voice/voice-library)
+3. Use the **Language** filter to find voices in your target language
+4. Select and apply a voice for the new language
+5. Add language-specific knowledge (see below)
+6. Update [Agent Behaviour rules](/agent-settings/rules) to handle the new language
 7. Test in Agent Chat
 8. Publish when ready
 
@@ -71,11 +67,10 @@ Check the [multilingual settings documentation](/agent-settings/multilingual) fo
 
 ### Removing a language
 
-1. Go to **Settings** → **Multilingual**
-2. Find the language to remove
-3. Click **Remove** or **Disable**
-4. Confirm the action
-5. Publish the change
+1. Go to **Channels > Voice > Agent Voice**
+2. Remove the voice associated with the language you want to drop
+3. Update any language-specific knowledge and functions
+4. Publish the change
 
 <Warning>Removing a language will cause the agent to fall back to the default language for callers speaking that language.</Warning>
 
@@ -132,13 +127,11 @@ For Connected Knowledge sources:
 
 ### Selecting language-appropriate voices
 
-1. Go to **Settings** → **Voice**
-2. Configure voices per language:
-   - **English** - Choose an English-native voice
-   - **Spanish** - Choose a Spanish-native voice
-   - **French** - Choose a French-native voice
-3. Preview each voice
-4. Save your selections
+1. Go to **Channels > Voice > Agent Voice**
+2. Click **Change** to open the [Voice Library](/voice/voice-library)
+3. Filter by **Language** and **Region** to find native voices for each language
+4. Preview each voice with custom text in the target language
+5. Select and apply
 
 ### Voice quality considerations
 
@@ -152,11 +145,13 @@ For Connected Knowledge sources:
 Some TTS providers offer multilingual models that can speak multiple languages:
 
 ```python
-from poly import ElevenLabsVoice
+from polyai.voice import ElevenLabsVoice
 
-voice = ElevenLabsVoice(
-    provider_voice_id="multilingual_voice_id",
-    model="eleven_multilingual_v2"  # Supports 30+ languages
+conv.set_voice(
+    ElevenLabsVoice(
+        provider_voice_id="multilingual_voice_id",
+        model_id="eleven_multilingual_v2"  # Supports 30+ languages
+    )
 )
 ```
 
@@ -172,16 +167,11 @@ By default, agents detect the caller's language automatically:
 2. ASR (Automatic Speech Recognition) identifies the language
 3. The agent responds in the detected language
 
-### Configuring detection sensitivity
+### Tuning detection behavior
 
-Adjust how aggressively the agent switches languages:
+If the agent is switching languages too aggressively or not enough, adjust via [Agent Behaviour rules](/agent-settings/rules). For example, you can instruct the agent to only switch languages when the caller has spoken consistently in a different language for multiple turns.
 
-1. Go to **Settings** → **Multilingual**
-2. Adjust **Language detection sensitivity**:
-   - **High** - Switches quickly, may over-switch
-   - **Medium** - Balanced (recommended)
-   - **Low** - Switches reluctantly, may miss switches
-3. Test with mixed-language scenarios
+Test with mixed-language scenarios to find the right balance.
 
 ### Explicit language selection
 
@@ -205,10 +195,10 @@ Code-switching is when callers mix languages in a single conversation:
 
 To handle this:
 
-- Enable **flexible language detection**
-- Use multilingual voice models
+- Use multilingual voice models that support multiple languages
 - Test with realistic mixed-language scenarios
 - Consider your target audience's code-switching patterns
+- Adjust [Agent Behaviour rules](/agent-settings/rules) to accommodate mixed-language input
 
 ## Fixing translation issues
 
@@ -332,8 +322,8 @@ def search_products(query):
 
 | Issue | Likely cause | Solution |
 |-------|--------------|----------|
-| Agent doesn't detect language | ASR not configured for language | Verify language is enabled in settings |
-| Agent switches languages incorrectly | Detection sensitivity too high | Lower sensitivity in settings |
+| Agent doesn't detect language | No voice configured for that language | Add a voice for the language from the [Voice Library](/voice/voice-library) |
+| Agent switches languages incorrectly | Detection too aggressive | Adjust language-switching behavior in [Agent Behaviour rules](/agent-settings/rules) |
 | Voice sounds unnatural | Wrong voice model for language | Use language-native voice |
 | Translations are awkward | Direct translation | Rewrite for natural language |
 | Knowledge not available in language | Missing language variants | Add language-specific content |
@@ -382,8 +372,8 @@ def search_products(query):
 
 ### Adding a new language to an existing agent
 
-1. Enable the language in Settings → Multilingual
-2. Select an appropriate voice for the language
+1. Add a voice for the language from the [Voice Library](/voice/voice-library) at **Channels > Voice > Agent Voice**
+2. Update [Agent Behaviour rules](/agent-settings/rules) to handle the new language
 3. Export existing Managed Topics
 4. Translate content (use professional translators)
 5. Import translated content
@@ -409,7 +399,7 @@ def search_products(query):
 
 1. Review calls where language switching was incorrect
 2. Check Diagnosis logs for language detection events
-3. Adjust detection sensitivity in Settings
+3. Adjust language-switching behavior in [Agent Behaviour rules](/agent-settings/rules)
 4. Test with the problematic scenario
 5. If needed, add explicit language selection option
 6. Publish and monitor
@@ -425,8 +415,8 @@ def search_products(query):
 
 ## Related pages
 
-- [Multilingual settings](/agent-settings/multilingual) - Configure language support
-- [Voice settings](/voice/introduction) - Select voices per language
+- [Multi-language setup](/agent-settings/multilingual) - Configure language support
+- [Voice Library](/voice/voice-library) - Browse and select voices per language
 - [Managed Topics](/managed-topics/introduction) - Add language variants
 - [Connected Knowledge](/connected-knowledge/introduction) - Language-specific sources
 - [Functions](/function/introduction) - Handle language in code
