@@ -1,14 +1,209 @@
 ---
 title: WebSocket signaling
 description: Signaling channel for SDP offer/answer and ICE candidates.
-asyncapi: /api-reference/webrtc-gateway/asyncapi.yaml signaling
 ---
 
-# WebSocket signaling
+The signaling channel is a WebSocket connection used to exchange SDP offers/answers and ICE candidates between your client and the WebRTC Gateway.
 
-This page is generated from the AsyncAPI schema.
+## Endpoint
 
-If you do not see content below, check that:
-- the asyncapi field references the correct file path
-- the channel name matches the key under channels in asyncapi.yaml
-- the schema is AsyncAPI 3.0+
+```
+wss://webrtc-gateway.us-1.platform.polyai.app/api/v1/webrtc/signal
+```
+
+## Message format
+
+All messages are JSON objects with a common top-level structure.
+
+<ResponseField name="type" type="string" required>
+  Message type. One of `offer`, `answer`, `ice-candidate`, `error`, `close`.
+</ResponseField>
+
+<ResponseField name="sessionId" type="string" required>
+  Session identifier. Send an empty string (`""`) when creating a new session with an offer.
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Message-specific payload. Structure depends on the message type.
+</ResponseField>
+
+<ResponseField name="authToken" type="string">
+  Authentication token. Required in the `offer` message only.
+</ResponseField>
+
+<ResponseField name="callSid" type="string">
+  Optional call identifier.
+</ResponseField>
+
+<ResponseField name="caller" type="string">
+  Optional caller identifier.
+</ResponseField>
+
+<ResponseField name="callee" type="string">
+  Optional callee identifier.
+</ResponseField>
+
+## Operations
+
+### Send offer
+
+<Info>Direction: **client to server**</Info>
+
+Starts a new session. Send with an empty `sessionId` and include your `authToken`.
+
+The `data` field contains the SDP offer:
+
+<ResponseField name="data.type" type="string" required>
+  Must be `"offer"`.
+</ResponseField>
+
+<ResponseField name="data.sdp" type="string" required>
+  Full SDP string from your local peer connection.
+</ResponseField>
+
+```json Example
+{
+  "type": "offer",
+  "sessionId": "",
+  "data": {
+    "type": "offer",
+    "sdp": "v=0\r\no=- 4611731400430051336 2 IN IP4 127.0.0.1..."
+  },
+  "authToken": "your-auth-token",
+  "callSid": "call-unique-id",
+  "caller": "+14155551234",
+  "callee": "+14155555678"
+}
+```
+
+### Receive answer
+
+<Info>Direction: **server to client**</Info>
+
+Sent by the server in response to a valid offer. Contains the SDP answer and the assigned `sessionId`. Store the `sessionId` and use it for all subsequent messages.
+
+The `data` field contains the SDP answer:
+
+<ResponseField name="data.type" type="string" required>
+  Must be `"answer"`.
+</ResponseField>
+
+<ResponseField name="data.sdp" type="string" required>
+  Full SDP string from the server.
+</ResponseField>
+
+```json Example
+{
+  "type": "answer",
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+  "data": {
+    "type": "answer",
+    "sdp": "v=0\r\no=- 4611731400430051336 2 IN IP4 192.168.1.1..."
+  }
+}
+```
+
+### Exchange ICE candidates
+
+<Info>Direction: **bidirectional**</Info>
+
+Sent by both client and server to exchange network connectivity candidates. Continue exchanging until the WebRTC connection is established.
+
+The `data` field contains the ICE candidate:
+
+<ResponseField name="data.candidate" type="string" required>
+  ICE candidate string.
+</ResponseField>
+
+<ResponseField name="data.sdpMid" type="string" required>
+  Media stream identification tag.
+</ResponseField>
+
+<ResponseField name="data.sdpMLineIndex" type="integer" required>
+  Zero-based index of the media description in the SDP.
+</ResponseField>
+
+```json Example
+{
+  "type": "ice-candidate",
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+  "data": {
+    "candidate": "candidate:1 1 UDP 2130706431 192.168.1.1 54321 typ host",
+    "sdpMid": "0",
+    "sdpMLineIndex": 0
+  }
+}
+```
+
+### Close
+
+<Info>Direction: **client to server**</Info>
+
+Terminates the session gracefully. Send when you want to end the call.
+
+```json Example
+{
+  "type": "close",
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+### Error
+
+<Info>Direction: **server to client**</Info>
+
+Sent when the server encounters an error during the session.
+
+The `data` field contains the error details:
+
+<ResponseField name="data.code" type="string" required>
+  Error code identifying the failure type.
+</ResponseField>
+
+<ResponseField name="data.message" type="string" required>
+  Human-readable error description.
+</ResponseField>
+
+```json Example
+{
+  "type": "error",
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+  "data": {
+    "code": "UNAUTHORIZED",
+    "message": "Invalid authentication token"
+  }
+}
+```
+
+#### Error codes
+
+| Code | Description |
+|------|-------------|
+| `UNAUTHORIZED` | Invalid or missing authentication token |
+| `INVALID_MESSAGE` | Malformed or unsupported message format |
+| `HANDLER_ERROR` | Error processing the signaling message |
+| `MEDIA_BRIDGE_FAILURE` | Failed to establish the media connection |
+| `AGENT_FAILURE` | Error connecting to the PolyAI agent |
+
+## Connection flow
+
+<Steps>
+  <Step title="Open WebSocket">
+    Connect to the signaling endpoint using a WebSocket client.
+  </Step>
+  <Step title="Send offer">
+    Create a local `RTCPeerConnection`, add your microphone track, generate an SDP offer, and send it with your `authToken`.
+  </Step>
+  <Step title="Receive answer">
+    The server responds with an SDP answer and a `sessionId`. Set the remote description on your peer connection.
+  </Step>
+  <Step title="Exchange ICE candidates">
+    Forward ICE candidates from your `onicecandidate` handler. Add incoming candidates from the server to your peer connection.
+  </Step>
+  <Step title="Audio flows">
+    Once ICE negotiation completes, bidirectional audio streams between the browser and the PolyAI agent.
+  </Step>
+  <Step title="Close session">
+    Send a `close` message when the conversation ends.
+  </Step>
+</Steps>
