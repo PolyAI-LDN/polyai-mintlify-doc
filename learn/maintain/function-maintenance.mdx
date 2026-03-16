@@ -175,7 +175,9 @@ When API keys or credentials change:
 Access secrets securely:
 
 ```python
-from poly import secret_vault
+from agent_v3.deployment_service.agents.functions.builtin import (
+    secret_vault,
+)
 
 # Retrieve a secret
 api_key = secret_vault("my_api_key")
@@ -223,18 +225,18 @@ The API Integrations feature lets you configure endpoints per environment:
 
 ### Using API integrations in functions
 
-Call configured APIs using `conv.api`:
+Call configured API integrations from your function code using standard HTTP requests:
 
 ```python
 # Call a configured API integration
-result = conv.api.booking_system.create_reservation(
-    date="2025-03-15",
-    time="19:00",
-    guests=4
+response = requests.post(
+    "https://api.example.com/v2/reservations",
+    json={"date": "2025-03-15", "time": "19:00", "guests": 4},
+    headers={"Authorization": f"Bearer {secret_vault('booking_api_key')}"}
 )
 
 # Log the response for debugging
-conv.log.info(f"API response: {result}")
+conv.log.info(f"API response: {response.status_code}")
 ```
 
 ### Environment-specific configurations
@@ -261,22 +263,15 @@ If functions are slow:
 
 ### Delay controls
 
-For functions that take time, use delay controls to keep the conversation flowing:
+For functions that take time, configure delay controls through the UI to keep the conversation flowing:
 
-```python
-from poly import DelayControl
+1. Go to the **Functions** tab and select a function
+2. Open the **Delay control** panel
+3. Add one or more delay responses (e.g., "Let me check that for you.", "One moment please.")
+4. Set the initial delay and interval
+5. Save changes and test in the chat panel
 
-def slow_function():
-    delay = DelayControl(
-        delay_seconds=1.0,
-        filler_utterances=["Let me check that for you.", "One moment please."]
-    )
-    
-    # Long-running operation
-    result = call_slow_api()
-    
-    return {"utterance": f"Here's what I found: {result}"}
-```
+<Tip>You can reference state variables inside delay responses using the `$` symbol. For example: `Still checking availability at $branch_name...`</Tip>
 
 <Note>Delay timing starts when the function begins executing, not when the user stops speaking. Account for LLM and ASR latency.</Note>
 
@@ -319,8 +314,8 @@ If the agent isn't calling your function when expected:
 
 Prevent unwanted function triggers with stop keywords:
 
-1. Go to **Response Control** → **Stop Keywords**
-2. Add patterns that should halt the response
+1. Go to **Channels > Voice > Response Control**
+2. Click **Add Phrase** to add a stop keyword pattern
 3. Optionally trigger a function when matched
 
 Example: Stop the agent from saying "Let me transfer you" and trigger a handoff function instead.
