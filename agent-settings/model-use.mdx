@@ -5,85 +5,107 @@ description: 'Determine which GPT model to use with your agent, or connect your 
 
 Choose the LLM that powers your agent or connect your own endpoint.
 
-## PolyAI Models
+## Available models
 
-Our default, proprietary models.
+<Tabs>
+  <Tab title="PolyAI" icon="brain">
+    Our default, proprietary models optimized for voice AI.
 
-### PolyAI Raven V2
-A production-hardened PolyAI model optimised for real-time voice interactions and high retrieval precision.
+    | Model | Best for |
+    |-------|----------|
+    | **Raven V2** | Production-hardened, real-time voice interactions and high retrieval precision |
+    | **Raven V3** | Improved grounding, paraphrasing, and robustness for enterprise voice use cases |
 
-### PolyAI Raven V3
-The latest Raven model with improved grounding, paraphrasing, and robustness for enterprise voice use cases.
+    <Tip>
+      Raven models are purpose-built for conversational voice AI. Contact PolyAI for detailed benchmarks and guidance.
+    </Tip>
+  </Tab>
+  <Tab title="OpenAI" icon="wand-magic-sparkles">
+    | Model | Best for |
+    |-------|----------|
+    | **GPT-5.2** | High-quality interactions requiring nuance and strong reasoning |
+    | **GPT-5.2 chat** | Extended dialogue and conversational stability |
+    | **GPT-5 mini** | Lower latency and reduced cost for mid-complexity use cases |
+    | **GPT-5 nano** | Simple tasks and fast-response workloads |
+    | **GPT-4o** | Versatile balance of reasoning, speed, and cost |
+    | **GPT-4o mini** | Everyday queries and high-volume deployments |
+    | **GPT-4.1** | Strong reasoning with improved cross-task performance |
+    | **GPT-4.1 mini** | Cost-effective, latency-focused for lighter workloads |
+    | **GPT-4.1 nano** | Minimal compute and high throughput |
 
-## OpenAI Models
+    See [OpenAI model documentation](https://platform.openai.com/docs/models) for detailed specifications.
+  </Tab>
+  <Tab title="Amazon Bedrock" icon="aws">
+    | Model | Best for |
+    |-------|----------|
+    | **Claude 3.5 Haiku** | Simple, predictable tasks with strong safety alignment |
+    | **Nova Micro** | Efficiency with strong general-purpose performance |
 
-### GPT-5.2
-The newest general-purpose model with strong reasoning and conversational ability. Best for high-quality interactions requiring nuance.
-
-### GPT-5.2 chat
-Optimised for extended dialogue and conversational stability.
-
-### GPT-5 mini
-A lighter version of GPT-5, offering lower latency and reduced cost for mid-complexity use cases.
-
-### GPT-5 nano
-A highly efficient variant suitable for simple tasks and fast-response workloads.
-
-### GPT-4o
-A powerful, versatile model balancing reasoning, speed, and cost.
-
-### GPT-4o mini
-A smaller, faster version ideal for everyday queries and high-volume deployments.
-
-### GPT-4.1
-A refined GPT-4 generation with strong reasoning and improved performance across tasks.
-
-### GPT-4.1 mini
-A cost-effective, latency-focused variant for lighter workloads.
-
-### GPT-4.1 nano
-The most lightweight option in the GPT-4.1 family, designed for minimal compute and high throughput.
-
-## Amazon Bedrock Models
-
-### Bedrock Claude 3.5 Haiku
-A fast, lightweight Claude variant suitable for simple, predictable tasks with strong safety alignment.
-
-### Bedrock Nova Micro
-Amazon’s compact LLM optimised for efficiency while maintaining strong general-purpose performance.
+    See [Anthropic Claude docs](https://docs.anthropic.com/) and [Amazon Nova docs](https://docs.aws.amazon.com/ai/responsible-ai/nova-micro-lite-pro/overview.html) for more details.
+  </Tab>
+</Tabs>
 
 ## Configuring the model
 
 ![llm-use](/images/model.png)
 
-1. Open **Agent Settings → Large Language Model**.
-2. Select the desired model from the dropdown.
-3. Click **Save** to apply your changes.
+<Steps>
+  <Step title="Open model settings">
+    Navigate to **Agent Settings > Large Language Model**.
+  </Step>
+  <Step title="Select a model">
+    Choose the desired model from the dropdown.
+  </Step>
+  <Step title="Save changes">
+    Click **Save** to apply your changes.
+  </Step>
+</Steps>
 
-For more details on each provider, see:
+<Columns cols={3}>
+  <Card title="OpenAI models" icon="link" href="https://platform.openai.com/docs/models">
+    Official OpenAI model reference
+  </Card>
+  <Card title="Anthropic Claude" icon="link" href="https://docs.anthropic.com/">
+    Claude model documentation
+  </Card>
+  <Card title="Amazon Nova" icon="link" href="https://docs.aws.amazon.com/ai/responsible-ai/nova-micro-lite-pro/overview.html">
+    Amazon Bedrock model details
+  </Card>
+</Columns>
 
-- [OpenAI Models](https://platform.openai.com/docs/models)
-- [Anthropic (Claude)](https://docs.anthropic.com/)
-- [Google DeepMind (Gemini)](https://ai.google.dev/)
-- [Mistral](https://docs.mistral.ai/)
-- [Amazon Nova Micro](https://docs.aws.amazon.com/ai/responsible-ai/nova-micro-lite-pro/overview.html)
-- Contact PolyAI for information about **Raven**, PolyAI's proprietary LLM.
-
-## Bring Your Own Model (BYOM)
+## Bring your own model (BYOM)
 
 PolyAI supports **bring-your-own-model (BYOM)** with a simple API integration. If you run your own LLM, expose an endpoint that follows the OpenAI [`chat/completions`](https://platform.openai.com/docs/api-reference/chat/create) schema and PolyAI will treat it like any other provider.
 
+```mermaid
+sequenceDiagram
+    participant Agent as PolyAI Agent
+    participant Endpoint as Your BYOM Endpoint
+    Agent->>Endpoint: POST /chat/completions (OpenAI format)
+    Note over Endpoint: Your model processes the request
+    Endpoint-->>Agent: Response (OpenAI format)
+    Note over Agent: Agent uses response in conversation
+```
+
 ### Overview
 
-1. **Expose an API endpoint** that accepts/returns data in the OpenAI `chat/completions` format.
-2. **Provide authentication** — PolyAI can send either an `x-api-key` header **or** a Bearer token.
-3. **(Optional)** Support **streaming** responses using `stream: true`.
+<Steps>
+  <Step title="Expose an API endpoint">
+    Accept and return data in the OpenAI `chat/completions` format.
+  </Step>
+  <Step title="Configure authentication">
+    PolyAI can send either an `x-api-key` header **or** a Bearer token.
+  </Step>
+  <Step title="Enable streaming (optional)">
+    Support streaming responses using `stream: true` for lower latency.
+  </Step>
+</Steps>
 
 ### API endpoint
 
-#### Request format
-
-```json
+<Tabs>
+  <Tab title="Request format">
+    ```json
     {
       "model": "your-model-id",
       "messages": [
@@ -94,13 +116,14 @@ PolyAI supports **bring-your-own-model (BYOM)** with a simple API integration. I
       "top_p": 1.0,
       "stream": false
     }
-```
+    ```
 
-*You might receive extra OpenAI-style fields such as `frequency_penalty`, `presence_penalty`, etc.*
-
-#### Response format
-
-```json
+    <Note>
+      You might receive extra OpenAI-style fields such as `frequency_penalty`, `presence_penalty`, etc.
+    </Note>
+  </Tab>
+  <Tab title="Response format">
+    ```json
     {
       "id": "chatcmpl-abc123",
       "object": "chat.completion",
@@ -111,19 +134,18 @@ PolyAI supports **bring-your-own-model (BYOM)** with a simple API integration. I
           "index": 0,
           "message": {
             "role": "assistant",
-            "content": "It’s sunny today in London."
+            "content": "It's sunny today in London."
           },
           "finish_reason": "stop"
         }
       ]
     }
-```
+    ```
+  </Tab>
+  <Tab title="Streaming (SSE)">
+    If `stream` is `true`, send Server-Sent Events (SSE) mirroring OpenAI's format:
 
-#### Streaming support (optional)
-
-If `stream` is `true`, send Server-Sent Events (SSE) mirroring OpenAI’s format:
-
-```json
+    ```json
     data: {
       "id": "...",
       "object": "chat.completion.chunk",
@@ -143,48 +165,54 @@ If `stream` is `true`, send Server-Sent Events (SSE) mirroring OpenAI’s format
     }
 
     data: [DONE]
-```
+    ```
+  </Tab>
+</Tabs>
 
 ### Authentication
 
-| Method   | Header sent by PolyAI                |
-|----------|---------------------------------------|
-| **API Key** | `x-api-key: YOUR_API_KEY`           |
-| **Bearer**  | `Authorization: Bearer YOUR_TOKEN` |
+| Method | Header sent by PolyAI |
+|--------|------------------------|
+| **API Key** | `x-api-key: YOUR_API_KEY` |
+| **Bearer** | `Authorization: Bearer YOUR_TOKEN` |
 
 Configure your server to accept **one** of the above.
 
 ### Sample implementation (Python / Flask)
 
 ```python
-    from flask import Flask, request, jsonify
-    import time, uuid
+from flask import Flask, request, jsonify
+import time, uuid
 
-    app = Flask(__name__)
+app = Flask(__name__)
 
-    @app.route('/chat/completions', methods=['POST'])
-    def chat_completions():
-        data = request.json
-        messages = data.get('messages', [])
-        user_input = messages[-1]['content'] if messages else ''
+@app.route('/chat/completions', methods=['POST'])
+def chat_completions():
+    data = request.json
+    messages = data.get('messages', [])
+    user_input = messages[-1]['content'] if messages else ''
 
-        # TODO: insert your model inference here
-        reply = f'You said: {user_input}'
+    # TODO: insert your model inference here
+    reply = f'You said: {user_input}'
 
-        return jsonify({
-            'id': f'chatcmpl-{uuid.uuid4().hex}',
-            'object': 'chat.completion',
-            'created': int(time.time()),
-            'model': 'my-llm',
-            'choices': [{
-                'index': 0,
-                'message': { 'role': 'assistant', 'content': reply },
-                'finish_reason': 'stop'
-            }]
-        })
+    return jsonify({
+        'id': f'chatcmpl-{uuid.uuid4().hex}',
+        'object': 'chat.completion',
+        'created': int(time.time()),
+        'model': 'my-llm',
+        'choices': [{
+            'index': 0,
+            'message': { 'role': 'assistant', 'content': reply },
+            'finish_reason': 'stop'
+        }]
+    })
 ```
 
 ### Final checklist
+
+<Warning>
+  Before going live, verify all of the following:
+</Warning>
 
 - [ ] Endpoint reachable with **POST**.
 - [ ] Request/response match **OpenAI `chat/completions`** schema.
