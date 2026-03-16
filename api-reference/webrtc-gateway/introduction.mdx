@@ -8,8 +8,25 @@ The WebRTC Gateway enables real-time voice communication between a web browser a
 
 It has two layers:
 
-- WebSocket signaling for session setup, SDP exchange, and ICE candidate exchange
-- WebRTC media for bidirectional audio once the connection is established
+- [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) signaling for session setup, [SDP](https://datatracker.ietf.org/doc/html/rfc8866) exchange, and [ICE](https://datatracker.ietf.org/doc/html/rfc8445) candidate exchange
+- [WebRTC](https://webrtc.org/getting-started/overview) media for bidirectional audio once the connection is established
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant WS as WebSocket (Signaling)
+    participant PolyAI as PolyAI Agent
+
+    Browser->>WS: Connect to signaling endpoint
+    Browser->>WS: Send offer (SDP + auth token)
+    WS->>PolyAI: Create session
+    PolyAI-->>WS: Answer (SDP + sessionId)
+    WS-->>Browser: Forward answer
+    Browser->>WS: ICE candidates
+    WS-->>Browser: ICE candidates
+    Note over Browser,PolyAI: WebRTC peer connection established
+    Browser<<->>PolyAI: Bidirectional audio (Opus)
+```
 
 ## Prerequisites
 
@@ -183,3 +200,11 @@ Ensure the authentication token is valid and included in the offer message.
 - Corporate firewalls may require TURN
 - Ensure UDP traffic is allowed
 - Configure TURN over TCP if needed
+
+## Useful links
+
+- [WebRTC overview](https://webrtc.org/getting-started/overview) -- Getting started with WebRTC
+- [MDN WebRTC API](https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API) -- Browser API reference
+- [MDN WebSocket API](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) -- WebSocket reference
+- [RFC 8866 (SDP)](https://datatracker.ietf.org/doc/html/rfc8866) -- Session Description Protocol specification
+- [RFC 8445 (ICE)](https://datatracker.ietf.org/doc/html/rfc8445) -- Interactive Connectivity Establishment specification

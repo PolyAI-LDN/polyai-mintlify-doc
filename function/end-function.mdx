@@ -4,6 +4,23 @@ title: 'End function'
 
 The **End function** is executed at the conclusion of a conversation, enabling final data processing, cleanup, and integration tasks. It runs asynchronously, meaning it does not delay the end of the call but ensures that any necessary post-conversation operations are completed.
 
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant PolyAI as PolyAI Agent
+    participant CRM as External Systems
+
+    Caller->>PolyAI: Conversation ends
+    PolyAI-->>Caller: Call terminated
+    activate PolyAI
+    Note over PolyAI: end_function() runs async
+    PolyAI->>CRM: Log conversation metadata
+    PolyAI->>CRM: Create support ticket (if needed)
+    PolyAI->>CRM: Schedule follow-up (if needed)
+    deactivate PolyAI
+    Note over PolyAI,CRM: Post-call processing complete
+```
+
 ## Key features and functionality
 
 1. **Asynchronous execution**: Runs after the conversation ends, so it does not delay the call.
@@ -16,19 +33,19 @@ The **End function** is executed at the conclusion of a conversation, enabling f
 
 The **End function**:
 
-### 1. **Logs conversation metadata**
+### 1. Logs conversation metadata
 
 * Save key conversation details, such as duration, topic, or sentiment analysis, to a database or CRM.
 
 * **Example use case**: Track customer service interactions for reporting and performance analysis.
 
-### 2. **Triggers workflows**
+### 2. Triggers workflows
 
 * Start processes like creating support tickets, sending confirmation emails, or updating account records.
 
 * **Example use case**: Automatically notify the sales team about potential leads from the conversation.
 
-### 3. **Schedules follow-ups**
+### 3. Schedules follow-ups
 
 * Prepare reminders, SMS notifications, or callbacks for unresolved queries.
 
@@ -60,7 +77,11 @@ def end_function(conv: Conversation):
     return "End function executed successfully."
 ```
 
-## Best practices for End function design
+## Best practices for end function design
+
+<Warning>
+Errors in the end function do not surface to the caller (the call is already over), but they can silently break downstream workflows. Always implement robust error handling with try/except blocks and fallback logic.
+</Warning>
 
 1. **Efficient execution**:
 
@@ -82,7 +103,7 @@ def end_function(conv: Conversation):
 
 ## Examples: Enhancing post-conversation workflows
 
-### 📊 Data logging for analytics
+### Data logging for analytics
 
 Capture details like customer sentiment, topics discussed, and the resolution status for reporting and analytics.
 
@@ -90,7 +111,7 @@ Capture details like customer sentiment, topics discussed, and the resolution st
 
 * "Logged: Customer expressed interest in our premium plan and showed positive sentiment."
 
-### 📞 Automatic follow-ups
+### Automatic follow-ups
 
 Send reminders, confirmation messages, or escalation notices to keep the customer informed.
 
@@ -98,7 +119,7 @@ Send reminders, confirmation messages, or escalation notices to keep the custome
 
 * "An email has been sent confirming your booking for January 10th."
 
-### 🛠 Task automation
+### Task automation
 
 Streamline processes by triggering external workflows or integrations.
 
@@ -106,6 +127,6 @@ Streamline processes by triggering external workflows or integrations.
 
 * "Support ticket created: Issue with account login noted during the conversation."
 
-### 🧾 CRM updates
+### CRM updates
 
 Ensure customer records are up to date with the latest interaction details.
