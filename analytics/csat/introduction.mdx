@@ -27,6 +27,17 @@ Copy the function call `conv.goto_csat_flow()` shown on the page and paste it in
 This step is required. If you skip it, the survey never triggers—even if the toggle is on.
 </Warning>
 
+<Note>
+When using `conv.goto_csat_flow()` in your hangup function, there should be no return values. The function should end with `conv.goto_csat_flow()` and not return anything.
+
+If you want a custom final message before the CSAT survey, set the utterance in `conv.state.csat_output_args` before calling `conv.goto_csat_flow()`:
+
+```python
+conv.state.csat_output_args = {"utterance": "Custom final thank you message"}
+conv.goto_csat_flow()
+```
+</Note>
+
 ### Step 3: Define survey content
 
 Configure the two text fields in the **Content** section:
@@ -62,47 +73,6 @@ Once configured, every time your hang-up function executes, the user routes into
 - **Be clear about the scale** - Explicitly state what 1 and 5 mean in your survey question
 - **Natural language** - Write messages that sound conversational, not robotic
 - **Test thoroughly** - Try different phrasings in sandbox before deploying
-
-## Implementing CSAT in your end function
-
-To trigger the CSAT survey, add `conv.goto_csat_flow()` to your [end function](/function/end-function):
-
-```python
-def end_function(conv: Conversation):
-    # Your existing end function logic here
-    
-    # Route to CSAT survey flow
-    conv.goto_csat_flow()
-```
-
-<Warning>
-When using `conv.goto_csat_flow()` in your hangup function, there should be no return values. The function should end with `conv.goto_csat_flow()` and not return anything.
-</Warning>
-
-### Custom hangup utterance
-
-If you want a custom final message before the CSAT survey, set the utterance in `conv.state.csat_output_args` before calling `conv.goto_csat_flow()`:
-
-```python
-def end_function(conv: Conversation):
-    # Your existing end function logic here
-    
-    # Optional: Set a custom final thank you message
-    conv.state.csat_output_args = {"utterance": "Custom final thank you message"}
-    
-    # Route to CSAT survey flow
-    conv.goto_csat_flow()
-```
-
-The `goto_csat_flow()` method will:
-- Play the lead-in message
-- Ask the survey question
-- Collect the customer's rating
-- Store the result in analytics
-
-<Warning>
-The CSAT survey must be triggered from the end function. Calling it elsewhere may result in unexpected behavior.
-</Warning>
 
 ## Viewing CSAT data
 
