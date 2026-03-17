@@ -14,7 +14,7 @@ The Alerts API lets you monitor your voice agents in real time. Configure alert 
 
 ## Available metrics
 
-All count-based metrics represent **absolute counts within the evaluation window**, not rates. For example, if you set `window_duration_seconds: 300` and `threshold_value: 10` for `api_errors`, the alert triggers when there are 10 or more API errors in the 5-minute window.
+All count-based metrics represent **absolute counts within the evaluation window**, not rates. For example, if you set `window_duration: "5m"` and `threshold_value: 10` for `api_errors`, the alert triggers when there are 10 or more API errors in the 5-minute window.
 
 | Metric | Description | Unit | Typical threshold guidance |
 |--------|-------------|------|---------------------------|
@@ -59,7 +59,7 @@ curl -X POST https://api.us.poly.ai/v1/alert-rules \
     "metric": "turn_latency_p95",
     "operator": ">=",
     "threshold_value": 1500,
-    "window_duration_seconds": 300
+    "window_duration": "5m"
   }'
 ```
 
@@ -327,13 +327,15 @@ The `id` in the request body must match the `rule_id` or `endpoint_id` in the UR
 
 ## Window duration
 
-The `window_duration_seconds` field accepts values from **60 seconds (1 minute) to 86400 seconds (24 hours)**. 
+The `window_duration` field accepts the following values:
 
-Recommended ranges:
-- **Latency alerts:** 300-900 seconds (5-15 minutes) to smooth transient spikes
-- **Error count alerts:** 60-300 seconds (1-5 minutes) for faster detection
-- **Volume alerts:** 300-3600 seconds (5-60 minutes) depending on traffic patterns
+| Value | Duration |
+|-------|----------|
+| `5m` | 5 minutes |
+| `10m` | 10 minutes |
+| `60m` | 60 minutes (1 hour) |
 
-<Note>
-Very short windows (under 60 seconds) may produce noisy alerts due to metric collection intervals. Very long windows (over 1 hour) may delay alert detection significantly.
-</Note>
+Recommended usage:
+- **Latency alerts:** `5m` or `10m` to smooth out transient spikes
+- **Error count alerts:** `5m` for faster detection
+- **Volume alerts:** `10m` or `60m` depending on traffic patterns
