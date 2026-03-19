@@ -3,23 +3,121 @@ title: "Metrics"
 description: "Define and manage custom metrics for your agent."
 ---
 
-The **Metrics** page (**Configure > Metrics**) lets you define custom metrics that track specific aspects of your agent's performance.
+The **Metrics** page (**Configure > Metrics**) lets you define custom metrics that track specific aspects of your agent's performance beyond the standard analytics.
 
 ## Overview
 
-Custom metrics allow you to measure outcomes beyond the standard analytics. Define what success looks like for your use case and track it across conversations.
+Custom metrics measure outcomes that matter to your use case — whether a booking was completed, a caller was authenticated, or a specific flow reached its intended resolution. Once defined, metrics are evaluated per conversation and the results flow into [Dashboards](/analytics/dashboards/introduction), [Smart Analyst](/smart-analyst/introduction), and the [Conversations API](/api-reference/conversations/introduction).
 
-## Defining metrics
+### Metric types
 
-1. Go to **Configure > Metrics** in the sidebar.
-2. Create a new metric by specifying a **name** and **definition**.
-3. Configure how the metric is calculated or triggered.
+Metrics can be **boolean** (true/false) or **categorical** depending on your configuration. Boolean metrics answer a yes/no question — for example, "Was the caller authenticated?" — while categorical metrics assign a label from a set of options. When creating a metric, be clear about which type you're defining so that results are consistent and easy to interpret.
 
-<Note>
-Custom metrics can be referenced in [Dashboards](/analytics/dashboards/introduction) and used alongside standard analytics.
-</Note>
+## Creating a metric
+
+<Steps>
+
+<Step title="Open the Metrics page">
+Go to **Configure > Metrics** in the sidebar.
+</Step>
+
+<Step title="Add a new metric">
+Click **Add metric** and provide:
+- **Name** — a short, descriptive label (e.g. "Booking completed", "Caller authenticated")
+- **Definition** — a clear description of what this metric measures and how it should be evaluated
+</Step>
+
+<Step title="Save and publish">
+Save your metric. It becomes active after you publish and will begin appearing in conversation data going forward.
+</Step>
+
+</Steps>
+
+## Naming conventions
+
+Consistent naming makes metrics easier to find, compare, and reference across dashboards, Smart Analyst, and API exports.
+
+- **Use a consistent format** — pick one casing style (e.g. `Booking completed` or `BOOKING_COMPLETED`) and apply it across all metrics in a project
+- **Avoid synonyms** — choose one term and stick with it. For example, use `Handoff` consistently rather than alternating between "handoff", "transfer", and "escalation"
+- **Be descriptive but concise** — the name should make sense at a glance in a dashboard or filter dropdown
+- **Prefix related metrics** — if you have multiple metrics for one flow, group them with a shared prefix (e.g. `Auth: verified`, `Auth: failed`, `Auth: partial`)
+
+## Writing effective definitions
+
+The metric definition tells the system how to evaluate each conversation. Clear, specific definitions produce more consistent results and directly improve the quality of insights from [Smart Analyst](/smart-analyst/introduction), which can sample and analyze conversations based on your custom metrics.
+
+### Be specific about the outcome
+
+| Less effective | More effective |
+|---------------|---------------|
+| "Check if the call went well" | "The caller's issue was fully resolved without a handoff to a human agent" |
+| "Booking metric" | "A reservation was successfully created, confirmed with the caller, and an SMS confirmation was sent" |
+| "Authentication" | "The caller was verified using at least two identifying details (e.g. name and date of birth, or account number and postcode)" |
+
+### Define success and failure
+
+Where relevant, define what does **not** count as a success alongside what does. This reduces ambiguity for edge cases and partial outcomes.
+
+For example, an authentication metric might specify:
+- **Success**: the caller provided their name and date of birth, and the system confirmed a match
+- **Failure**: the caller could not provide sufficient details, or the system could not verify the information
+- **Partial**: the caller provided one identifier but the second could not be confirmed
+
+### Specify when the metric applies
+
+A metric should define the point in the conversation where it becomes relevant. This matters when a metric depends on a specific flow being reached.
+
+For example:
+- "This metric applies only after the agent determines the caller is eligible for the loyalty program" — not from the start of every call
+- "Evaluate this metric once the booking flow has been initiated" — not based on whether the caller mentioned a booking
+
+<Warning>
+If a metric is evaluated too early (before the relevant flow starts) or too broadly (on calls where the flow was never triggered), results will be noisy and unreliable.
+</Warning>
+
+### Additional tips
+
+- If the metric depends on a specific flow or function, mention it by name in the definition
+- For boolean metrics, state the exact condition that makes the metric `true`
+- Keep definitions self-contained — avoid referencing other metric definitions
+
+## Metrics and Smart Analyst
+
+[Smart Analyst](/smart-analyst/introduction) can sample conversations based on your custom metrics and use metric values when answering natural-language questions. The quality of your metric definitions directly affects the quality of Smart Analyst's insights.
+
+Well-defined metrics enable you to:
+- Sample conversations where a specific metric succeeded or failed, rather than relying on random sampling
+- Ask questions like *"Why are calls failing the authentication metric?"* and get targeted answers
+- Track metric trends across recent conversations without writing queries
+
+See [Smart Analyst](/smart-analyst/introduction) for more on deep sampling and example prompts.
+
+## Logging metrics from functions
+
+You can also log metrics programmatically from [functions](/function/introduction) using the conversation object. This is useful when a metric depends on function output — for example, confirming that an API call succeeded or a payment was processed.
+
+The conversation object provides two properties for this:
+
+- `conv.metrics_queue` — queue custom metrics for analytics
+- `conv.metric_events` — queue metric event objects with name/value pairs
+
+See the [conversation object reference](/function/classes/conv-object) for details.
+
+## Where metrics appear
+
+Once defined, custom metrics are available across several parts of the platform:
+
+| Location | How metrics are used |
+|----------|---------------------|
+| [Dashboards](/analytics/dashboards/introduction) | Visualize metric trends over time. Custom metrics appear in [Standard](/analytics/dashboards/standard) and [Custom](/analytics/dashboards/custom) dashboards. |
+| [Smart Analyst](/smart-analyst/introduction) | Sample conversations by metric value. Ask natural-language questions about metric performance across recent calls. |
+| [Conversations API](/api-reference/conversations/introduction) | The `metrics` field on each conversation object contains your custom metric results, available for export to external analytics pipelines. |
+| [Conversation review](/analytics/conversations/review) | Filter and browse conversations by metric outcomes. |
 
 ## Related pages
 
-- [Dashboards](/analytics/dashboards/introduction) - Visualize your metrics
-- [Conversations](/analytics/conversations/introduction) - Review individual conversation data
+- [Dashboards](/analytics/dashboards/introduction) — visualize your metrics
+- [Smart Analyst](/smart-analyst/introduction) — query conversation data using natural language
+- [Agent Analysis](/agent-analysis/introduction) — LLM-powered call categorization
+- [Conversations API](/api-reference/conversations/introduction) — export metric data programmatically
+- [Conversation object](/function/classes/conv-object) — log metrics from functions
