@@ -3,7 +3,52 @@ title: Frequently asked questions
 sidebarTitle: FAQ
 ---
 
-Common questions about Knowledge (Managed Topics and Connected), rules, and agent configuration.
+Common questions about Knowledge (Managed Topics and Connected), rules, actions, and agent configuration.
+
+## Common issues
+
+<AccordionGroup>
+  <Accordion title="Why isn't my agent answering a question it should know?" icon="circle-exclamation">
+    This is usually a **retrieval issue** — the agent has the right topic, but the retriever didn't match it to the user's message.
+
+    **How to debug:**
+    1. Open [conversation diagnosis](/analytics/conversations/diagnosis) for the affected conversation.
+    2. Check the **sources panel** — does the relevant topic appear in the retrieved results?
+    3. If the topic is **not retrieved**: improve the topic name and sample questions to better match how real users phrase the question.
+    4. If the topic **is retrieved** but the agent still gives a wrong answer: review the topic content for ambiguity, or check whether a conflicting topic is also being retrieved.
+
+    <Tip>
+      The retriever weights **topic name** and **sample questions** more heavily than content. If a topic isn't being found, rewriting these is the most effective fix.
+    </Tip>
+  </Accordion>
+  <Accordion title="I changed something — why isn't it live?" icon="rotate">
+    **Saving a change does not make it live.** Changes go through a promotion pipeline before reaching production:
+
+    1. **Draft** — you make edits in the editor. These are only visible to you.
+    2. **Publish to Sandbox** — click **Publish** to create a version. Test it using [agent chat](/get-started/agent-chat) or a sandbox phone number.
+    3. **Promote to Pre-release** — move the version to a staging environment for user acceptance testing (UAT).
+    4. **Promote to Live** — push to production where real users interact with the agent.
+
+    Until you publish and promote, your changes stay in draft. See the [deployment pipeline](/environments-and-versions/introduction) for full details.
+
+    <Warning>
+      If your agent isn't reflecting recent changes, check which environment you're testing in. Draft changes are not visible in Sandbox, Pre-release, or Live until promoted.
+    </Warning>
+  </Accordion>
+  <Accordion title="How do I make my agent stop saying the wrong thing?" icon="message-xmark">
+    Tone and phrasing problems are best fixed through **specific, example-driven rules** — not single-sentence personality instructions.
+
+    **Instead of:** "Be polite and professional."
+
+    **Use:** "When a customer expresses frustration, acknowledge their concern before offering a solution. Example: 'I understand that's frustrating. Let me look into this for you.'"
+
+    **Steps to fix:**
+    1. Identify the problematic response in [conversation review](/analytics/conversations/review).
+    2. Add or update a rule in [global rules](/agent-settings/rules) with a concrete example of the correct response.
+    3. Test with adversarial inputs in [sandbox](/environments-and-versions/introduction) — try edge cases where tone is most likely to go wrong (frustrated users, repeated questions, off-topic requests).
+    4. Promote only after confirming the fix works consistently.
+  </Accordion>
+</AccordionGroup>
 
 ## Managed topics
 
@@ -13,23 +58,50 @@ Full page: [**Managed Topics**](/managed-topics/introduction)
   <Accordion title="How should I structure a topic?" icon="sitemap">
     Each topic should have:
 
-    - **A clear name**: Use short, descriptive titles like "Refund policy" or "Store hours."
-    - **Example queries**: Add 5-10 user questions to improve retrieval accuracy.
+    - **A clear name**: Use short, descriptive titles like "Refund policy" or "Store hours." The topic name is heavily weighted during [retrieval](/managed-topics/RAG/introduction), so make it specific.
+    - **Sample questions**: You can add up to **20** sample questions per topic. More sample questions help the retriever find the right topic, but only a small subset (typically the top 3) are passed into the LLM context at query time. Write your most representative questions first.
       - Example for *Refund policy*:
         - "How do I get a refund?"
         - "Can I return a product for a refund?"
-    - **Content and actions**: Separate what the agent says (content) from what it does (actions).
-      - Example for *Payment issues*:
-        - **Content**: "Did you use a credit card or PayPal?"
-        - **Action**: Trigger SMS with billing team details.
+        - "What's the refund timeline?"
+    - **Content and actions**: Content defines what the agent says; actions define what it does (like triggering a handoff or sending an SMS). See the [actions overview](/managed-topics/how-to-setup-action/introduction) for setup details.
 
-    For more, see [how to set up actions](/managed-topics/how-to-setup-action/introduction).
+    <Tip>
+      Topic names and sample questions matter more than content for retrieval. The [RAG system](/managed-topics/RAG/introduction) compares user input against all topics and returns the top matches — so well-written names and questions directly improve accuracy.
+    </Tip>
+  </Accordion>
+  <Accordion title="How does topic retrieval (RAG) work?" icon="magnifying-glass">
+    When a user sends a message, the agent does **not** see all topics at once. Instead, it uses [retrieval-augmented generation (RAG)](/managed-topics/RAG/introduction):
+
+    1. The retriever compares the user's message against every topic's **name**, **sample questions**, and **content** — with higher weighting on the name and sample questions.
+    2. The top matching topics are returned to the LLM.
+    3. The LLM selects the best match and generates a response (and may trigger an action, function, or flow).
+
+    This is why topic naming and sample questions are so important — they are the primary signals the retriever uses to find the right content.
   </Accordion>
   <Accordion title="Should I use smaller or larger topics?" icon="scale-balanced">
-    - **Larger topics**: Better for agents using newer LLM models, because they can handle more context.
-    - **Smaller topics**: Easier for reporting and analysis, or for agents using older models.
+    - **Larger topics**: Better for agents using newer LLM models (like Raven 3.5), because they can handle more context in a single turn.
+    - **Smaller topics**: Easier for reporting, analysis, and debugging. Also better for agents using older models with limited context windows.
 
-    Balance scope and specificity based on your use case.
+    Balance scope and specificity based on your use case. If you find the agent is confusing similar topics, consider splitting them.
+  </Accordion>
+  <Accordion title="How do I manage a large number of topics?" icon="folder-tree">
+    If you have hundreds of topics, keeping them organized is important for maintenance:
+
+    - **Use consistent naming conventions**: Prefix topics by category (e.g., "Billing - refund policy", "Billing - payment methods") so they sort together.
+    - **Review regularly**: Deactivate topics that are no longer relevant rather than deleting them — you can reactivate later if needed. See [activating and deactivating topics](/managed-topics/introduction#activating-and-deactivating-topics).
+    - **Use CSV import/export**: For bulk updates across many topics, use [CSV imports](/variant-management/csv-imports) to make changes efficiently.
+
+    <Note>
+      There is currently no folder or grouping structure for topics in the UI. Naming conventions are the best way to keep large topic sets navigable.
+    </Note>
+  </Accordion>
+  <Accordion title="How do I manage out-of-scope queries?" icon="ban">
+    Create an "Out-of-scope" topic or add instructions in [global rules](/agent-settings/rules).
+
+    **Example response**: "I'm sorry, I can only help with questions about \[service]. For other inquiries, please contact our support team at \[number/email]."
+
+    Before UAT, clearly define what your agent handles and what it doesn't. This helps testers and customers set expectations, and reduces frustration when the agent declines a request.
   </Accordion>
   <Accordion title="How can I handle clarification questions?" icon="circle-question">
     Add a disambiguation prompt in the content.
@@ -38,10 +110,44 @@ Full page: [**Managed Topics**](/managed-topics/introduction)
     - **Topic**: "Booking issues"
     - **Content**: "Can you confirm if the booking was made online or over the phone?"
   </Accordion>
-  <Accordion title="How do I manage out-of-scope queries?" icon="ban">
-    Create an "Out-of-scope" topic or add instructions in [global rules](/agent-settings/rules).
+</AccordionGroup>
 
-    **Example response**: "I'm sorry, I can't help with that. Please contact support."
+## Connected knowledge
+
+Full page: [**Connected Knowledge**](/connected-knowledge/introduction)
+
+<AccordionGroup>
+  <Accordion title="What is Connected knowledge and how does it differ from Managed Topics?" icon="plug">
+    Both **Connected** and **Managed Topics** live under the **Knowledge** area in Build, but they serve different purposes:
+
+    - **Connected knowledge** is a fast way to expose external content (websites, PDFs, Zendesk articles) to your agent. It is read-only, synced from external sources, and requires no prompting expertise. However, it **cannot** trigger actions, flows, SMS, or handoffs.
+    - **Managed Topics** are version-controlled, fully editable topics where you control sample questions, content, and actions. They support functions, flows, and all agent behaviors.
+
+    For a detailed comparison, see the [Connected knowledge introduction](/connected-knowledge/introduction#how-connected-knowledge-differs-from-managed-topics).
+  </Accordion>
+  <Accordion title="When should I use Connected knowledge vs. Managed Topics?" icon="scale-balanced">
+    | Scenario | Recommendation |
+    |----------|---------------|
+    | Large FAQ library from an existing help center | **Connected** — fast to set up, auto-syncs |
+    | Content that changes frequently in an external system | **Connected** — stays up to date via sync |
+    | Topics that need to trigger handoffs, SMS, or functions | **Managed Topics** — only option for actions |
+    | You need control over exactly what the agent says | **Managed Topics** — you write the utterances |
+    | Seasonal or toggleable content | **Managed Topics** — supports activation/deactivation per environment |
+
+    Both use RAG for retrieval. If there is a conflict, **Managed Topics content takes priority**.
+
+    <Tip>
+      If you're unsure, start with Connected knowledge for general FAQ content and use Managed Topics for anything that requires specific wording or triggers an action.
+    </Tip>
+  </Accordion>
+  <Accordion title="Why isn't the agent using my Connected knowledge sources?" icon="circle-exclamation">
+    Several factors can affect retrieval:
+
+    - **Data structure**: Connected knowledge splits content into chunks. Very large or loosely structured documents may struggle with relevance. Restructure into smaller, tighter pieces.
+    - **Sync state**: Both the source and the agent must be up to date. Trigger a manual sync if needed.
+    - **Environment and variant**: Each source must be enabled in the correct environment and variant.
+
+    If a topic is critical, consider curating it as a Managed Topic for guaranteed retrieval.
   </Accordion>
 </AccordionGroup>
 
@@ -51,20 +157,52 @@ Full page: [**Rules**](/agent-settings/rules)
 
 <AccordionGroup>
   <Accordion title="What are global rules?" icon="globe">
-    Global rules set consistent agent behavior across interactions. Use them for tone, scope, and task-specific instructions.
+    Global rules set consistent agent behavior across all interactions. Use them for tone, scope, and task-specific instructions.
 
     **Examples:**
-    - "Always remain professional."
-    - "Only answer questions about `<service>`."
+    - "Always remain professional and empathetic, even when the customer is frustrated."
+    - "Only answer questions about \[service]. For anything else, say: 'I can only help with \[service]-related questions.'"
+  </Accordion>
+  <Accordion title="How long should global rules be?" icon="ruler">
+    Keep global rules **concise**. When the prompt grows too large (especially combined with many retrieved topics), critical rules may get deprioritized or ignored by the model.
+
+    **Best practices:**
+    - State the most important rules first.
+    - Combine overlapping rules into a single, clear instruction.
+    - Remove redundant or contradictory rules.
+    - Regularly audit your rules against actual agent behavior using [conversation review](/analytics/conversations/review).
+
+    <Warning>
+      If your agent is ignoring rules, the prompt may be too long. Shorten and prioritize before adding more rules.
+    </Warning>
   </Accordion>
   <Accordion title="Should I include examples in global rules?" icon="lightbulb">
-    Yes. Examples clarify how the agent should behave.
+    Yes — specific examples are more reliable than general instructions. The more concrete you are about what the agent should say, the more consistently it will follow the rule.
 
-    **Example rule:**
-    "If the user asks for repetition, respond with: 'Let me repeat that for you.'"
+    **Instead of:** "Be empathetic."
+
+    **Use:** "When a customer expresses frustration, respond with empathy before problem-solving. Example: 'I completely understand your concern, and I want to make sure we get this sorted for you.'"
+  </Accordion>
+  <Accordion title="Can I apply rules to specific channels or languages?" icon="filter">
+    Yes. You can use channel and language tags to filter content and rules:
+
+    - `<channel:voice>` — applies only to voice calls
+    - `<channel:webchat>` — applies only to webchat
+    - `<language:en>` — applies only to English interactions
+
+    This is useful for multi-channel agents (where voice and chat may need different handling) and [multilingual agents](/agent-settings/multilingual) (where certain phrases or instructions only apply in specific languages).
+  </Accordion>
+  <Accordion title="How should I handle small talk, silence, and broken input?" icon="comment-slash">
+    These are common patterns that benefit from explicit global rules:
+
+    - **Small talk**: "If the user makes small talk, briefly acknowledge and redirect to the task."
+    - **Silence / no input**: "If the user does not respond, prompt them once, then offer to transfer to an agent."
+    - **Broken or unintelligible input**: "If you cannot understand the user's request after two attempts, offer to transfer to a human agent."
+
+    These rules help the agent handle real-world edge cases that are especially common in voice interactions.
   </Accordion>
   <Accordion title="How should I plan for risky scenarios?" icon="shield-halved">
-    Identify high-risk situations (like refunds or emergencies) and add clear rules or topics.
+    Identify high-risk situations (like refunds, cancellations, or emergencies) and add clear rules or dedicated topics.
 
     **Example for refunds:**
     "Route all refund-related queries to a support specialist."
@@ -80,19 +218,33 @@ Full page: [**Rules**](/agent-settings/rules)
 Full page: [**Actions**](/managed-topics/how-to-setup-action/introduction)
 
 <AccordionGroup>
-  <Accordion title="What are actions?" icon="bolt">
-    Actions let the agent perform tasks like sending SMS, calling functions, or triggering handoffs. They are defined in Managed Topics (under the Knowledge area), directly under the content field.
+  <Accordion title="What are actions and what types are there?" icon="bolt">
+    Actions let the agent do things beyond responding with text. They are defined in Managed Topics under the **Actions field**. The main types are:
 
-    **Example use case:** A user asks about refunds, and the agent sends an SMS with a refund link.
+    - **[SMS](/managed-topics/how-to-setup-action/send-sms)**: Send a text message to the user (e.g., a link, confirmation, or follow-up details).
+    - **[Function calls](/managed-topics/how-to-setup-action/function-call)**: Run a custom function to look up data, perform calculations, or update conversation state.
+    - **[Handoffs](/managed-topics/how-to-setup-action/handoff)**: Transfer the user to a live agent. Handoffs have their own setup requirements, including logging reasons and configuring routing (e.g., SIP headers). See [call handoffs](/call-handoff/introduction) for details.
+
+    **Example:** A user asks about a refund, and the agent sends an SMS with a link to the refund portal.
   </Accordion>
   <Accordion title="Can I combine multiple actions?" icon="layer-group">
-    Yes. You can trigger multiple actions for a single topic, like sending an SMS and initiating a handoff.
+    Yes. You can trigger multiple actions for a single topic — for example, sending an SMS and then initiating a handoff.
+  </Accordion>
+  <Accordion title="Can I use state or variables in actions?" icon="database">
+    Yes. You can use [variables](/function/variables) and state from [functions](/function/introduction) to conditionally control what happens. For example, you can show different content or trigger different actions depending on whether the user is authenticated or which location they're calling from.
+
+    This is set up through functions that run earlier in the conversation. The state they set can then be referenced in your topic content and actions.
   </Accordion>
   <Accordion title="What happens if an action fails?" icon="triangle-exclamation">
-    Set up fallback actions, like redirecting to a global FAQ or retrying with a different template.
+    If an action does not work as expected:
+
+    1. Open the [conversation diagnosis](/analytics/conversations/diagnosis) tool for the affected conversation to see what happened.
+    2. Check that the action is correctly configured — correct function name, SMS template, or handoff destination.
+    3. For handoffs, verify that the target queue or SIP endpoint is reachable and correctly routed.
+    4. Reproduce the issue in [sandbox](/environments-and-versions/introduction) to test your fix before promoting.
 
     <Tip>
-      Use the [conversation diagnosis](/analytics/conversations/diagnosis) tool to debug failed actions.
+      Common causes: misconfigured function names, missing variables, and unreachable handoff endpoints.
     </Tip>
   </Accordion>
 </AccordionGroup>
@@ -102,17 +254,50 @@ Full page: [**Actions**](/managed-topics/how-to-setup-action/introduction)
 Full page: [**About the agent**](/agent-settings/about)
 
 <AccordionGroup>
-  <Accordion title="How do I set the agent's personality?" icon="face-smile">
-    Avoid generic prompts like "You are a helpful agent." Use global rules or KB topics to set tone and boundaries.
+  <Accordion title="How do I set the agent's personality and tone?" icon="face-smile">
+    The agent's name, personality, and role are configured in the **About** section (**Build > Agent > About**). This is where you set the greeting, personality, and high-level role.
 
-    **Example:** "Adopt a professional tone. Answer only questions about `<service>`."
+    For detailed tone control, use [global rules](/agent-settings/rules) with **specific examples** of how the agent should respond. Single-sentence instructions like "Be professional" are less reliable than concrete examples:
+
+    **Instead of:** "Be friendly and helpful."
+
+    **Use a rule like:** "When greeting the customer, use their name if available. Example: 'Hi Sarah, thanks for calling \[Brand]. How can I help you today?'"
+
+    <Tip>
+      Test tone in [sandbox](/environments-and-versions/introduction) with adversarial inputs — try frustrated customers, repeated questions, and off-topic requests to make sure the agent responds well under pressure.
+    </Tip>
   </Accordion>
   <Accordion title="Is defining a role necessary?" icon="user-tag">
-    It's helpful for clarity. Add this in the "About" section or as a global rule.
+    It helps the agent stay focused. Add this in the [About](/agent-settings/about) section or as a global rule.
 
     **Examples:**
     - "You are a virtual agent for \[Brand], focused on customer support."
     - "You are a helpful hotel concierge, focused on resolving customer problems and managing reservations."
+  </Accordion>
+</AccordionGroup>
+
+## Environments and testing
+
+<AccordionGroup>
+  <Accordion title="How do I test changes safely before going live?" icon="flask">
+    Use the [deployment pipeline](/environments-and-versions/introduction) to test in isolated environments:
+
+    1. **Draft** — make changes in the editor.
+    2. **Sandbox** — publish your draft and test using [agent chat](/get-started/agent-chat) or a sandbox phone number.
+    3. **Pre-release** — promote for user acceptance testing (UAT).
+    4. **Live** — promote to production when ready.
+
+    You can [compare versions](/environments-and-versions/diffs) across environments before promoting, and [rollback](/environments-and-versions/introduction#rolling-back-to-a-previous-version) if issues arise.
+  </Accordion>
+  <Accordion title="How do I manage multi-site or multi-location agents?" icon="location-dot">
+    Use [variant management](/variant-management/introduction) to manage location-specific content within a single agent. Each variant stores attributes like phone numbers, addresses, and hours.
+
+    Variants are useful for:
+    - Hotel chains, restaurant groups, or retail chains with multiple branches
+    - Agents that need to respond differently based on which number was called
+    - Dynamically populating responses with location-specific data using `${variant_attribute}` syntax
+
+    See the [variant management guide](/variant-management/introduction) and [CSV imports](/variant-management/csv-imports) for bulk configuration.
   </Accordion>
 </AccordionGroup>
 
@@ -125,6 +310,19 @@ Full page: [**About the agent**](/agent-settings/about)
     <Note>
       To customize speech recognition, use [ASR biasing](/flows/asr-biasing) and [keyphrase boosting](/speech-recognition/introduction). To customize voice output, see [voice configuration](/voice/introduction).
     </Note>
+  </Accordion>
+  <Accordion title="What are token and context limits?" icon="memory">
+    Every LLM has a maximum amount of text it can process at once (the "context window"). Your agent's context is made up of global rules, retrieved topics, conversation history, and system instructions. If this total exceeds the limit, content may be cut off or the agent may behave unexpectedly.
+
+    **How to manage this:**
+    - Keep global rules concise and prioritized.
+    - Write shorter, focused topic content — this also retrieves better.
+    - If you have many topics, make sure they are clearly differentiated so the retriever returns only the most relevant ones.
+    - Use [conversation diagnosis](/analytics/conversations/diagnosis) to inspect what the agent actually received if behavior seems off.
+
+    <Warning>
+      Long prompts combined with many retrieved topics can push the agent over its context limit. If the agent starts ignoring rules or producing unexpected responses, review your total prompt length.
+    </Warning>
   </Accordion>
 </AccordionGroup>
 
