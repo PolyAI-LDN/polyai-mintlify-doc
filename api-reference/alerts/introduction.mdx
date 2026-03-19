@@ -9,8 +9,16 @@ The Alerts API lets you monitor your voice agents in real time. Configure alert 
 ## Key features
 
 - **Alert rules** - Monitor metrics like turn latency, API errors, function errors, call crashes, and call volume
-- **Webhook notifications** - Receive signed HTTP POST requests when alerts trigger
+- **[Webhook notifications](/api-reference/webhooks/introduction)** - Receive signed HTTP POST requests when alerts trigger or resolve
 - **Project scoping** - Scope alerts to specific projects or monitor account-wide
+
+## Limits
+
+| Resource | Maximum per account |
+|----------|-------------------|
+| Alert rules | 10 |
+
+Requests to create an alert rule beyond the limit return a `400` error.
 
 ## Available metrics
 
@@ -39,11 +47,15 @@ When setting thresholds, consider the metric type and business impact:
 | `ok` | The metric is within the configured threshold | After successful evaluation shows metric below threshold |
 | `alert` | The metric has breached the threshold and the alert is firing | Metric exceeds threshold during evaluation |
 | `no_data` | No data is available for evaluation | No metric data reported during the evaluation window (e.g., no calls) |
-| `unknown` | The state could not be determined | Initial state before first evaluation, or evaluation system error |
+| `unknown` | The state could not be determined | Evaluation system error |
 
 <Note>
-**`no_data` vs `unknown`:** Use `no_data` to detect when your agents aren't receiving traffic (which may itself be a problem). `unknown` is typically only seen briefly when a rule is first created or if there's an evaluation system issue.
+**`no_data` vs `unknown`:** Use `no_data` to detect when your agents aren't receiving traffic (which may itself be a problem). `unknown` indicates that the state could not be determined due to an evaluation system error.
 </Note>
+
+<Info>
+New alert rules default to the `ok` state until their first evaluation.
+</Info>
 
 ## Quick start
 
@@ -76,14 +88,14 @@ curl -X POST https://api.us.poly.ai/v1/webhook-endpoints \
   -d '{
     "name": "Production alert notifications",
     "url": "https://example.com/webhooks/polyai",
-    "event_types": ["alerts.triggered"]
+    "event_types": ["alerts.triggered", "alerts.resolved"]
   }'
 ```
 
 <Warning>
 The `signing_secret` is returned only once when you create a webhook endpoint. Store it securely immediately.
 
-**Lost your signing secret?** You must delete the webhook endpoint and create a new one. There is no way to retrieve or rotate the secret after creation.
+**Lost your signing secret?** Use the [rotate signing secret](/api-reference/webhooks/endpoint/rotate-webhook-signing-secret) endpoint to generate a new one.
 </Warning>
 
 ### 3. Check active alerts
@@ -95,20 +107,17 @@ curl https://api.us.poly.ai/v1/alerts \
 
 ## Webhook delivery
 
-### Event types
+When an alert triggers or resolves, PolyAI sends a signed HTTP POST to your registered [webhook endpoints](/api-reference/webhooks/introduction).
 
 | Event | Description |
 |-------|-------------|
 | `alerts.triggered` | Sent when an alert rule transitions into a firing state |
+| `alerts.resolved` | Sent when a firing alert transitions back to `ok` |
 
-<Warning>
-**No `alerts.resolved` event:** Webhooks only fire when an alert transitions **into** the firing state. There is no automatic notification when alerts recover. To detect recovery, poll `GET /v1/alerts` or `GET /v1/alert-rules` to check when the `current_state` changes back to `ok`.
+### Example payloads
 
-If you're building a PagerDuty-style integration, you'll need to implement polling to auto-resolve incidents.
-</Warning>
-
-### Webhook payload
-
+<Tabs>
+  <Tab title="alerts.triggered">
 ```json
 {
   "event_type": "alerts.triggered",
@@ -125,135 +134,28 @@ If you're building a PagerDuty-style integration, you'll need to implement polli
   }
 }
 ```
-
-### Webhook headers
-
-Each webhook request includes these headers:
-
-| Header | Description |
-|--------|-------------|
-| `X-PolyAI-Timestamp` | Unix timestamp (seconds) when the webhook was sent |
-| `X-PolyAI-Signature` | HMAC-SHA256 signature for verification |
-| `X-PolyAI-Event-ID` | Unique event identifier for deduplication |
-
-### Retry policy
-
-Failed webhook deliveries are retried with exponential backoff:
-
-| Attempt | Delay | Cumulative time |
-|---------|-------|-----------------|
-| 1 | Immediate | 0 |
-| 2 | 1 minute | 1 minute |
-| 3 | 5 minutes | 6 minutes |
-| 4 | 15 minutes | 21 minutes |
-| 5 | 1 hour | ~1.5 hours |
-| 6 | 4 hours | ~5.5 hours |
-
-Retried failures:
-- Timeout
-- Network error
-- HTTP 408, 429, 5xx
-
-Not retried:
-- Other 4xx errors
-
-## Signature verification
-
-Verify webhook signatures to ensure requests are from PolyAI.
-
-**Algorithm:** HMAC-SHA256
-
-**Signed message format:** `{timestamp}.{raw_request_body}`
-
-<Tabs>
-  <Tab title="Python">
-```python
-import hmac
-import hashlib
-import time
-
-def verify_webhook(payload: bytes, timestamp: str, signature: str, secret: str) -> bool:
-    # Reject requests older than 5 minutes
-    if abs(time.time() - int(timestamp)) > 300:
-        return False
-    
-    # Compute expected signature
-    message = f"{timestamp}.{payload.decode('utf-8')}"
-    expected = hmac.new(
-        secret.encode('utf-8'),
-        message.encode('utf-8'),
-        hashlib.sha256
-    ).hexdigest()
-    
-    # Constant-time comparison
-    return hmac.compare_digest(expected, signature)
-```
   </Tab>
-  <Tab title="JavaScript">
-```javascript
-const crypto = require('crypto');
-
-function verifyWebhook(payload, timestamp, signature, secret) {
-  // Reject requests older than 5 minutes
-  const now = Math.floor(Date.now() / 1000);
-  if (Math.abs(now - parseInt(timestamp)) > 300) {
-    return false;
+  <Tab title="alerts.resolved">
+```json
+{
+  "event_type": "alerts.resolved",
+  "alert": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "High turn latency (p95)",
+    "project_id": "proj_abc123",
+    "metric": "turn_latency_p95",
+    "operator": ">=",
+    "threshold_value": 1500,
+    "current_value": 920,
+    "previous_state": "alert",
+    "resolved_at": "2024-03-15T10:45:00Z"
   }
-  
-  // Compute expected signature
-  const message = `${timestamp}.${payload}`;
-  const expected = crypto
-    .createHmac('sha256', secret)
-    .update(message)
-    .digest('hex');
-  
-  // Constant-time comparison
-  return crypto.timingSafeEqual(
-    Buffer.from(expected),
-    Buffer.from(signature)
-  );
-}
-```
-  </Tab>
-  <Tab title="Go">
-```go
-package main
-
-import (
-    "crypto/hmac"
-    "crypto/sha256"
-    "encoding/hex"
-    "math"
-    "strconv"
-    "time"
-)
-
-func verifyWebhook(payload []byte, timestamp, signature, secret string) bool {
-    // Reject requests older than 5 minutes
-    ts, err := strconv.ParseInt(timestamp, 10, 64)
-    if err != nil {
-        return false
-    }
-    if math.Abs(float64(time.Now().Unix()-ts)) > 300 {
-        return false
-    }
-    
-    // Compute expected signature
-    message := timestamp + "." + string(payload)
-    mac := hmac.New(sha256.New, []byte(secret))
-    mac.Write([]byte(message))
-    expected := hex.EncodeToString(mac.Sum(nil))
-    
-    // Constant-time comparison
-    return hmac.Equal([]byte(expected), []byte(signature))
 }
 ```
   </Tab>
 </Tabs>
 
-<Tip>
-Use `X-PolyAI-Event-ID` for deduplication since retries can deliver the same event more than once.
-</Tip>
+For webhook delivery details including headers, retry policy, and signature verification, see the [Webhooks API](/api-reference/webhooks/introduction).
 
 ## Authentication
 
@@ -301,33 +203,14 @@ List endpoints currently return all results without pagination. For accounts wit
 
 ## Update request format
 
-<Warning>
-**Important:** PATCH requests use a JSON:API-style envelope, which differs from the flat JSON used in POST/create requests.
+PATCH requests use flat JSON, the same format as POST/create requests. Include only the fields you want to update:
 
-**Creating** a resource (POST) uses flat JSON:
 ```json
 {
-  "name": "My alert rule",
-  "metric": "api_errors",
-  "threshold_value": 10
+  "threshold_value": 20,
+  "enabled": false
 }
 ```
-
-**Updating** a resource (PATCH) requires a JSON:API envelope:
-```json
-{
-  "data": {
-    "type": "alert-rules",
-    "id": "00aa00aa-bb11-cc22-dd33-eeeeeeeeeeee",
-    "attributes": {
-      "threshold_value": 20
-    }
-  }
-}
-```
-
-The `id` in the request body must match the `rule_id` or `endpoint_id` in the URL path.
-</Warning>
 
 ## Window duration
 

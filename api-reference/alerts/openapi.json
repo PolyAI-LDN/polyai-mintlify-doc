@@ -114,7 +114,7 @@
       },
       "WebhookEventType": {
         "type": "string",
-        "enum": ["alerts.triggered"]
+        "enum": ["alerts.triggered", "alerts.resolved"]
       },
       "WindowDuration": {
         "type": "string",
@@ -189,38 +189,10 @@
         "additionalProperties": false
       },
       "UpdateAlertRuleRequest": {
-        "type": "object",
-        "required": ["data"],
-        "properties": {
-          "data": {
-            "type": "object",
-            "required": ["type", "id", "attributes"],
-            "properties": {
-              "type": {
-                "type": "string",
-                "const": "alert-rules"
-              },
-              "id": {
-                "type": "string",
-                "format": "uuid"
-              },
-              "attributes": {
-                "$ref": "#/components/schemas/UpdateAlertRuleAttributes"
-              }
-            },
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false,
+        "$ref": "#/components/schemas/UpdateAlertRuleAttributes",
         "example": {
-          "data": {
-            "type": "alert-rules",
-            "id": "00aa00aa-bb11-cc22-dd33-eeeeeeeeeeee",
-            "attributes": {
-              "threshold_value": 2000,
-              "enabled": false
-            }
-          }
+          "threshold_value": 2000,
+          "enabled": false
         }
       },
       "AlertRuleListResponse": {
@@ -385,38 +357,10 @@
         "additionalProperties": false
       },
       "UpdateWebhookEndpointRequest": {
-        "type": "object",
-        "required": ["data"],
-        "properties": {
-          "data": {
-            "type": "object",
-            "required": ["type", "id", "attributes"],
-            "properties": {
-              "type": {
-                "type": "string",
-                "const": "webhook-endpoints"
-              },
-              "id": {
-                "type": "string",
-                "format": "uuid"
-              },
-              "attributes": {
-                "$ref": "#/components/schemas/UpdateWebhookEndpointAttributes"
-              }
-            },
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false,
+        "$ref": "#/components/schemas/UpdateWebhookEndpointAttributes",
         "example": {
-          "data": {
-            "type": "webhook-endpoints",
-            "id": "ff44ff44-aa55-bb66-cc77-dddddddddddd",
-            "attributes": {
-              "url": "https://example.com/webhooks/polyai-v2",
-              "enabled": false
-            }
-          }
+          "url": "https://example.com/webhooks/polyai-v2",
+          "enabled": false
         }
       },
       "WebhookEndpointListResponse": {
@@ -460,6 +404,16 @@
         "properties": {
           "event_type": { "$ref": "#/components/schemas/WebhookEventType" },
           "alert": { "$ref": "#/components/schemas/WebhookAlert" }
+        }
+      },
+      "RotateSigningSecretResponse": {
+        "type": "object",
+        "required": ["signing_secret"],
+        "properties": {
+          "signing_secret": {
+            "type": "string",
+            "description": "The new signing secret. Store it securely — it cannot be retrieved again."
+          }
         }
       },
       "Error": {
@@ -685,6 +639,27 @@
         }
       }
     },
+    "/v1/webhook-endpoints/{endpoint_id}/rotate-secret": {
+      "post": {
+        "summary": "Rotate webhook signing secret",
+        "operationId": "rotateWebhookSigningSecret",
+        "description": "Generates a new signing secret for the webhook endpoint. The previous secret is immediately invalidated.",
+        "parameters": [{ "$ref": "#/components/parameters/EndpointId" }],
+        "responses": {
+          "200": {
+            "description": "Signing secret rotated successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RotateSigningSecretResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
     "/v1/webhook-endpoints/{endpoint_id}": {
       "get": {
         "summary": "Get a webhook endpoint",
@@ -751,6 +726,25 @@
       "post": {
         "summary": "alerts.triggered webhook",
         "description": "Sent when an alert rule transitions into a firing state.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WebhookEvent" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Your endpoint acknowledged the event."
+          }
+        }
+      }
+    },
+    "alertsResolved": {
+      "post": {
+        "summary": "alerts.resolved webhook",
+        "description": "Sent when a firing alert transitions back to the ok state.",
         "requestBody": {
           "required": true,
           "content": {

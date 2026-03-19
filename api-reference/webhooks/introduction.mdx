@@ -1,0 +1,163 @@
+---
+title: "Webhooks API"
+sidebarTitle: "Overview"
+description: "Register webhook endpoints to receive signed HTTP notifications for events across PolyAI services."
+---
+
+The Webhooks API lets you register HTTP endpoints that receive real-time notifications when events occur in your PolyAI account. Webhooks are currently used by the [Alerts API](/api-reference/alerts/introduction) and will expand to other services in the future.
+
+## Key features
+
+- **Signed delivery** - Every webhook includes an HMAC-SHA256 signature you can verify
+- **Automatic retries** - Failed deliveries retry with exponential backoff
+- **Secret rotation** - Rotate signing secrets without recreating the endpoint
+
+## Limits
+
+| Resource | Maximum per account |
+|----------|-------------------|
+| Webhook endpoints | 10 |
+
+## Event types
+
+| Event | Description |
+|-------|-------------|
+| `alerts.triggered` | An alert rule transitioned into a firing state |
+| `alerts.resolved` | A firing alert transitioned back to `ok` |
+
+## Webhook headers
+
+Each webhook request includes these headers:
+
+| Header | Description |
+|--------|-------------|
+| `X-PolyAI-Timestamp` | Unix timestamp (seconds) when the webhook was sent |
+| `X-PolyAI-Signature` | HMAC-SHA256 signature for verification |
+| `X-PolyAI-Event-ID` | Unique event identifier for deduplication |
+
+## Retry policy
+
+Failed webhook deliveries are retried with exponential backoff:
+
+| Attempt | Delay | Cumulative time |
+|---------|-------|-----------------|
+| 1 | Immediate | 0 |
+| 2 | 1 minute | 1 minute |
+| 3 | 5 minutes | 6 minutes |
+| 4 | 15 minutes | 21 minutes |
+| 5 | 1 hour | ~1.5 hours |
+| 6 | 4 hours | ~5.5 hours |
+
+Retried failures:
+- Timeout
+- Network error
+- HTTP 408, 429, 5xx
+
+Not retried:
+- Other 4xx errors
+
+## Signature verification
+
+Verify webhook signatures to ensure requests are from PolyAI.
+
+**Algorithm:** HMAC-SHA256
+
+**Signed message format:** `{timestamp}.{raw_request_body}`
+
+<Tabs>
+  <Tab title="Python">
+```python
+import hmac
+import hashlib
+import time
+
+def verify_webhook(payload: bytes, timestamp: str, signature: str, secret: str) -> bool:
+    # Reject requests older than 5 minutes
+    if abs(time.time() - int(timestamp)) > 300:
+        return False
+    
+    # Compute expected signature
+    message = f"{timestamp}.{payload.decode('utf-8')}"
+    expected = hmac.new(
+        secret.encode('utf-8'),
+        message.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+    
+    # Constant-time comparison
+    return hmac.compare_digest(expected, signature)
+```
+  </Tab>
+  <Tab title="JavaScript">
+```javascript
+const crypto = require('crypto');
+
+function verifyWebhook(payload, timestamp, signature, secret) {
+  // Reject requests older than 5 minutes
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - parseInt(timestamp)) > 300) {
+    return false;
+  }
+  
+  // Compute expected signature
+  const message = `${timestamp}.${payload}`;
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(message)
+    .digest('hex');
+  
+  // Constant-time comparison
+  return crypto.timingSafeEqual(
+    Buffer.from(expected),
+    Buffer.from(signature)
+  );
+}
+```
+  </Tab>
+  <Tab title="Go">
+```go
+package main
+
+import (
+    "crypto/hmac"
+    "crypto/sha256"
+    "encoding/hex"
+    "math"
+    "strconv"
+    "time"
+)
+
+func verifyWebhook(payload []byte, timestamp, signature, secret string) bool {
+    // Reject requests older than 5 minutes
+    ts, err := strconv.ParseInt(timestamp, 10, 64)
+    if err != nil {
+        return false
+    }
+    if math.Abs(float64(time.Now().Unix()-ts)) > 300 {
+        return false
+    }
+    
+    // Compute expected signature
+    message := timestamp + "." + string(payload)
+    mac := hmac.New(sha256.New, []byte(secret))
+    mac.Write([]byte(message))
+    expected := hex.EncodeToString(mac.Sum(nil))
+    
+    // Constant-time comparison
+    return hmac.Equal([]byte(expected), []byte(signature))
+}
+```
+  </Tab>
+</Tabs>
+
+<Tip>
+Use `X-PolyAI-Event-ID` for deduplication since retries can deliver the same event more than once.
+</Tip>
+
+## Authentication
+
+All Webhooks API endpoints use API key authentication via the `x-api-key` header. Resources are automatically scoped to your account.
+
+<Note>
+API keys are not yet available through self-service. To request an API key, email [developers@poly.ai](mailto:developers@poly.ai).
+</Note>
