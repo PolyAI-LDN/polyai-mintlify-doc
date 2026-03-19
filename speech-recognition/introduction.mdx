@@ -3,80 +3,140 @@ title: 'Speech recognition'
 description: 'Improve ASR accuracy with keyphrase boosting and transcript corrections.'
 ---
 
+The Speech Recognition page provides two tools for improving transcription accuracy:
+
+- **Keyphrase Boosting** nudges the ASR model toward recognizing specific words *at transcription time*.
+- **Transcript Corrections** post-processes the transcript *after transcription* using string or regex replacement.
+
+Use keyphrase boosting when the ASR model consistently fails to hear a term. Use transcript corrections when the model hears something close but produces the wrong text. In some cases you may need both — for example, boosting a brand name and adding a correction for a common misspelling of that name.
+
 <Tabs>
 <Tab title="Keyphrase Boosting">
 
 ## Overview
 
-Keyphrase Boosting improves [ASR](https://en.wikipedia.org/wiki/Speech_recognition) recognition of domain-specific terms like product names, locations, or technical jargon.
+Keyphrase Boosting improves [ASR](https://en.wikipedia.org/wiki/Speech_recognition) recognition of domain-specific terms like product names, locations, or technical jargon. It biases the ASR model toward recognizing specific words during transcription.
 
-### How it works
-
-Add keyphrases to bias the ASR model toward recognizing specific words. Configure your LLM in [agent settings](/agent-settings/model-use).
+<Warning>
+Biasing the ASR can cause unwanted side effects. Adding too many keyphrases or setting bias too high may cause the model to over-correct natural speech. For example, boosting the word `flimsy` at Maximum strength could cause unrelated words like `Lindsay` to be transcribed as `flimsy`. Always test thoroughly in sandbox before deploying changes to production.
+</Warning>
 
 ### Getting started
 
-#### Configuring Keyphrase Boosting
+#### Configuring keyphrase boosting
 
-1. **Access the Speech Recognition page**: Navigate to the **[Speech Recognition section](/speech-recognition/introduction)**.
-2. **Manage keyphrases**:
-   - In the **Keyphrase Boosting** tab, add, edit, or remove keyphrases.
-   - Use the **Keyphrase** column to input domain-specific terms.
-3. **Set bias strength**:
-   - Adjust the bias strength for each keyphrase using the slider.
-   - Options range from **Default** (moderate priority) to **Maximum** (high priority).
-4. **Save changes**: Once configured, the updated keyphrases will be applied immediately to improve ASR recognition.
+1. Navigate to the **[Speech Recognition section](/speech-recognition/introduction)**.
+2. In the **Keyphrase Boosting** tab, add, edit, or remove keyphrases.
+3. Use the **Keyphrase** column to input domain-specific terms.
+4. Adjust the **bias strength** for each keyphrase using the slider.
+5. Save your changes. Updated keyphrases are applied immediately.
 
-#### Bias strength configuration
+#### Bias strength levels
 
-- **Default**: Balances recognition accuracy with overall ASR performance.
-- **Maximum**: Prioritizes keyphrases for improved accuracy but may impact general performance.
+| Level | Behaviour |
+|-------|-----------|
+| **Default** | Light bias. Balances recognition accuracy with overall ASR performance. |
+| **Boosted** | Moderate bias. Increases recognition of the keyphrase without heavily impacting general transcription. |
+| **Maximum** | Strong bias. Prioritises the keyphrase but may interfere with natural speech patterns. |
 
-**Important**: When both global and local biasing are applied, local settings take precedence.
+<Note>
+Maximum bias does not always produce better results. In some cases it can cause the model to misrecognize unrelated words. Start with Default or Boosted and only escalate to Maximum after testing confirms it is needed.
+</Note>
+
+#### Example keyphrases
+
+| Keyphrase | Use case | Suggested strength |
+|-----------|----------|-------------------|
+| `flexi-access` | Financial product name | Boosted |
+| `BlueStar` | Brand name frequently misheard as "blue star" | Maximum |
+| `hablas español` | Spanish phrase in an English-language agent | Boosted |
+| `isotretinoin` | Medical term | Maximum |
+| `pension` | Domain-specific term | Default |
+
+### Global vs. per-step vs. dynamic biasing
+
+The Speech Recognition page configures **global** keyphrase boosting, which applies to every turn of the conversation. Two additional levels of biasing are available for more targeted control:
+
+- **Per-step biasing** — configure ASR biasing on individual flow steps for contextual precision (e.g. biasing for doctor names only during a name-collection step). See [ASR biasing in flows](/flows/asr-biasing).
+- **Dynamic biasing from functions** — set biasing at runtime using `conv.set_asr_biasing()` when you need to bias toward values retrieved from an API or database. See [ASR biasing from functions](/function/classes/asr-from-conv).
+
+#### Precedence rules
+
+When multiple levels of biasing are active, they are merged with the following priority (highest first):
+
+1. **Dynamic** — biasing set via `conv.set_asr_biasing()` in functions
+2. **Per-step** — biasing configured on individual flow steps
+3. **Global** — biasing configured on this Speech Recognition page
+
+If the same phrase appears at multiple levels, the highest-priority setting takes precedence. This means per-step biasing overrides global settings, and dynamic biasing overrides both.
+
+### Per-step biasing options
+
+Flow steps also support structured ASR biasing modes for common input types. These are configured in the step editor and include options like:
+
+- **Alphanumeric** — booking references, confirmation codes
+- **Name spelling** — phonetically spelled names
+- **Numeric** — ages, short numbers
+- **Yes/No** — confirmation-style responses
+- **Address** — postcodes, street names
+
+See [ASR biasing in flows](/flows/asr-biasing) for the full list and configuration details.
 
 </Tab>
 <Tab title="Transcript Corrections">
 
 ## Overview
 
-Fix common ASR misinterpretations using string matching and [regex](https://en.wikipedia.org/wiki/Regular_expression) patterns.
+Fix common ASR misinterpretations using string matching and [regex](https://en.wikipedia.org/wiki/Regular_expression) patterns. Unlike keyphrase boosting, transcript corrections run *after* the ASR model has produced a transcript — they replace text in the output rather than influencing what the model hears.
 
-### How it works
-
-When a match is detected, the system replaces the incorrect phrase with your specified correction.
+<Warning>
+Transcript corrections are powerful but can introduce errors if the pattern is too broad. A correction like `blue star` → `BlueStar` could also fire on legitimate uses of "blue star" in other contexts. Use specific regex patterns and test corrections against a range of real transcripts before deploying.
+</Warning>
 
 ### Getting started
 
-#### Configuring Transcript Corrections
+#### Configuring transcript corrections
 
-1. **Access the Speech Recognition page**: Go to the **[Speech Recognition section](/speech-recognition/introduction)**.
-2. **Open the Transcript Corrections tab**: From here, you can create, edit, or delete correction rules.
-3. **Create a new correction**:
-   - Click **Add Correction** to open the creation form.
-   - Define the correction:
-     - **Regex**: Specify the regular expression to identify the misinterpreted phrase.
-     - **Replacement**: Enter the correct term or phrase.
-     - **Replacement type**:
-       - **Full transcript**: Replaces the entire transcript if matched exactly.
-       - **Partial transcript**: Replaces only the matching portion.
-4. **Save changes**: Apply your corrections immediately.
+1. Navigate to the **[Speech Recognition section](/speech-recognition/introduction)**.
+2. Open the **Transcript Corrections** tab.
+3. Click **Add Correction** and define:
+   - **Regex**: the regular expression to match the misinterpreted phrase.
+   - **Replacement**: the correct term or phrase.
+   - **Replacement type**:
+     - **Full transcript**: replaces the entire transcript if matched exactly.
+     - **Partial transcript**: replaces only the matching portion.
+4. Save your changes.
 
-#### Example configuration
+#### Example configurations
 
-| Attribute          | Value                                      |
-|--------------------|---------------------------------------------|
-| **ID**             | `stop_inappropriate`                        |
-| **Regex**          | `/\\b(offensiveWord1\|offensiveWord2)\\b/i` |
-| **Replacement**    | `[Correct term or phrase]`                  |
-| **Replacement type** | Partial transcript                        |
+| Regex | Replacement | Type | Use case |
+|-------|-------------|------|----------|
+| `/\bI\s?C\s?U\b/i` | `I see you` | Partial transcript | Medical abbreviation being misheard |
+| `/\b(blue star\|bluestar)\b/i` | `BlueStar` | Partial transcript | Brand name correction |
+| `/\bDr\.?\s?Amari\b/i` | `Dr. Amari` | Partial transcript | Proper noun / doctor name |
+| `/\bfull fund as cash\b/i` | `full fund as cash` | Partial transcript | Financial term preservation |
 
-This setup ensures phrases like "offensiveWord1" are replaced, maintaining accuracy and professionalism.
+### Verifying corrections are applied
+
+Transcript corrections can sometimes fail to fire — for example, if the regex does not match the exact ASR output. To verify whether a correction was applied:
+
+1. Open a conversation in [Conversation Review](/analytics/conversations/review).
+2. Enable the **Transcript corrections** layer in [Conversation Diagnosis](/analytics/conversations/diagnosis).
+3. Check each turn to see whether your correction was triggered.
+
+If a correction is not firing as expected, compare the raw ASR transcript against your regex pattern. Common issues include unexpected whitespace, casing differences, or partial word boundaries.
 
 </Tab>
 </Tabs>
 
 ## Diacritics
 
-If your agent operates in a language that uses [diacritics](https://www.sussex.ac.uk/informatics/punctuation/misc/diacritics) — such as **č, ć, š, ž, đ** — additional configuration may be required.
+If your agent operates in a language that uses [diacritics](https://www.sussex.ac.uk/informatics/punctuation/misc/diacritics) — such as **č, ć, š, ž, đ** — additional configuration is required before the features on this page will work correctly.
 
-These characters are common in languages like **Croatian**, **Serbian**, **Bosnian**, **Slovak**, **Czech**, **Slovenian**, and others. Some ASR models can misinterpret these letters, reducing accuracy for names and other proper nouns.
+These characters are common in languages like **Croatian**, **Serbian**, **Bosnian**, **Slovak**, **Czech**, and **Slovenian**. ASR models may strip or misinterpret diacritical marks, and an English-biased model may fail to detect non-English speech entirely.
+
+<Warning>
+Diacritics and multilingual ASR configuration cannot be self-served. **Contact your PolyAI representative before making changes** — they will configure the correct ASR language model, language codes, and any necessary preprocessing for your target language. Attempting to fix diacritics issues with keyphrase boosting or transcript corrections alone is unlikely to resolve the underlying problem.
+</Warning>
+
+Transcript corrections can help with minor post-processing (e.g. fixing `Zeljko` → `Željko`) once the correct ASR model is in place, but they are not a substitute for proper language configuration.
