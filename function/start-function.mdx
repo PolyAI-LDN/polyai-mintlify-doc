@@ -23,8 +23,27 @@ sequenceDiagram
 ```
 
 <Warning>
-The start function is **synchronous** — it must complete before the greeting plays. Long-running API calls or heavy computation will delay the greeting and create silence for the caller. Keep execution fast.
+The start function is **synchronous** — it must complete before the greeting plays. If it times out, the greeting may fail entirely — callers can hear raw variable names (e.g. `$greeting_msg`) spoken aloud, or experience broken state for the rest of the call.
+
+**For outbound agents**: if the recipient answers and hangs up before the start function completes, the function may be skipped entirely. Design your outbound start functions to handle this gracefully.
 </Warning>
+
+<Note>
+[Delay control](/function/delay-control) (filler utterances) is **not supported** on start functions. If your start function has variable latency, the only mitigation is to keep it fast or move slow operations into a flow step.
+</Note>
+
+### When to use the start function vs. a flow step
+
+Not every API call belongs in the start function. Use this decision framework:
+
+| Scenario | Where to place it |
+|----------|------------------|
+| Data needed **before** the greeting (e.g. caller lookup for a personalized greeting) | Start function |
+| Fast, reliable API (&lt;1s response time) | Start function — reduces mid-conversation latency |
+| Slow or unreliable API (external CRM, third-party lookup) | First [flow step](/flows/introduction) — protects the greeting |
+| Data only needed mid-conversation | Flow step |
+
+If an API call is not strictly needed before the greeting, move it to the first step of your flow to avoid timeout risk.
 
 ## Key features
 
@@ -35,29 +54,63 @@ The start function is **synchronous** — it must complete before the greeting p
 
 The **Start function** can:
 
-### 1. Read connection metadata
+### 1. Detect channel type
+
+* Use [`conv.channel_type`](/function/classes/conv-object#channel_type) to determine whether the conversation is voice, webchat, or another channel — then branch accordingly.
+
+* Example use case: Disable call transfers for webchat sessions, set a different persona, or inject channel-specific prompts.
+
+### 2. Read connection metadata
 
 * Capture metadata about the user's connection — SIP headers for voice, URL parameters or session data for webchat.
 
 * Example use case: Determine the hotel site or business branch based on telephony headers (voice) or URL parameters (webchat).
 
-### 2. Retrieve date and time
+### 3. Retrieve date and time
 
 * Initialize state with the current date, time, or day of the week for timestamping or scheduling logic.
 
 * Example use case: Preload available time slots for scheduling queries or confirm user-requested dates.
 
-### 3. Make API calls
+### 4. Make API calls
 
 * Fetch external data such as user preferences, account information, or customer records.
 
 * Example use case: Retrieve and preload personalized data to enhance the conversation's responsiveness and user experience.
 
-### 4. Choose a language provider
+### 5. Set the active variant
 
-* Choose an alternative TTS system using [PlayHT](https://docs.play.ht/reference/api-getting-started), [Rime](https://docs.rime.ai/api-reference/voices), or [Cartesia](https://docs.cartesia.ai/api-reference/tts/tts).
+* Use [`conv.set_variant()`](/function/classes/conv-object#set_variant) to route the conversation to a specific [variant](/variant-management/introduction) based on SIP headers, callee number, or other metadata.
 
-* See the [function classes](/function/classes) documentation for more details.
+* This is the standard way to configure multi-site agents — the variant determines which location-specific attributes (phone numbers, addresses, hours) the agent uses throughout the conversation.
+
+* Example use case: Read the dialled number from `conv.callee_number` and map it to a hotel branch or store location.
+
+### 6. Detect language and branch
+
+* Read a language header or parameter and configure the agent accordingly — set the variant, choose a language-specific TTS voice, or store language-specific prompt rules in state.
+
+* Example use case: Read an `X-Language` SIP header, call `conv.set_variant()` to load the correct language variant, and set the TTS voice for that language.
+
+### 7. Read outbound call metadata
+
+* For outbound agents, read lead data or campaign metadata from SIP headers injected by the calling platform.
+
+* Example use case: Preload a customer's name, account number, or campaign context before the agent speaks.
+
+### 8. Read integration attributes
+
+* Access [`conv.integration_attributes`](/function/classes/conv-object#integration_attributes) to read metadata passed from external integrations (e.g. DNIs pooling, Chat API).
+
+<Note>
+`conv.integration_attributes` can only be read in the start function. Extract any values you need and store them in `conv.state` for use later in the conversation.
+</Note>
+
+### 9. Configure a TTS provider
+
+* Set the TTS provider in the start function. Supported providers include [Cartesia](https://docs.cartesia.ai/api-reference/tts/tts), [PlayHT](https://docs.play.ht/reference/api-getting-started), and [Rime](https://docs.rime.ai/api-reference/voices).
+
+* See the [voice configuration](/voice/voice-configuration) and [function classes](/function/classes) documentation for more details.
 
 ## Implementation example
 
@@ -65,7 +118,7 @@ Below is a Python implementation of the **Start function**:
 
 ```python
 import datetime as dt
-import re
+from agent_v3.deployment_service.agents.functions.builtin import secret_vault
 
 def start_function(conv: Conversation):
     # Retrieve the current date and time
@@ -77,84 +130,156 @@ def start_function(conv: Conversation):
     # Initialize state variables
     conv.state.available_times = None
     conv.state.user_bookings = None
-    conv.state.phone_number = None
 
-    # Extract the phone number from SIP headers
-    from_header = conv.sip_headers.get('From', '')
-    match = re.search(r"sip:(.+?)@", from_header)
-    if match:
-        conv.state.phone_number = match.group(1)
+    # Store the caller's phone number
+    conv.state.phone_number = conv.caller_number
+
+    # Detect channel type for multi-channel agents
+    conv.state.is_voice = conv.channel_type == "VOICE"
+
+    # Set variant based on dialled number (multi-site routing)
+    site_map = {
+        "+441234567890": "london",
+        "+442345678901": "new_york",
+    }
+    site = site_map.get(conv.callee_number, "default")
+    conv.set_variant(site)
+
+    # Store integration attributes (only available in start function)
+    if conv.integration_attributes:
+        conv.state.shared_id = conv.integration_attributes.get("shared_id")
 
     # Return an empty string to indicate successful execution
     return str()
 ```
 
-## Best practices for start function design
+## Return values
 
-1. **Efficient execution**: Ensure the function completes quickly to minimize delays in starting the conversation.
+The start function supports the same [return values](/function/return-values) as other functions. The most common patterns are:
 
-2. **Error handling**:
+### Empty string (default)
+
+Return `str()` when the start function only needs to set up state. The agent greeting defined in the Agent settings will play as normal.
+
+```python
+return str()
+```
+
+### Dynamic greeting
+
+Return an `utterance` to override the default greeting with a dynamically generated message. This is useful when the greeting depends on data fetched during the start function (e.g. the caller's name or site-specific wording).
+
+```python
+return {
+    "utterance": f"Welcome to {conv.variant.site_name}. How can I help you today?"
+}
+```
+
+<Warning>
+Returning an `utterance` from the start function overrides the Agent Greeting field. If you use both, test carefully to ensure the correct greeting plays.
+</Warning>
+
+### Listen configuration
+
+Return a `listen` object to configure ASR behaviour for the first turn.
+
+```python
+return {
+    "utterance": "Welcome. Please say or enter your account number.",
+    "listen": {
+        "asr": {
+            "timeout": 15
+        }
+    }
+}
+```
+
+See [return values](/function/return-values) for the full list of supported return types.
+
+## Best practices
+
+1. **Keep it fast**: The start function blocks the greeting. Target under 1 second total execution time. Move slow or unreliable API calls to a [flow step](/flows/introduction).
+
+2. **Never hardcode credentials**: Use [`secret_vault()`](/secrets/introduction) for all API keys, tokens, and passwords. Hardcoded credentials in function code are a security risk and may be exposed in logs or version history.
+
+   ```python
+   from agent_v3.deployment_service.agents.functions.builtin import secret_vault
+
+   api_key = secret_vault("my_api_key")
+   ```
+
+3. **Error handling**:
 
    * Handle missing or malformed data and avoid runtime errors.
 
-   * Provide fallbacks for incomplete or invalid information (like missing SIP headers).
+   * Provide fallbacks for incomplete or invalid information (like missing SIP headers or unavailable APIs).
 
-3. **State initialization**:
+4. **State initialization**:
 
    * Predefine and initialize all state variables needed for the conversation to avoid undefined behaviors.
 
-4. **Contextual relevance**:
+   * Extract `conv.integration_attributes` here — they are only available in the start function.
+
+5. **Contextual relevance**:
 
    * Only include setup steps that are directly relevant to the conversation's purpose.
 
-   * Avoid overloading the Start function with unnecessary logic.
+   * Avoid overloading the start function with unnecessary logic.
 
-## Examples: Adding context and personalization
+## Common patterns
 
-Use the Start function to personalize conversations with user data from SIP headers (voice), URL parameters (webchat), API calls, or stored [Variables](/function/variables).
+### Multi-site variant routing
 
-### Multiple voice agents
+The most common advanced use of the start function is routing to a [variant](/variant-management/introduction) based on the dialled number, SIP headers, or other metadata. This is how multi-site agents (hotels, restaurant chains, retail) determine which location's content to use.
+
+```python
+def start_function(conv: Conversation):
+    phone_numbers = {
+        "+441234567890": "London",
+        "+442345678901": "New York",
+    }
+    conv.set_variant(phone_numbers.get(conv.callee_number, "default"))
+    return str()
+```
+
+**Full article:** [Variant management](/variant-management/introduction)
+
+### Language detection and branching
+
+Read a language code from SIP headers or integration data, set the appropriate variant, and configure a language-specific TTS voice.
+
+```python
+def start_function(conv: Conversation):
+    language = conv.sip_headers.get("X-Language", "en")
+    conv.set_variant(language)
+
+    if language == "es":
+        conv.voice = Voice(provider="cartesia", ...)
+    return str()
+```
+
+### Channel-type branching
+
+Use `conv.channel_type` to disable voice-only features (like call transfers) for webchat, or to inject channel-specific prompts.
+
+```python
+def start_function(conv: Conversation):
+    conv.state.is_voice = conv.channel_type == "VOICE"
+    if not conv.state.is_voice:
+        conv.state.transfers_enabled = False
+    return str()
+```
+
+### Multi-voice configuration
+
+The start function is where you configure which TTS voice the agent uses for a given call. This is required when running multiple voices across variants or channels, because the Voice page UI may not expose all available providers.
 
 **Full article:** [Multi-voice](/voice/multi-voice)
 
-A single deployment can use multiple voice agents. A range of voices acts as a retention boost for repeat users, because each voice has its own personality and will handle enquiries in subtly different ways.
-
 ### Dynamic user identification
 
-Use information like the user's phone number (voice), session data (webchat), or metadata to greet them personally and acknowledge their history with your business.
+Use `conv.caller_number` or metadata from an API call to personalize the greeting or preload account context.
 
-**Example:**
+### Preloading context
 
-* "Hello, John! Thank you for calling. How can we assist you today?"
-
-* "Hi! It looks like you're calling about your recent order. Would you like to discuss that today?"
-
-### Personalized recommendations
-
-Make an API call to reference user preferences or interaction history to suggest products, services, or solutions tailored to the user's needs.
-
-**Example:**
-
-* "Based on your recent purchases, we think you might like our new line of wireless headphones!"
-
-* "I see you've been interested in our premium package. Would you like to learn more about its benefits?"
-
-### Preloading relevant context
-
-Prepare scheduling information or past bookings to streamline conversations and save time for the user.
-
-**Example:**
-
-* "Your last appointment was on January 3rd. Would you like to book another one?"
-
-* "I see there's an available time slot tomorrow at 2 PM. Should I reserve that for you?"
-
-### Customized support based on account details
-
-Retrieve account-specific information, such as subscription plans or recent activity, to provide targeted assistance.
-
-**Example:**
-
-* "It looks like you're on our Gold Membership plan. Let me share some exclusive offers with you."
-
-* "I see you recently opened a support ticket. Would you like an update on its status?"
+Make a fast API call to fetch scheduling information, past bookings, or account details so the agent has context from the first turn.
