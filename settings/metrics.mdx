@@ -9,6 +9,10 @@ The **Metrics** page (**Configure > Metrics**) lets you define custom metrics th
 
 Custom metrics measure outcomes that matter to your use case — whether a booking was completed, a caller was authenticated, or a specific flow reached its intended resolution. Once defined, metrics are evaluated per conversation and the results flow into [Dashboards](/analytics/dashboards/introduction), [Smart Analyst](/smart-analyst/introduction), and the [Conversations API](/api-reference/conversations/introduction).
 
+### Metric types
+
+Metrics can be **boolean** (true/false) or **categorical** depending on your configuration. Boolean metrics answer a yes/no question — for example, "Was the caller authenticated?" — while categorical metrics assign a label from a set of options. When creating a metric, be clear about which type you're defining so that results are consistent and easy to interpret.
+
 ## Creating a metric
 
 <Steps>
@@ -29,11 +33,20 @@ Save your metric. It becomes active after you publish and will begin appearing i
 
 </Steps>
 
+## Naming conventions
+
+Consistent naming makes metrics easier to find, compare, and reference across dashboards, Smart Analyst, and API exports.
+
+- **Use a consistent format** — pick one casing style (e.g. `Booking completed` or `BOOKING_COMPLETED`) and apply it across all metrics in a project
+- **Avoid synonyms** — choose one term and stick with it. For example, use `Handoff` consistently rather than alternating between "handoff", "transfer", and "escalation"
+- **Be descriptive but concise** — the name should make sense at a glance in a dashboard or filter dropdown
+- **Prefix related metrics** — if you have multiple metrics for one flow, group them with a shared prefix (e.g. `Auth: verified`, `Auth: failed`, `Auth: partial`)
+
 ## Writing effective definitions
 
-The metric definition tells the system how to evaluate each conversation. Clear, specific definitions produce more consistent results.
+The metric definition tells the system how to evaluate each conversation. Clear, specific definitions produce more consistent results and directly improve the quality of insights from [Smart Analyst](/smart-analyst/introduction), which can sample and analyze conversations based on your custom metrics.
 
-**Be specific about the outcome you're measuring:**
+### Be specific about the outcome
 
 | Less effective | More effective |
 |---------------|---------------|
@@ -41,14 +54,43 @@ The metric definition tells the system how to evaluate each conversation. Clear,
 | "Booking metric" | "A reservation was successfully created, confirmed with the caller, and an SMS confirmation was sent" |
 | "Authentication" | "The caller was verified using at least two identifying details (e.g. name and date of birth, or account number and postcode)" |
 
-<Tip>
-Well-written metric definitions also improve [Smart Analyst](/smart-analyst/introduction) results. Smart Analyst can sample conversations based on your custom metrics, so precise definitions lead to more useful insights.
-</Tip>
+### Define success and failure
 
-**Other tips:**
-- Define what counts as a **positive** outcome — avoid ambiguous phrasing
-- Include the key conditions or steps that must be met
-- If the metric depends on a specific flow or function, mention it by name
+Where relevant, define what does **not** count as a success alongside what does. This reduces ambiguity for edge cases and partial outcomes.
+
+For example, an authentication metric might specify:
+- **Success**: the caller provided their name and date of birth, and the system confirmed a match
+- **Failure**: the caller could not provide sufficient details, or the system could not verify the information
+- **Partial**: the caller provided one identifier but the second could not be confirmed
+
+### Specify when the metric applies
+
+A metric should define the point in the conversation where it becomes relevant. This matters when a metric depends on a specific flow being reached.
+
+For example:
+- "This metric applies only after the agent determines the caller is eligible for the loyalty program" — not from the start of every call
+- "Evaluate this metric once the booking flow has been initiated" — not based on whether the caller mentioned a booking
+
+<Warning>
+If a metric is evaluated too early (before the relevant flow starts) or too broadly (on calls where the flow was never triggered), results will be noisy and unreliable.
+</Warning>
+
+### Additional tips
+
+- If the metric depends on a specific flow or function, mention it by name in the definition
+- For boolean metrics, state the exact condition that makes the metric `true`
+- Keep definitions self-contained — avoid referencing other metric definitions
+
+## Metrics and Smart Analyst
+
+[Smart Analyst](/smart-analyst/introduction) can sample conversations based on your custom metrics and use metric values when answering natural-language questions. The quality of your metric definitions directly affects the quality of Smart Analyst's insights.
+
+Well-defined metrics enable you to:
+- Sample conversations where a specific metric succeeded or failed, rather than relying on random sampling
+- Ask questions like *"Why are calls failing the authentication metric?"* and get targeted answers
+- Track metric trends across recent conversations without writing queries
+
+See [Smart Analyst](/smart-analyst/introduction) for more on deep sampling and example prompts.
 
 ## Logging metrics from functions
 
