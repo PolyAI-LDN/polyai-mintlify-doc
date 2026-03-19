@@ -3,23 +3,79 @@ title: "Metrics"
 description: "Define and manage custom metrics for your agent."
 ---
 
-The **Metrics** page (**Configure > Metrics**) lets you define custom metrics that track specific aspects of your agent's performance.
+The **Metrics** page (**Configure > Metrics**) lets you define custom metrics that track specific aspects of your agent's performance beyond the standard analytics.
 
 ## Overview
 
-Custom metrics allow you to measure outcomes beyond the standard analytics. Define what success looks like for your use case and track it across conversations.
+Custom metrics measure outcomes that matter to your use case — whether a booking was completed, a caller was authenticated, or a specific flow reached its intended resolution. Once defined, metrics are evaluated per conversation and the results flow into [Dashboards](/analytics/dashboards/introduction), [Smart Analyst](/smart-analyst/introduction), and the [Conversations API](/api-reference/conversations/introduction).
 
-## Defining metrics
+## Creating a metric
 
-1. Go to **Configure > Metrics** in the sidebar.
-2. Create a new metric by specifying a **name** and **definition**.
-3. Configure how the metric is calculated or triggered.
+<Steps>
 
-<Note>
-Custom metrics can be referenced in [Dashboards](/analytics/dashboards/introduction) and used alongside standard analytics.
-</Note>
+<Step title="Open the Metrics page">
+Go to **Configure > Metrics** in the sidebar.
+</Step>
+
+<Step title="Add a new metric">
+Click **Add metric** and provide:
+- **Name** — a short, descriptive label (e.g. "Booking completed", "Caller authenticated")
+- **Definition** — a clear description of what this metric measures and how it should be evaluated
+</Step>
+
+<Step title="Save and publish">
+Save your metric. It becomes active after you publish and will begin appearing in conversation data going forward.
+</Step>
+
+</Steps>
+
+## Writing effective definitions
+
+The metric definition tells the system how to evaluate each conversation. Clear, specific definitions produce more consistent results.
+
+**Be specific about the outcome you're measuring:**
+
+| Less effective | More effective |
+|---------------|---------------|
+| "Check if the call went well" | "The caller's issue was fully resolved without a handoff to a human agent" |
+| "Booking metric" | "A reservation was successfully created, confirmed with the caller, and an SMS confirmation was sent" |
+| "Authentication" | "The caller was verified using at least two identifying details (e.g. name and date of birth, or account number and postcode)" |
+
+<Tip>
+Well-written metric definitions also improve [Smart Analyst](/smart-analyst/introduction) results. Smart Analyst can sample conversations based on your custom metrics, so precise definitions lead to more useful insights.
+</Tip>
+
+**Other tips:**
+- Define what counts as a **positive** outcome — avoid ambiguous phrasing
+- Include the key conditions or steps that must be met
+- If the metric depends on a specific flow or function, mention it by name
+
+## Logging metrics from functions
+
+You can also log metrics programmatically from [functions](/function/introduction) using the conversation object. This is useful when a metric depends on function output — for example, confirming that an API call succeeded or a payment was processed.
+
+The conversation object provides two properties for this:
+
+- `conv.metrics_queue` — queue custom metrics for analytics
+- `conv.metric_events` — queue metric event objects with name/value pairs
+
+See the [conversation object reference](/function/classes/conv-object) for details.
+
+## Where metrics appear
+
+Once defined, custom metrics are available across several parts of the platform:
+
+| Location | How metrics are used |
+|----------|---------------------|
+| [Dashboards](/analytics/dashboards/introduction) | Visualize metric trends over time. Custom metrics appear in [Standard](/analytics/dashboards/standard) and [Custom](/analytics/dashboards/custom) dashboards. |
+| [Smart Analyst](/smart-analyst/introduction) | Sample conversations by metric value. Ask natural-language questions about metric performance across recent calls. |
+| [Conversations API](/api-reference/conversations/introduction) | The `metrics` field on each conversation object contains your custom metric results, available for export to external analytics pipelines. |
+| [Conversation review](/analytics/conversations/review) | Filter and browse conversations by metric outcomes. |
 
 ## Related pages
 
-- [Dashboards](/analytics/dashboards/introduction) - Visualize your metrics
-- [Conversations](/analytics/conversations/introduction) - Review individual conversation data
+- [Dashboards](/analytics/dashboards/introduction) — visualize your metrics
+- [Smart Analyst](/smart-analyst/introduction) — query conversation data using natural language
+- [Agent Analysis](/agent-analysis/introduction) — LLM-powered call categorization
+- [Conversations API](/api-reference/conversations/introduction) — export metric data programmatically
+- [Conversation object](/function/classes/conv-object) — log metrics from functions
