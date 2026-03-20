@@ -225,58 +225,60 @@ See [return values](/function/return-values) for the full list of supported retu
 
 ## Common patterns
 
-### Multi-site variant routing
+<AccordionGroup>
+  <Accordion title="Multi-site variant routing">
+    The most common advanced use of the start function is routing to a [variant](/variant-management/introduction) based on the dialled number, SIP headers, or other metadata. This is how multi-site agents (hotels, restaurant chains, retail) determine which location's content to use.
 
-The most common advanced use of the start function is routing to a [variant](/variant-management/introduction) based on the dialled number, SIP headers, or other metadata. This is how multi-site agents (hotels, restaurant chains, retail) determine which location's content to use.
+    ```python
+    def start_function(conv: Conversation):
+        phone_numbers = {
+            "+441234567890": "London",
+            "+442345678901": "New York",
+        }
+        conv.set_variant(phone_numbers.get(conv.callee_number, "default"))
+        return str()
+    ```
 
-```python
-def start_function(conv: Conversation):
-    phone_numbers = {
-        "+441234567890": "London",
-        "+442345678901": "New York",
-    }
-    conv.set_variant(phone_numbers.get(conv.callee_number, "default"))
-    return str()
-```
+    **Full article:** [Variant management](/variant-management/introduction)
+  </Accordion>
 
-**Full article:** [Variant management](/variant-management/introduction)
+  <Accordion title="Language detection and branching">
+    Read a language code from SIP headers or integration data, set the appropriate variant, and configure a language-specific TTS voice.
 
-### Language detection and branching
+    ```python
+    def start_function(conv: Conversation):
+        language = conv.sip_headers.get("X-Language", "en")
+        conv.set_variant(language)
 
-Read a language code from SIP headers or integration data, set the appropriate variant, and configure a language-specific TTS voice.
+        if language == "es":
+            conv.voice = Voice(provider="cartesia", ...)
+        return str()
+    ```
+  </Accordion>
 
-```python
-def start_function(conv: Conversation):
-    language = conv.sip_headers.get("X-Language", "en")
-    conv.set_variant(language)
+  <Accordion title="Channel-type branching">
+    Use `conv.channel_type` to disable voice-only features (like call transfers) for webchat, or to inject channel-specific prompts.
 
-    if language == "es":
-        conv.voice = Voice(provider="cartesia", ...)
-    return str()
-```
+    ```python
+    def start_function(conv: Conversation):
+        conv.state.is_voice = conv.channel_type == "VOICE"
+        if not conv.state.is_voice:
+            conv.state.transfers_enabled = False
+        return str()
+    ```
+  </Accordion>
 
-### Channel-type branching
+  <Accordion title="Multi-voice configuration">
+    The start function is where you configure which TTS voice the agent uses for a given call. This is required when running multiple voices across variants or channels, because the Voice page UI may not expose all available providers.
 
-Use `conv.channel_type` to disable voice-only features (like call transfers) for webchat, or to inject channel-specific prompts.
+    **Full article:** [Multi-voice](/voice/multi-voice)
+  </Accordion>
 
-```python
-def start_function(conv: Conversation):
-    conv.state.is_voice = conv.channel_type == "VOICE"
-    if not conv.state.is_voice:
-        conv.state.transfers_enabled = False
-    return str()
-```
+  <Accordion title="Dynamic user identification">
+    Use `conv.caller_number` or metadata from an API call to personalize the greeting or preload account context.
+  </Accordion>
 
-### Multi-voice configuration
-
-The start function is where you configure which TTS voice the agent uses for a given call. This is required when running multiple voices across variants or channels, because the Voice page UI may not expose all available providers.
-
-**Full article:** [Multi-voice](/voice/multi-voice)
-
-### Dynamic user identification
-
-Use `conv.caller_number` or metadata from an API call to personalize the greeting or preload account context.
-
-### Preloading context
-
-Make a fast API call to fetch scheduling information, past bookings, or account details so the agent has context from the first turn.
+  <Accordion title="Preloading context">
+    Make a fast API call to fetch scheduling information, past bookings, or account details so the agent has context from the first turn.
+  </Accordion>
+</AccordionGroup>
