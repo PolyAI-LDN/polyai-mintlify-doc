@@ -26,12 +26,36 @@ This means that if you set a delay of `1s`, filler utterances may not begin unti
 When setting delays, consider the **full turn latency** — not just the time your function takes to respond. For LLM-heavy flows, use shorter delays like `0–0.5s` or include immediate filler lines directly in the step prompt.
 </Note>
 
+## Function timeout
+
+If no delay responses are configured, the function times out after **10 seconds** by default. You can adjust this using the **Timeout after** field in the delay control panel to give longer-running functions more time to complete.
+
+<Warning>
+If a function exceeds the configured timeout, execution is terminated. Make sure the timeout value accounts for your function's expected response time under typical load.
+</Warning>
+
+## Delay control vs. filler utterances
+
+Delay control and global filler utterances are two distinct systems that can run **simultaneously**. Understanding the difference is important to avoid unexpected interleaving of utterances during a call.
+
+| | Delay control | Filler utterances |
+| --- | --- | --- |
+| **Scope** | Function-scoped — only applies to the specific function where configured | Turn-scoped — catches latency anywhere in the model turn |
+| **Trigger** | Fires based on the delay timing set on an individual function | Fires based on global filler utterance configuration |
+| **Coverage** | Handles latency during a single function execution | Covers latency across the full turn, including multiple consecutive function executions |
+
+<Warning>
+Delay control and filler utterances are **not** mutually exclusive. If both are configured, both will fire independently during the same turn. The ordering of utterances depends on each system's configured timing values, and they may interleave.
+
+If you notice unexpected or overlapping utterances during calls, check whether both delay control and global filler utterances are active.
+</Warning>
+
 ## How it works
 
 1. **Define delay responses**
 
    * Create a list of phrases the agent can say while waiting for a function to complete.
-   * These might include confirmations, status updates, or even sound effects like 'keyboard typing.'
+   * These might include confirmations or status updates.
 
 2. **Configure delay timing**
 
@@ -59,7 +83,11 @@ A restaurant booking function takes several seconds to confirm availability:
 * Add one or more delay responses.
 * Set the initial delay and interval.
 * Optionally, specify the length of sound-based utterances.
-* Save changes and test in the chat panel to preview the delay behavior.
+* Save changes and test via an actual phone call.
+
+<Note>
+The chat panel may not accurately replicate delay behavior. Since delay control is designed for voice/phone call latency, always test with a real call to verify timing and utterance ordering.
+</Note>
 
 <Tip>
 You can reference state variables inside delay responses using the `$` symbol.
@@ -68,16 +96,22 @@ For example:
 The agent will substitute the value automatically.
 </Tip>
 
+<Tip>
+For **multilingual agents**, avoid hardcoding delay utterances in a single language. Use state variables like `$DELAY_CHECKING` so the utterance resolves to the correct language at runtime. Hardcoded English text will be spoken in English even on non-English calls.
+</Tip>
+
 ## Best practices
 
-* Keep filler utterances brief and natural — a mix of phrases like “Still working on it...” or “\[typing]” helps maintain trust.
+* Keep filler utterances brief and natural — phrases like "Still working on it..." or "Bear with me one moment" help maintain trust.
 * Avoid overly repetitive or robotic phrasing.
-* Use delay control sparingly: if your function is fast (under 1 second), it might not need filler responses at all.
+* Use delay control sparingly: if your function is fast (under 1 second), it likely does not need filler responses. Adding delay control to near-instant functions can cause over-triggering, where utterances play unnecessarily.
+* To prevent over-triggering on functions with variable latency, increase `interval_sec` or set a higher `initial_interval_sec` so utterances only fire when the function is genuinely slow.
 * For very slow flows, consider adding initial speech directly in the step prompt and letting the delay control handle the fallback.
+* If you want to use sound effects (e.g., typing sounds), contact the voice team to pre-cache the audio before deploying. Without this step, the sound will not play.
 
 <Note>
 This feature is ideal for **API-based functions** and **LLM utility functions** that experience irregular latency.
-It's **not** suitable for conversational steps where the function is near-instant or where multiple branches could be chosen.
+It's **not** suitable for conversational steps where the function is near-instant or where multiple branches could be chosen. For near-instant functions, delay utterances will fire unnecessarily — causing a worse user experience than silence.
 </Note>
 
 ## Timeline diagram
