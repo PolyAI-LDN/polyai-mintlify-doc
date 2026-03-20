@@ -18,7 +18,7 @@ The Alerts API lets you monitor your voice agents in real time. Configure alert 
 |----------|-------------------|
 | Alert rules | 10 |
 
-Requests to create an alert rule beyond the limit return a `400` error.
+Requests to create an alert rule beyond the limit return a `409 Conflict` error.
 
 ## Available metrics
 
@@ -47,10 +47,10 @@ When setting thresholds, consider the metric type and business impact:
 | `ok` | The metric is within the configured threshold | After successful evaluation shows metric below threshold |
 | `alert` | The metric has breached the threshold and the alert is firing | Metric exceeds threshold during evaluation |
 | `no_data` | No data is available for evaluation | No metric data reported during the evaluation window (e.g., no calls) |
-| `unknown` | The state could not be determined | Evaluation system error |
+| `unknown` | The state could not be determined | The alert rule has not yet been evaluated or the evaluation could not complete |
 
 <Note>
-**`no_data` vs `unknown`:** Use `no_data` to detect when your agents aren't receiving traffic (which may itself be a problem). `unknown` indicates that the state could not be determined due to an evaluation system error.
+**`no_data` vs `unknown`:** Use `no_data` to detect when your agents aren't receiving traffic (which may itself be a problem). `unknown` indicates that the state could not be determined — for example, the rule has not yet been evaluated.
 </Note>
 
 <Info>
@@ -122,7 +122,7 @@ When an alert triggers or resolves, PolyAI sends a signed HTTP POST to your regi
 {
   "event_type": "alerts.triggered",
   "alert": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "id": "ar_0Kx4mNpQ8rWvYb2dFgHjLs",
     "name": "High turn latency (p95)",
     "project_id": "proj_abc123",
     "metric": "turn_latency_p95",
@@ -140,7 +140,7 @@ When an alert triggers or resolves, PolyAI sends a signed HTTP POST to your regi
 {
   "event_type": "alerts.resolved",
   "alert": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "id": "ar_0Kx4mNpQ8rWvYb2dFgHjLs",
     "name": "High turn latency (p95)",
     "project_id": "proj_abc123",
     "metric": "turn_latency_p95",
@@ -162,7 +162,7 @@ For webhook delivery details including headers, retry policy, and signature veri
 All Alerts API endpoints use API key authentication via the `x-api-key` header. Resources are automatically scoped to your account.
 
 <Note>
-API keys are not yet available through self-service. To request an API key, email [developers@poly.ai](mailto:developers@poly.ai).
+API keys are not yet available through self-service. API keys must be manually whitelisted for access — contact the API team to enable your key. This will eventually be self-serve. To request an API key, email [developers@poly.ai](mailto:developers@poly.ai).
 </Note>
 
 ```bash
@@ -177,7 +177,10 @@ curl https://api.us.poly.ai/v1/alerts \
 | 400 | Validation error - check request body or parameters |
 | 401 | Missing or invalid API key |
 | 404 | Resource not found |
+| 409 | Resource limit exceeded (e.g. maximum number of alert rules or webhook endpoints reached) |
+| 422 | Validation error or malformed resource ID |
 | 500 | Internal server error |
+| 502 | Monitoring backend sync failure |
 
 ### Example error response
 
