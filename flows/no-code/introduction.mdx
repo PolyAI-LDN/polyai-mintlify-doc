@@ -6,7 +6,7 @@ description: "Build conversational workflows visually."
 
 ![rules-examples](/images/no-code-flows/default.png)
 
-**No-code Flows** let you build conversational workflows visually — using prompts, entity extraction, and clear branching — without writing code — unless you explicitly choose to use a Function step for advanced logic.
+**No-code Flows** let you build conversational workflows visually — using prompts, entity extraction, and clear branching — without writing code. If you need advanced logic, you can add a Function step.
 
 A typical no-code flow:
 
@@ -84,12 +84,12 @@ In a Default step:
 - “Required entities” inform the LLM what must be present before a condition can pass.
 - Routing is determined by the model.
 
-If you reference collected entities inside the prompt, you can use rich text `/entities`.
+If you reference collected entities inside the prompt, you can use rich text `/entities`. This inserts a template tag in the format `{{entity:entity_name}}` that the system resolves at runtime.
 
 In Conversation Review, you will see system functions such as:
 
 - builtin_validate_and_save_entities
-- builtin_conditions_met
+- builtin_step_condition_met
 
 These represent automatic entity validation and condition evaluation.
 
@@ -115,8 +115,12 @@ Example:
 
 ```python
     email = conv.entities.email.value
-    party_size = conv.entities.number_of_passengers.value
+    party_size = int(conv.entities.number_of_passengers.value)
 ```
+
+<Note>
+Entity values are always strings. Cast to `int()` or `float()` before numeric comparisons.
+</Note>
 
 #### Moving to another step from a function
 
@@ -125,19 +129,29 @@ A Function step does not automatically transition.
 You must call:
 
 ```python
-    flow.goto_step("step_name", "condition_name")
+    flow.goto_step("step_name", "condition_label")
 ```
+
+The second argument (`condition_label`) is purely decorative — it labels the edge in the flow editor but has no effect on runtime behaviour. You can pass any string.
+
+<Warning>
+There is a known UI bug where calling `flow.goto_step()` with a condition label inside a Function step can prevent edges from rendering in the flow editor. Your flow still works correctly at runtime.
+</Warning>
 
 Example:
 
 ```python
+    party_size = int(conv.entities.number_of_passengers.value)
+
     if party_size > 15:
         flow.goto_step("Group Booking", "large party")
     else:
         flow.goto_step("Individual Booking", "small party")
 ```
 
-If you do not call flow.goto_step, the flow will not move.
+If you do not call `flow.goto_step()`, the flow will not move.
+
+To leave the current flow entirely and enter a different one, use `conv.goto_flow("flow_name")` instead.
 
 ### When should you use a Function step?
 
@@ -174,9 +188,11 @@ Tip: start with a Default step as your entry point.
 2. Name it **Collect contact details**
 3. In the **Prompt**, write something like:
 
-Ask for the caller’s phone number to create or look up the booking.
-If they don’t want to provide a phone number, ask for an email address instead.
+```text
+Ask for the caller's phone number to create or look up the booking.
+If they don't want to provide a phone number, ask for an email address instead.
 Confirm what you captured in one sentence.
+```
 
 ### Step 3 — Add entities to the step
 
@@ -186,8 +202,6 @@ In **Collect contact details**, add:
 - Email address (fallback)
 
 This tells the system what structured information to extract and validate.
-
-You can mark entities as required if the LLM should not consider a condition satisfied without a valid value. In Function steps, you must enforce this yourself in code.
 
 ### Step 4 — Add routing
 
@@ -258,15 +272,10 @@ Depending on the entity type:
 - Valid values allow the flow to continue.
 - Invalid values can trigger re-asking or fallback routing.
 
-Best practice:
+In Default steps, the LLM automatically re-asks for an entity when validation fails. In Function steps, you must handle retries and fallback routing yourself in code.
 
-If a branch depends on an entity being present, include a clear fallback path for when it isn’t.
+<Tip>
+If a branch depends on an entity being present, always include a clear fallback path for when it is not collected or fails validation.
+</Tip>
 
-## Glossary
-
-- **Step (node):** A unit of conversation in the editor.
-- **Edge:** A connection between steps.
-- **Condition:** A label explaining when an edge should be taken.
-- **Entity:** Typed extracted data (phone, date, number, etc.).
-- **Exit flow:** A terminal node (finish or handoff).
-- **Function step:** An optional step used when business logic goes beyond simple branching.
+For definitions of key terms (step, edge, condition, entity, exit flow), see the **Key concepts** card at the top of this page.
