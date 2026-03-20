@@ -1,10 +1,10 @@
 ---
 title: 'Get call status'
-api: 'GET /api/v1/{account_id}/{project_id}/outbound-call/status/{call_sid}'
+api: 'GET /v1/outbound-calling/{callSid}/status'
 description: 'Retrieve the current status of an outbound call'
 ---
 
-Retrieves the current status and event history for an outbound call. Use this endpoint to monitor call progress after triggering a call.
+Retrieves the current status for an outbound call. Use this endpoint to monitor call progress after triggering a call.
 
 <Warning>
 Call status data is retained for approximately **2 hours** after the call ends. After this period, the endpoint will return a 404 Not Found error.
@@ -14,69 +14,36 @@ Call status data is retained for approximately **2 hours** after the call ends. 
 
 ### Path parameters
 
-<ParamField path="account_id" type="string" required>
-  Your PolyAI account ID
-</ParamField>
-
-<ParamField path="project_id" type="string" required>
-  Your PolyAI project ID
-</ParamField>
-
-<ParamField path="call_sid" type="string" required>
-  The unique call identifier returned from the trigger endpoint (starts with `OUT-`)
+<ParamField path="callSid" type="string" required>
+  The unique call identifier returned from the trigger endpoint
 </ParamField>
 
 ### Headers
 
-<ParamField header="X-CONNECTOR-ID" type="string" required>
-  Connector ID for outbound calls
+<ParamField header="X-PolyAi-Auth-Token" type="string" required>
+  Authentication token provided by your PolyAI representative
 </ParamField>
 
 ## Response
 
-<ResponseField name="call_sid" type="string">
+<ResponseField name="callSid" type="string">
   The call identifier
 </ResponseField>
 
-<ResponseField name="account_id" type="string">
-  The account ID
-</ResponseField>
-
-<ResponseField name="project_id" type="string">
-  The project ID
-</ResponseField>
-
-<ResponseField name="client_env" type="string">
-  The client environment
-</ResponseField>
-
-<ResponseField name="connector_id" type="string">
-  The connector ID
+<ResponseField name="status" type="string">
+  Current status of the call. Possible values:
+  - `queued` - Call has been queued for processing
+  - `calling` - Call is being placed to the destination
+  - `success` - Call completed successfully
+  - `failure` - Call failed to connect or was not answered
 </ResponseField>
 
 <ResponseField name="created_at" type="string">
   ISO 8601 timestamp when the call was created
 </ResponseField>
 
-<ResponseField name="status" type="string">
-  Current status of the call. Possible values:
-  - `CREATED` - Call record has been created
-  - `queued` - Call is queued for processing
-  - `ringing` - Call is ringing at the destination
-  - `in-progress` - Call is active and connected
-  - `completed` - Call ended successfully
-  - `failed` - Call failed to connect
-  - `no-answer` - Call was not answered
-  - `busy` - Destination was busy
-  - `cancelled` - Call was cancelled before connection
-</ResponseField>
-
 <ResponseField name="last_updated" type="string">
   ISO 8601 timestamp when the status was last updated
-</ResponseField>
-
-<ResponseField name="event_history" type="array">
-  List of status change events, each containing a status and timestamp
 </ResponseField>
 
 ## Example
@@ -84,45 +51,39 @@ Call status data is retained for approximately **2 hours** after the call ends. 
 <CodeGroup>
 
 ```bash cURL
-curl -X GET "https://api.us-1.platform.polyai.app/api/v1/your-account-id/your-project-id/outbound-call/status/OUT-550e8400-e29b-41d4-a716-446655440000" \
-  -H "X-CONNECTOR-ID: YOUR_CONNECTOR_ID"
+curl -X GET "https://api.us-1.platform.polyai.app/v1/outbound-calling/550e8400-e29b-41d4-a716-446655440000/status" \
+  -H "X-PolyAi-Auth-Token: YOUR_AUTH_TOKEN"
 ```
 
 ```python Python
 import requests
 
-account_id = "your-account-id"
-project_id = "your-project-id"
-call_sid = "OUT-550e8400-e29b-41d4-a716-446655440000"
+call_sid = "550e8400-e29b-41d4-a716-446655440000"
 
-url = f"https://api.us-1.platform.polyai.app/api/v1/{account_id}/{project_id}/outbound-call/status/{call_sid}"
+url = f"https://api.us-1.platform.polyai.app/v1/outbound-calling/{call_sid}/status"
 headers = {
-    "X-CONNECTOR-ID": "YOUR_CONNECTOR_ID"
+    "X-PolyAi-Auth-Token": "YOUR_AUTH_TOKEN"
 }
 
 response = requests.get(url, headers=headers)
 status_data = response.json()
 print(f"Call status: {status_data['status']}")
-print(f"Last updated: {status_data['last_updated']}")
 ```
 
 ```javascript JavaScript
-const accountId = 'your-account-id';
-const projectId = 'your-project-id';
-const callSid = 'OUT-550e8400-e29b-41d4-a716-446655440000';
+const callSid = '550e8400-e29b-41d4-a716-446655440000';
 
 const response = await fetch(
-  `https://api.us-1.platform.polyai.app/api/v1/${accountId}/${projectId}/outbound-call/status/${callSid}`,
+  `https://api.us-1.platform.polyai.app/v1/outbound-calling/${callSid}/status`,
   {
     headers: {
-      'X-CONNECTOR-ID': 'YOUR_CONNECTOR_ID'
+      'X-PolyAi-Auth-Token': 'YOUR_AUTH_TOKEN'
     }
   }
 );
 
 const data = await response.json();
 console.log('Call status:', data.status);
-console.log('Last updated:', data.last_updated);
 ```
 
 </CodeGroup>
@@ -131,21 +92,10 @@ console.log('Last updated:', data.last_updated);
 
 ```json
 {
-  "call_sid": "OUT-550e8400-e29b-41d4-a716-446655440000",
-  "account_id": "your-account-id",
-  "project_id": "your-project-id",
-  "client_env": "production",
-  "connector_id": "your-connector-id",
+  "callSid": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "success",
   "created_at": "2024-03-15T10:00:00Z",
-  "status": "completed",
-  "last_updated": "2024-03-15T10:05:30Z",
-  "event_history": [
-    {"CREATED": "2024-03-15T10:00:00Z"},
-    {"queued": "2024-03-15T10:00:01Z"},
-    {"ringing": "2024-03-15T10:00:05Z"},
-    {"in-progress": "2024-03-15T10:00:12Z"},
-    {"completed": "2024-03-15T10:05:30Z"}
-  ]
+  "last_updated": "2024-03-15T10:05:30Z"
 }
 ```
 
@@ -156,13 +106,12 @@ console.log('Last updated:', data.last_updated);
 </ResponseField>
 
 <ResponseField name="401 Unauthorized">
-  Invalid or missing connector ID.
+  Invalid or missing authentication token.
 </ResponseField>
 
 <ResponseField name="404 Not Found">
   Call SID not found. This may occur if:
   - The call does not exist
-  - The call was triggered with a different connector
   - More than 2 hours have passed since the call ended (status data expired)
 </ResponseField>
 
@@ -174,15 +123,13 @@ console.log('Last updated:', data.last_updated);
 
 When monitoring call status:
 
-- Poll every 2-5 seconds during the `queued` and `ringing` phases
-- Reduce polling frequency to every 10-30 seconds once `in-progress`
-- Stop polling once status reaches a terminal state (`completed`, `failed`, `no-answer`, `busy`, `cancelled`)
+- Poll every 2-5 seconds during the `queued` and `calling` phases
+- Stop polling once status reaches a terminal state (`success` or `failure`)
 - Implement exponential backoff if you receive errors
 - **Store the final status** before the 2-hour retention window expires if you need long-term records
 
 ## Notes
 
 - Call status is updated in real-time as the call progresses
-- The `event_history` field provides a complete audit trail of status changes
-- Terminal statuses (`completed`, `failed`, etc.) are final and will not change
+- Terminal statuses (`success`, `failure`) are final and will not change
 - **Status data is retained for approximately 2 hours after the call ends** - poll and store data if you need longer retention
