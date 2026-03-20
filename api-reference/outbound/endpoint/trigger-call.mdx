@@ -1,6 +1,6 @@
 ---
 title: 'Trigger an outbound call'
-api: 'POST /api/v1/{account_id}/{project_id}/outbound-call/trigger'
+api: 'POST /v1/outbound-calling/trigger'
 description: 'Initiate an outbound call to a phone number'
 ---
 
@@ -8,20 +8,10 @@ Triggers a new outbound call to the specified phone number. The call will be que
 
 ## Request
 
-### Path parameters
-
-<ParamField path="account_id" type="string" required>
-  Your PolyAI account ID
-</ParamField>
-
-<ParamField path="project_id" type="string" required>
-  Your PolyAI project ID
-</ParamField>
-
 ### Headers
 
-<ParamField header="X-CONNECTOR-ID" type="string" required>
-  Connector ID for outbound calls
+<ParamField header="X-PolyAi-Auth-Token" type="string" required>
+  Authentication token provided by your PolyAI representative
 </ParamField>
 
 <ParamField header="Content-Type" type="string" required>
@@ -30,14 +20,14 @@ Triggers a new outbound call to the specified phone number. The call will be que
 
 ### Body
 
-<ParamField body="phone_number" type="string" required>
+<ParamField body="to_number" type="string" required>
   Phone number to call in E.164 format (e.g., `+14155552671`)
 </ParamField>
 
 ## Response
 
-<ResponseField name="conversation_id" type="string">
-  Unique identifier for the triggered call (starts with `OUT-`). Use this to check call status.
+<ResponseField name="callSid" type="string">
+  Unique identifier for the triggered call. Use this to check call status.
 </ResponseField>
 
 ## Example
@@ -45,53 +35,48 @@ Triggers a new outbound call to the specified phone number. The call will be que
 <CodeGroup>
 
 ```bash cURL
-curl -X POST https://api.us-1.platform.polyai.app/api/v1/your-account-id/your-project-id/outbound-call/trigger \
-  -H "X-CONNECTOR-ID: YOUR_CONNECTOR_ID" \
+curl -X POST https://api.us-1.platform.polyai.app/v1/outbound-calling/trigger \
+  -H "X-PolyAi-Auth-Token: YOUR_AUTH_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "phone_number": "+14155552671"
+    "to_number": "+14155552671"
   }'
 ```
 
 ```python Python
 import requests
 
-account_id = "your-account-id"
-project_id = "your-project-id"
-url = f"https://api.us-1.platform.polyai.app/api/v1/{account_id}/{project_id}/outbound-call/trigger"
+url = "https://api.us-1.platform.polyai.app/v1/outbound-calling/trigger"
 headers = {
-    "X-CONNECTOR-ID": "YOUR_CONNECTOR_ID",
+    "X-PolyAi-Auth-Token": "YOUR_AUTH_TOKEN",
     "Content-Type": "application/json"
 }
 payload = {
-    "phone_number": "+14155552671"
+    "to_number": "+14155552671"
 }
 
 response = requests.post(url, json=payload, headers=headers)
-conversation_id = response.json()["conversation_id"]
-print(f"Call triggered: {conversation_id}")
+call_sid = response.json()["callSid"]
+print(f"Call triggered: {call_sid}")
 ```
 
 ```javascript JavaScript
-const accountId = 'your-account-id';
-const projectId = 'your-project-id';
-
 const response = await fetch(
-  `https://api.us-1.platform.polyai.app/api/v1/${accountId}/${projectId}/outbound-call/trigger`,
+  'https://api.us-1.platform.polyai.app/v1/outbound-calling/trigger',
   {
     method: 'POST',
     headers: {
-      'X-CONNECTOR-ID': 'YOUR_CONNECTOR_ID',
+      'X-PolyAi-Auth-Token': 'YOUR_AUTH_TOKEN',
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      phone_number: '+14155552671'
+      to_number: '+14155552671'
     })
   }
 );
 
 const data = await response.json();
-console.log('Call triggered:', data.conversation_id);
+console.log('Call triggered:', data.callSid);
 ```
 
 </CodeGroup>
@@ -100,7 +85,7 @@ console.log('Call triggered:', data.conversation_id);
 
 ```json
 {
-  "conversation_id": "OUT-550e8400-e29b-41d4-a716-446655440000"
+  "callSid": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
@@ -111,7 +96,7 @@ console.log('Call triggered:', data.conversation_id);
 </ResponseField>
 
 <ResponseField name="401 Unauthorized">
-  Invalid or missing connector ID.
+  Invalid or missing authentication token.
 </ResponseField>
 
 <ResponseField name="500 Internal Server Error">
@@ -121,6 +106,5 @@ console.log('Call triggered:', data.conversation_id);
 ## Notes
 
 - Phone numbers must be in E.164 format (international format with + prefix)
-- The returned `conversation_id` starts with `OUT-` to distinguish outbound calls
 - Use the [Get call status](/api-reference/outbound/endpoint/get-call-status) endpoint to monitor call progress
 - Call status data is retained for approximately 2 hours after the call ends

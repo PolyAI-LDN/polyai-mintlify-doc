@@ -8,15 +8,14 @@ The Outbound Calling API allows you to programmatically initiate outbound calls 
 ## Prerequisites
 
 - An active PolyAI project with outbound calling enabled
-- A connector configured for outbound calls
-- Your account ID and project ID
-- Connector ID for authentication
+- An authentication token provided by your PolyAI representative
+- Your base URL (provided per project by PolyAI)
 
 <Note>Contact your PolyAI representative to enable outbound calling for your project and obtain the necessary credentials.</Note>
 
 ## Base URL
 
-Use the regional endpoint that matches your deployment:
+Your base URL is provided by PolyAI when outbound calling is configured for your project. Regional endpoints include:
 
 | Region | Base URL |
 | ------ | -------- |
@@ -26,42 +25,37 @@ Use the regional endpoint that matches your deployment:
 
 ## Endpoint paths
 
-All outbound calling endpoints include your account and project IDs in the path:
+Outbound calling endpoints use the following path structure:
 
 ```
-/api/v1/{account_id}/{project_id}/outbound-call/...
+/{version}/outbound-calling/...
 ```
 
 ## Authentication
 
-All outbound calling endpoints require authentication using the `X-CONNECTOR-ID` header:
+All outbound calling endpoints require authentication using the `X-PolyAi-Auth-Token` header:
 
 ```bash
-curl -X POST https://api.{region}.platform.polyai.app/api/v1/{account_id}/{project_id}/outbound-call/trigger \
-  -H "X-CONNECTOR-ID: YOUR_CONNECTOR_ID" \
+curl -X POST https://api.{region}.platform.polyai.app/v1/outbound-calling/trigger \
+  -H "X-PolyAi-Auth-Token: YOUR_AUTH_TOKEN" \
   -H "Content-Type: application/json"
 ```
 
 ## Call flow
 
-1. **Trigger call** - POST to `/api/v1/{account_id}/{project_id}/outbound-call/trigger` with phone number
-2. **Receive conversation ID** - API returns a unique call identifier (starts with `OUT-`)
-3. **Check status** - GET `/api/v1/{account_id}/{project_id}/outbound-call/status/{call_sid}` to monitor call progress
-4. **Handle completion** - Call status updates to `completed`, `failed`, or `no-answer`
+1. **Trigger call** - POST to `/v1/outbound-calling/trigger` with the destination phone number
+2. **Receive call SID** - API returns a unique call identifier (`callSid`)
+3. **Check status** - GET `/v1/outbound-calling/{callSid}/status` to monitor call progress
+4. **Handle completion** - Call status updates to `success` or `failure`
 
 ## Call statuses
 
 | Status | Description |
 | ------ | ----------- |
-| `CREATED` | Call record has been created |
 | `queued` | Call has been queued for processing |
-| `ringing` | Call is ringing at the destination |
-| `in-progress` | Call is active and connected |
-| `completed` | Call ended successfully |
-| `failed` | Call failed to connect |
-| `no-answer` | Call was not answered |
-| `busy` | Destination was busy |
-| `cancelled` | Call was cancelled before connection |
+| `calling` | Call is being placed to the destination |
+| `success` | Call completed successfully |
+| `failure` | Call failed to connect or was not answered |
 
 ## Status data retention
 

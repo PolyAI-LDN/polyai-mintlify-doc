@@ -35,8 +35,8 @@ The [Outbound Calling API](/api-reference/outbound/introduction) lets you progra
 
 ### Quick start
 
-1. Obtain your connector authentication token from your PolyAI representative
-2. Use the regional API endpoint matching your deployment:
+1. Obtain your authentication token from your PolyAI representative
+2. Use the base URL provided for your project by PolyAI:
    - US: `https://api.us-1.platform.polyai.app`
    - UK: `https://api.uk-1.platform.polyai.app`
    - EUW: `https://api.euw-1.platform.polyai.app`
@@ -44,11 +44,11 @@ The [Outbound Calling API](/api-reference/outbound/introduction) lets you progra
 3. Trigger a call:
 
 ```bash
-curl -X POST https://api.us-1.platform.polyai.app/api/v1/{account_id}/{project_id}/outbound-call/trigger \
-  -H "X-CONNECTOR-ID: YOUR_CONNECTOR_ID" \
+curl -X POST https://api.us-1.platform.polyai.app/v1/outbound-calling/trigger \
+  -H "X-PolyAi-Auth-Token: YOUR_AUTH_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "phone_number": "+14155551234",
+    "to_number": "+14155551234",
     "metadata": {
       "customer_name": "John",
       "appointment_time": "2:00 PM"
@@ -56,22 +56,24 @@ curl -X POST https://api.us-1.platform.polyai.app/api/v1/{account_id}/{project_i
   }'
 ```
 
-4. Monitor call status using the returned `conversation_id`:
+4. Monitor call status using the returned `callSid`:
 
 <Warning>
 Call status data is retained for approximately **2 hours** after the call ends. Poll and store status data before it expires if you need it longer.
 </Warning>
 
 ```bash
-curl -X GET "https://api.us-1.platform.polyai.app/api/v1/{account_id}/{project_id}/outbound-call/status/{conversation_id}" \
-  -H "X-CONNECTOR-ID: YOUR_CONNECTOR_ID"
+curl -X GET "https://api.us-1.platform.polyai.app/v1/outbound-calling/{callSid}/status" \
+  -H "X-PolyAi-Auth-Token: YOUR_AUTH_TOKEN"
 ```
 
 For complete API documentation, see the [Outbound Calling API reference](/api-reference/outbound/introduction).
 
 ## SIP-based outbound calling
 
-If you're using a SIP integration, you can configure outbound calls through your existing telephony infrastructure. This method allows:
+If your telephony setup uses SIP, you can route outbound calls through your existing infrastructure instead of using the API. This is a good option if you already have a SIP-based contact center and want to keep routing under your control.
+
+SIP-based outbound calling allows:
 
 - Custom SIP header injection for the outbound leg
 - Integration with your contact center platform
@@ -91,9 +93,9 @@ For detailed SIP configuration, see the [Custom SIP integration guide](/integrat
 
 ## Twilio-based outbound calling
 
-If you're integrated with Twilio, outbound calls can be routed through your Twilio account. This leverages your existing Twilio infrastructure and phone numbers.
+<Note>Twilio-based outbound calling requires configuration by PolyAI. Contact your PolyAI representative to set this up for your project.</Note>
 
-Contact your PolyAI representative to configure Twilio-based outbound calling for your project.
+If you're integrated with Twilio, outbound calls can be routed through your Twilio account. This leverages your existing Twilio infrastructure and phone numbers.
 
 ## Best practices
 
@@ -109,30 +111,20 @@ When using the API, you can track call progress through these statuses:
 
 | Status | Description |
 | ------ | ----------- |
-| `queued` | Call queued for processing |
-| `ringing` | Call is ringing |
-| `in-progress` | Call is active |
-| `completed` | Call ended successfully |
-| `failed` | Call failed to connect |
-| `no-answer` | Call was not answered |
-| `busy` | Destination was busy |
+| `queued` | Call has been queued for processing |
+| `calling` | Call is being placed to the destination |
+| `success` | Call completed successfully |
+| `failure` | Call failed to connect or was not answered |
 
 ```mermaid
 stateDiagram-v2
     [*] --> queued: Trigger call
-    queued --> ringing: Call initiated
-    ringing --> in_progress: Answered
-    in_progress --> completed: Call ends
+    queued --> calling: Call initiated
+    calling --> success: Call completed
+    calling --> failure: Connection error / no answer / busy
     
-    queued --> failed: Connection error
-    ringing --> no_answer: Timeout
-    ringing --> busy: Line busy
-    ringing --> failed: Call rejected
-    
-    completed --> [*]
-    failed --> [*]
-    no_answer --> [*]
-    busy --> [*]
+    success --> [*]
+    failure --> [*]
 ```
 
 ## Next steps
