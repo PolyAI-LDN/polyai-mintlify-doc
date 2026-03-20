@@ -19,14 +19,23 @@ from polyai.voice import ElevenLabsVoice
 conv.set_voice(
     ElevenLabsVoice(
         provider_voice_id="gDnGxUcsitTxRiGHr904",
-        model_id="eleven_flash_v2",
+        model_id="eleven_turbo_v2_5",
         stability=0.5,
         similarity_boost=0.7,
+        speed=1.0,              # Optional: 0.7–1.2, adjusts speech rate
         clarity=0.8,            # Optional: controls crispness of enunciation
         latency_mode="swift",   # Optional: aligns with interaction-style settings
     )
 )
 ```
+
+<Note>
+Available ElevenLabs model IDs (e.g. `eleven_turbo_v2_5`, `eleven_flash_v2`, `eleven_v3`) are documented by [ElevenLabs](https://elevenlabs.io/docs). Check their docs for current options.
+</Note>
+
+<Warning>
+**`eleven_v3` stability behavior:** The `eleven_v3` model only supports discrete `stability` values: `0.0` (Creative), `0.5` (Natural), and `1.0` (Robust). Values between these are not supported and may produce unexpected results. This differs from earlier models where `stability` accepts a continuous range.
+</Warning>
 
 ### Example: AWS Polly
 
@@ -51,11 +60,14 @@ conv.set_voice(
     AzureVoice(
         provider_voice_id="en-US-JennyNeural",
         style="cheerful",
-        role="customer-service-rep",
         clarity=0.9,
     )
 )
 ```
+
+<Note>
+Azure's `role` parameter is only supported by a limited set of voices and locales. If you need it, check [Azure's documentation](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/speech-synthesis-markup-voice#use-speaking-roles) for supported voices before using it, as unsupported values may fail silently.
+</Note>
 
 ### Example: Cartesia
 
@@ -178,13 +190,21 @@ conv.randomize_voice([
 
 * Changing `model_id` does not automatically invalidate cached audio.
 * To reset [cached audio](/audio-management/introduction):
-  * Go to **Channels > Voice > Audio management → Cache** and delete existing entries.
-  * Or, create a new voice entry with a different voice_id.
-  * You can prepend the model ID to the voice ID (e.g. `eleven_flash_v2/a1b2c3...`) if you want to isolate caches across models.
+  * Go to **Channels > Voice > Audio management** and delete existing cache entries.
+  * Or, create a new voice entry with a different voice ID.
+
+<Tip>
+Prepend the model ID to the voice ID (e.g. `eleven_turbo_v2_5/a1b2c3...`) to isolate cache entries per model. This is the most reliable way to ensure the correct model is used after a switch.
+</Tip>
+
+## Language codes
+
+When configuring a voice, make sure the language code in the `provider_voice_id` matches your deployment's locale. An incorrect language code (e.g. `en-GB` instead of `en-IE`) can cause the TTS provider to render a different accent or voice than expected, even when the correct voice ID is set.
 
 ## Additional options
 
 - **clarity** – fine-tunes articulation sharpness per utterance (0.0–1.0).
 - **latency_mode** – chooses a response profile ("swift", "balanced", "precise", "turbo") consistent with [Interaction style](/audio-management/introduction#interaction-style).
 - **stability** – controls tone variability across runs.
+- **speed** – adjusts speech rate (ElevenLabs: `0.7`–`1.2`; other providers may differ).
 - **randomize_voice()** – supports external providers for weighted selection.
