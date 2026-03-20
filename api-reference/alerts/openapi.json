@@ -37,18 +37,20 @@
         "name": "rule_id",
         "in": "path",
         "required": true,
+        "description": "The rule_id must be a prefixed ID (e.g. ar_0Kx4mNpQ8rWvYb2dFgHjLs).",
         "schema": {
           "type": "string",
-          "format": "uuid"
+          "example": "ar_0Kx4mNpQ8rWvYb2dFgHjLs"
         }
       },
       "EndpointId": {
         "name": "endpoint_id",
         "in": "path",
         "required": true,
+        "description": "The endpoint_id must be a prefixed ID (e.g. whe_9ZtRcXw3nByK5pVqMaEfJs).",
         "schema": {
           "type": "string",
-          "format": "uuid"
+          "example": "whe_9ZtRcXw3nByK5pVqMaEfJs"
         }
       },
       "EnabledFilter": {
@@ -136,7 +138,7 @@
           "updated_at"
         ],
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
+          "id": { "type": "string", "example": "ar_0Kx4mNpQ8rWvYb2dFgHjLs" },
           "name": { "type": "string" },
           "project_id": { "type": ["string", "null"] },
           "metric": { "$ref": "#/components/schemas/Metric" },
@@ -217,7 +219,7 @@
           "since"
         ],
         "properties": {
-          "alert_rule_id": { "type": "string", "format": "uuid" },
+          "alert_rule_id": { "type": "string", "example": "ar_0Kx4mNpQ8rWvYb2dFgHjLs" },
           "name": { "type": "string" },
           "project_id": { "type": ["string", "null"] },
           "metric": { "$ref": "#/components/schemas/Metric" },
@@ -252,7 +254,7 @@
           "updated_at"
         ],
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
+          "id": { "type": "string", "example": "whe_9ZtRcXw3nByK5pVqMaEfJs" },
           "name": { "type": "string", "minLength": 1, "maxLength": 255 },
           "url": { "type": "string", "format": "uri" },
           "enabled": { "type": "boolean", "default": true },
@@ -384,7 +386,7 @@
           "triggered_at"
         ],
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
+          "id": { "type": "string", "example": "ar_0Kx4mNpQ8rWvYb2dFgHjLs" },
           "name": { "type": "string" },
           "project_id": { "type": ["string", "null"] },
           "metric": { "$ref": "#/components/schemas/Metric" },
@@ -448,8 +450,32 @@
           }
         }
       },
+      "Conflict": {
+        "description": "Resource limit exceeded (e.g. maximum number of alert rules or webhook endpoints reached).",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "UnprocessableEntity": {
+        "description": "Validation error or malformed resource ID.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
       "InternalServerError": {
         "description": "Internal server error.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "BadGateway": {
+        "description": "Monitoring backend sync failure.",
         "content": {
           "application/json": {
             "schema": { "$ref": "#/components/schemas/Error" }
@@ -505,7 +531,10 @@
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "422": { "$ref": "#/components/responses/UnprocessableEntity" },
+          "500": { "$ref": "#/components/responses/InternalServerError" },
+          "502": { "$ref": "#/components/responses/BadGateway" }
         }
       }
     },
@@ -525,6 +554,7 @@
           },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/UnprocessableEntity" },
           "500": { "$ref": "#/components/responses/InternalServerError" }
         }
       },
@@ -552,7 +582,9 @@
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "422": { "$ref": "#/components/responses/UnprocessableEntity" },
+          "500": { "$ref": "#/components/responses/InternalServerError" },
+          "502": { "$ref": "#/components/responses/BadGateway" }
         }
       },
       "delete": {
@@ -565,6 +597,7 @@
           },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/UnprocessableEntity" },
           "500": { "$ref": "#/components/responses/InternalServerError" }
         }
       }
@@ -635,6 +668,8 @@
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "422": { "$ref": "#/components/responses/UnprocessableEntity" },
           "500": { "$ref": "#/components/responses/InternalServerError" }
         }
       }
@@ -656,6 +691,7 @@
           },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/UnprocessableEntity" },
           "500": { "$ref": "#/components/responses/InternalServerError" }
         }
       }
@@ -676,6 +712,7 @@
           },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/UnprocessableEntity" },
           "500": { "$ref": "#/components/responses/InternalServerError" }
         }
       },
@@ -703,6 +740,7 @@
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/UnprocessableEntity" },
           "500": { "$ref": "#/components/responses/InternalServerError" }
         }
       },
@@ -716,6 +754,7 @@
           },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/UnprocessableEntity" },
           "500": { "$ref": "#/components/responses/InternalServerError" }
         }
       }
