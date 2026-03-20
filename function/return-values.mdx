@@ -1,5 +1,6 @@
 ---
 title: Return values
+description: 'Control agent behavior by returning strings or dictionaries from functions.'
 ---
 
 Return a string or dictionary to control the agent's next action.
@@ -14,9 +15,11 @@ return "Tell the user that you cannot assist with their request"
 
 ### Dictionary return
 
-<Warning> This feature is experimental and may change without warning. </Warning>
+<Note>
+The dictionary return format is widely used in production. Some individual fields (such as `listen`) may be less stable than others — check with the platform team if you're unsure about a specific field.
+</Note>
 
-Alternatively, you can return a dictionary to specify more detailed and deterministic instructions. The following fields can be used individually or in combination:
+You can return a dictionary to specify more detailed and deterministic instructions. The following fields can be used individually or in combination.
 
 #### `content`
 
@@ -44,7 +47,9 @@ return {
 
 #### `handoff`
 
-Initiates a call handoff after the function executes. This follows the format of a handoff object:
+Initiates a call handoff after the function executes. The `type` and `reason` fields are strings that match your configured [handoff destination](/call-handoff/introduction). The nested object specifies the SIP method to use.
+
+**SIP REFER** (default) — transfers the call and drops PolyAI from it:
 
 ```python
 return {
@@ -58,15 +63,15 @@ return {
 }
 ```
 
-#### `invite`
-
-Hands the call off using a SIP INVITE. Configuration fields depend on project telephony integration requirements:
+**SIP INVITE** — creates a bridged call where PolyAI stays on the line between both parties:
 
 ```python
 return {
   "handoff": {
+    "type": "CALL_CENTER",
+    "reason": "SPEAK_TO",
     "invite": {
-      "phone_number": "<eg: 2222222>",
+      "phone_number": "2222222",
       "outbound_caller_id": conv.caller_number,
       "outbound_endpoint": "<ADD_YOUR_OUTBOUND_ENDPOINT_NAME>",
       "sip_headers": {
@@ -76,6 +81,26 @@ return {
   }
 }
 ```
+
+**SIP BYE** — signals that the PolyAI call leg is over, returning control to the client's SBC:
+
+```python
+return {
+  "handoff": {
+    "type": "CALL_CENTER",
+    "reason": "CONTAINED",
+    "bye": {
+      "sip_headers": {
+        "X-Outcome": "contained"
+      }
+    }
+  }
+}
+```
+
+<Tip>
+You can also trigger handoffs using the [`conv.call_handoff()`](/function/classes/conv-object) method, which supports dynamic `destination`, `reason`, and `utterance` parameters. Use the dictionary return when you need fine-grained control over SIP method and headers; use `conv.call_handoff()` for simpler handoff routing.
+</Tip>
 
 #### `hangup`
 
@@ -87,13 +112,11 @@ return {
 }
 ```
 
-## `listen` Return Object
+#### `listen`
 
-Configures the agent to listen on the next turn.
+Configures the agent to listen on the next turn. Must be combined with an `utterance` for ASR timeout settings to take effect.
 
-<Tip>To use `asr.timeout`, you must include an `utterance`. Without it, the timeout won’t apply.</Tip>
-
-```json
+```python
 return {
   "utterance": "Can I help you with anything else?",
   "listen": {
@@ -104,14 +127,68 @@ return {
 }
 ```
 
-<Note>ASR timeout doesn’t apply to DTMF-only input. If using both channels, make sure you include an `utterance` so the ASR settings take effect.</Note>
+<Note>
+ASR timeout doesn't apply to DTMF-only input. If using both channels, make sure you include an `utterance` so the ASR settings take effect.
+</Note>
 
 #### `variant`
 
-Switches the conversation to a different variant:
+Switches the conversation to a different variant. The value must match an existing variant name configured in [variant management](/variant-management/introduction). This is useful for routing callers to location-specific or segment-specific conversation flows mid-call.
 
 ```python
 return {
   "variant": "orleans"
+}
+```
+
+You can combine `variant` with `utterance` to confirm the switch to the user:
+
+```python
+return {
+  "utterance": "Let me connect you with our Orleans team.",
+  "variant": "orleans"
+}
+```
+
+## Combining return fields
+
+You can return multiple fields together. Here are common combinations:
+
+#### `utterance` + `handoff`
+
+Say something to the caller before transferring. This is the most common handoff pattern — it lets the agent set expectations before the transfer happens:
+
+```python
+return {
+  "utterance": "Let me transfer you to a specialist who can help with that.",
+  "handoff": {
+    "type": "CALL_CENTER",
+    "reason": "SPEAK_TO",
+    "refer": {
+      "phone_number": "12345"
+    }
+  }
+}
+```
+
+#### `utterance` + `hangup`
+
+Say a closing message before ending the call:
+
+```python
+return {
+  "utterance": "Thanks for calling, have a great day!",
+  "hangup": True
+}
+```
+
+#### `utterance` + `content`
+
+Deliver a specific phrase now and set instructions for the next turn:
+
+```python
+return {
+  "utterance": "I've updated your reservation.",
+  "content": "The reservation has been changed. Ask if there's anything else you can help with."
 }
 ```
