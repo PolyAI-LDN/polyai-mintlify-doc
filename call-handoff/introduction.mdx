@@ -4,21 +4,21 @@ title: Handoff
 description: "Set up handoff destinations for your agent to transfer users during conversations."
 ---
 
-<Tip> Looking to manage handoff states programmatically? Visit the [Handoff API documentation](/api-reference/handoff/introduction).</Tip>
+![handoff](/images/handoff-1.png)
+
+Define destinations for transferring users to live agents when the automated agent cannot help. For voice, this routes calls via telephony; for webchat, this can connect users to live chat agents.
+
+<Tip>Looking to manage handoff states programmatically? Visit the [Handoff API documentation](/api-reference/handoff/introduction).</Tip>
+
+<Note>
+The SIP-based handoff methods described below apply to voice interactions. Webchat handoffs use HTTP-based integrations with your live chat platform.
+</Note>
 
 ## Related handoff documentation
 
 - **[Handoff actions in Managed Topics](/managed-topics/how-to-setup-action/handoff)** - Add handoff triggers to Knowledge topics
 - **[Handoff States API guide](/call-data/conversations-api/handoff-states)** - Monitor transitions between automated and live agents
 - **[Handoff API reference](/api-reference/handoff/introduction)** - Retrieve handoff context for downstream systems
-
-![handoff](/images/handoff-1.png)
-
-Define destinations for transferring users to live agents when the automated agent cannot help. For voice, this routes calls via telephony; for webchat, this can connect users to live chat agents.
-
-<Note>
-The SIP-based handoff methods described below apply to voice interactions. Webchat handoffs use HTTP-based integrations with your live chat platform.
-</Note>
 
 ### Adding a handoff destination
 
@@ -68,7 +68,7 @@ sequenceDiagram
     end
 ```
    - **Route**: Specify the destination SIP URI or extension (only applies to SIP INVITE and SIP REFER).
-   - **SIP headers**: Add optional **[SIP headers](https://www.iana.org/assignments/sip-parameters/sip-parameters.xhtml)** to include metadata or routing instructions.
+   - **SIP headers**: Add optional [SIP headers](https://www.iana.org/assignments/sip-parameters/sip-parameters.xhtml) to include metadata or routing instructions.
 
 4. Click **Add** to save the destination.
 
@@ -79,10 +79,10 @@ sequenceDiagram
 SIP headers can be used to send additional metadata when making a handoff. To add SIP headers:
 
 1. Click **Add SIP Header** in the handoff setup modal.
-2. Enter a **Header Name** (e.g., X-Customer-ID).
+2. Enter a **Header Name** (e.g., `X-Customer-ID`).
    - Custom headers should start with an `X-` prefix.
 3. Enter a **Value** (e.g., `abc123`).
-4. You can use `$variables` in the SIP header values for dynamic data. Example:
+4. You can use variables prefixed with `$` in the SIP header values for dynamic data. Example:
 
    `X-Caller-ID: $caller_id`
 
@@ -102,27 +102,31 @@ Once a handoff destination is created, it will appear in the list of destination
 - **Test call routing**: Regularly test handoff destinations to verify they are functioning correctly.
 - **Optimize SIP headers**: Use headers to pass relevant metadata and improve call handling.
 
-### New: Handoff reason and utterance
+### Handoff reason and utterance
 
 <Accordion title="Handoff reason and utterance" icon="phone">
 
-The built-in **handoff** template and the `conv.handoff()` helper now accept two optional, structured fields:
+The built-in **handoff** template and the [`conv.call_handoff()`](/function/classes/conv-object) helper accept two optional, structured fields:
 
 | Field | Purpose | Example |
 |-------|---------|---------|
 | `reason` | Machine-readable code explaining *why* the call is being escalated (e.g. `policy_violation`, `needs_human`, `no_availability`). Surfaces in Conversation Review and the Conversations API. | `policy_violation` |
 | `utterance` | A short message the agent delivers *before* transfer begins (spoken for voice, displayed for webchat). Logged alongside the handoff for QA review. | "Let me transfer you to a specialist who can help." |
 
+<Warning>
+When using SIP REFER, the utterance may not play before the transfer completes because the REFER fires at the same time as function execution. If you need the utterance to be spoken reliably before transfer, use SIP INVITE instead.
+</Warning>
+
 **Where it shows up**
 
-* **Flows & KB actions** – Selecting **builtin-handoff** now displays *Reason* and *Pre-handoff utterance* fields.
-* **Functions** – Call `conv.handoff(reason="...", utterance="...")` to escalate programmatically.
+* **Flows & KB actions** – Selecting **builtin-handoff** displays *Reason* and *Pre-handoff utterance* fields.
+* **Functions** – Call [`conv.call_handoff(destination="...", reason="...", utterance="...")`](/function/classes/conv-object) to escalate programmatically.
 * **Conversation Review** – Both fields appear in the metadata panel for quick troubleshooting.
 * **Conversations API** – Returned inside the `handoff` object for BI dashboards or CRM routing.
 
-**Why it matters**
+**Benefits**
 
-* Removes guess-work when diagnosing handoffs—no more relying on LLM summaries alone.
+* Removes guesswork when diagnosing handoffs — no more relying on LLM summaries alone.
 * Enables fine-grained routing rules in telephony or CRM systems.
 * Gives QA teams full visibility into the exact wording customers heard.
 
@@ -150,22 +154,15 @@ If you're bringing your own Twilio phone number to route calls, follow these ste
    - In the **Call Handoffs** section, use the Twilio number as the "Extension / Number" field when creating a new destination.
    - Add a description specifying its purpose (e.g., "Route to Twilio-based live agent team").
 
-### Important for US numbers: Register for A2P 10DLC
-
-<Warning>
-If you are using a US-based Twilio number, you **must** [register for A2P 10DLC](https://www.twilio.com/docs/messaging/compliance/a2p-10dlc#who-needs-to-register-for-a2p-10dlc) to comply with regulatory requirements. Twilio will block SMS messages if this is not completed.
-</Warning>
-
-#### Register
-1. **Go to Twilio's A2P 10DLC registration page:**
-   [Twilio A2P 10DLC Registration Guide](https://help.twilio.com/articles/1260800720410-What-is-A2P-10DLC-)
-2. **Complete brand and campaign registration** to comply with US carrier regulations.
-3. **Wait for approval** (can take a few days).
-4. **Once approved**, messages will send successfully.
+<Note>
+If you are using a US-based Twilio number for SMS, you must [register for A2P 10DLC](https://www.twilio.com/docs/messaging/compliance/a2p-10dlc#who-needs-to-register-for-a2p-10dlc) to comply with regulatory requirements. See the [Twilio handoff guide](/telephony/twilio/how-to-handoff) for more details on Twilio-specific configuration.
+</Note>
 
 ## Comparison: Call Handoff and the `transfer_call` function
 
 These two methods serve similar purposes — routing the user to another endpoint — but are mutually exclusive and differ in flexibility and implementation.
+
+In the table below, <Icon icon="check" iconType="solid" /> means the feature is supported and **—** means it is not supported.
 
 | Feature                         | `Call Handoff` (UI-based)                          | `transfer_call` (code-based)                          |
 |---------------------------------|---------------------------------------------------|--------------------------------------------------------|
@@ -182,6 +179,14 @@ These two methods serve similar purposes — routing the user to another endpoin
 These two methods **cannot be used together** in the same step. If you're using `transfer_call` in a [function](/function/introduction), it overrides any configured Call Handoff in the UI.
 </Note>
 
+<Note>
+The UI-based Call Handoff does not support custom metrics. If you need to track handoff-specific metrics (e.g., handoff reason codes for analytics), use the `transfer_call` function with [`conv.write_metric()`](/function/classes/conv-object) instead.
+</Note>
+
+<Warning>
+If you use `transfer_call`, you must keep destination mappings in sync manually — changes made in the Call Handoff UI are not automatically reflected in function-based transfers. Verify your `transfer_call` destinations match your intended routing whenever you update handoff configuration.
+</Warning>
+
 ### When to use each method
 
 Use `Call Handoff` if:
@@ -192,10 +197,6 @@ Use `transfer_call` if:
 - You need to pass dynamic SIP headers (e.g., customer metadata).
 - You want to use soft handoffs or log custom handoff metrics.
 - You're integrating with a platform that does not support SIP REFER (e.g. Zendesk).
-
-**Troubleshooting:** If your messages fail to send, check the Twilio logs for these error codes:
-- [**30034** - Unregistered Number](https://www.twilio.com/docs/api/errors/30034)
-- [**30035** - Number Still Being Configured](https://www.twilio.com/docs/api/errors/30035)
 
 ---
 
