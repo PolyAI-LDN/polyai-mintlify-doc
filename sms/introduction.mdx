@@ -23,15 +23,28 @@ Create and manage SMS templates that your agent can send during conversations. C
 
    ![Connect Twilio account screenshot](/images/sms-twilio-setup.png)
 
-### Important for US Numbers: Register for A2P 10DLC
-If you are using a US-based Twilio number, you must [register for A2P 10DLC](https://www.twilio.com/docs/messaging/compliance/a2p-10dlc#who-needs-to-register-for-a2p-10dlc) to comply with regulatory requirements. Twilio will block SMS messages if this is not completed.
+### A2P 10DLC registration (US and Canada)
+
+If you are using a US or Canadian Twilio number, you must [register for A2P 10DLC](https://www.twilio.com/docs/messaging/compliance/a2p-10dlc#who-needs-to-register-for-a2p-10dlc) to comply with carrier regulations. Without registration, Twilio blocks SMS messages entirely.
+
+<Warning>
+A2P 10DLC registration can take **several weeks** and campaigns are frequently rejected. Start this process early — do not wait until launch.
+</Warning>
 
 #### Register
 1. **Go to Twilio's A2P 10DLC registration page:**
    [Twilio A2P 10DLC Registration Guide](https://help.twilio.com/articles/1260800720410-What-is-A2P-10DLC-)
-2. **Complete brand and campaign registration** to comply with US carrier regulations.
-3. **Wait for approval** (can take a few days).
+2. **Complete brand and campaign registration** to comply with US and Canadian carrier regulations.
+3. **Wait for approval.** This typically takes several weeks. Twilio has become increasingly strict with approvals.
 4. **Once approved**, messages will send successfully.
+
+<Tip>
+Campaigns are often rejected for vague opt-in descriptions. Include detailed example conversation transcripts showing how callers consent to receiving SMS. Linking a document with full sample transcripts significantly improves approval rates.
+</Tip>
+
+<Note>
+A2P 10DLC is specific to US and Canadian numbers. UK and other international numbers have separate regulatory requirements — check your local carrier guidelines.
+</Note>
 
 **Troubleshooting:** If your messages fail to send, check the Twilio logs for these error codes:
 - [**30034** - Unregistered Number](https://www.twilio.com/docs/api/errors/30034)
@@ -41,10 +54,24 @@ If you are using a US-based Twilio number, you must [register for A2P 10DLC](htt
 Once connected, follow these steps to create SMS templates:
 1. Click **Add SMS** in **Build > SMS**.
 2. Fill in the form:
-   - **Title**: A descriptive name for the SMS template (e.g., "reservation_confirmation").
-   - **SMS Body**: The content of the message. Ensure it is clear and concise.
+   - **Title**: A descriptive name for the SMS template (e.g., `reservation_confirmation`). This is the name you reference when triggering the template in functions.
+   - **SMS Body**: The content of the message.
    - **Phone Number**: Choose the Twilio phone number associated with this message.
 3. Save the template to make it available during conversations.
+
+<Tip>
+Messages of 160 characters or fewer are sent as a single SMS segment. Longer messages are split across multiple segments, which may increase cost. Keep templates concise where possible.
+</Tip>
+
+#### Dynamic tokens
+
+You can insert [variant attributes](/variant-management/introduction) into SMS templates for personalization using `${variant_attribute}` syntax. For example:
+
+```plaintext
+Hi ${customer_name}, your reservation at ${property_name} is confirmed for ${date}.
+```
+
+For multilingual projects, consider creating separate templates with language suffixes (e.g., `confirmation_en`, `confirmation_es`).
 
 ### Managing templates
 All created SMS templates are listed in **Build > SMS**. You can:
@@ -62,7 +89,7 @@ All created SMS templates are listed in **Build > SMS**. You can:
 
 3. **Set SMS action**
     - Prompt something like "If someone asks for more details, send" in the action box.
-    - Click the + button on the right-hand side of the box and choose SMS > \{SMS template title created}.
+    - Click the **+** button on the right-hand side of the box and choose **SMS > \{SMS template title}**.
 
     Here's an example of how to construct a prompt for your agent to send an SMS:
 
@@ -74,7 +101,7 @@ All created SMS templates are listed in **Build > SMS**. You can:
 
 ## Best practices
 - **Clarity**: Keep SMS messages brief and directly relevant to the user's needs.
-- **Personalization**: Use variables or dynamic fields (e.g., username or account details) to enhance engagement.
+- **Personalization**: Use variant attributes or dynamic fields (e.g., customer name, booking details) to enhance engagement.
 - **Compliance**: Follow SMS regulations, including providing opt-out options when necessary.
 
 ## Example: Integrating handoffs with SMS
@@ -84,10 +111,36 @@ Combine [handoff](/call-handoff/introduction) functionality with SMS to streamli
 
 ## Integrating SMS into a function
 
-SMS can be triggered as part of a [function](/function/introduction) using [the `conv` objects](/function/classes/conv-object):
- - `conv.send_sms`
- - `conv.send_sms_template`
+SMS can be triggered as part of a [function](/function/introduction) using [the `conv` object](/function/classes/conv-object):
 
-    ```python
-    conv.send_sms("+15551234567", "Your request has been processed.")
-    ```
+### `conv.send_sms`
+
+Sends a free-form SMS message to a specified phone number.
+
+```python
+# Send to the current caller
+conv.send_sms(conv.caller_number, "Your appointment is confirmed for tomorrow at 2pm.")
+```
+
+### `conv.send_sms_template`
+
+Sends a pre-configured SMS template by **template name** (the title you defined in **Build > SMS**).
+
+```python
+# Send a template to the current caller
+conv.send_sms_template(conv.caller_number, "reservation_confirmation")
+```
+
+<Note>
+The second argument is the template **name** (the title from Build > SMS), not an ID. For example, if your template is titled `prescription_refill`, use `conv.send_sms_template(conv.caller_number, 'prescription_refill')`.
+</Note>
+
+<Warning>
+`conv.send_sms_template` queues the SMS for delivery rather than sending it synchronously. This means `try/except` blocks will **not** catch delivery failures — the call returns successfully even if the SMS later fails to send. To verify delivery, check conversation metadata or the Performance Dashboard SMS widget.
+</Warning>
+
+## Delivery and logging
+
+- Successful SMS sends are logged in the conversation metadata.
+- Failed sends increment the **API Failures** metric.
+- Use the **SMS widget** on the Performance Dashboard to monitor delivery rates.
