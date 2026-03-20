@@ -7,9 +7,7 @@ description: 'Measure customer satisfaction with post-conversation surveys'
 
 Customer Satisfaction (CSAT) surveys allow you to collect feedback from customers at the end of their conversation with your agent. The agent asks customers to rate their experience, and responses are tracked in your analytics dashboards.
 
-## Survey types
-
-PolyAI supports voice CSAT surveys - in-call surveys where the agent asks customers to rate their experience before ending the conversation.
+PolyAI currently supports voice CSAT surveys — in-call surveys where the agent asks customers to rate their experience before ending the conversation.
 
 ## Configuring voice CSAT
 
@@ -19,42 +17,38 @@ Voice CSAT is configured from **Configure > CSAT** in the sidebar.
 
 At the top of the CSAT settings page, toggle **Enable in-call voice survey** to on. This activates the CSAT feature for your project. Until enabled, no surveys run.
 
-### Step 2: Connect to your hang-up logic
+### Step 2: Connect to your end function
 
-Add `conv.goto_csat_flow()` to your hang-up function in **Build > Tools**. This instructs the agent to route users into the survey flow before ending the conversation.
+Add `conv.goto_csat_flow()` to your end function in **Build > Tools**. This instructs the agent to route users into the survey flow before ending the conversation.
 
 Here is the complete function definition:
 
 ```python
 def goodbye_and_hang_up(conv: Conversation):
     conv.goto_csat_flow()
-    return
 ```
 
 ![goodbye_and_hang_up function definition in Build > Tools](/images/csat.png)
 
 <Warning>
-This step is required. If you skip it, the survey never triggers—even if the toggle is on.
+This step is required. If you skip it, the survey never triggers — even if the toggle is on.
 </Warning>
 
 <Note>
-When using `conv.goto_csat_flow()` in your hangup function, there should be no return values. The function should end with `conv.goto_csat_flow()` and not return anything.
+When using `conv.goto_csat_flow()` in your end function, there should be no return values. The function should end with `conv.goto_csat_flow()` and not return anything.
 </Note>
 
-#### Custom utterance (optional)
-
-If you want a custom final message before the CSAT survey, you can optionally set the utterance in `conv.state.csat_output_args` before calling `conv.goto_csat_flow()`:
+<Tip>
+If you want a custom final message before the survey, set the utterance in `conv.state.csat_output_args` before calling `conv.goto_csat_flow()`:
 
 ```python
 def goodbye_and_hang_up(conv: Conversation):
     conv.state.csat_output_args = {"utterance": "Custom final thank you message"}
     conv.goto_csat_flow()
-    return
 ```
 
-<Note>
-The custom utterance is **not required**. Without it, the agent proceeds directly into the CSAT survey flow using the default lead-in message configured in your CSAT settings.
-</Note>
+Without this, the agent uses the default lead-in message configured in your CSAT settings.
+</Tip>
 
 ### Step 3: Define survey content
 
@@ -67,12 +61,12 @@ Configure the two text fields in the **Content** section:
 </ParamField>
 
 <ParamField path="Survey question" type="string">
-  The actual rating question. You must include a 1–5 scale in the wording—the system does not infer a scale.
+  The actual rating question. You must include a 1–5 scale in the wording — the system does not infer a scale.
   
   **Example:** "On a scale of 1 to 5, how well was your issue resolved today?"
 </ParamField>
 
-Once configured, every time your hang-up function executes, the user routes into the CSAT flow before the conversation ends.
+Once configured, every time your end function executes, the user routes into the CSAT flow before the conversation ends.
 
 ## How voice CSAT works
 
@@ -82,9 +76,7 @@ Once configured, every time your hang-up function executes, the user routes into
 4. **Customer responds** - Customer provides a rating
 5. **Data collection** - Rating is stored and appears in your dashboards
 
-## Configuration
-
-### Voice CSAT best practices
+## Voice CSAT best practices
 
 **Tips for effective surveys:**
 - **Keep it short** - Customers are more likely to respond to brief surveys
@@ -159,10 +151,10 @@ The standard CSAT scale is 1-5:
 CSAT scores can be calculated in different ways depending on your reporting needs:
 
 **Standard average**
-Simple average of all CSAT scores (e.g., 4.06 out of 5.0)
+Simple average of all CSAT scores (e.g., 4.06 out of 5.0). This is what PolyAI dashboards report by default.
 
-**Net Promoter style**
-Some organizations calculate CSAT using a Net Promoter Score approach:
+**Net Promoter style (client-side)**
+Some organizations apply a Net Promoter Score-style calculation to their exported CSAT data. This is not calculated by PolyAI — you would apply it to your own data exports:
 - CSAT Score = (Promoters - Detractors) / Total responses
 - Promoters: Scores of 4-5
 - Detractors: Scores of 1-2
