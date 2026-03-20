@@ -1,57 +1,62 @@
 ---
-title: Managing transition functions
-sidebarTitle: Transition functions
-description: 'Transition functions are tied to each flow'
+title: Transition functions
+description: 'Use transition functions to control how your agent moves between steps and flows'
 ---
 
-Transition functions are tied to a specific flow. They should not be confused with [global functions](/function/introduction), which can be used across [flows](/flows/introduction), in the [global rules](/agent-settings/rules), and in the [Knowledge area](/managed-topics/introduction).
+A transition function is any function that contains `flow.goto_step()` or `conv.goto_flow()`. Transition functions control how your agent moves between steps within a flow — or between flows entirely.
 
-To view and manage transition functions, click the **<Icon icon="arrow-progress" iconType="solid" /> Flow functions** button in the bottom-right corner of the Flow Editor. This opens a searchable modal showing all **transition** functions associated with the current flow.
+- **`flow.goto_step()`** moves the agent to another step in the current flow. This must be a **flow function** (scoped to the flow).
+- **`conv.goto_flow()`** moves the agent to a different flow. This can be called from a flow function **or** a [global function](/function/introduction).
 
-![tfunctions-2](/images/transition-function-menu.png)
+Transition functions should not be confused with [global functions](/function/introduction), which are shared across [flows](/flows/introduction), [global rules](/agent-settings/rules), and [Knowledge topics](/managed-topics/introduction).
 
-## Creating and managing transitions
+## Recognising transition vs global functions in the UI
 
-Use transition functions to control how your agent moves from one step to another using Python code.
+Global functions are distinguished in flow steps by the function symbol <Icon icon="function" iconType="solid" />. You can edit them from the flow editor, but changes apply everywhere the function is used in Agent Studio.
 
-Here's how you can create a new transition function:
+![Global function icon shown next to a function reference in a flow step](/images/global-function-ui.png)
 
-1. **Connect two steps**
-   If no transition exists, linking two steps will prompt you to create one.
+Global functions also have profile items in the functions tab.
 
-2. **Name your transition**
-   You'll be asked to name the new transition function. Clear, intent-based names improve flow readability and LLM alignment.
+![Global functions listed in the functions tab with profile details](/images/global-function-menu.png)
 
-3. **Handle name conflicts**
-   If the name is already in use, the UI will show an error. Rename the function before proceeding.
+Transition functions (flow-scoped) only appear in the **Flow Functions** modal — they do not show up in the functions tab.
 
-4. **View usage references**
-   After creation, the UI shows how many times the transition function is referenced in prompts.
+## Viewing and managing flow functions
 
-## Naming functions
+To view and manage transition functions, click the **<Icon icon="arrow-progress" iconType="solid" /> Flow functions** button in the bottom-right corner of the Flow Editor. This opens a searchable modal showing all flow functions associated with the current flow.
 
-Function names directly shape how the LLM behaves — and what it might say. Stick to names that reflect the user's intent, not the flow structure. Always name from the user's perspective, rather than that of your AI agent.
-
-- <Icon icon="check" iconType="solid" /> Good: `save_postcode`, `check_availability`, `confirm_email`
-- <Icon icon="ban" iconType="solid" /> Avoid: `goto_next_step`, `continue_flow`, `start_confirmation`
-
-## Managing transition functions
-
-![transition-functions](/images/transition-function.png)
+![Flow functions modal showing a list of transition functions for the current flow](/images/transition-function-menu.png)
 
 You can manage transition functions in two ways:
 
-- **From a step**
-  Open the step's context menu and select an existing transition or create a new one.
+- **From a step** — open the step's context menu and select an existing transition or create a new one.
+- **From the Flow Functions modal** — view, rename, delete, or connect transitions to steps.
 
-- **From the Flow Functions modal**
-  Use the modal to view, rename, delete, or connect transitions to steps.
+<Tip>Duplicating a transition auto-generates a unique name. You can then update the logic or connect it to different steps.</Tip>
 
-<Tip>Duplicating a transition will auto-generate a unique name. You can then update the logic or connect it to different steps.</Tip>
+## Creating a transition function
+
+1. **Connect two steps** — if no transition exists, linking two steps prompts you to create one.
+2. **Name your transition** — you'll be asked to name the new function. Use a [retrospective, intent-based name](#naming-functions).
+3. **Handle name conflicts** — if the name is already in use, the UI shows an error. Rename before proceeding.
+4. **View usage references** — after creation, the UI shows how many times the function is referenced in prompts.
+
+![Transition function editor showing code and step references](/images/transition-function.png)
+
+## `flow.goto_step()` signature
+
+```python
+flow.goto_step("step_name")
+flow.goto_step("step_name", "condition_name")
+```
+
+- **`step_name`** (required) — the name of the target step, exactly as it appears in the Flow Editor. This is **case-sensitive**.
+- **`condition_name`** (optional) — a label for the transition edge. In [Function steps](/flows/no-code/introduction), this label appears on the edge in the visual editor and can help with readability, but routing is determined by your code, not the label.
 
 ## Example: conditional transition logic
 
-A transition function typically checks state and moves to the appropriate step. The diagram below shows how a verification check routes to different steps:
+A transition function typically checks state and moves to the appropriate step:
 
 ```mermaid
 stateDiagram-v2
@@ -66,75 +71,95 @@ stateDiagram-v2
 def check_user_verified(conv: Conversation, flow: Flow):
     if conv.state.user_verified:
         flow.goto_step("Account details")
-    else:
-        flow.goto_step("Verify identity")
+        return
+    flow.goto_step("Verify identity")
     return
 ```
 
-<Tip>
-Always use `return` at the end of your transition function. Omitting it can lead to unexpected behavior.
-</Tip>
+## Switching to a different flow with `conv.goto_flow()`
 
-<Warning>
-Broken transitions after editing?
+Use `conv.goto_flow()` when the conversation needs to leave the current flow entirely — for example, to start an identity verification or escalation flow.
 
-If you're moving transition code between steps, be careful:
+```python
+def check_verification(conv: Conversation, flow: Flow):
+    attempts = conv.state.verification_attempts or 0
+    if not conv.state.is_verified:
+        attempts += 1
+        conv.state.verification_attempts = attempts
+        if attempts >= 3:
+            conv.goto_flow("Identity Verification")
+            return
+        flow.goto_step("Retry verification")
+        return
+    flow.goto_step("Continue booking")
+    return
+```
 
-- Avoid **cutting or dragging** transition function code between steps.
-- Instead, **copy the code**, paste it into the new step, then delete the original.
+See [triggering flows](/flows/triggering-flows) for more on `conv.goto_flow()`.
 
-This ensures any `flow.goto_step("Step Name")` call still refers to a real, valid Step.
-Transition logic can break silently if the destination step name is renamed or deleted elsewhere in the flow.
+## Naming functions
 
-Also remember:
-- `flow.goto_step(...)` is **case-sensitive**
-- Renaming a Step will update the flow editor — but not your function logic
-</Warning>
+Function names directly shape LLM behaviour. Use **retrospective, intent-based names** that describe what just happened or what was resolved — not where the flow is going next.
 
-## Best practices
+- <Icon icon="check" iconType="solid" /> Good: `last_name_given`, `phone_number_collected`, `reservation_confirmed`
+- <Icon icon="check" iconType="solid" /> Also good: `save_postcode`, `check_availability`
+- <Icon icon="ban" iconType="solid" /> Avoid: `goto_next_step`, `continue_flow`, `go_to_collect_phone_number`
 
-- Step IDs are **case-sensitive** — so `"CollectName"` is not the same as `"collectname"`.
-- Keep transition functions focused, with one job and one output.
-- Use action- or intent-based names like `check_user_verified`, `handle_no_availability`.
-- Avoid vague or structural names like `goto_step_two` or `continue_flow` — they confuse the LLM and make flows harder to debug.
-- Transition functions are only visible to the LLM if referenced in the current step.
-- They are attached to the current flow, so they are not shared globally. They will not show up in the [functions](/function/introduction) tab.
-- Use them to encapsulate branching logic and control step sequencing — not to generate agent responses.
+Retrospective names anchor the LLM's reasoning around what the user accomplished, which produces more natural responses. Forward-looking names like `start_confirmation` can cause the model to narrate its own flow logic ("Okay, moving on to confirmation now").
+
+<Note>
+Some teams use past-tense verbs for transition functions (`phone_number_given`) and present-tense for global functions (`get_status_of_order`). Pick a convention and keep it consistent across your project.
+</Note>
+
+## Common mistakes
 
 <Tabs>
 <Tab title="Avoid">
-Never chain multiple function calls in a single step. This will always increase the failure rate, and it makes flow behavior unpredictable.
+Never chain multiple function calls in a single step. This increases the failure rate and makes flow behaviour unpredictable.
 ```python
 save_user_input()
 check_availability()
 flow.goto_step("Next")
 ```
 </Tab>
-<Tab title="Instead, use...">
-Keep individual step logic consolidated into one function wherever possible.
+<Tab title="Instead, use">
+Consolidate step logic into one function wherever possible.
 ```python
 def save_and_check(conv: Conversation, flow: Flow, value: str):
     conv.state.value = value
     if check_availability(value):
         flow.goto_step("Confirm booking")
-    else:
-        flow.goto_step("Unavailable")
+        return
+    flow.goto_step("Unavailable")
     return
 ```
 </Tab>
 </Tabs>
-<Tip>
-If your transition function needs to trigger user-facing output, return a message string at the end. Otherwise, let the agent respond from the step prompt.
-</Tip>
 
-## Recognising global functions in flows
+## Best practices
 
-Global functions are distinguished in flow steps by the function symbol <Icon icon="function" iconType="solid" />. They can also be edited in the flow editor,
-but keep in mind this will affect all iterations of that function across Agent Studio.
+- Always use `return` immediately after `flow.goto_step()` or `conv.goto_flow()`. Omitting it can lead to unexpected behaviour — only the **last** `goto_step()` call in a function is executed.
+- Keep transition functions focused — one decision, one outcome.
+- Transition functions are only visible to the LLM if referenced in the current step's prompt.
+- Use them to encapsulate branching logic and control step sequencing — not to generate agent responses.
+- If your transition function needs to trigger user-facing output, return a message string **instead of** calling `goto_step()`. These are two separate patterns — don't mix them in the same code path.
 
-![tfunctions-2](/images/global-function-ui.png)
+<Warning>
+**Debugging silent transition failures**
 
-Global functions will also have profile items in the functions tab.
+If a transition seems to do nothing, the most common cause is a step name mismatch. Because `flow.goto_step()` is **case-sensitive**, `"CollectName"` and `"collectname"` are different targets. A mismatched name fails silently — there is no error message.
 
-![tfunctions-2](/images/global-function-menu.png)
+To diagnose:
+- Open the **Flow Functions** modal and check the exact step name spelling.
+- Look for trailing spaces or special characters in step names.
+- Use `flow.current_step` in your function to log the current step name for debugging.
 
+When you rename a step in the Flow Editor, Agent Studio automatically updates `flow.goto_step()` and `conv.goto_flow()` references across the project. However, always verify after renaming — especially if you have step names referenced in strings or variables that the auto-rename may not catch.
+</Warning>
+
+## Related reading
+
+- [Flow object](/flows/object) — `goto_step()` and `current_step` reference
+- [Conversation object](/function/classes/conv-object) — `goto_flow()` and `exit_flow()` reference
+- [Triggering flows](/flows/triggering-flows) — all the ways to start a flow
+- [No-code flows](/flows/no-code/introduction) — Default steps vs Function steps
