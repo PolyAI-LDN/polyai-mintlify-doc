@@ -5,42 +5,50 @@ description: "Using functions inside your voice agent's Managed Topics."
 
 Functions let your agent call APIs, look up data, or perform logic when a Managed Topic matches. This page shows how to add a function to a topic and test it.
 
-## Introduction
-
-After creating and testing your function, the next step is to integrate it into your agent's Managed Topics so it can be used dynamically during conversations.
-
 ## Adding a function
 
-You can add a function into Managed Topics in three ways:
+After creating and testing your function, integrate it into your agent's Managed Topics so it can be invoked during conversations.
 
-### 1. Type "/" in the Managed Topic card's "Actions" field
-   - Begin typing "/" in the "Actions" field of your Managed Topic card to bring up the function context menu.
+You can add a function in three ways:
 
-### 2. Right-click in the Managed Topic card's "Actions" field
-   - Right-click in the "Actions" field to access the function menu and select your desired function.
+1. **Type `/`** in the Actions field of a Managed Topic card to open the function menu.
+2. **Right-click** in the Actions field to access the function menu.
+3. **Click the `+` icon** on the right side of the Actions field.
 
-### 3. Click the add icon on the right side of the "Actions" box
-   - Use the "+" icon on the right side of the "Actions" field to add a function.
+Each method lets you search for and select a function, or create a new one to populate later.
 
-Each of these methods allows you to search for and select a function from your list of agent functions. You can also create a new function directly from the menu and populate its definition later.
+You can reuse the same function across multiple topics and actions.
 
-You can reuse functions as many times as needed to cover all relevant use cases for your agent.
+<Warning>
+  Function references like `{"{{fn:order_lookup}}"}` are only valid in the **Actions** field of a Managed Topic. Placing them in the **Content** field will not trigger the function, and no error is shown. Always add function references in Actions.
+</Warning>
+
+<Note>
+  The `{"{{fn:...}}"}` syntax references **global functions**, which can be used across topics, flows, and rules. This is different from **transition functions** (`{"{{ft:...}}"}` syntax), which are scoped to a single flow. See [Transition functions](/flows/transition-functions) for details.
+</Note>
 
 ## Best practices
 
-Function invocation requires testing and iteration. Here is a proven prompting pattern:
+Function invocation requires testing and iteration. Here is a recommended prompting pattern for the Actions field:
 
-When the user asks "where is my order," do not respond until you have called `{{fn:order_lookup}}` with an order number. If you don't know their order number, you should ask first and then call `{{fn:order_lookup}}`. You should ignore all other impulses and follow the response of the function to give back to the caller.
+```plaintext
+When the user asks "where is my order," do not respond until you have called {{fn:order_lookup}} with an order number. If you don't have the order number, ask for it first, then call {{fn:order_lookup}}. Use the function's response to answer the caller.
+```
 
-This methodology ensures the function is invoked appropriately and the response aligns with user expectations.
+This ensures the agent always invokes the function before responding, and grounds its answer in the function's output.
 
-## Testing your voice agent with example
+To control what the agent says or does after a function runs, use [return values](/function/return-values). For example, you can return an exact `utterance` for the agent to speak, trigger a `handoff`, or end the call with `hangup`.
 
-### Step 1: Save your voice agent
-   - Save your agent and click the Play button in the header to open the test chat panel.
+## Testing
 
-### Step 2: Test the invocation
-   - Ask a test question like "Where is my order?" and observe how the agent handles the interaction.
-
-### Step 3: Verify function calls
-   - In the test chat panel, click the settings button near the close icon and enable the "Functions" toggle to review the function calls and parameters used.
+<Steps>
+  <Step title="Save your agent">
+    Save your agent and click **Play** in the header to open the test chat panel.
+  </Step>
+  <Step title="Test the invocation">
+    Ask a test question like "Where is my order?" and observe how the agent handles the interaction.
+  </Step>
+  <Step title="Verify function calls">
+    In the test chat panel, enable the **tool calls** toggle in settings to inspect which functions were called and what parameters were passed. This is useful for confirming whether the function was actually triggered and whether the correct arguments were sent — especially when the agent is not behaving as expected.
+  </Step>
+</Steps>
