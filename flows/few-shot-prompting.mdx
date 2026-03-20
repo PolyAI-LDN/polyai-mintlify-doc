@@ -1,16 +1,26 @@
 ---
 title: 'Few-shot prompting'
-description: 'Use example-driven prompts inside flow steps to improve accuracy and reduce ambiguity'
+description: 'Use example-driven prompts to improve accuracy and reduce ambiguity across flow steps, topic actions, and agent behaviour prompts'
 ---
 
-[Few-shot prompting (FSP)](https://www.ibm.com/think/topics/few-shot-prompting) is a technique for guiding the LLM by showing it examples of what users might say — and how the agent should respond. Inside a flow step, this helps the agent:
+[Few-shot prompting (FSP)](https://www.ibm.com/think/topics/few-shot-prompting) is a technique for guiding the LLM by showing it examples of what users might say — and how the agent should respond. This helps the agent:
 
 - Match vague or unexpected inputs to the correct function call
 - Extract values in tricky formats (e.g., spelled names, long reference codes)
 - Avoid asking unnecessary questions when the value is already present
 - Maintain a consistent tone, phrasing, or logic pattern
 
-## Why it matters in flow steps
+## Where you can use few-shot prompting
+
+FSP works anywhere the LLM reads a prompt. The most common places in Agent Studio are:
+
+- **Flow step prompts** — the step prompt field in the Flow Editor
+- **Topic actions** — the action prompt within a managed topic
+- **Agent behaviour prompts** — global rules that shape the agent's overall behaviour
+
+The examples on this page use flow steps, but the same principles apply wherever you write prompts.
+
+## Why it matters
 
 In a flow, the agent only sees:
 - The **current step prompt**
@@ -26,26 +36,58 @@ Because step prompts are inserted last in the LLM input stack, FSP examples appe
 
 ## Basic structure
 
-![fsp](/images/last-name-fsp.png)
-
 Each few-shot example consists of:
 
 - A realistic **user message**
 - A matching **agent behavior** — often a response + function call
 
-Place these inside the **step prompt**, either inline or at the top before your main instructions.
+Place these inside the prompt, either inline or at the top before your main instructions.
 
-You don't need dozens of examples — usually **2–3** is enough, especially if you cover:
+Here's what a set of few-shot examples looks like inside a "Collect last name" step prompt:
+
+```plaintext
+User: It's Smith.
+Agent: Thanks — that's Smith. [call save_last_name("Smith")]
+
+User: My surname is de la Cruz.
+Agent: Got it, de la Cruz. [call save_last_name("de la Cruz")]
+
+User: Sure, that's H-O-W-E. Howe.
+Agent: Thanks for spelling it — I've got Howe. [call save_last_name("Howe")]
+```
+
+The same pattern looks like this in the Flow Editor:
+
+![Few-shot examples inside a flow step prompt for collecting a last name](/images/last-name-fsp.png)
+
+You don't need dozens of examples — **2–5** is usually enough, especially if you cover:
 - A standard, clean input
-- A tricky edge case
+- A tricky edge case (e.g., multi-word names, spelled-out values)
 - A fallback or clarification
+- An input that's already been provided earlier in the conversation
+
+<Warning>
+Too many examples can make the model too rigid or cause it to overfit to specific cases. If the agent starts parroting your examples word-for-word instead of generalising, reduce the number of examples or make them more varied.
+</Warning>
 
 ## Tips for strong few-shot examples
 
-- Use realistic language — not idealized or overly formal examples.
-- Show both success and edge cases.
+- **Use realistic language** — write examples that sound like actual callers, not idealised or overly formal phrasing.
+- **Show both success and edge cases** — include at least one tricky input so the model knows how to handle it.
+- **Match the agent's persona** — if the agent has a name and tone, use them consistently in the example responses.
+- **Pair responses with function calls** — show the model exactly which function to call and with what arguments.
+- **Keep examples independent** — each example should stand alone. Don't build a sequence where example 2 depends on example 1.
+
+## What to avoid
+
+- **Mixing FSP examples with conditional logic** — keep your few-shot examples separate from `if/else` style instructions in the same prompt. Mixing them confuses the model about what's an example versus what's a rule.
+- **Using too many examples** — more than 5 examples rarely helps and can cause overfitting. Start with 2–3 and add more only if the agent struggles with specific cases.
+- **Copying examples between steps** — each step has different functions and goals. Tailor your examples to the specific step they live in.
+- **Using placeholder data** — avoid generic values like "John Doe" or "123". Use realistic but varied values that reflect what real callers say.
 
 ## Related reading
 
 - [Prompting Guide: Few-shot](https://www.promptingguide.ai/techniques/fewshot)
 - [IBM: Few-shot prompting](https://www.ibm.com/think/topics/few-shot-prompting)
+- [Example flow](/flows/example) — see FSP in context within a full reservation confirmation flow
+- [Style guide](/get-started/style-guide) — acceptance checklist includes FSP best practices
