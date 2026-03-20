@@ -5,10 +5,10 @@ description: Define and call external APIs directly from Agent Studio without wr
 ---
 
 <Note>
-This page covers the **API Integrations** feature in Agent Studio for calling external services. For PolyAI's public APIs (Chat, Conversations, Handoff, etc.), see the [API Reference](/api-reference/introduction).
+This page covers custom API integrations configured in the **APIs** tab in Agent Studio. For PolyAI's public APIs (Chat, Conversations, Handoff, etc.), see the [API Reference](/api-reference/introduction). For pre-built third-party integrations (e.g., OpenTable, Salesforce, Zendesk), contact your PolyAI account manager to enable them via the **Integrations** tab.
 </Note>
 
-The **API Integrations** tab lets you define external HTTP APIs directly in Agent Studio and reference them when building [functions](/function/introduction) and [flows](/flows/introduction).
+The **APIs** tab (under **Configure** in the Agent Studio sidebar) lets you define external HTTP APIs and reference them when building [functions](/function/introduction) and [flows](/flows/introduction).
 
 ![api-tab](/images/api-tab-create.png)
 
@@ -21,7 +21,7 @@ This page explains what the APIs tab does and how to call defined APIs from your
 
 ## What API integrations are for
 
-Use the API Integrations tab when you want your agent to:
+Use the APIs tab when you want your agent to:
 - Fetch or send data to an external system
 - Call internal services (CRM, ticketing, booking, payments)
 - Avoid maintaining potentially weighty custom HTTP logic in functions
@@ -40,7 +40,11 @@ An API definition consists of:
 
 ## API name
 
-The API name becomes the namespace under conv.api.
+The API name becomes the namespace under `conv.api`.
+
+<Info>
+Use `snake_case` for API names and operation names (e.g., `my_service`, `get_contact`).
+</Info>
 
 Example:
 - API name: `salesforce`
@@ -78,18 +82,18 @@ Path variables are automatically exposed as arguments when calling the operation
 
 ![api-tab-runtime](/images/api-tab-reference.png)
 
-All defined APIs are available inside functions under the conv.api object.
+All defined APIs are available inside functions under the `conv.api` object.
 
 The structure is:
 
 ```python
-  conv.api.<api_name>.<operation_name>(...)
+conv.api.<api_name>.<operation_name>(...)
 ```
 
 Example:
 
 ```python
-  response = conv.api.salesforce.get_contact("123")
+response = conv.api.salesforce.get_contact("123")
 ```
 
 ## What gets returned from an API call
@@ -100,30 +104,69 @@ This means you can:
 - Check `response.status_code`
 - Access `response.text`
 - Call `response.json()` to parse JSON responses
+- Call `conv.log_api_response(response)` to log the response for debugging in [Conversation Review](/analytics/conversations/review)
 
-### Example: Reading JSON from a response
+### Debugging with `conv.log_api_response()`
+
+Use `conv.log_api_response(response)` to log API responses so they appear in Conversation Review. This is useful when troubleshooting failed or unexpected API calls.
+
+```python
+response = conv.api.salesforce.get_contact("123")
+conv.log_api_response(response)
+```
+
+### Example: reading JSON from a response
 
 Assume your API returns the following JSON:
 
 ```json
-  {
-    "id": "123",
-    "status": "active",
-    "email": "customer@example.com"
-  }
+{
+  "id": "123",
+  "status": "active",
+  "email": "customer@example.com"
+}
 ```
 
 You would handle it like this inside a function:
 
-```json
-  response = conv.api.salesforce.get_contact("123")
+```python
+response = conv.api.salesforce.get_contact("123")
 
-  data = response.json()
-  status = data["status"]
-  email = data["email"]
+data = response.json()
+status = data["status"]
+email = data["email"]
 ```
 
 You can then use those values to decide what to return to the agent.
+
+### Error handling
+
+Always check the response status before processing data. Non-200 responses may indicate the API call failed or the resource was not found.
+
+```python
+response = conv.api.salesforce.get_contact("123")
+conv.log_api_response(response)
+
+if response.status_code == 200:
+    data = response.json()
+    return {"content": f"The account status is {data['status']}."}
+else:
+    return {"content": "I wasn't able to retrieve the account details. Please try again later."}
+```
+
+You can also use `response.raise_for_status()` to raise an exception on non-2xx responses:
+
+```python
+response = conv.api.salesforce.get_contact("123")
+conv.log_api_response(response)
+
+try:
+    response.raise_for_status()
+    data = response.json()
+    return {"content": f"The account status is {data['status']}."}
+except Exception:
+    return {"content": "Something went wrong while fetching your account details."}
+```
 
 ## Returning values from your function
 
@@ -135,16 +178,16 @@ There are two common patterns:
 
 Use this when you want the LLM to continue the conversation naturally:
 
-```json
-  return {"content": f"The account is currently {status}."}
+```python
+return {"content": f"The account is currently {status}."}
 ```
 
 ### 2. Return a programmatic utterance
 
 Use this when you want to return a fully controlled response:
 
-```json
-  return {"utterance": "Your account is active and ready to use."}
+```python
+return {"utterance": "Your account is active and ready to use."}
 ```
 
 In most cases:
@@ -157,14 +200,14 @@ You can pass path variables as positional or keyword arguments.
 
 Examples:
 
-```json
-  response = conv.api.salesforce.get_contact("123")
+```python
+response = conv.api.salesforce.get_contact("123")
 ```
 
 Or:
 
-```json
-  response = conv.api.salesforce.get_contact(contact_id="123")
+```python
+response = conv.api.salesforce.get_contact(contact_id="123")
 ```
 
 ## Query parameters, body, and headers
@@ -178,13 +221,13 @@ You can pass:
 
 Example:
 
-```json
-  response = conv.api.stripe.create_payment(
+```python
+response = conv.api.stripe.create_payment(
     amount=100,
     params={"expand": "customer"},
     json={"amount": 100, "currency": "usd"},
     headers={"X-Custom-Header": "value"}
-  )
+)
 ```
 
 This behaves similarly to a thin wrapper around a standard HTTP client.
@@ -193,20 +236,32 @@ This behaves similarly to a thin wrapper around a standard HTTP client.
 
 Authentication is configured at the API level.
 
-Supported auth types include:
-- No auth
-- Header-based auth (for example, API keys)
-- Other configured mechanisms depending on deployment
+<Warning>
+Authentication configuration is **not branch-specific**. If you edit auth settings on any branch, the change applies globally — including to the main branch. Take care when modifying auth configuration.
+</Warning>
+
+Supported authentication types:
+- **No auth** — No authentication required.
+- **API key** — A key sent in a header or query parameter.
+- **Basic auth** — Username and password encoded in the `Authorization` header.
+- **OAuth 2.0** — Token-based authentication with automatic token management.
+- **Bearer token** — A token sent in the `Authorization` header.
+
+Auth configuration covers three aspects:
+1. **Type** — The authentication method (API key, bearer token, basic auth, OAuth 2.0, etc.)
+2. **Location** — Where credentials are sent (header, query parameter, or cookie)
+3. **Secret value** — The credential itself, managed securely by Agent Studio
 
 Auth credentials are handled by Agent Studio and are not embedded in flows or functions.
 
 ## Summary
 
-The API Integrations tab provides:
+The APIs tab provides:
 - Centralized API configuration
 - Environment-aware routing
 - A simple runtime interface with `conv.api`
 - A `requests.Response`-like return object that you process with `response.json()`
+- Debugging support via `conv.log_api_response()`
 
 For examples of API calls in context, see:
 - [Functions](/function/introduction)
