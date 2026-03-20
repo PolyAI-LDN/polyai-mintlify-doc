@@ -6,7 +6,7 @@ description: 'Use flows for important, structured interactions.'
 
 ![example-main](/images/flow-default-page.png)
 
-Flows (**Build > Flows**) handle structured interactions requiring input collection, validation, API calls, or specific sequences.
+Flows (**Build > Flows**) handle structured interactions requiring collecting information, checking it, connecting to external services, or following a set order of steps.
 
 <Note>Use Knowledge topics for simple answers. Use flows when you need structure or logic.</Note>
 
@@ -40,7 +40,7 @@ Typical pattern:
 - You use a Function step (or a transition function) and call `conv.goto_flow` to move into a different flow
 
 <Note>
-APIs do not trigger flows directly. Instead, flows orchestrate steps, and Function steps can call APIs. If an API result should change the path, you use code to route or start the appropriate flow.
+External services don't start flows on their own. Instead, flows organize the steps, and Function steps can connect to external services. If a service result should change the path, you use code to route or start the appropriate flow.
 </Note>
 
 ## How flows work
@@ -49,21 +49,21 @@ Each flow is made up of:
 
 - Steps: Self-contained conversation states, made up of:
   - Text prompts, just like Knowledge topics.
-  - Global functions and transition functions: Logic blocks that validate input, call APIs, store values, and move the conversation forward.
+  - Global functions and transition functions: Logic that checks input, connects to external services, saves values, and move the conversation forward.
 
-That means as each step is sequentially processed, the LLM sees:
+That means as the agent works through each step, it sees:
 - The current step's text prompt.
 - A list of available functions with names, descriptions, and arguments.
 
-What the LLM doesn't see:
+What the agent doesn't see:
 - Previous step prompts.
-- Any system context, unless it's surfaced in the prompt or state.
+- Any background information, unless you include it in the step's instructions or saved data.
 
 <Tip>
 Because previous steps are not visible, each prompt must be self-contained. Provide all necessary context and clear guidance in each step.
 </Tip>
 
-## LLM interaction model
+## How the agent processes each step
 
 When the agent is inside a flow step, this is the input order:
 
@@ -102,16 +102,16 @@ In the Flow Editor:
 - Use the Flow Functions modal to see all transitions in one place
 
 <Warning>
-Always include an exit step in your flow. Un-exited flows can cause hallucinations.
+Always include an exit step in your flow. Flows without an exit step can cause the agent to give incorrect or made-up responses.
 </Warning>
 
 <Note>
-Use descriptive function names like check_reservation_match, not vague ones like step_two — this helps the LLM reason correctly.
+Use descriptive function names like check_reservation_match, not vague ones like step_two — this helps the agent reason correctly.
 </Note>
 
 ## Standard entity types
 
-Entity types define the kind of information your agent collects from users. They help the system validate and structure input once it has been recognized by ASR.
+Entity types define the kind of information your agent collects from users. They help the system check and structure input once it has been recognized by speech recognition.
 
 ### Available types
 

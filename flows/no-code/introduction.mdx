@@ -6,7 +6,7 @@ description: "Build conversational workflows visually."
 
 ![rules-examples](/images/no-code-flows/default.png)
 
-**No-code Flows** let you build conversational workflows visually — using prompts, entity extraction, and clear branching — without writing code. If you need advanced logic, you can add a Function step.
+**No-code Flows** let you build conversational workflows visually — using prompts, collecting structured information, and clear branching — without writing code. If you need advanced logic, you can add a Function step.
 
 A typical no-code flow:
 
@@ -21,8 +21,8 @@ You can build most structured interactions using Default steps alone.
 <Card>
 **Key concepts**
 
-- **Step (node):** A box in the editor. It represents one moment in the conversation (ask something, confirm something, collect details).
-- **Edge:** A line between steps. It represents a possible next path.
+- **Step:** A box in the editor. It represents one moment in the conversation (ask something, confirm something, collect details).
+- **Connection:** A line between steps. It represents a possible next path.
 - **Condition:** A label on an edge that explains when that edge should be taken.
 - **Entity:** A piece of structured information you want to collect (phone number, date, number of passengers).
 - **Exit flow:** A terminal end point (finish, handoff, stop).
@@ -73,18 +73,18 @@ Every flow should end in an Exit flow.
 
 ## How flow logic actually runs
 
-There are two execution models inside flows. Understanding this prevents most confusion.
+Flows work in two different ways depending on the step type. Understanding this prevents most confusion.
 
 ### Default steps (LLM-driven)
 
 In a Default step:
 
-- The LLM evaluates conditions.
+- The agent evaluates conditions.
 - Condition labels are meaningful.
-- “Required entities” inform the LLM what must be present before a condition can pass.
+- “Required entities” inform the agent what must be present before a condition can pass.
 - Routing is determined by the model.
 
-If you reference collected entities inside the prompt, you can use rich text `/entities`. This inserts a template tag in the format `{{entity:entity_name}}` that the system resolves at runtime.
+If you reference collected entities inside the prompt, you can use rich text `/entities`. This inserts a placeholder (like `{{entity:phone_number}}`) that automatically fills in with the collected value.
 
 In Conversation Review, you will see system functions such as:
 
@@ -257,7 +257,7 @@ Entities are structured values the agent can collect and reuse, such as:
 - Number
 - Free text
 
-Mark an entity as required if the LLM should not consider a condition satisfied without a valid value. In Function steps, you must enforce this yourself in code.
+Mark an entity as required if the agent should not consider a condition satisfied without a valid value. In Function steps, you must enforce this yourself in code.
 
 ### Validation
 
@@ -266,7 +266,7 @@ Depending on the entity type:
 - Valid values allow the flow to continue.
 - Invalid values can trigger re-asking or fallback routing.
 
-In Default steps, the LLM automatically re-asks for an entity when validation fails. In Function steps, you must handle retries and fallback routing yourself in code.
+In Default steps, the agent automatically re-asks for an entity when validation fails. In Function steps, you must handle retries and fallback routing yourself in code.
 
 <Tip>
 If a branch depends on an entity being present, always include a clear fallback path for when it is not collected or fails validation.

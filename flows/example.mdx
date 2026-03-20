@@ -29,10 +29,10 @@ This shows the **current step**: `Collect confirmation code`. The 🏁 icon indi
 Each step contains:
 - A prompt shown to the user
 - Transition logic to guide conversation flow
-- A set of visible functions the LLM can call.
+- A set of available functions the agent can use.
 
 ### C. Transition function reference
-Inside the step prompt, the LLM is told to call `save_confirmation_code` if the user provides a valid input.
+Inside the step prompt, the agent is told to call `save_confirmation_code` if the user provides a valid input.
 
 This example uses both the [conversation](/function/classes/conv-object) and [flow](./object) objects:
 
@@ -71,7 +71,7 @@ At the bottom of the Flow Editor:
 - **Flow functions** opens a modal to manage logic used in the flow
 - **+ Step** adds a new node to the flow canvas
 
-Transition functions created here are scoped to the flow unless declared globally.
+Transition functions created here belong to this flow only, unless you also add them as global functions.
 
 ## Middle steps
 
@@ -110,23 +110,23 @@ The agent attempts to match the user's provided details against active reservati
   - `reason="RESERVATION_NOT_FOUND"`
   - `utterance="Right, let me put you through to someone who can help. Just a moment."`
 
-This is a standard validation step using dynamic values and conditional logic.
+This step checks the details against your data and decides what to do next.
 
 ## Reminders
 
-- LLMs only see the **current step's prompt and function list** — not previous steps
+- The agent only sees the **current step's prompt and function list** — not previous steps
 - Always use `return` after `flow.goto_step()` to prevent silent overrides
 - Avoid naming transitions by position (`goto_step_4`) — use intent-based names like `match_reservation` or `retry_lookup`
 
 ### Improving date accuracy from speech
 
-Voice transcription (ASR) often produces **unstructured date strings** like `twenty seventh of june twenty twenty five`, which can be hard to parse — especially if you're enforcing a strict format like `DD/MM/YYYY`.
+Voice transcription (ASR) often produces **unstructured date strings** like `twenty seventh of june twenty twenty five`, which can be hard to interpret correctly — especially if you're enforcing a strict format like `DD/MM/YYYY`.
 
 <Note>
 Instead of checking the date format in the step prompt or rejecting invalid inputs immediately:
 
-- Move format enforcement into the **LLM context field** of the parameter.
-- Let the LLM interpret and convert the input to the required format.
+- Move the format instructions into the **context field** of the parameter (this is what the agent reads).
+- Let the agent interpret and convert the input to the required format.
 - Then validate it in the function.
 
 This avoids issues where STT fails to cleanly separate day, month, and year — especially in multi-lingual or noisy environments.

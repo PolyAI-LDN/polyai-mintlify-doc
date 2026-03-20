@@ -5,7 +5,7 @@ title: "Managed topics"
 Managed Topics (**Build > Knowledge > Managed Topics tab**) define what your agent knows. Each topic contains sample questions, an answer, and optional actions.
 
 <Tip>
-If you need to add custom logic to your topics — such as API calls, data lookups, or conditional behavior — see the [Tools](/function/introduction) section under **Build** in the sidebar.
+If you need to add custom logic to your topics — such as connecting to external services, data lookups, or conditional behavior — see the [Tools](/function/introduction) section under **Build** in the sidebar.
 </Tip>
 
 ## The Managed Topics interface
@@ -16,15 +16,15 @@ Search, filter, and manage topics. Click any topic card to edit.
 
 ![retrieval](/images/kb-rag-ven.png)
 
-The agent **does not** see all MTs at once. Instead, it uses [retrieval-augmented generation (RAG)](/managed-topics/RAG/introduction) to find the best match for the user’s message.
+The agent **does not** see all Managed Topics at once. Instead, it uses [retrieval-augmented generation (RAG)](/managed-topics/RAG/introduction) to find the best match for the user’s message.
 
-1. The retriever compares the message to the topic’s **name**, **sample questions**, and **content** — with higher weighting given to the name and sample questions.
-2. It returns the top matching topics to the LLM. Only a small subset of each topic's sample questions (typically the top 3) are included in the LLM context.
-3. The [LLM](https://en.wikipedia.org/wiki/Large_language_model) selects the best match and generates a reply (and may trigger an **[action](/managed-topics/how-to-setup-action/introduction)**, **[function](/function/introduction)**, or **[flow transition](/flows/transition-functions)**).
+1. The agent compares the message to the topic’s **name**, **sample questions**, and **content** — with higher weighting given to the name and sample questions.
+2. It returns the top matching topics to the language model. Only a small subset of each topic's sample questions (typically the top 3) are included in what the agent sees.
+3. The [language model](https://en.wikipedia.org/wiki/Large_language_model) selects the best match and generates a reply (and may trigger an **[action](/managed-topics/how-to-setup-action/introduction)**, **[function](/function/introduction)**, or **[flow transition](/flows/transition-functions)**).
 
-## Types of MTs entries
+## Types of Managed Topic entries
 
-Below are the broad categories that most MTs entries tend to fall into.
+Below are the broad categories that most Managed Topic entries tend to fall into.
 
 ### Simple FAQ
 
@@ -34,15 +34,15 @@ Used when the agent just needs to answer a question with no follow-up or action 
 
 One message in, one message out.
 
-- Add a short, helpful reply in `content`.
-- Leave `actions` empty.
+- Add a short, helpful reply in the **Content** field.
+- Leave the **Actions** field empty.
 
 #### Multi turn
 
 Ask a clarifying question before giving the answer.
 
-- Use branching inside `content` to structure the reply.
-- Leave `actions` empty.
+- Use branching inside the **Content** field to structure the reply.
+- Leave the **Actions** field empty.
 
 **Example – Pet policy (multi-turn)** <img src="/images/kb-multi.png" alt="multi-pet_policy" />
 
@@ -54,8 +54,8 @@ Used when the agent should offer to connect the user to a human agent.
 
 Agent replies, then offers to transfer.
 
-- `content`: Include the answer and the offer.
-- `actions`: Trigger `transfer_call` (or another [handoff function](/call-handoff/introduction)) only if the user accepts.
+- **Content**: Include the answer and the offer.
+- **Actions**: Trigger `transfer_call` (or another [handoff function](/call-handoff/introduction)) only if the user accepts.
 
 **Example – Spa booking** <img src="/images/kb-handoff-spa.png" alt="handoff_offer-spa" />
 
@@ -63,8 +63,8 @@ Agent replies, then offers to transfer.
 
 Immediate transfer with no agent reply.
 
-- Leave `content` empty.
-- Always run `transfer_call` in `actions`.
+- Leave the **Content** field empty.
+- Always add a transfer action in the **Actions** field.
 
 **Example – Billing handoff** <img src="/images/kb-direct-billing.png" alt="handoff-direct-billing" />
 
@@ -72,8 +72,8 @@ Immediate transfer with no agent reply.
 
 Transfer based on user clarification — for example, group size or request type.
 
-- `content`: Ask a disambiguating question.
-- `actions`: Map each answer to the correct destination.
+- **Content**: Ask a clarifying question.
+- **Actions**: Map each answer to the correct destination.
 
 **Example – Room reservations** <img src="/images/kb-handoff-conditional.png" alt="handoff_conditional-room_reservation" />
 
@@ -85,8 +85,8 @@ Used when you want to follow up with a link or information by text or chat (SMS 
 
 Offer to send a link via message.
 
-- `content`: Include a short message and ask for consent.
-- `actions`: If accepted, call `start_sms_flow`. See [SMS setup](/sms/introduction) for details.
+- **Content**: Include a short message and ask for consent.
+- **Actions**: If accepted, trigger the SMS send. See [SMS setup](/sms/introduction) for details.
 
 **Example – Golf info** <img src="/images/kb-handoff-sms.png" alt="SMS_offer-golf" />
 
@@ -94,8 +94,8 @@ Offer to send a link via message.
 
 Let the user choose which message to receive.
 
-- `content`: Ask a branching question.
-- `actions`: Map answers to different `sms_id`s.
+- **Content**: Ask a branching question.
+- **Actions**: Map answers to different SMS templates.
 
 **Example – Tee time booking** <img src="/images/kb-sms-conditional.png" alt="SMS_conditional-golf_booking" />
 
@@ -103,8 +103,8 @@ Let the user choose which message to receive.
 
 Used for static reference material (like opening hours or prices). No interaction or action required.
 
-- Fill `content`.
-- Leave `actions` empty.
+- Fill in the **Content** field.
+- Leave the **Actions** field empty.
 
 **Example – Opening hours** <img src="/images/kb-misc-info.png" alt="misc_info_dump_opening_hours" />
 
@@ -115,7 +115,7 @@ Used for static reference material (like opening hours or prices). No interactio
 - Use specific topic names.
 - Add up to **20** realistic sample phrasings per topic.
 - Keep replies short, helpful, and on-brand.
-- Use `actions` only when necessary.
+- Use the **Actions** field only when necessary.
 - Split multi-part flows into separate turns or topics.
 
 **Avoid this:**
@@ -130,11 +130,11 @@ Used for static reference material (like opening hours or prices). No interactio
 
 Not every topic needs to be available all the time. You can temporarily **deactivate** a topic to keep it out of retrieval without deleting it or removing its content.
 
-- Inactive topics are **ignored by the [LLM](https://en.wikipedia.org/wiki/Large_language_model)** and marked clearly in the UI.
-- Activation status is **environment-specific**, so you can test changes safely in Sandbox before going live. Learn more about [environments and versions](/environments-and-versions/introduction).
+- Inactive topics are **ignored by the agent** and marked clearly in the UI.
+- Activation status is **separate for each environment**, so you can test changes safely in Sandbox before going live. Learn more about [environments and versions](/environments-and-versions/introduction).
 - CSV import/export includes an `Active` column (`Y`/`N`) for bulk updates.
 
-This is useful for seasonal articles, phased rollouts, A/B tests, or hiding content that is not ready for production.
+This is useful for seasonal articles, gradual launches, A/B tests, or hiding content that is not ready for production.
 
 ## Resources
 
