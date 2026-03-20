@@ -15,6 +15,10 @@ Before importing, export your existing variants to understand the file format:
 
 The exported CSV contains all your variants with their attributes and configurations.
 
+<Tip>
+Always use the exported file as your starting template. The exported format may use a different delimiter than a standard comma-separated file. If you edit the CSV in a spreadsheet application, re-export it in the same format to avoid import errors.
+</Tip>
+
 ## CSV file format
 
 The CSV file must include these columns:
@@ -23,16 +27,22 @@ The CSV file must include these columns:
 | ------ | -------- | ----------- |
 | `id` | No | Leave empty for new variants. Include existing IDs to update variants. |
 | `name` | Yes | Unique name for the variant |
-| `is_default` | Yes | `true` or `false`. Only one variant can be default. |
+| `is_default` | Yes | `true` or `false`. Only one variant can be default. See [note below](#default-variant-behaviour). |
 | `attribute_*` | No | Custom attributes (e.g., `attribute_phone_number`, `attribute_address`) |
+
+### Default variant behaviour
+
+<Warning>
+The `is_default` field is included in the CSV format but may not behave as expected. The platform currently assigns the default variant automatically (typically the first variant created), and there is no guaranteed way to set a specific default via CSV import. See the [variant management overview](/variant-management/introduction) for details on default variant handling. If you need to control which variant is active, use `conv.set_variant()` in your [start function](/function/start-function) instead.
+</Warning>
 
 ### Example CSV
 
 ```csv
 id,name,is_default,attribute_phone_number,attribute_opening_hours
-,London Bridge,false,+442012345678,9am-5pm Mon-Fri
-,Manchester,false,+441612345678,9am-6pm Mon-Sat
-,Birmingham,true,+441212345678,24/7
+,London Bridge,false,+440000000001,9am-5pm Mon-Fri
+,Manchester,false,+440000000002,9am-6pm Mon-Sat
+,Birmingham,true,+440000000003,24/7
 ```
 
 ## Import process
@@ -41,7 +51,7 @@ id,name,is_default,attribute_phone_number,attribute_opening_hours
    - Keep column headers exactly as exported
    - Leave `id` empty for new variants
    - Include `id` values for variants you want to update
-   - Ensure only one variant has `is_default` set to `true`
+   - Include `is_default` values as required by the format (see [known limitations](#default-variant-behaviour))
 
 2. **Upload the file**
    - Navigate to **Build > Variant management**
@@ -56,7 +66,11 @@ id,name,is_default,attribute_phone_number,attribute_opening_hours
 4. **Confirm import**
    - Review the diff carefully
    - Click **Confirm import** to apply changes
-   - Changes take effect immediately
+   - Changes take effect immediately in the environment you are working in
+
+<Note>
+If you are working in a sandbox environment, changes only apply to sandbox. Promote your sandbox to live when you are ready. See the [variants overview](/variant-management/introduction) for more on testing workflows.
+</Note>
 
 ## Best practices
 
@@ -64,7 +78,7 @@ id,name,is_default,attribute_phone_number,attribute_opening_hours
 - **Keep a backup** - Export before importing to preserve your current state
 - **Validate data** - Check phone numbers, URLs, and other data before importing
 - **Use consistent naming** - Follow a naming convention that scales (e.g., `City-Location`)
-- **One default only** - Ensure exactly one variant is marked as default
+- **One default only** - Include exactly one variant with `is_default=true` in your CSV, though note the [known limitations](#default-variant-behaviour)
 
 ## Common use cases
 
@@ -78,7 +92,9 @@ Export, update the `attribute_phone_number` column, keep the `id` values, and im
 
 ### Changing default variant
 
-Export, change which row has `is_default=true`, and import.
+<Warning>
+Setting `is_default=true` via CSV import may not reliably change the default variant. Use `conv.set_variant()` in your [start function](/function/start-function) for reliable variant routing.
+</Warning>
 
 ## Troubleshooting
 
@@ -92,11 +108,28 @@ Export, change which row has `is_default=true`, and import.
   </Accordion>
 
   <Accordion title="Can't set a variant as default">
-    Only one variant can be default. Ensure no other variants have `is_default=true`.
+    The `is_default` CSV field may not reliably control which variant is default. Use `conv.set_variant()` in your [start function](/function/start-function) to programmatically set the active variant.
   </Accordion>
 
   <Accordion title="Attribute columns not recognized">
     Attribute columns must start with `attribute_`. Check your column headers.
+  </Accordion>
+
+  <Accordion title="Import succeeds but is_default doesn't apply as expected">
+    The `is_default` field may not reliably set the default variant. The platform automatically assigns the default based on creation order. Use `conv.set_variant()` in your [start function](/function/start-function) to control which variant is active for each conversation.
+  </Accordion>
+
+  <Accordion title="Import fails with 'Error saving your changes'">
+    This can occur when the CSV contains invalid data. Check for:
+    - Empty variant name fields (every row must have a `name` value)
+    - Duplicate variant names
+    - Malformed attribute values
+
+    If the error persists, try importing fewer rows at a time to isolate the problematic entry.
+  </Accordion>
+
+  <Accordion title="Validation error: 'too_small'">
+    This usually means a row has an empty required field, such as `name`. Ensure every row in your CSV has a value in all required columns. Remove any blank rows at the end of the file.
   </Accordion>
 </AccordionGroup>
 
