@@ -1,60 +1,79 @@
 ---
-title: 'Object'
-description: 'The `Flow` object exposes useful information about the current flow and allows transitioning between steps in the flow.'
+title: 'Flow object'
+sidebarTitle: 'Object'
+description: 'The Flow object controls step transitions and exposes the current step name within a flow.'
 ---
 
-The `Flow` object gives you control over how the agent moves between steps in a flow. It is most commonly used inside **transition functions**, where deterministic logic determines what happens next.
+The `Flow` object gives you control over how the agent moves between steps in a flow. It is available as a parameter in any flow-scoped function (transition function).
 
-<Warning>
-Only the **last** `flow.goto_step()` call in a function is executed. To prevent accidental overrides, always use `return` immediately after a `goto_step()` call — unless you're explicitly chaining transitions.
-</Warning>
+The two companion methods on the [Conversation object](/function/classes/conv-object) — `conv.goto_flow()` and `conv.exit_flow()` — handle transitions between flows and are documented at the bottom of this page.
 
-## `current_step` (Property)
+## `goto_step(step_name, condition_label)` 
 
-**Type:** `string`
-**Returns:** The name of the current step the agent is in.
+Moves the agent to another step in the current flow. This replaces the current step's prompt and functions with those of the target step.
 
 ```python
-if flow.current_step == "Collect Name":
-    return "You're in the name collection step."
+goto_step(step_name: str, condition_label: str = None) -> None
 ```
 
-Use this for debugging or conditional routing.
-
-
-## `goto_step(step_name, condition_name)` (Method)
-
-Use `flow.goto_step()` to move the agent to another step in the flow. This replaces the current step's prompt and functions with those of the target step.
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `step_name` | `str` | Yes | The exact name of the target step as it appears in the Flow Editor. **Case-sensitive.** |
+| `condition_label` | `str` | No | A label for the transition edge. This is **purely decorative** — it appears on the edge in the Flow Editor for readability but does not affect runtime behaviour. |
 
 - **`step_name`** (required) — the name of the target step, exactly as it appears in the Flow Editor.
 - **`condition_name`** (optional) — a label for the transition edge. In [Function steps](/flows/no-code/introduction), this label appears on the edge in the visual editor for readability.
 
 ```python
+# Basic transition
 flow.goto_step("Confirm Name")
+return
+
+# With a condition label (decorative only)
+flow.goto_step("Group Booking", "large party")
 return
 ```
 
-Only the prompt and functions in the **current step** are visible to the LLM — step names, flow names, and previous prompts are not included in its context.
+<Warning>
+**Always call `return` immediately after `goto_step()`.**
 
-<Note>
-Use `return` immediately after calling `goto_step()` to avoid silent failures. Only the final call in a function is executed.
-</Note>
+The runtime executes your function to completion before honouring the transition. If you call `goto_step()` more than once without returning, each call overwrites the previous transition state — only the final one takes effect. Using `return` after each call prevents accidental overwrites and makes control flow explicit.
+</Warning>
 
-### Conditional transition example
+<Warning>
+**Silent failure on invalid step names**
+
+If `step_name` doesn't match any step in the flow — due to a typo, trailing space, or case mismatch — the transition fails silently. There is no error message.
+
+To debug:
+- Open the **Flow Functions** modal and verify the exact step name.
+- Use `flow.current_step` to log which step the agent is currently in.
+- Remember that step names are **case-sensitive**: `"CollectName"` and `"collectname"` are different targets.
+
+When you rename a step in the Flow Editor, Agent Studio automatically updates `flow.goto_step()` references across the project. However, verify after renaming — auto-rename may not catch step names stored in variables or constructed dynamically.
+</Warning>
+
+### Execution context matters
+
+`flow.goto_step()` behaves differently depending on where it's called:
+
+- **In a transition function (LLM step)** — the LLM decides whether to call the function based on the step prompt and user input. The transition only happens if the LLM invokes the function.
+- **In a [Function step](/flows/no-code/introduction)** — the code runs directly without LLM involvement. The transition is deterministic. In this context, the `condition_label` parameter controls which edge is highlighted in the visual editor.
+
+### Conditional transition
 
 ```python
 if conv.state.has_phone_number:
     flow.goto_step("Confirm phone number")
     return
-else:
-    flow.goto_step("Collect phone number")
-    return
+flow.goto_step("Collect phone number")
+return
 ```
 
 ### Input validation and state update
 
 ```python
-def transition_to_confirm_name(conv: Conversation, flow: Flow, first_name: str, last_name: str):
+def save_user_name(conv: Conversation, flow: Flow, first_name: str, last_name: str):
     if not first_name or not last_name:
         return "Please make sure we have both first and last name before continuing."
 
@@ -65,22 +84,53 @@ def transition_to_confirm_name(conv: Conversation, flow: Flow, first_name: str, 
     return
 ```
 
-This is the recommended structure for transition logic: validate input, update state, transition, then return.
+This is the recommended structure: validate input, update state, transition, then return.
+
+## `current_step` 
+
+**Type:** `str`
+**Returns:** The name of the current step the agent is in.
+
+```python
+if flow.current_step == "Collect Name":
+    return "You're in the name collection step."
+```
+
+Useful for debugging or conditional routing when a single function serves multiple steps.
+
+## Companion methods on the Conversation object
+
+These methods live on the [`Conversation` object](/function/classes/conv-object), not on `Flow`, but are commonly used alongside `flow.goto_step()` in transition logic.
+
+### `conv.goto_flow(flow_name)`
+
+Transitions to a different flow at the end of the current turn. Use this when the conversation needs to leave the current flow entirely — for example, to start an identity verification or escalation flow.
+
+```python
+conv.goto_flow("Identity Verification")
+return
+```
+
+Unlike `flow.goto_step()`, `conv.goto_flow()` can be called from **any function** — flow-scoped or global. See [triggering flows](/flows/triggering-flows) for all the ways to start a flow.
+
+### `conv.exit_flow()`
+
+Exits the current flow and returns the agent to its default (non-flow) behaviour. Exit steps are visually marked in yellow in the Flow Editor.
+
+```python
+def complete_booking(conv: Conversation, flow: Flow):
+    conv.state.booking_confirmed = True
+    conv.exit_flow()
+    return
+```
 
 <Note>
-If your function is called `go_to_step_two`, the LLM may generate irrelevant responses like "Okay, moving on." Use intent-based names like `check_user_info` or `verify_email` to anchor model behavior.
+Every flow should have at least one exit path. Un-exited flows can cause the agent to hallucinate or loop. See the [flows overview](/flows/introduction) for more on flow design.
 </Note>
 
-## Best practices
+## Related reading
 
-- Design flows like **state machines** — each step represents a specific state with a clear transition path.
-- Keep transition functions short and scoped to a single decision.
-- Avoid chaining multiple function calls in the same function — consolidate them into a single utility or flow function.
-
-## Additional behavior notes
-
-- Any step in a flow can be designated as the **start step** in the UI.
-- Use `current_step` for step-aware debugging or conditional re-routing.
-- **Exit steps** are defined using `conv.exit_flow()` and are visually marked in yellow in the Flow Editor.
-- Transition functions live **inside flows**, not globally — reuse shared logic with global utility functions instead.
-- Function names affect both **behavior and language** — treat them as part of your prompt design.
+- [Transition functions](/flows/transition-functions) — naming conventions, common mistakes, and best practices for flow routing logic
+- [Conversation object](/function/classes/conv-object) — full reference for `conv.goto_flow()`, `conv.exit_flow()`, and other methods
+- [No-code flows](/flows/no-code/introduction) — Default steps vs Function steps, and how `goto_step()` behaves in each
+- [Triggering flows](/flows/triggering-flows) — all the ways to start a flow with `conv.goto_flow()`
