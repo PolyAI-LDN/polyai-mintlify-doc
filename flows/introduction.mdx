@@ -6,19 +6,21 @@ description: 'Use flows for important, structured interactions.'
 
 ![example-main](/images/flow-default-page.png)
 
-Flows (**Build > Flows**) handle structured interactions requiring input collection, validation, API calls, or specific sequences.
+Flows (**Build > Flows**) handle structured conversations that need to collect information, verify answers, connect to external services, or follow a specific sequence.
 
 <Note>Use Knowledge topics for simple answers. Use flows when you need structure or logic.</Note>
 
 ## How to trigger a flow
 
-There are a few common ways to start a flow. The right choice depends on where you are in the product and how deterministic you need the trigger to be.
+There are a few common ways to start a flow. The right choice depends on where you are in the product and how precisely you need to control when the flow starts.
 
 ### 1) Trigger an existing flow from code
 
-Use this when you are in a [function](/function/introduction) and you want to start a flow deterministically.
+Use this when you are in a [function](/function/introduction) and you want to guarantee a specific flow starts.
 
 Example:
+
+<Note>The code example below is for developers. Non-technical users can trigger flows from the Knowledge area instead (see option 2).</Note>
 
 ```python
     conv.goto_flow("Reservation flow")
@@ -49,15 +51,15 @@ Each flow is made up of:
 
 - Steps: Self-contained conversation states, made up of:
   - Text prompts, just like Knowledge topics.
-  - Global functions and transition functions: Logic blocks that validate input, call APIs, store values, and move the conversation forward.
+  - Built-in actions and transition rules: These verify the caller's input, connect to external services, save information, and move the conversation forward.
 
-That means as each step is sequentially processed, the LLM sees:
+As the agent works through each step, the language model receives:
 - The current step's text prompt.
 - A list of available functions with names, descriptions, and arguments.
 
 What the LLM doesn't see:
 - Previous step prompts.
-- Any system context, unless it's surfaced in the prompt or state.
+- Any background information, unless it's included in the current step's instructions or saved data.
 
 <Tip>
 Because previous steps are not visible, each prompt must be self-contained. Provide all necessary context and clear guidance in each step.
@@ -85,12 +87,12 @@ To make global Knowledge functions available while a flow is running, set:
 ## Key techniques
 
 <Info>
-The following techniques involve writing Python code. Expand **Code-driven flows** in the sidebar for detailed guides.
+These techniques require writing Python code. Expand **Code-driven flows** in the sidebar for detailed guides.
 </Info>
 
 - [Transition functions](/flows/transition-functions) control the flow's routing logic.
-- Use [few-shot prompting](/flows/few-shot-prompting) to clarify expected inputs or edge cases.
-- Set [ASR biasing](/flows/asr-biasing) to improve voice transcription for structured or ambiguous values like confirmation codes or personal names. Learn more about [ASR (automatic speech recognition)](https://en.wikipedia.org/wiki/Speech_recognition).
+- Use [example-based instructions](/flows/few-shot-prompting) to clarify what kind of answers the agent should expect.
+- Set [speech recognition hints](/flows/asr-biasing) to improve how the agent hears structured or ambiguous values like confirmation codes or personal names. Learn more about [ASR (automatic speech recognition)](https://en.wikipedia.org/wiki/Speech_recognition).
 - Use [variables](/function/variables) to store and reference data across steps.
 
 ## Connecting steps
@@ -102,16 +104,16 @@ In the Flow Editor:
 - Use the Flow Functions modal to see all transitions in one place
 
 <Warning>
-Always include an exit step in your flow. Un-exited flows can cause hallucinations.
+Always include an exit step in your flow. Flows without a proper ending can cause the agent to generate inaccurate or irrelevant responses.
 </Warning>
 
 <Note>
-Use descriptive function names like check_reservation_match, not vague ones like step_two — this helps the LLM reason correctly.
+Use descriptive names like 'Check reservation match' rather than vague ones like 'Step two' — this helps the language model understand what each action does.
 </Note>
 
 ## Standard entity types
 
-Entity types define the kind of information your agent collects from users. They help the system validate and structure input once it has been recognized by ASR.
+Entity types define the kind of information your agent collects from callers. They help the system check and organize what the caller said after speech recognition.
 
 ### Available types
 

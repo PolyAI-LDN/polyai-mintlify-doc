@@ -9,7 +9,7 @@ How a PolyAI agent processes conversations from input to response.
 
 Expand the image to zoom.
 
-<Warning>The agent's initial greeting is hardcoded and sent directly without running the LLM or processing any Rules. For voice, this is sent to TTS (Text-to-Speech); for webchat, it's displayed as text. Write the greeting in the language you expect users to receive. Any rules and logic begin after the greeting.</Warning>
+<Warning>The agent's initial greeting is fixed and sent directly without being processed by the language model or applying any Rules. For voice, this is sent to text-to-speech (TTS); for webchat, it's displayed as text. Write the greeting in the language you expect users to receive. Any rules and logic begin after the greeting.</Warning>
 
 ## Processing stages
 
@@ -20,20 +20,20 @@ A conversation moves through the following stages:
 
   - **User**: The user provides input—speech (voice) or text (webchat/SMS).
   - **Input capture**: For voice, the audio stream is captured and sent for transcription. For webchat/SMS, text is received directly.
-  - **ASR Provider** (voice only): The system receives the raw audio.
-  - **[ASR Service](/speech-recognition/introduction)** (voice only): Converts the audio into text using [automatic speech recognition](https://en.wikipedia.org/wiki/Speech_recognition).
-  - **ASR Processing** (voice only): Searches for transcription issues and applies any relevant corrections.
-  - **Transcript/Text → Processed Input**: The processed input is passed to [Retrieval](/managed-topics/RAG/introduction).
-  - **Retrieval**: Pulls relevant **topics retrieved** from the [Knowledge area](/managed-topics/introduction) using [RAG (retrieval-augmented generation)](https://en.wikipedia.org/wiki/Retrieval-augmented_generation) to provide context for the response.
+  - **Speech recognition provider** (voice only): The system receives the raw audio.
+  - **[Speech-to-text service](/speech-recognition/introduction)** (voice only): Converts the audio into text using [automatic speech recognition](https://en.wikipedia.org/wiki/Speech_recognition).
+  - **Speech recognition processing** (voice only): Searches for transcription issues and applies any relevant corrections.
+  - The processed text is then sent to the [knowledge-matching system](/managed-topics/RAG/introduction).
+  - **Retrieval**: Finds the most relevant knowledge topics to help the agent respond accurately
 
   </Accordion>
 
   <Accordion title="2. Compute prompt and generate response">
 
-  - **Compute Prompt**: The system builds an [LLM](https://en.wikipedia.org/wiki/Large_language_model) prompt using retrieved topics, system knowledge, and conversation history.
-  - **Run LLM**: The LLM processes the request and determines whether to return:
+  - **Build the response**: The system assembles the relevant information — matching topics, background knowledge, and conversation history — for the [language model](https://en.wikipedia.org/wiki/Large_language_model) to use.
+  - **Generate a response**: The language model processes the request and determines whether to return:
     - **Returned Text**: A direct text response.
-    - **Returned Function**: A [function](/function/introduction) call.
+    - An action (such as looking up data or transferring the call).
   - **Execute Function (if applicable)**: Runs the function and passes the result back to the LLM.
   - **LLM Refinement**: If a function result is returned, the LLM updates its response before proceeding.
 
@@ -41,10 +41,10 @@ A conversation moves through the following stages:
 
   <Accordion title="3. Streaming and chunking">
 
-  - **Chunk LLM Output**: The response is broken into chunks for delivery.
-  - **Postprocess Chunks**: Applies rules such as [stop keywords](/response-control/introduction#use-stop-keywords-to-remove-unnecessary-preambles) to remove unnecessary phrases.
+  - **Split the response**: The response is broken into smaller pieces for faster delivery.
+  - **Clean up**: Applies rules such as [stop keywords](/response-control/introduction#use-stop-keywords-to-remove-unnecessary-preambles) to remove unnecessary phrases.
   - **Stream Partial Responses**: The system sends chunks as soon as they are ready, rather than waiting for the full response.
-  - **TTS Service** (voice only): Converts text chunks into speech using [text-to-speech synthesis](https://en.wikipedia.org/wiki/Speech_synthesis). Configure voices in [voice settings](/voice/introduction).
+  - **Text-to-speech service** (voice only): Converts the response text into spoken audio. Configure voices in [voice settings](/voice/introduction).
   - **Response delivery**: For voice, synthesized speech is streamed to the user. For webchat/SMS, text responses are sent directly.
 
   </Accordion>
@@ -63,8 +63,8 @@ A conversation moves through the following stages:
 PolyAI agents don't wait for the full response before speaking. Instead, responses are processed and streamed **in real time**:
 
 - **LLM Streaming**: Words are generated and sent continuously.
-- **Chunking**: Responses are broken into chunks for controlled delivery.
-- **Postprocessing**: [Stop keywords](/response-control/introduction#use-stop-keywords-to-remove-unnecessary-preambles) remove unnecessary phrases before delivery.
+- **Splitting**: Responses are broken into smaller pieces for smoother delivery.
+- **Clean up**: [Stop keywords](/response-control/introduction#use-stop-keywords-to-remove-unnecessary-preambles) remove unnecessary phrases before delivery.
 - **Response Streaming**: For voice, users hear speech as soon as it's processed via TTS. For webchat, text appears progressively as it's generated.
 
 ### Watch it in action
