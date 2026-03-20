@@ -6,10 +6,6 @@ description: 'Use built-in helpers from conv.utils to extract structured data fr
 
 The `conv.utils` property provides helper methods for extracting and validating information from the most recent user input during a conversation. These helpers are LLM-powered and return typed objects you can store in `conv.state` or use in your logic.
 
-<Note>
-These utilities are **opt-in** and may not be enabled in your workspace. Contact your admin to request access.
-</Note>
-
 ## `extract_address`
 
 Extract a structured postal address from the latest user turn. Optionally validate against a list of known addresses.
@@ -29,6 +25,8 @@ Returns:
 Raises:
 - `ExtractionError` if parsing fails.
 
+<Tip>Providing an `addresses` list improves extraction accuracy. Without it, street numbers or names may be missed or incorrect — always confirm extracted addresses with the caller before taking action.</Tip>
+
 ## `extract_city`
 
 Extract a valid city name (and optionally state/country) from the latest user turn.
@@ -44,7 +42,7 @@ Parameters:
 - `country`: Optional country code to filter on (default `"US"`).
 
 Returns:
-- An `Address` instance where the `city` field is populated; other fields may be `None`.
+- An `Address` instance where the `city` field is guaranteed to be populated on a successful extraction; other fields may be `None`. If extraction fails, an `ExtractionError` is raised instead.
 
 Raises:
 - `ExtractionError` if parsing fails.
@@ -68,6 +66,8 @@ class Address:
 
 Perform a standalone LLM request with a given prompt. Useful for summarizing conversations or extracting specific information.
 
+<Note>This method is **opt-in** and must be enabled for your account. A `NotImplementedError` is raised if it has not been enabled — contact your admin to request access.</Note>
+
 ```python
 summary = conv.utils.prompt_llm(
   "Summarize the key points from this conversation",
@@ -84,16 +84,20 @@ Parameters:
 - `model` (str, optional): The LLM to use. Default `"gpt-4o"`. Available options:
   - `"gpt-4o"` – GPT-4o (default, balanced performance)
   - `"gpt-4o-mini"` – GPT-4o Mini (faster, lower cost)
-  - `"gpt-4.1"`, `"gpt-4.1-mini"`, `"gpt-4.1-nano"` – GPT-4.1 series
-  - `"claude-sonnet-4"` – Claude Sonnet 4
+  - `"gpt-5"` – GPT-5
+  - `"gpt-5-mini"` – GPT-5 Mini
+  - `"gpt-5-nano"` – GPT-5 Nano (fastest, lowest cost)
+  - `"gpt-5-chat"` – GPT-5 Chat
+  - `"o1"` – OpenAI o1
   - `"claude-3.5-haiku"` – Claude 3.5 Haiku (fast)
 
 Returns:
 - `str` or `dict`: The LLM response, parsed as JSON if `return_json=True`.
 
 Raises:
-- `NotImplementedError` if the feature is not enabled for your account.
 - `ChatCompletionError` if the request fails.
+
+<Warning>`prompt_llm` makes a synchronous LLM call during the conversation turn. This adds latency — choose a smaller model (e.g. `gpt-5-nano`) when speed matters, and avoid calling it multiple times in a single turn.</Warning>
 
 ## `validate_entity`
 
@@ -123,7 +127,9 @@ Parameters:
   - `conv.utils.FreeTextConfig()`
 
 Returns:
-- `EntityValidationResponse` with `is_valid`, `normalized_value`, and validation details.
+- `EntityValidationResponse` with `is_valid`, `normalized_value`, and validation details. Some config types expose additional fields — for example, `PhoneNumberConfig` results include `country_code` and `number`. Available fields vary by config type.
+
+<Warning>Entity values are always returned as strings, even for numeric entity types. Cast with `int()` or `float()` before numeric comparisons.</Warning>
 
 ## `geocode_address`
 
@@ -142,6 +148,9 @@ Parameters:
 
 Returns:
 - An `Address` instance with coordinates in `other_fields` if available.
+
+Raises:
+- `ExtractionError` if geocoding fails or the address cannot be resolved.
 
 <Note>This feature requires legal approval and is currently restricted to specific projects.</Note>
 
@@ -166,6 +175,9 @@ Parameters:
 
 Returns:
 - A fully geocoded `Address` with coordinates in `other_fields` if provided.
+
+Raises:
+- `ExtractionError` if address extraction or geocoding fails.
 
 <Note>This feature requires legal approval and is currently restricted to specific projects.</Note>
 
