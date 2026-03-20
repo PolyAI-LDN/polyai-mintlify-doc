@@ -5,6 +5,10 @@ description: "Work with conversation history events."
 
 The `conv.history` attribute contains a chronological list of `UserInput` and `AgentResponse` objects representing the conversation so far.
 
+<Note>
+As the platform evolves, `conv.history` may include new event types beyond `UserInput` and `AgentResponse`. Use `isinstance()` checks rather than `event.role` comparisons to safely filter events — this ensures your code won't break if new event types are introduced that don't have a `role` attribute.
+</Note>
+
 ## `UserInput`
 
 Represents a user turn in the conversation.
@@ -19,7 +23,7 @@ for event in conv.history:
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `text` | str | The user's input text |
+| `text` | str | The user's input text. Can be an empty string when the user is silent or no speech is detected. |
 | `role` | str | Always `"user"` |
 
 ### Methods
@@ -66,10 +70,23 @@ def log_conversation(conv: Conversation):
 ```python
 def get_last_user_input(conv: Conversation) -> str:
     for event in reversed(conv.history):
-        if hasattr(event, 'role') and event.role == "user":
+        if isinstance(event, UserInput):
             return event.text
     return ""
 ```
+
+## Notes
+
+- **Empty `text` values**: `UserInput.text` can be an empty string (e.g., when a user is silent or no speech is detected). Guard against this in your functions if downstream logic depends on non-empty input:
+
+```python
+last_input = get_last_user_input(conv)
+if last_input.strip():
+    # Process the input
+    pass
+```
+
+- **Metric events**: Metric data is not part of `conv.history`. To access metrics, use [`conv.metric_events`](./conv-object) instead.
 
 ## See also
 
