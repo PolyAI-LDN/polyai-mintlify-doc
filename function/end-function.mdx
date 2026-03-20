@@ -1,24 +1,27 @@
 ---
 title: 'End function'
+description: 'Run post-call processing asynchronously after a conversation ends.'
 ---
 
-The **End function** is executed at the conclusion of a conversation, enabling final data processing, cleanup, and integration tasks. It runs asynchronously, meaning it does not delay the end of the call but ensures that any necessary post-conversation operations are completed.
+The **End function** is executed at the conclusion of a conversation, enabling final data processing, cleanup, and integration tasks. Because it runs asynchronously after the call has ended, you can perform rich, complex operations—API calls, summaries, CRM writes—without any impact on the caller experience.
+
+Everything stored on `conv.state` during the call is fully available in the end function. This is the core mechanism that makes it useful: any data your functions collected or computed mid-call can be read, transformed, and sent to external systems after the conversation is over.
 
 ```mermaid
 sequenceDiagram
     participant Caller
     participant PolyAI as PolyAI Agent
-    participant CRM as External Systems
+    participant Ext as External Systems / APIs
 
     Caller->>PolyAI: Conversation ends
     PolyAI-->>Caller: Call terminated
     activate PolyAI
     Note over PolyAI: end_function() runs async
-    PolyAI->>CRM: Log conversation metadata
-    PolyAI->>CRM: Create support ticket (if needed)
-    PolyAI->>CRM: Schedule follow-up (if needed)
+    PolyAI->>Ext: Log conversation metadata
+    PolyAI->>Ext: Create support ticket (if needed)
+    PolyAI->>Ext: Schedule follow-up (if needed)
     deactivate PolyAI
-    Note over PolyAI,CRM: Post-call processing complete
+    Note over PolyAI,Ext: Post-call processing complete
 ```
 
 ## Key features and functionality
@@ -33,23 +36,35 @@ sequenceDiagram
 
 The **End function**:
 
-### 1. Logs conversation metadata
+### 1. Generates a structured call summary
+
+The most common end function pattern is generating a structured summary from `conv.state` at the end of the conversation. This is especially valuable for voice agents where human agents need a written record of what was discussed.
+
+* **Example use case**: Compile caller intent, topics discussed, and resolution status into a summary and push it to your CRM or ticketing system.
+
+### 2. Logs conversation metadata
 
 * Save key conversation details, such as duration, topic, or sentiment analysis, to a database or CRM.
 
 * **Example use case**: Track customer service interactions for reporting and performance analysis.
 
-### 2. Triggers workflows
+### 3. Triggers workflows
 
 * Start processes like creating support tickets, sending confirmation emails, or updating account records.
 
 * **Example use case**: Automatically notify the sales team about potential leads from the conversation.
 
-### 3. Schedules follow-ups
+### 4. Schedules follow-ups
 
 * Prepare reminders, SMS notifications, or callbacks for unresolved queries.
 
 * **Example use case**: Send a confirmation SMS after booking an appointment or a callback request.
+
+### 5. Logs outbound call dispositions
+
+The end function is not limited to inbound voice. Outbound agents use it to log call dispositions, update lead records, and trigger follow-up sequences after each call.
+
+* **Example use case**: After an outbound sales call, update the lead status in your CRM and queue a follow-up email if the prospect requested more information.
 
 ## Implementation example
 
@@ -57,41 +72,49 @@ Below is a Python implementation of the **End function**:
 
 ```python
 def end_function(conv: Conversation):
-    # Log metadata
-    metadata = {
-        "conversation_id": conv.id,
-        "duration": conv.duration,
-        "topic": conv.state.get("last_topic", "Unknown"),
-        "sentiment": conv.state.get("sentiment", "Neutral"),
-    }
-    log_to_crm(metadata)
+    try:
+        # Generate a structured call summary from conv.state
+        summary = {
+            "conversation_id": conv.id,
+            "duration": conv.duration,
+            "topic": conv.state.get("last_topic", "Unknown"),
+            "sentiment": conv.state.get("sentiment", "Neutral"),
+            "resolution": conv.state.get("resolution_status", "Unresolved"),
+        }
+        log_to_crm(summary)
 
-    # Trigger external API
-    if conv.state.get("support_needed"):
-        create_support_ticket(conv.state.user_id, metadata)
+        # Trigger external API
+        if conv.state.get("support_needed"):
+            create_support_ticket(conv.state.get("user_id"), summary)
 
-    # Schedule follow-up if necessary
-    if conv.state.get("follow_up_required"):
-        schedule_follow_up(conv.state.user_id, conv.state.follow_up_time)
-
-    return "End function executed successfully."
+        # Schedule follow-up if necessary
+        if conv.state.get("follow_up_required"):
+            schedule_follow_up(
+                conv.state.get("user_id"),
+                conv.state.get("follow_up_time"),
+            )
+    except Exception as e:
+        # Errors are silent to the caller — log externally so they aren't lost
+        log_error_to_monitoring_service(e)
 ```
+
+<Note>
+The end function's return value is not used by the runtime. You do not need to return anything.
+</Note>
 
 ## Best practices for end function design
 
 <Warning>
-Errors in the end function do not surface to the caller (the call is already over), but they can silently break downstream workflows. Always implement robust error handling with try/except blocks and fallback logic.
+Errors in the end function do not surface to the caller (the call is already over), but they can silently break downstream workflows. Always implement robust error handling with try/except blocks and external logging, as shown in the example above.
 </Warning>
 
 1. **Efficient execution**:
 
-   * Design the function to complete quickly to avoid slowing down post-conversation processes.
+   * Design the function to complete quickly. Parallelize independent API calls where possible, avoid unnecessary data fetching, and keep heavy computation outside the critical path.
 
 2. **Error handling**:
 
-   * Ensure errors during execution do not disrupt downstream workflows.
-
-   * Implement fallback mechanisms for failed API calls or missing data.
+   * Wrap your end function body in a `try/except` block and log errors to an external monitoring service. Without this, failures are completely invisible.
 
 3. **Data consistency**:
 

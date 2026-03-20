@@ -1,9 +1,10 @@
 ---
 title: "Overview"
-description: "Define structured config forms and real-time agent settings."
+description: "Define structured config forms and real-time agent settings using the Configuration Builder."
+keywords: ["real time configuration", "configuration builder", "config", "feature flags", "real-time config"]
 ---
 
-The **Configuration Builder** lets you define JSON schemas that generate structured config forms. These forms allow managers to safely update settings—like opening hours or toggle flags—across environments.
+The **Configuration Builder** lets you define JSON schemas that generate structured config forms. These forms allow managers to safely update settings—like opening hours, toggle flags, or feature switches—across environments, without requiring a deployment.
 
 ## How it works
 
@@ -30,6 +31,15 @@ This means:
 - Any changes to schema or data will reflect immediately across all environments.
 </Warning>
 
+### Two audiences: builders and managers
+
+The Configuration Builder serves two different roles:
+
+- **Builders** define the schema and wire up `conv.real_time_config` in functions. They work in the **Configuration Builder** tab.
+- **Managers** fill in values via the **Real Time Configuration** UI. They may never see the builder tab at all.
+
+These roles may have different access levels. For customers who self-manage their configuration (for example, updating settings across many locations), the distinction matters—managers only interact with the value-entry interface, not the schema definition.
+
 ## Step-by-step
 
 ### 1. Create a schema
@@ -46,7 +56,7 @@ In **Configuration Builder → Schema**, define the fields your manager should c
 
 These fields are written in JSON Schema format. The schema drives the form layout in the next step.
 
-<Info>Use clear "title" and "description" values—these labels will be visible in the real-time UI.</Info>
+<Info>Use clear "title" values—these labels will be visible in the real-time UI.</Info>
 
 ```json
 {
@@ -73,6 +83,12 @@ These fields are written in JSON Schema format. The schema drives the form layou
   }
 }
 ```
+
+Boolean toggles are also useful as **feature flags**—enabling or disabling capabilities in live environments without a deployment. For example, you could add a `transfer_enabled` toggle to control whether the agent offers call transfers.
+
+<Warning>
+**The schema must be created separately in each environment.** If you build a schema in Sandbox, it does not automatically exist in Live. You need to set up the schema in every environment where you want the configuration UI to appear.
+</Warning>
 
 ### 2. (Optional) Add environment-specific values
 
@@ -124,17 +140,66 @@ if after_hours:
     conv.transfer_call(fallback)
 ```
 
-<Tip>All values are returned as a dictionary. Use .get("key") to safely access fields.</Tip>
+<Tip>All values are returned as a dictionary. Use `.get("key")` to safely access fields.</Tip>
+
+### Working with nested and complex schemas
+
+The Configuration Builder supports arrays and nested objects in addition to flat fields. This is useful for projects that manage per-site settings, employee directories, or structured data.
+
+For example, a schema might define an array of site-specific hours:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "site_hours": {
+      "type": "array",
+      "title": "Site hours",
+      "items": {
+        "type": "object",
+        "properties": {
+          "site_name": { "type": "string", "title": "Site name" },
+          "hours": { "type": "string", "title": "Opening hours" }
+        }
+      }
+    }
+  }
+}
+```
+
+To access nested values in your functions, index into the structure:
+
+```python
+sites = conv.real_time_config.get("site_hours", [])
+first_site_hours = sites[0]["hours"] if sites else None
+```
+
+## Programmatic management via API
+
+For deployments managing configuration across many locations, you can also manage real-time config programmatically through the API. The following endpoints are available:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/real-time-configs` | List all real-time configs |
+| `GET` | `/real-time-configs/:clientEnv` | Get config for a specific environment |
+| `PATCH` | `/real-time-configs/:clientEnv/variables` | Update config variables |
+| `PUT` | `/real-time-configs/:clientEnv/schema` | Update the config schema |
+
+This is especially useful when customers need to update settings themselves at scale, rather than editing values manually in the UI.
 
 ## Best practices
 
-<Icon icon="check" iconType="solid" color="#2D8C66" /> Design schemas for clarity. Labels and descriptions help non-technical users.
+<Icon icon="check" iconType="solid" color="#2D8C66" /> Design schemas for clarity. Labels help non-technical users navigate the configuration UI.
 
 <Icon icon="check" iconType="solid" color="#2D8C66" /> Validate critical fields (like phone numbers) with regex.
 
 <Icon icon="check" iconType="solid" color="#2D8C66" /> Test behavior across all environments before deploying to Live.
 
 <Icon icon="check" iconType="solid" color="#2D8C66" /> Keep track of which flows and functions use which configuration fields.
+
+<Icon icon="check" iconType="solid" color="#2D8C66" /> Set up the schema in every environment where you need the config UI — schemas are not shared across environments.
+
+<Icon icon="check" iconType="solid" color="#2D8C66" /> Standard JSON Schema features including arrays, nested objects, and validation patterns are supported.
 
 ## What happens if the schema changes?
 
