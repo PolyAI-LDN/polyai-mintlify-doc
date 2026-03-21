@@ -1,6 +1,7 @@
 // Per-page background theming for PolyAI docs.
-// Technical (code-focused) pages get a soft pink background.
-// Standard (no-code / UI-focused) pages get a soft green background.
+// Technical (code-focused) pages get a barely-there warm tint in light mode.
+// Standard (no-code / UI-focused) pages get a barely-there cool tint in light mode.
+// Dark mode is left completely untouched — no tinting.
 //
 // Maintenance: when adding new pages, add the path to the appropriate list below.
 // Paths should match the URL path without trailing slash (e.g., '/function/introduction').
