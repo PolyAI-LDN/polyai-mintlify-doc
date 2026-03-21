@@ -7,12 +7,30 @@ tag: "Code"
 **This page requires Python familiarity.** It covers programmatic voice configuration using provider classes. For no-code voice selection, see the [Voice library](/voice/voice-library).
 </Info>
 
-The PolyAI platform supports flexible voice selection for external providers such as ElevenLabs, AWS Polly,
-and Microsoft Azure TTS.
+The PolyAI platform supports flexible voice selection for external providers including Cartesia, ElevenLabs, Hume, AWS Polly, Microsoft Azure TTS, Rime, Minimax, and Google TTS.
 
 ## Provider classes
 
-When picking models, adjusting stability, or accessing third-party providers — use provider-specific `TTSVoice` classes:
+When picking models, adjusting stability, or accessing third-party providers — use provider-specific `TTSVoice` classes. See the [Voice classes](/function/classes/voice) reference for the full list of providers and parameters.
+
+### Example: Cartesia
+
+Cartesia is the recommended provider for new projects due to its low latency and natural output.
+
+```python
+from polyai.voice import CartesiaVoice, Emotion, EmotionKind, EmotionIntensity
+
+conv.set_voice(
+    CartesiaVoice(
+        provider_voice_id="a1b2c3d4",
+        speed=0.0,  # -1.0 (slowest) to 1.0 (fastest)
+        emotions=[
+            Emotion(EmotionKind.POSITIVITY, EmotionIntensity.HIGH)
+        ],
+        model_id="sonic"  # or "sonic-preview"
+    )
+)
+```
 
 ### Example: ElevenLabs
 
@@ -22,9 +40,33 @@ from polyai.voice import ElevenLabsVoice
 conv.set_voice(
     ElevenLabsVoice(
         provider_voice_id="gDnGxUcsitTxRiGHr904",
-        model_id="eleven_flash_v2",
-        stability=0.5,
+        model_id="eleven_turbo_v2_5",  # Recommended default
+        stability=1.0,
         similarity_boost=0.7,
+        speed=1.0,              # Optional: 0.7–1.2, adjusts speech rate
+    )
+)
+```
+
+Available model IDs: `eleven_monolingual_v1`, `eleven_multilingual_v1`, `eleven_turbo_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`, and `eleven_v3`. The default is `eleven_turbo_v2_5`.
+
+<Warning>
+**`eleven_v3` limitations:**
+- **Stability:** Only supports discrete values: `0.0` (Creative), `0.5` (Natural), and `1.0` (Robust). Values between these are not supported and may produce unexpected results.
+- **Streaming latency:** Do not set `optimize_streaming_latency` when using `eleven_v3` — this parameter is not supported and will cause an error.
+</Warning>
+
+### Example: Hume
+
+```python
+from polyai.voice import HumeVoice
+
+conv.set_voice(
+    HumeVoice(
+        provider_voice_id="voice_uuid_or_name",
+        voice_description="patient, empathetic counselor",  # Optional
+        version="2",        # "1" for octave-1, "2" for octave-2
+        instant_mode=False,  # Ultra-low latency mode
     )
 )
 ```
@@ -57,7 +99,12 @@ conv.set_voice(
 ```
 
 ## Cache behavior
+
 * Changing `model_id` does not automatically invalidate cached audio.
-* To update cached audio after changing models:
-    * Go to **Channels > Voice > Audio management > Cache** and delete existing entries.
-	* Or, create a new voice entry with a different `voice_id`.
+* To reset cached audio after changing models:
+    * Go to **Channels > Voice > Audio management** and delete existing cache entries.
+    * Or, create a new voice entry with a different voice ID.
+
+<Tip>
+Prepend the model ID to the voice ID (e.g. `eleven_turbo_v2_5/a1b2c3...`) to isolate cache entries per model. This is the most reliable way to ensure the correct model is used after a switch.
+</Tip>
