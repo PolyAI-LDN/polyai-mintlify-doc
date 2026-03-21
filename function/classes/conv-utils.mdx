@@ -8,7 +8,28 @@ description: 'Use built-in helpers from conv.utils to extract structured data fr
 **This page requires Python familiarity.** It covers helper methods available inside Python functions.
 </Info>
 
-The `conv.utils` property provides helper methods for extracting and validating information from the most recent user input during a conversation. These helpers are LLM-powered and return typed objects you can store in `conv.state` or use in your logic.
+The `conv.utils` property provides helper methods for accessing secrets, extracting and validating information from user input, and making standalone LLM calls.
+
+## `get_secret`
+
+Retrieve a stored [secret](/secrets/introduction) by name. Returns the secret value as a string or dictionary (for key/value pair secrets).
+
+```python
+api_key = conv.utils.get_secret("stripe_api_key")
+response = requests.get(url, headers={"Authorization": f"Bearer {api_key}"})
+```
+
+Parameters:
+- `secret_name` (str): The name of the secret as configured in the [Secrets Vault](/secrets/how-to-setup).
+
+Returns:
+- `str` or `dict`: The secret value.
+
+Raises:
+- `SecretNotFound` if the secret does not exist.
+- `MissingAccess` if the current agent does not have [access](/secrets/how-to-access-control) to this secret.
+
+<Warning>Never hardcode credentials in function code. Always use `conv.utils.get_secret()` for API keys, tokens, and passwords.</Warning>
 
 ## `extract_address`
 

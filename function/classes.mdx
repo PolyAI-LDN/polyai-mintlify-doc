@@ -63,24 +63,24 @@ VoiceWeighting(
     | `similarity_boost` | How closely the voice matches the original (0.0–1.0) |
   </Tab>
   <Tab title="Cartesia">
-    Configures voice settings for [Cartesia](https://docs.cartesia.ai/api-reference/tts/tts) TTS.
+    Configures voice settings for [Cartesia](https://docs.cartesia.ai/api-reference/tts/tts) TTS. Uses `Emotion` objects for expressive control.
 
     ```python
+    from polyai.voice import CartesiaVoice, Emotion, EmotionKind, EmotionIntensity
+
     cartesia_voice = CartesiaVoice(
-        provider_voice_id="cartesia_ai_voice",
-        pitch=1.1,
-        rate=0.9,
-        language="en",
-        emotion="neutral"
+        provider_voice_id="a1b2c3d4",
+        speed=0.0,
+        emotions=[Emotion(EmotionKind.POSITIVITY, EmotionIntensity.HIGH)]
     )
     ```
 
     | Parameter | Description |
     |-----------|-------------|
     | `provider_voice_id` | The Cartesia voice to use |
-    | `speed` | Speech rate |
-    | `language` | Language code (e.g. `"en"`) |
-    | `emotion` | Emotional tone of the speech |
+    | `speed` | Speech rate: -1.0 (slowest) to 1.0 (fastest) |
+    | `emotions` | List of `Emotion` objects (see [voice reference](/function/classes/voice)) |
+    | `model_id` | `"sonic"` or `"sonic-preview"` |
   </Tab>
   <Tab title="PlayHT">
     Configures voice settings for [PlayHT](https://docs.play.ht/reference/api-getting-started) TTS.
@@ -102,28 +102,70 @@ VoiceWeighting(
 
     ```python
     rime_voice = RimeVoice(
-        provider_voice_id="s3://path-to-manifest.json",
-        style="neutral",
-        speed_alpha=1.0
+        provider_voice_id="voice_id",
+        speech_alpha=1.0,
+        model_id="mistv2"
     )
     ```
 
     | Parameter | Description |
     |-----------|-------------|
     | `provider_voice_id` | Your configured Rime voice identifier. Contact your PolyAI rep or [Rime](https://docs.rime.ai) for the correct value. |
-    | `speed_alpha` | Speech rate multiplier (1.0 = normal) |
+    | `speech_alpha` | Speech rate multiplier: &lt;1.0 faster, &gt;1.0 slower |
+    | `model_id` | `"mistv2"` or `"mist"` |
+  </Tab>
+  <Tab title="Minimax">
+    Configures voice settings for Minimax TTS.
+
+    ```python
+    minimax_voice = MinimaxVoice(
+        model_id="speech-02-hd",
+        voice_id="voice_id",
+        speed=1.0,
+        emotion="happy"
+    )
+    ```
+
+    | Parameter | Description |
+    |-----------|-------------|
+    | `model_id` | `"speech-02-hd"`, `"speech-02-turbo"`, `"speech-01-hd"`, or `"speech-01-turbo"` |
+    | `voice_id` | The Minimax voice ID |
+    | `speed` | Speech rate (0.5–2.0) |
+    | `emotion` | `"happy"`, `"sad"`, `"angry"`, `"fearful"`, `"disgusted"`, `"surprised"`, `"neutral"` |
+  </Tab>
+  <Tab title="Hume">
+    Configures voice settings for [Hume](https://www.hume.ai/) TTS.
+
+    ```python
+    hume_voice = HumeVoice(
+        provider_voice_id="voice_uuid_or_name",
+        version="2"
+    )
+    ```
+
+    | Parameter | Description |
+    |-----------|-------------|
+    | `provider_voice_id` | Voice UUID or name |
+    | `voice_description` | Optional description for voice personality |
+    | `version` | `"1"` (octave-1) or `"2"` (octave-2) |
+    | `instant_mode` | Ultra-low latency mode (boolean) |
   </Tab>
   <Tab title="Custom">
     Define voice configurations for a custom TTS provider.
 
     ```python
-    voice_config = CustomVoice(provider="my_tts_provider", id="Emma")
+    voice_config = CustomVoice(
+        provider="MY_PROVIDER",
+        provider_voice_id="voice_id"
+    )
     ```
 
     | Parameter | Description |
     |-----------|-------------|
     | `provider` | Custom TTS provider name |
-    | `id` | Voice ID within the provider |
+    | `provider_voice_id` | Voice ID within the provider |
   </Tab>
 </Tabs>
+
+<Tip>For full voice configuration examples including ElevenLabs model IDs, Cartesia emotions, and cache behavior, see the [Voice class reference](/function/classes/voice).</Tip>
 
