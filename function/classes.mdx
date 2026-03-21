@@ -5,27 +5,31 @@ description: 'Use function-related classes.'
 ---
 
 <Info>
-**This page requires Python familiarity.** It covers classes used in Python function definitions.
+**Prerequisites:** This page requires Python familiarity. If you are a non-technical operator, work with your developer to configure these classes.
 </Info>
 
-Use these classes in your functions to manage voice configuration and conversation states.
+Use these classes in your [functions](/function/introduction) to manage conversation state and voice configuration.
 
-## `Conversation`
+## Core class
 
-The `Conversation` class is a core component of function execution, and is used for managing information during the conversation runtime.
+### `Conversation`
 
-<Tip> For full details on using the `Conversation` class, including **attributes** and **methods**, visit the [`conv` object](./classes/conv-object) page. </Tip>
+The primary class for managing conversation state at runtime. Every function receives a `Conversation` instance as its first argument.
 
 ```python
 def get_conversation_id(conv: Conversation):
     return conv.id
 ```
 
-## `VoiceWeighting`
+<Tip>For full attributes and methods, see the [`conv` object](/function/classes/conv-object) page.</Tip>
 
-Read the [multi-voice](/voice/multi-voice) document if you are unfamiliar with voice weighting.
+## Voice classes
 
-The `VoiceWeighting` class allows you to assign specific weightings to voices, adjusting their prominence in a given context.
+Use voice classes to configure TTS providers programmatically — for example, in a [start function](/function/start-function) or when using [multi-voice](/voice/multi-voice).
+
+### `VoiceWeighting`
+
+Assign specific weightings to voices for [multi-voice](/voice/multi-voice) setups, adjusting their prominence in a given context.
 
 ```python
 VoiceWeighting(
@@ -38,83 +42,88 @@ VoiceWeighting(
     )
 ```
 
-## `ElevenLabsVoice`
+### TTS provider classes
 
-The `ElevenLabsVoice` class configures voice settings for [ElevenLabs](https://docs.elevenlabs.io/api-reference/voices) TTS system, allowing control over stability and similarity to the reference voice.
+<Tabs>
+  <Tab title="ElevenLabs">
+    Configures voice settings for [ElevenLabs](https://docs.elevenlabs.io/api-reference/voices) TTS, with control over stability and similarity.
 
-```python
-elevenlabs_voice = ElevenLabsVoice(
-    provider_voice_id="a1b2C3d4E5f6G7h8I9j0",
-    stability=0.5,
-    similarity_boost=0.7
-)
-```
+    ```python
+    elevenlabs_voice = ElevenLabsVoice(
+        provider_voice_id="a1b2C3d4E5f6G7h8I9j0",
+        stability=0.5,
+        similarity_boost=0.7
+    )
+    ```
 
-Parameters:
-- `provider_voice_id`: Specifies the ElevenLabs voice to use. Specify using the [ElevenLabs ID](https://help.elevenlabs.io/hc/en-us/articles/14599760033937-How-do-I-find-my-voices-ID-of-my-voices-via-the-website-and-through-the-API).
-- `stability`: Controls the consistency of tone and delivery (0.0 to 1.0).
-- `similarity_boost`: Controls how closely the generated voice matches the original (0.0 to 1.0).
+    | Parameter | Description |
+    |-----------|-------------|
+    | `provider_voice_id` | The [ElevenLabs voice ID](https://help.elevenlabs.io/hc/en-us/articles/14599760033937-How-do-I-find-my-voices-ID-of-my-voices-via-the-website-and-through-the-API) |
+    | `stability` | Consistency of tone and delivery (0.0–1.0) |
+    | `similarity_boost` | How closely the voice matches the original (0.0–1.0) |
+  </Tab>
+  <Tab title="Cartesia">
+    Configures voice settings for [Cartesia](https://docs.cartesia.ai/api-reference/tts/tts) TTS.
 
-## `PlayHTVoice`
+    ```python
+    cartesia_voice = CartesiaVoice(
+        provider_voice_id="cartesia_ai_voice",
+        pitch=1.1,
+        rate=0.9,
+        language="en",
+        emotion="neutral"
+    )
+    ```
 
-The `PlayHTVoice` class configures voice settings for [PlayHT](https://docs.play.ht/reference/api-getting-started) TTS system, allowing selection of a specific voice ID and style.
+    | Parameter | Description |
+    |-----------|-------------|
+    | `provider_voice_id` | The Cartesia voice to use |
+    | `speed` | Speech rate |
+    | `language` | Language code (e.g. `"en"`) |
+    | `emotion` | Emotional tone of the speech |
+  </Tab>
+  <Tab title="PlayHT">
+    Configures voice settings for [PlayHT](https://docs.play.ht/reference/api-getting-started) TTS.
 
-```python
-playht_voice = PlayHTVoice(
-    provider_voice_id="en_us_male_1",
-    style="conversational"
-)
-```
+    ```python
+    playht_voice = PlayHTVoice(
+        provider_voice_id="en_us_male_1",
+        style="conversational"
+    )
+    ```
 
-Parameters:
-- `provider_voice_id`: Specifies the PlayHT voice to use.
-- `style`: Defines the speaking style or tone.
+    | Parameter | Description |
+    |-----------|-------------|
+    | `provider_voice_id` | The PlayHT voice to use |
+    | `style` | Speaking style or tone |
+  </Tab>
+  <Tab title="Rime">
+    Configures voice settings for [Rime](https://docs.rime.ai/api-reference/voices) TTS.
 
-## `RimeVoice`
+    ```python
+    rime_voice = RimeVoice(
+        provider_voice_id="s3://path-to-manifest.json",
+        style="neutral",
+        speed_alpha=1.0
+    )
+    ```
 
-The `RimeVoice` class configures voice settings for [Rime](https://docs.rime.ai/api-reference/voices) TTS system, allowing selection of a specific provider voice ID.
+    | Parameter | Description |
+    |-----------|-------------|
+    | `provider_voice_id` | Your configured Rime voice identifier. Contact your PolyAI rep or [Rime](https://docs.rime.ai) for the correct value. |
+    | `speed_alpha` | Speech rate multiplier (1.0 = normal) |
+  </Tab>
+  <Tab title="Custom">
+    Define voice configurations for a custom TTS provider.
 
-```python
-rime_voice = RimeVoice(
-    provider_voice_id="s3://path-to-manifest.json",
-    style="neutral",
-    speed_alpha=1.0
-)
-```
+    ```python
+    voice_config = CustomVoice(provider="my_tts_provider", id="Emma")
+    ```
 
-Parameters:
-- `provider_voice_id`: The voice identifier for your configured Rime voice. Contact your PolyAI representative or [Rime](https://docs.rime.ai) for the correct value.
-- `speed_alpha`: Controls the speech rate multiplier. 1.0 is normal speed.
-
-## `CartesiaVoice`
-
-The `CartesiaVoice` class configures voice settings for [Cartesia](https://docs.cartesia.ai/api-reference/tts/tts) TTS system.
-
-```python
-cartesia_voice = CartesiaVoice(
-    provider_voice_id="cartesia_ai_voice",
-    pitch=1.1,
-    rate=0.9,
-    language="en",
-    emotion="neutral"
-)
-```
-
-Parameters:
-- `provider_voice_id`: Specifies the Cartesia voice to use.
-- `speed`: Controls the speed of speech.
-- `language`: Sets the language code for synthesis (e.g., "en" for English).
-- `emotion`: Allows setting the emotional tone of the speech.
-
-## `CustomVoice`
-
-The `CustomVoice` class is used for defining voice configurations that use a custom TTS provider. This allows you to override the default system voice with a provider-supported voice.
-
-```python
-voice_config = CustomVoice(provider="my_tts_provider", id="Emma")
-```
-
-Parameters:
-- `provider`: Specifies the custom TTS provider.
-- `id`: Specifies the voice ID within the custom provider.
+    | Parameter | Description |
+    |-----------|-------------|
+    | `provider` | Custom TTS provider name |
+    | `id` | Voice ID within the provider |
+  </Tab>
+</Tabs>
 

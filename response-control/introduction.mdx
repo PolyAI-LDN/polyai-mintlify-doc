@@ -7,50 +7,38 @@ Use response control to prevent your agent from saying things it should not — 
 
 This page covers two features:
 
-- **[Stop keywords](#stop-keywords)** — Block or log specific phrases in agent output (content moderation)
-- **[Pronunciations](#pronunciations)** — Control how your agent pronounces specific terms (voice tuning)
+<Tabs>
+  <Tab title="Stop keywords">Block or log specific phrases in agent output (content moderation)</Tab>
+  <Tab title="Pronunciations">Control how your agent pronounces specific terms (voice tuning)</Tab>
+</Tabs>
 
-![control](/images/response_control.png)
+<Frame caption="Response controls in Agent Studio">
+  ![Response controls interface](/images/response_control.png)
+</Frame>
 
 ---
 
 ## Stop keywords
 
-### How it works
+When a response matches a stop keyword pattern, the system halts the response and logs the occurrence. Use stop keywords to catch sensitive content, remove unnecessary preambles, or enforce brand adherence.
 
-When a response matches a stop keyword pattern, the system halts the response and logs the occurrence.
+### Stop keyword fields
 
-## Getting started
+| Field | Type | Description |
+|-------|------|-------------|
+| **ID** | String | Unique identifier for tracking and analytics |
+| **Description** | String | Optional note clarifying the keyword's purpose |
+| **Regular Expression** | String | Regex pattern that identifies phrases to control |
+| **Say Phrases** | Boolean | `TRUE` halts the response; `FALSE` logs it for analytics only |
 
-### Accessing Response Controls settings
-
-1. **Open Response Controls**: Access the settings from the **[Response controls page](/response-control/introduction)**.
-2. **Create a new phrase**:
-   - Click **Add Phrase** to open the creation form.
-   - Fill out the required fields:
-     - **ID**: A unique identifier for tracking the stop keyword.
-     - **Description**: (Optional) Describe the purpose of the stop keyword for team understanding.
-     - **Regular Expression**: Enter a regex pattern to define the keyword or phrase.
-     - **Say Phrases**: Toggle to determine whether matching phrases halt the response (TRUE) or are tracked for analytics (FALSE).
-
-## Feature details
-
-### Response Controls structure
-
-Response Controls are organized as **stop keywords**, each with specific attributes:
-
-- **ID (String)**: Unique identifier for tracking and analytics.
-- **Description (String)**: Optional text to clarify the keyword's purpose.
-- **Regular Expression (String)**: Regex pattern that identifies the phrases or words to control.
-- **Say Phrases (Boolean)**: Specifies whether matching phrases halt responses (TRUE) or are logged for analysis (FALSE).
-
-### Stop keywords
-
-Use stop keywords to ensure your agents react quickly and appropriately to sensitive information or inappropriate conversations.
+### Creating a stop keyword
 
 <Tabs>
 <Tab title="1. Create a function">
-![control](/images/stop-keywords-function.png)
+<Frame caption="Creating a stop keyword function in Tools">
+  ![Creating a stop keyword function](/images/stop-keywords-function.png)
+</Frame>
+
 Go to **[Build > Tools](/function/introduction)** to define a custom function for handling stop keywords.
 
 **Example setup**:
@@ -67,7 +55,10 @@ def restricted_phrase(conv: Conversation):
 </Tab>
 
 <Tab title="2. Configure the keyword">
-![control](/images/stop-keywords-response-control.png)
+<Frame caption="Configuring a stop keyword in Response Controls">
+  ![Stop keyword configuration](/images/stop-keywords-response-control.png)
+</Frame>
+
 Next, go to the **Response Controls** section and add a new stop keyword.
 
 **Setup details**:
@@ -80,7 +71,10 @@ Next, go to the **Response Controls** section and add a new stop keyword.
 </Tab>
 
 <Tab title="3. Test">
-![control](/images/stop-keywords-test.png)
+<Frame caption="Testing the stop keyword in webchat">
+  ![Testing stop keyword](/images/stop-keywords-test.png)
+</Frame>
+
 Go to the **Webchat** testing panel to validate your setup.
 
 **Steps**:
@@ -94,68 +88,58 @@ The agent successfully identifies the stop keyword, triggers the linked function
 </Tab>
 </Tabs>
 
-#### Example configuration
+### Common use cases
 
-**ID:** `stop_inappropriate`
-**Description:** Prevent responses containing offensive language.
-**Regular Expression:** `/\b(offensiveWord1|offensiveWord2)\b/i`
-**Say Phrases:** `TRUE`
+<AccordionGroup>
+  <Accordion title="Safety compliance" icon="shield-halved">
+    Prevent offensive or harmful language in user interactions.
 
-This setup ensures responses containing "offensiveWord1" or "offensiveWord2" are immediately halted.
+    | Field | Value |
+    |-------|-------|
+    | **ID** | `stop_inappropriate` |
+    | **Regex** | `\b(offensiveWord1\|offensiveWord2)\b` |
+    | **Say Phrases** | `TRUE` |
+  </Accordion>
 
-### Advanced configuration
+  <Accordion title="Remove LLM preambles" icon="scissors">
+    LLMs often add unnecessary meta-explanations before executing an action. Stop keywords cut these off instantly.
 
-You can use regex to define complex patterns for fine-grained control over responses. For a detailed guide on regex, refer to **[Regex documentation](https://regex101.com/)**.
+    **Before:** "Let's start by gathering some information. Please hold on while I check your cancellation options. Here are your cancellation options."
 
-## Custom metrics tracking
+    **After:** "Here are your cancellation options."
 
-Response Controls log all occurrences of matches for analytics. You can view these metrics in the **[Analytics Dashboard](/analytics/dashboards/introduction)** to identify trends, evaluate agent behavior, and refine controls over time.
+    <Steps>
+      <Step title="Add the stop keyword">
+        Go to **Channels > Voice > Response control** and click **Add Phrase**:
 
-## Practical use cases
+        | Field | Value |
+        |-------|-------|
+        | **ID** | `flow_redundancy_cutoff` |
+        | **Regex** | `\b(let's start\|please hold on\|let me check)\b` |
+        | **Say Phrases** | `TRUE` |
+      </Step>
+      <Step title="Optional: redirect to a function">
+        Trigger a function to replace the blocked phrase with a cleaner response:
 
-- **Safety compliance**: Prevent offensive or harmful language in user interactions.
-- **Brand adherence**: Block responses with phrases outside approved messaging.
-- **Content moderation**: Identify and log responses that require review or adjustment.
+        ```python
+        def flow_redundancy_cutoff(conv: Conversation):
+            return "Here are your options."
+        ```
+      </Step>
+      <Step title="Test">
+        Save and test the agent's responses in sandbox.
+      </Step>
+    </Steps>
+  </Accordion>
 
-## Use stop keywords to remove unnecessary preambles
+  <Accordion title="Brand adherence" icon="badge-check">
+    Block responses with phrases outside approved messaging. Log matches for review in the [Analytics Dashboard](/analytics/dashboards/introduction).
+  </Accordion>
+</AccordionGroup>
 
-LLMs often add unnecessary meta-explanations before executing an action, which can slow down response times and, more importantly, annoy users. By applying stop keywords, you can ensure that agents immediately proceed with relevant information without unnecessary preamble or repetition.
-
-#### Example: Before and after applying stop keywords
-
-**Without stop keyword:**  
-- User: *"I want to cancel my plan."*
-- Agent: *"Let's start by gathering some information. Please hold on while I check your cancellation options. Here are your cancellation options."*
-
-**With stop keyword on "let's start" applied:**
-- User: *"I want to cancel my plan."*
-- Agent: *"Here are your cancellation options."*
-
-### How to implement stop keywords
-
-Add a stop keyword to block redundant transition phrases:
-
-- **ID:** `flow_redundancy_cutoff`
-- **Description:** Prevents unnecessary filler before a response.
-- **Regular Expression:** `\b(let's start|please hold on|let me check)\b`
-- **Say Phrases:** `TRUE` (halts response when detected).
-
-#### Steps to set up:
-1. Go to **Channels > Voice > Response control** in Agent Studio.
-2. Click **Add Phrase** and enter:
-   - **ID:** `flow_redundancy_cutoff`
-   - **Regular Expression:** `\b(let's start|please hold on|let me check)\b`
-   - **Say Phrases:** `TRUE`
-3. Save and test the agent's responses.
-
-### Optional: Redirect to a function for better phrasing
-
-Stop keywords can also trigger a function to **replace** the blocked phrase with a cleaner response of your choice.
-
-```python
-def flow_redundancy_cutoff(conv: Conversation):
-    return "Here are your options."
-```
+<Tip>
+  Use regex for complex patterns. See [regex101.com](https://regex101.com/) for a testing tool.
+</Tip>
 
 ---
 
@@ -181,7 +165,9 @@ You may define pronunciation rules using regular expressions and replacements, i
 
 #### Rule evaluation order
 
-![response-order](/images/response-order.png)
+<Frame caption="Pronunciation rules are evaluated top to bottom">
+  ![Rule evaluation order](/images/response-order.png)
+</Frame>
 
 Pronunciation rules are evaluated **from top to bottom**. Each rule runs on the text produced by the rule above it.
 
@@ -220,11 +206,17 @@ This uses [SSML breaks](https://cloud.google.com/text-to-speech/docs/ssml#break)
 
 This ensures "Louvre" is pronounced correctly.
 
-![rules-examples](/images/tts-pronunciation.png)
+<Frame caption="Example pronunciation rules">
+  ![Example pronunciation rules](/images/tts-pronunciation.png)
+</Frame>
 
-## Related links
+## Related pages
 
-- **[Response controls introduction](/response-control/introduction)**
-- **[Analytics dashboard](/analytics/dashboards/introduction)**
-- **[Managed Topics actions](/managed-topics/how-to-setup-action/introduction)**
-- **[Regex documentation](https://regex101.com/)**
+<CardGroup cols={2}>
+  <Card title="Analytics dashboard" icon="chart-line" href="/analytics/dashboards/introduction">
+    View stop keyword metrics and trends.
+  </Card>
+  <Card title="Actions" icon="bolt" href="/managed-topics/how-to-setup-action/introduction">
+    Configure actions triggered by Managed Topics.
+  </Card>
+</CardGroup>

@@ -47,59 +47,65 @@ return {
 
 #### `handoff`
 
-Initiates a call handoff after the function executes. The `type` and `reason` fields are strings that match your configured [handoff destination](/call-handoff/introduction). The nested object specifies the SIP method to use.
+Initiates a call handoff after the function executes. The `type` and `reason` fields match your configured [handoff destination](/call-handoff/introduction). The nested object specifies the SIP method.
 
-**SIP REFER** (default) — transfers the call and drops PolyAI from it:
+<Tabs>
+  <Tab title="SIP REFER (default)">
+    Transfers the call and drops PolyAI from it:
 
-```python
-return {
-  "handoff": {
-    "type": "CALL_CENTER",
-    "reason": "SPEAK_TO",
-    "refer": {
-      "phone_number": "12345"
-    }
-  }
-}
-```
-
-**SIP INVITE** — creates a bridged call where PolyAI stays on the line between both parties:
-
-```python
-return {
-  "handoff": {
-    "type": "CALL_CENTER",
-    "reason": "SPEAK_TO",
-    "invite": {
-      "phone_number": "2222222",
-      "outbound_caller_id": conv.caller_number,
-      "outbound_endpoint": "<ADD_YOUR_OUTBOUND_ENDPOINT_NAME>",
-      "sip_headers": {
-        "X-ANY_HEADER_NAME": "header"
+    ```python
+    return {
+      "handoff": {
+        "type": "CALL_CENTER",
+        "reason": "SPEAK_TO",
+        "refer": {
+          "phone_number": "12345"
+        }
       }
     }
-  }
-}
-```
+    ```
+  </Tab>
+  <Tab title="SIP INVITE">
+    Creates a bridged call where PolyAI stays on the line between both parties:
 
-**SIP BYE** — signals that the PolyAI call leg is over, returning control to the client's SBC:
-
-```python
-return {
-  "handoff": {
-    "type": "CALL_CENTER",
-    "reason": "CONTAINED",
-    "bye": {
-      "sip_headers": {
-        "X-Outcome": "contained"
+    ```python
+    return {
+      "handoff": {
+        "type": "CALL_CENTER",
+        "reason": "SPEAK_TO",
+        "invite": {
+          "phone_number": "2222222",
+          "outbound_caller_id": conv.caller_number,
+          "outbound_endpoint": "<ADD_YOUR_OUTBOUND_ENDPOINT_NAME>",
+          "sip_headers": {
+            "X-ANY_HEADER_NAME": "header"
+          }
+        }
       }
     }
-  }
-}
-```
+    ```
+  </Tab>
+  <Tab title="SIP BYE">
+    Signals that the PolyAI call leg is over, returning control to the client's SBC:
+
+    ```python
+    return {
+      "handoff": {
+        "type": "CALL_CENTER",
+        "reason": "CONTAINED",
+        "bye": {
+          "sip_headers": {
+            "X-Outcome": "contained"
+          }
+        }
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
 
 <Tip>
-You can also trigger handoffs using the [`conv.call_handoff()`](/function/classes/conv-object) method, which supports dynamic `destination`, `reason`, and `utterance` parameters. Use the dictionary return when you need fine-grained control over SIP method and headers; use `conv.call_handoff()` for simpler handoff routing.
+You can also trigger handoffs using [`conv.call_handoff()`](/function/classes/conv-object), which supports dynamic `destination`, `reason`, and `utterance` parameters. Use the dictionary return for fine-grained SIP control; use `conv.call_handoff()` for simpler routing.
 </Tip>
 
 #### `hangup`
@@ -152,43 +158,41 @@ return {
 
 ## Combining return fields
 
-You can return multiple fields together. Here are common combinations:
+You can return multiple fields together. Common combinations:
 
-#### `utterance` + `handoff`
+<AccordionGroup>
+  <Accordion title="utterance + handoff" icon="phone-arrow-up-right" defaultOpen>
+    Say something before transferring — the most common handoff pattern:
 
-Say something to the caller before transferring. This is the most common handoff pattern — it lets the agent set expectations before the transfer happens:
-
-```python
-return {
-  "utterance": "Let me transfer you to a specialist who can help with that.",
-  "handoff": {
-    "type": "CALL_CENTER",
-    "reason": "SPEAK_TO",
-    "refer": {
-      "phone_number": "12345"
+    ```python
+    return {
+      "utterance": "Let me transfer you to a specialist who can help with that.",
+      "handoff": {
+        "type": "CALL_CENTER",
+        "reason": "SPEAK_TO",
+        "refer": { "phone_number": "12345" }
+      }
     }
-  }
-}
-```
+    ```
+  </Accordion>
+  <Accordion title="utterance + hangup" icon="phone-slash">
+    Say a closing message before ending the call:
 
-#### `utterance` + `hangup`
+    ```python
+    return {
+      "utterance": "Thanks for calling, have a great day!",
+      "hangup": True
+    }
+    ```
+  </Accordion>
+  <Accordion title="utterance + content" icon="comments">
+    Deliver a specific phrase now and set instructions for the next turn:
 
-Say a closing message before ending the call:
-
-```python
-return {
-  "utterance": "Thanks for calling, have a great day!",
-  "hangup": True
-}
-```
-
-#### `utterance` + `content`
-
-Deliver a specific phrase now and set instructions for the next turn:
-
-```python
-return {
-  "utterance": "I've updated your reservation.",
-  "content": "The reservation has been changed. Ask if there's anything else you can help with."
-}
-```
+    ```python
+    return {
+      "utterance": "I've updated your reservation.",
+      "content": "The reservation has been changed. Ask if there's anything else you can help with."
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
