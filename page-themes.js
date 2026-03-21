@@ -114,18 +114,34 @@
     technicalSet[technicalPaths[i]] = true;
   }
 
+  // Light-mode tint colors (nearly imperceptible)
+  var TECHNICAL_BG = '#fdfcfc'; // warm
+  var STANDARD_BG  = '#fcfdfc'; // cool
+
+  function isDarkMode() {
+    return document.documentElement.classList.contains('dark') ||
+           (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches &&
+            !document.documentElement.classList.contains('light'));
+  }
+
   function applyPageTheme() {
     var path = window.location.pathname.replace(/\/$/, '') || '/';
     var body = document.body;
     var html = document.documentElement;
     body.classList.remove('page-technical', 'page-standard');
     html.classList.remove('page-technical', 'page-standard');
-    if (technicalSet[path]) {
-      body.classList.add('page-technical');
-      html.classList.add('page-technical');
+
+    var isTechnical = !!technicalSet[path];
+    var cls = isTechnical ? 'page-technical' : 'page-standard';
+    body.classList.add(cls);
+    html.classList.add(cls);
+
+    // Apply background inline for reliability — CSS may not
+    // win specificity against Mintlify's own styles.
+    if (isDarkMode()) {
+      html.style.removeProperty('background-color');
     } else {
-      body.classList.add('page-standard');
-      html.classList.add('page-standard');
+      html.style.setProperty('background-color', isTechnical ? TECHNICAL_BG : STANDARD_BG, 'important');
     }
   }
 
@@ -133,12 +149,26 @@
   applyPageTheme();
 
   // Re-apply on client-side navigation (Mintlify uses SPA-style routing)
+  // and when dark/light mode toggles (class change on <html>)
   var lastPath = window.location.pathname;
+  var lastDark = isDarkMode();
   var observer = new MutationObserver(function () {
-    if (window.location.pathname !== lastPath) {
+    var pathChanged = window.location.pathname !== lastPath;
+    var darkChanged = isDarkMode() !== lastDark;
+    if (pathChanged || darkChanged) {
       lastPath = window.location.pathname;
+      lastDark = isDarkMode();
       applyPageTheme();
     }
   });
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
   observer.observe(document.body, { childList: true, subtree: true });
+
+  // Also handle system dark mode changes
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+      lastDark = isDarkMode();
+      applyPageTheme();
+    });
+  }
 })();
