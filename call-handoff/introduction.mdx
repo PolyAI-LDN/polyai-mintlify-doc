@@ -5,13 +5,19 @@ description: "Set up handoff destinations for your agent to transfer users durin
 icon: "code"
 ---
 
-![handoff](/images/handoff-1.png)
+<Frame caption="Call handoff configuration in Agent Studio">
+  ![Call handoff configuration](/images/handoff-1.png)
+</Frame>
 
 <Info>
 **Prerequisites:** Understanding of SIP telephony or your contact center's routing setup. This section covers technical handoff configuration.
 </Info>
 
-Define destinations for transferring users to live agents when the automated agent cannot help. For voice, this routes calls via telephony; for webchat, this can connect users to live chat agents.
+Use handoffs when the agent reaches a point where a human needs to take over — billing disputes, complaints, or requests outside the agent's scope. A well-configured handoff routes the caller to the right team with context intact; a missing or misconfigured handoff leaves callers stuck or dropped.
+
+<Note>
+**Use Call Handoffs (UI-based) when** you have fixed transfer destinations with straightforward routing. **Use `transfer_call` (code-based) instead** when you need dynamic routing logic, custom SIP headers, or integrations like Zendesk. See the [comparison table below](#comparison-call-handoff-and-the-transfer_call-function) for details.
+</Note>
 
 <Tip>Looking to manage handoff states programmatically? Visit the [Handoff API documentation](/api-reference/handoff/introduction).</Tip>
 
@@ -77,7 +83,9 @@ sequenceDiagram
 
 4. Click **Add** to save the destination.
 
-![handoff](/images/handoff-2.png)
+<Frame caption="Adding a new handoff destination">
+  ![Adding a handoff destination](/images/handoff-2.png)
+</Frame>
 
 ### Configuring SIP headers
 
@@ -180,17 +188,13 @@ In the table below, <Icon icon="check" iconType="solid" /> means the feature is 
 | Best for static SIP integration | <Icon icon="check" iconType="solid" />            | —                                                      |
 | Best for dynamic integrations   | —                                                 | <Icon icon="check" iconType="solid" /> (e.g. Zendesk) |
 
-<Note>
-These two methods **cannot be used together** in the same step. If you're using `transfer_call` in a [function](/function/introduction), it overrides any configured Call Handoff in the UI.
-</Note>
-
-<Note>
-The UI-based Call Handoff does not support custom metrics. If you need to track handoff-specific metrics (e.g., handoff reason codes for analytics), use the `transfer_call` function with [`conv.write_metric()`](/function/classes/conv-object) instead.
-</Note>
-
 <Warning>
-If you use `transfer_call`, you must keep destination mappings in sync manually — changes made in the Call Handoff UI are not automatically reflected in function-based transfers. Verify your `transfer_call` destinations match your intended routing whenever you update handoff configuration.
+These two methods **cannot be used together** in the same step. `transfer_call` overrides any configured Call Handoff in the UI. If you use `transfer_call`, keep destination mappings in sync manually — changes in the Call Handoff UI are not reflected in function-based transfers.
 </Warning>
+
+<Note>
+The UI-based Call Handoff does not support custom metrics. Use `transfer_call` with [`conv.write_metric()`](/function/classes/conv-object) if you need handoff reason codes for analytics.
+</Note>
 
 ### When to use each method
 
