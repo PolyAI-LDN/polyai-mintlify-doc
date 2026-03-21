@@ -116,11 +116,15 @@
   function applyPageTheme() {
     var path = window.location.pathname.replace(/\/$/, '') || '/';
     var body = document.body;
+    var html = document.documentElement;
     body.classList.remove('page-technical', 'page-standard');
+    html.classList.remove('page-technical', 'page-standard');
     if (technicalSet[path]) {
       body.classList.add('page-technical');
+      html.classList.add('page-technical');
     } else {
       body.classList.add('page-standard');
+      html.classList.add('page-standard');
     }
   }
 
