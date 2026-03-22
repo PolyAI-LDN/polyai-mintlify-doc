@@ -12,7 +12,8 @@
   var HIDDEN_SUBGROUPS = [
     'Tools', 'Configuration builder',
     'Speech recognition', 'Response control', 'Audio management',
-    'Variant management'
+    'Variant management',
+    'Flows', 'SMS', 'Call handoffs'
   ];
 
   // Top-nav tab labels to hide in simplified mode.
@@ -77,9 +78,9 @@
         id.startsWith('/speech-recognition/') || id.startsWith('/response-control/') ||
         id.startsWith('/audio-management/') || id.startsWith('/variant-management/') ||
         id.startsWith('/telephony/twilio/') ||
-        id.startsWith('/flows/transition-functions') || id.startsWith('/flows/object') ||
-        id.startsWith('/flows/asr-biasing') || id.startsWith('/flows/dtmf') ||
-        id.startsWith('/flows/few-shot-prompting') ||
+        id.startsWith('/flows/') ||
+        id.startsWith('/sms/') ||
+        id.startsWith('/call-handoff/') ||
         id.startsWith('/call-data/conversations-api/') || id === '/call-data/s3-to-s3'
       ) {
         li.dataset.simplifiedHide = 'true';
