@@ -1,12 +1,21 @@
 (function () {
   // ── Simplify view toggle ──────────────────────────────────────────────────
   // Injects a button into the site header that toggles a "simplified" mode.
-  // In simplified mode the developer/advanced sidebar items are dimmed and
-  // audience-callout blocks aimed at developers are hidden.
-  //
   // Persists the preference in localStorage.
 
   var STORAGE_KEY = 'polyai-docs-simplified';
+
+  // Sidebar group names to hide entirely in simplified mode.
+  // These match the <h5> text inside .sidebar-group-header elements.
+  var HIDDEN_GROUPS = ['Developer tools', 'Secrets', 'Code-driven flows'];
+
+  // Individual collapsed-group buttons (sub-groups within a section) to hide.
+  // These match button text inside .sidebar-group <li> elements.
+  var HIDDEN_SUBGROUPS = [
+    'Tools', 'Configuration builder',
+    'Speech recognition', 'Response control', 'Audio management',
+    'Variant management'
+  ];
 
   function isSimplified() {
     try { return localStorage.getItem(STORAGE_KEY) === 'true'; } catch (e) { return false; }
@@ -27,12 +36,55 @@
       : '<span>\u2726 Simplified view</span>';
   }
 
+  // Mark sidebar section headers and sub-group items so CSS can hide them.
+  // Runs after each navigation since Mintlify re-renders the sidebar.
+  function markSidebarGroups() {
+    // Top-level section headers: <div class="sidebar-group-header"><h5>Name</h5>…
+    document.querySelectorAll('.sidebar-group-header').forEach(function (header) {
+      var h5 = header.querySelector('h5');
+      if (!h5) return;
+      var name = h5.textContent.trim();
+      if (HIDDEN_GROUPS.indexOf(name) !== -1) {
+        header.dataset.simplifiedHide = 'true';
+        // Also mark the sibling <ul class="sidebar-group"> that follows
+        var sibling = header.nextElementSibling;
+        if (sibling) sibling.dataset.simplifiedHide = 'true';
+      }
+    });
+
+    // Collapsed sub-group buttons: <button>Name</button> inside sidebar-group <li>
+    document.querySelectorAll('.sidebar-group li > button').forEach(function (btn) {
+      var name = btn.textContent.trim();
+      if (HIDDEN_SUBGROUPS.indexOf(name) !== -1) {
+        var li = btn.closest('li');
+        if (li) li.dataset.simplifiedHide = 'true';
+      }
+    });
+
+    // Individual expanded page items: <li id="/tools/…">
+    document.querySelectorAll('li[id]').forEach(function (li) {
+      var id = li.id;
+      if (
+        id.startsWith('/tools/') || id.startsWith('/secrets/') ||
+        id.startsWith('/extend/') || id.startsWith('/configuration-builder/') ||
+        id.startsWith('/speech-recognition/') || id.startsWith('/response-control/') ||
+        id.startsWith('/audio-management/') || id.startsWith('/variant-management/') ||
+        id.startsWith('/telephony/twilio/') ||
+        id.startsWith('/flows/transition-functions') || id.startsWith('/flows/object') ||
+        id.startsWith('/flows/asr-biasing') || id.startsWith('/flows/dtmf') ||
+        id.startsWith('/flows/few-shot-prompting') ||
+        id.startsWith('/call-data/conversations-api/') || id === '/call-data/s3-to-s3'
+      ) {
+        li.dataset.simplifiedHide = 'true';
+      }
+    });
+  }
+
   function injectToggle() {
     if (document.querySelector('.simplify-toggle')) return;
 
-    // Target the top navbar right-hand list (contains Studio, Request a demo).
-    // Mintlify puts navbar links in <li class="navbar-link"> inside a flex <ul>.
-    var navbarList = document.querySelector('li.navbar-link')?.parentElement;
+    var navbarList = document.querySelector('li.navbar-link') &&
+      document.querySelector('li.navbar-link').parentElement;
 
     var btn = document.createElement('button');
     btn.className = 'simplify-toggle';
@@ -46,42 +98,47 @@
     });
 
     if (navbarList) {
-      // Wrap in an <li> to match the sibling navbar items
       var li = document.createElement('li');
       li.appendChild(btn);
       navbarList.insertBefore(li, navbarList.firstChild);
     } else {
-      // Fallback: append to the page header breadcrumb area
       var header = document.getElementById('header') || document.querySelector('header');
       if (header) header.appendChild(btn);
     }
   }
 
-  // Apply stored preference immediately (before paint) to avoid flash
-  setSimplified(isSimplified());
-
-  // Inject button once DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', injectToggle);
-  } else {
-    injectToggle();
+  function onNav() {
+    setTimeout(function () {
+      injectToggle();
+      markSidebarGroups();
+    }, 150);
   }
 
-  // Re-inject on Mintlify SPA navigations
+  // Apply stored preference immediately (before paint)
+  setSimplified(isSimplified());
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
+      injectToggle();
+      markSidebarGroups();
+    });
+  } else {
+    injectToggle();
+    markSidebarGroups();
+  }
+
+  // Re-run on Mintlify SPA navigations
   var _push = history.pushState;
   history.pushState = function () {
     _push.apply(history, arguments);
-    setTimeout(injectToggle, 150);
+    onNav();
   };
-  window.addEventListener('popstate', function () { setTimeout(injectToggle, 150); });
+  window.addEventListener('popstate', onNav);
 
   // ── Tab class injection ───────────────────────────────────────────────────
-  // Adds data-tab to <html> based on the current URL path.
-
   function applyTabClass() {
     var path = window.location.pathname;
     var tab = 'helpcenter';
-
     if (/^\/(tools|secrets|extend|configuration-builder|call-handoff|call-data|flows\/(transition|object|asr|dtmf|few-shot)|api\/|developer)/.test(path)) {
       tab = 'developer';
     } else if (/^\/learn\//.test(path)) {
@@ -93,20 +150,10 @@
     } else if (/^\/releases\//.test(path)) {
       tab = 'releases';
     }
-
     document.documentElement.dataset.tab = tab;
   }
 
   applyTabClass();
   document.addEventListener('DOMContentLoaded', applyTabClass);
-
-  var _push2 = history.pushState;
-  history.pushState = (function (orig) {
-    return function () {
-      orig.apply(history, arguments);
-      applyTabClass();
-    };
-  }(_push2));
-
   window.addEventListener('popstate', applyTabClass);
 }());
