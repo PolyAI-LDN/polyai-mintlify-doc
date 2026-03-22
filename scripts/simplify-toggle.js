@@ -194,6 +194,14 @@
 
     btn.addEventListener('click', function () {
       var next = document.documentElement.dataset.simplified !== 'true';
+      // If switching INTO simplified mode while on a complex page, redirect home.
+      // Use a sessionStorage flag so simplified mode is applied even if Mintlify
+      // strips the ?view=simplified query param during its initial routing.
+      if (next && isComplexPath(window.location.pathname)) {
+        sessionStorage.setItem('polyai-enter-simplified', '1');
+        window.location.href = '/';
+        return;
+      }
       setSimplified(next);
       updateButton(btn, next);
       markNavbarTabs();
@@ -219,8 +227,14 @@
     }, 150);
   }
 
-  // Apply preference immediately (before paint)
-  setSimplified(isSimplified());
+  // Apply preference immediately (before paint).
+  // If arriving via a redirect from a complex page, consume the one-shot flag.
+  if (sessionStorage.getItem('polyai-enter-simplified')) {
+    sessionStorage.removeItem('polyai-enter-simplified');
+    setSimplified(true);
+  } else {
+    setSimplified(isSimplified());
+  }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
