@@ -13,7 +13,8 @@
     'Tools', 'Configuration builder',
     'Speech recognition', 'Response control', 'Audio management',
     'Variant management',
-    'Flows', 'Test suite'
+    'Flows', 'Test suite',
+    'APIs', 'API and export'
   ];
 
   // Top-nav tab labels to hide in simplified mode.
