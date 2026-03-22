@@ -87,14 +87,15 @@
     });
   }
 
-  // Mark top-nav tab <li> elements for Developer and API reference tabs.
+  // Mark top-nav tab links for Developer and API reference tabs.
+  // Mintlify renders these as <a class="nav-tabs-item …"> inside .nav-tabs.
   function markNavbarTabs() {
-    document.querySelectorAll('li.navbar-link').forEach(function (li) {
-      var text = li.textContent.trim();
+    document.querySelectorAll('a[class*="nav-tabs-item"]').forEach(function (a) {
+      var text = a.textContent.trim();
       if (HIDDEN_TABS.indexOf(text) !== -1) {
-        li.dataset.simplifiedHide = 'true';
+        a.dataset.simplifiedHide = 'true';
       } else {
-        delete li.dataset.simplifiedHide;
+        delete a.dataset.simplifiedHide;
       }
     });
   }
