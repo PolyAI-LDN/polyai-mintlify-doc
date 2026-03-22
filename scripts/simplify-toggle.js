@@ -30,15 +30,9 @@
   function injectToggle() {
     if (document.querySelector('.simplify-toggle')) return;
 
-    // Use the confirmed Mintlify header element id
-    var header = document.getElementById('header');
-    if (!header) {
-      header = document.querySelector('header');
-    }
-    if (!header) return;
-
-    // Find the inner flex row to append into
-    var row = header.querySelector('[class*="flex"]') || header;
+    // Target the top navbar right-hand list (contains Studio, Request a demo).
+    // Mintlify puts navbar links in <li class="navbar-link"> inside a flex <ul>.
+    var navbarList = document.querySelector('li.navbar-link')?.parentElement;
 
     var btn = document.createElement('button');
     btn.className = 'simplify-toggle';
@@ -51,7 +45,16 @@
       updateButton(btn, next);
     });
 
-    row.appendChild(btn);
+    if (navbarList) {
+      // Wrap in an <li> to match the sibling navbar items
+      var li = document.createElement('li');
+      li.appendChild(btn);
+      navbarList.insertBefore(li, navbarList.firstChild);
+    } else {
+      // Fallback: append to the page header breadcrumb area
+      var header = document.getElementById('header') || document.querySelector('header');
+      if (header) header.appendChild(btn);
+    }
   }
 
   // Apply stored preference immediately (before paint) to avoid flash
