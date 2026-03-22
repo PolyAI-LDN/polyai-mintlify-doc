@@ -194,6 +194,11 @@
 
     btn.addEventListener('click', function () {
       var next = document.documentElement.dataset.simplified !== 'true';
+      // If switching INTO simplified mode while on a complex page, redirect home.
+      if (next && isComplexPath(window.location.pathname)) {
+        window.location.href = '/?view=simplified';
+        return;
+      }
       setSimplified(next);
       updateButton(btn, next);
       markNavbarTabs();
