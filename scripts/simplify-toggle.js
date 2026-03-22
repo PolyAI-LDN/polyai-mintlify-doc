@@ -64,8 +64,8 @@
       ? 'Switch to full docs (show all content)'
       : 'Simplified view — hide developer-only content';
     btn.innerHTML = simplified
-      ? '<span>\u2699\uFE0E Full docs</span>'
-      : '<span>\u2726 Simplified view</span>';
+      ? '<span>\u2726 Simplified</span>'
+      : '<span>\u2699\uFE0E Full docs</span>';
   }
 
   // Mark sidebar section headers, sub-groups, tagged items, and path-matched items.
