@@ -83,9 +83,12 @@
       }
     });
 
-    // Collapsed sub-group buttons
+    // Collapsed sub-group buttons — strip tag pill text (e.g. "ToolsCode" → "Tools")
+    // before matching, since tag spans are children of the button element.
     document.querySelectorAll('.sidebar-group li > button').forEach(function (btn) {
-      var name = btn.textContent.trim();
+      var clone = btn.cloneNode(true);
+      clone.querySelectorAll('[data-nav-tag]').forEach(function (el) { el.remove(); });
+      var name = clone.textContent.trim();
       if (HIDDEN_SUBGROUPS.indexOf(name) !== -1) {
         var li = btn.closest('li');
         if (li) li.dataset.simplifiedHide = 'true';
