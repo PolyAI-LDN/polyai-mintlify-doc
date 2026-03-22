@@ -24,6 +24,37 @@ if conv.state.my_variable == 10:
     return "Well done you hit 10"
 ```
 
+### Built-in state keys
+
+The `conv.state` object comes pre-populated with system-managed keys. These are set automatically by the platform and available in every conversation:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `from_` | str | Caller's phone number (note the trailing underscore — `from` is a Python reserved word) |
+| `to` | str | Called number (callee) |
+| `call_sid` | str | Unique call session identifier |
+| `asr_lang_code` | str | Active ASR language code (e.g., `"en-US"`) |
+| `tts_lang_code` | str | Active TTS language code (e.g., `"en-US"`) |
+| `shared_id` | str | Shared identifier for correlating conversations across systems |
+| `handoff` | object | Handoff configuration object (destination, reason, SIP method) |
+| `disable_recordings` | bool | Whether call recording is disabled |
+| `stop_recording` | bool | Whether recording has been stopped mid-call |
+| `use_tts_for_responses` | bool | Whether to use TTS instead of pre-recorded audio |
+| `asr_provider` | str or dict | Override the default ASR provider |
+| `asr_config` | dict | Custom ASR configuration |
+| `listen_for_sms` | bool | Whether SMS listening is enabled (default `False`) |
+
+<Warning>
+`handoff_reason` and `handoff_number` are deprecated. Use the `handoff` object instead, which supports structured SIP configurations (REFER, INVITE, BYE).
+</Warning>
+
+You can read these values in any function:
+
+```python
+log.info(f"Caller: {conv.state.from_}, Callee: {conv.state.to}")
+log.info(f"ASR language: {conv.state.asr_lang_code}")
+```
+
 ### Prompt templating
 
 Variables can be used within function calls and injected dynamically into prompts shown to the LLM. To inject a variable's value
