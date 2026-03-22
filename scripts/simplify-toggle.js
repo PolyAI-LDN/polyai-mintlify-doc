@@ -1,9 +1,7 @@
 (function () {
   // ── Simplify view toggle ──────────────────────────────────────────────────
-  // Injects a button into the site header that toggles a "simplified" mode.
-  // Persists the preference in localStorage.
-
-  var STORAGE_KEY = 'polyai-docs-simplified';
+  // URL-based simplified mode: adds ?view=simplified to the URL.
+  // The preference travels with the link so it can be shared/bookmarked.
 
   // Sidebar group names to hide entirely in simplified mode.
   // These match the <h5> text inside .sidebar-group-header elements.
@@ -17,12 +15,21 @@
     'Variant management'
   ];
 
+  // Top-nav tab labels to hide in simplified mode.
+  var HIDDEN_TABS = ['Developer', 'API reference'];
+
   function isSimplified() {
-    try { return localStorage.getItem(STORAGE_KEY) === 'true'; } catch (e) { return false; }
+    return new URLSearchParams(window.location.search).get('view') === 'simplified';
   }
 
   function setSimplified(on) {
-    try { localStorage.setItem(STORAGE_KEY, on ? 'true' : 'false'); } catch (e) {}
+    var url = new URL(window.location.href);
+    if (on) {
+      url.searchParams.set('view', 'simplified');
+    } else {
+      url.searchParams.delete('view');
+    }
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
     document.documentElement.dataset.simplified = on ? 'true' : 'false';
   }
 
@@ -80,6 +87,18 @@
     });
   }
 
+  // Mark top-nav tab <li> elements for Developer and API reference tabs.
+  function markNavbarTabs() {
+    document.querySelectorAll('li.navbar-link').forEach(function (li) {
+      var text = li.textContent.trim();
+      if (HIDDEN_TABS.indexOf(text) !== -1) {
+        li.dataset.simplifiedHide = 'true';
+      } else {
+        delete li.dataset.simplifiedHide;
+      }
+    });
+  }
+
   function injectToggle() {
     if (document.querySelector('.simplify-toggle')) return;
 
@@ -95,6 +114,7 @@
       var next = document.documentElement.dataset.simplified !== 'true';
       setSimplified(next);
       updateButton(btn, next);
+      markNavbarTabs();
     });
 
     if (navbarList) {
@@ -111,6 +131,7 @@
     setTimeout(function () {
       injectToggle();
       markSidebarGroups();
+      markNavbarTabs();
     }, 150);
   }
 
@@ -121,16 +142,25 @@
     document.addEventListener('DOMContentLoaded', function () {
       injectToggle();
       markSidebarGroups();
+      markNavbarTabs();
     });
   } else {
     injectToggle();
     markSidebarGroups();
+    markNavbarTabs();
   }
 
-  // Re-run on Mintlify SPA navigations
+  // Re-run on Mintlify SPA navigations, preserving ?view=simplified in URL.
   var _push = history.pushState;
-  history.pushState = function () {
-    _push.apply(history, arguments);
+  history.pushState = function (state, title, url) {
+    if (url && document.documentElement.dataset.simplified === 'true') {
+      try {
+        var u = new URL(url, window.location.origin);
+        u.searchParams.set('view', 'simplified');
+        url = u.pathname + u.search + u.hash;
+      } catch (e) {}
+    }
+    _push.call(history, state, title, url);
     onNav();
   };
   window.addEventListener('popstate', onNav);
