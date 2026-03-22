@@ -236,15 +236,55 @@ nav [data-testid="tag"]:has-text("Advanced") {
 }
 
 /* ── Content mode switching ──────────────────────────────────────────────────
-   Wrap page sections in .developer-only or .simplified-only to swap content
-   between modes. By default the developer version is visible. */
+   .developer-only sections are always visible in full-docs mode.
+   In simplified mode, JS wraps them in a <details> accordion (.dev-accordion).
+   .simplified-only is a legacy hint pattern — always hidden since the
+   accordion replaces it. */
 
-.simplified-only { display: none; }
+.simplified-only { display: none !important; }
 
-[data-simplified="true"] .developer-only { display: none !important; }
-[data-simplified="true"] .simplified-only {
-  display: block !important;
-  margin-top: 1rem;
+/* ── Developer content accordion (simplified mode only) ──────────────────── */
+
+.dev-accordion {
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  margin: 1.5rem 0;
+  overflow: hidden;
+}
+
+.dev-accordion-summary {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.05);
+  list-style: none;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dev-accordion-summary::-webkit-details-marker { display: none; }
+
+.dev-accordion-summary::before {
+  content: '▸';
+  font-size: 0.75em;
+  transition: transform 140ms ease;
+}
+
+.dev-accordion[open] > .dev-accordion-summary::before {
+  transform: rotate(90deg);
+}
+
+.dev-accordion > .developer-only {
+  padding: 0 1rem 1rem;
+  border-top: 1px solid rgba(99, 102, 241, 0.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dev-accordion-summary::before { transition: none !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
