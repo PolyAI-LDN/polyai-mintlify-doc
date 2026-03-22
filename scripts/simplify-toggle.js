@@ -7,11 +7,13 @@
   var HIDDEN_GROUPS = ['Developer tools', 'Secrets', 'Code-driven flows'];
 
   // Collapsed sub-group button labels to hide in simplified mode.
+  // SMS and Call handoffs are intentionally excluded here — their intro pages
+  // are visible in simplified mode with developer content behind an accordion.
   var HIDDEN_SUBGROUPS = [
     'Tools', 'Configuration builder',
     'Speech recognition', 'Response control', 'Audio management',
     'Variant management',
-    'Flows', 'SMS', 'Call handoffs'
+    'Flows'
   ];
 
   // Top-nav tab labels to hide in simplified mode.
@@ -23,14 +25,21 @@
     '/tools/', '/secrets/', '/extend/', '/configuration-builder/',
     '/speech-recognition/', '/response-control/', '/audio-management/', '/variant-management/',
     '/telephony/twilio/',
-    '/flows/', '/sms/', '/call-handoff/',
+    '/flows/',
     '/call-data/conversations-api/',
     '/api-reference/', '/api/'
   ];
   var COMPLEX_EXACT = ['/call-data/s3-to-s3'];
 
+  // These intro pages are "mixed" — they appear in simplified mode with developer
+  // content tucked behind an accordion. They must not trigger exit from simplified mode.
+  var SIMPLIFIED_INTROS = ['/call-handoff/introduction', '/sms/introduction'];
+
   function isComplexPath(pathname) {
+    if (SIMPLIFIED_INTROS.indexOf(pathname) !== -1) return false;
     if (COMPLEX_EXACT.indexOf(pathname) !== -1) return true;
+    // Sub-pages of call-handoff and sms (other than introduction) are still complex
+    if (pathname.startsWith('/call-handoff/') || pathname.startsWith('/sms/')) return true;
     return COMPLEX_PREFIXES.some(function (p) { return pathname.startsWith(p); });
   }
 
@@ -83,7 +92,8 @@
       }
     });
 
-    // Expanded individual page items — hide by path prefix or Code/Advanced tag
+    // Expanded individual page items — hide by path prefix or Code/Advanced tag.
+    // isComplexPath() already handles the SIMPLIFIED_INTROS exclusion.
     document.querySelectorAll('li[id]').forEach(function (li) {
       var id = li.id;
       var pathMatch = isComplexPath(id);
