@@ -126,15 +126,6 @@ The Conversation object (conv) provides access to conversation data and tools fo
     ```
   </Accordion>
 
-  <Accordion title="integration_data">
-    **Description**: Combined payload of integration metadata and attributes (dict[str, Any]).
-    
-    **Example**:
-    ```python
-    crm_id = conv.integration_data.get("contact_id")
-    ```
-  </Accordion>
-
   <Accordion title="caller_number">
     **Description**: The caller's identifier.
     
@@ -264,17 +255,17 @@ The Conversation object (conv) provides access to conversation data and tools fo
   </Accordion>
 
   <Accordion title="transcript_alternatives">
-    **Description**: List of ASR alternatives for the last user utterance. Each alternative includes the transcribed text and a confidence score.
+    **Description**: List of transcription alternatives (list[str]) for the last user utterance, including the primary transcription.
     
     **Example**:
     ```python
     for alt in conv.transcript_alternatives:
-      print(f"Text: {alt.text}, Confidence: {alt.confidence}")
+      print(f"Alternative: {alt}")
     
     # Example output:
-    # Text: "book a table for two", Confidence: 0.95
-    # Text: "book a table for too", Confidence: 0.78
-    # Text: "book a table for to", Confidence: 0.65
+    # Alternative: "book a table for two"
+    # Alternative: "book a table for too"
+    # Alternative: "book a table for to"
     ```
   </Accordion>
 
@@ -461,12 +452,18 @@ The Conversation object (conv) provides access to conversation data and tools fo
     ```
   </Accordion>
 
-  <Accordion title="generate_external_events">
-    **Description**: Sends a structured webhook event to the configured external endpoint.
+  <Accordion title="generate_external_event">
+    **Description**: Generates a unique external event ID linked to the current conversation. Use this ID to receive webhook data from an external provider via the `/v1/external-events/webhook` endpoint. The webhook payload is then accessible through `conv.generic_external_events`.
+    
+    **Parameters**: 
+    - send_to_llm (bool, keyword-only, optional) – if `True`, the webhook payload is also sent to the LLM as a system prompt. Default `False`.
+    
+    **Returns**: str – the generated external event ID (expires after 1 hour).
     
     **Example**:
     ```python
-    conv.generate_external_events("booking_completed", payload={"id": "1234"})
+    event_id = conv.generate_external_event(send_to_llm=True)
+    # Pass event_id to an external provider, which can POST data back via the webhook
     ```
   </Accordion>
 
@@ -486,31 +483,44 @@ The Conversation object (conv) provides access to conversation data and tools fo
   </Accordion>
 
   <Accordion title="send_whatsapp">
-    **Description**: Sends a plain-text WhatsApp message with the configured WhatsApp Business API integration.
+    **Description**: Sends a WhatsApp message using the configured Twilio WhatsApp Business API integration. The phone number must be WhatsApp-enabled and approved by Meta.
     
-    **Use case**: Send simple, unformatted WhatsApp messages.
-    
-    **Difference from send_content_template**: Use `send_whatsapp` for plain text messages. Use `send_content_template` for pre-approved WhatsApp templates with variables, rich media, or buttons.
+    **Parameters**:
+    - to_number (str) – recipient phone number.
+    - from_number (str) – sender phone number (must be WhatsApp-enabled).
+    - content_id (str) – alphanumeric ID of the approved WhatsApp message template.
+    - content (str, optional) – text content of the message. Default `""`.
     
     **Example**:
     ```python
-    conv.send_whatsapp(to="+441234567890", content="Hello from PolyAI!")
+    conv.send_whatsapp(
+      to_number="+441234567890",
+      from_number="+440987654321",
+      content_id="HX1234abcd",
+      content="Hello from PolyAI!"
+    )
     ```
   </Accordion>
 
   <Accordion title="send_content_template">
-    **Description**: Sends a WhatsApp or SMS template message defined in your content templates.
+    **Description**: Sends a WhatsApp or SMS template message via Twilio's Content API. Requires the content template to be pre-approved in your Twilio account.
     
-    **Use case**: Send pre-approved templates with dynamic variables, rich media (images, videos), or interactive buttons.
-    
-    **Difference from send_whatsapp**: Use `send_content_template` for structured messages with variables and rich content. Use `send_whatsapp` for simple plain-text messages.
+    **Parameters**:
+    - messaging_service_id (str) – Twilio messaging service ID.
+    - to_number (str) – recipient phone number.
+    - content_id (str) – alphanumeric ID of the approved message template.
+    - content (str, optional) – text content. Default `""`.
+    - whatsapp (bool, optional) – set to `True` to send over WhatsApp. Default `False`.
+    - content_variables (dict, optional) – variables to pass to the message template.
     
     **Example**:
     ```python
     conv.send_content_template(
-      to="+441234567890", 
-      template="order_update", 
-      parameters={"order_id": "12345", "status": "shipped"}
+      messaging_service_id="MG1234abcd",
+      to_number="+441234567890",
+      content_id="HX5678efgh",
+      whatsapp=True,
+      content_variables={"1": "12345", "2": "shipped"}
     )
     ```
   </Accordion>
@@ -550,10 +560,21 @@ The Conversation object (conv) provides access to conversation data and tools fo
 
   <Accordion title="call_handoff">
     **Description**: Transfer the call to a configured handoff destination.
-    **Parameters**: destination (str) – handoff target key; reason (str or None) – escalation reason; utterance (str or None) – message before transfer.
+    
+    **Parameters**:
+    - destination (str) – handoff target key, as defined in your handoff configuration.
+    - reason (str, optional) – escalation reason. Defaults to the destination name.
+    - utterance (str, optional) – message for the agent to say before transferring.
+    - sip_headers (dict[str, str], optional) – SIP headers to pass through. Merged with any headers configured in the handoff config, with passed headers taking precedence.
+    - route (str, optional) – phone number or route to override the configured route.
+    
     **Example**:
     ```python
-    conv.call_handoff(destination="BillingQueue", reason="policy_violation", utterance="Let me transfer you to a specialist who can help.")
+    conv.call_handoff(
+      destination="BillingQueue",
+      reason="policy_violation",
+      utterance="Let me transfer you to a specialist who can help."
+    )
     ```
     **Where it shows up**: In flows using builtin-handoff or using functions; visible in Conversation Review and API.
   </Accordion>
@@ -673,12 +694,12 @@ The Conversation object (conv) provides access to conversation data and tools fo
     ```
   </Accordion>
 
-  <Accordion title="add_response_suggestions">
-    **Description**: Add quick-reply suggestions that appear as clickable options for the user. Only supported on webchat channels.
+  <Accordion title="set_response_suggestions">
+    **Description**: Set quick-reply suggestions that appear as clickable options for the user. Only supported on webchat channels.
     **Parameters**: suggestions (list[str]) – list of suggested responses.
     **Example**:
     ```python
-    conv.add_response_suggestions(["Yes, confirm", "No, cancel", "More options"])
+    conv.set_response_suggestions(["Yes, confirm", "No, cancel", "More options"])
     ```
   </Accordion>
 
