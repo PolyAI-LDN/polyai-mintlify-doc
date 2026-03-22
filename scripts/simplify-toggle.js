@@ -13,7 +13,7 @@
     'Tools', 'Configuration builder',
     'Speech recognition', 'Response control', 'Audio management',
     'Variant management',
-    'Flows'
+    'Flows', 'Test suite'
   ];
 
   // Top-nav tab labels to hide in simplified mode.
@@ -27,6 +27,7 @@
     '/telephony/twilio/',
     '/flows/',
     '/call-data/conversations-api/',
+    '/analytics/test-suite/',
     '/api-reference/', '/api/'
   ];
   var COMPLEX_EXACT = ['/call-data/s3-to-s3'];
