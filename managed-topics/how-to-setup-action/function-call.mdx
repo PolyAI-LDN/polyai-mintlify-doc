@@ -1,33 +1,74 @@
 ---
-title: "Invoke Function"
-description: "Invoke functions within an action"
+title: "Invoke function"
+description: "Invoke functions within an action to extend your agent with custom logic"
 tag: "Code"
 ---
 
-Add functions to actions to extend your agent's capabilities with custom logic.
+Add functions to actions to extend your agent's capabilities with custom logic — look up data, call APIs, or perform calculations during a conversation.
 
 ## Adding a function
 
-Add a function to an action in three ways:
+Add a function to the **Actions** field of a managed topic in three ways:
 
 1. Type `/` in the Actions field
 2. Right-click in the Actions field
 3. Click the **+** icon on the right side of the field
 
-Select a function from the menu, or create a new one to populate later. You can use the same function multiple times across different actions.
+Select a function from the menu, or create a new one to populate later. You can reuse the same function across multiple topics and actions.
+
+<Warning>
+  Function references like `{"{{fn:order_lookup}}"}` are **only valid in the Actions field**. Placing them in the Content field will not trigger the function, and no error is shown. Always add function references in Actions.
+</Warning>
 
 <Tip>
   Iterative testing helps get your agent to call functions as expected.
 </Tip>
 
+## `{"{{fn:...}}"}` vs `{"{{ft:...}}"}` syntax
+
+The `{"{{fn:...}}"}` syntax references **global functions**, which can be used across topics, flows, and rules. This is different from **transition functions** (`{"{{ft:...}}"}` syntax), which are scoped to a single flow.
+
+See [Transition functions](/flows/transition-functions) for details on flow-scoped functions.
+
+## Known limitation: functions in flows
+
+<Warning>
+  When a function is referenced inside a flow action, it may not be included in the LLM's tool definitions. This means the LLM cannot see or call the function. If you encounter this, add the function reference to your [agent rules](/agent-settings/rules) so the LLM is aware of it.
+</Warning>
+
 ## Example prompt
 
+Use this pattern in the **Actions** field to ensure the agent calls a function before responding:
+
 ```plaintext
-When the user asks "where is my order" do not respond until you have called {{fn:order_lookup}} with an order number. If you don't know their order number, you should ask first and then call {{fn:order_lookup}}. You should ignore all other impulses and follow the response of the function to give back to the caller.
+When the user asks "where is my order," do not respond until you have called {{fn:order_lookup}} with an order number. If you don't have the order number, ask for it first, then call {{fn:order_lookup}}. Use the function's response to answer the caller.
 ```
+
+This ensures the agent always invokes the function before responding, and grounds its answer in the function's output.
+
+## Controlling agent behavior after a function call
+
+Functions can return values that control what the agent says or does next — for example, returning an exact `utterance` for the agent to speak, triggering a `handoff`, or ending the call with `hangup`.
+
+See [Return values](/tools/return-values) for the full reference.
 
 ## Testing
 
-1. Save your agent and click **Play** to open the test chat panel
-2. Ask "Where is my order?" and verify the agent responds correctly
-3. Enable the **tool calls** toggle in settings to see which functions were called and with what parameters
+<Steps>
+  <Step title="Save and open the test panel">
+    Save your agent and click **Play** in the header to open the test chat panel.
+  </Step>
+  <Step title="Test the invocation">
+    Ask a test question like "Where is my order?" and observe how the agent handles the interaction.
+  </Step>
+  <Step title="Inspect tool calls">
+    Enable the **tool calls** toggle in the test panel settings to inspect which functions were called and what parameters were passed. Use this to confirm the function was actually triggered and that the correct arguments were sent — especially when the agent is not behaving as expected.
+  </Step>
+</Steps>
+
+## Related
+
+- [Using tools in topics](/tools/using-tools-in-knowledge-base) — detailed guide on integrating functions into managed topics
+- [Create a function](/tools/how-to-setup) — set up a new function with parameters and Python code
+- [Return values](/tools/return-values) — control agent behavior with function return values
+- [Transition functions](/flows/transition-functions) — flow-scoped functions using `{"{{ft:...}}"}` syntax
