@@ -3,9 +3,22 @@ title: Response Control
 icon: "shield-halved"
 ---
 
+import { ProgressTracker } from '/snippets/progress-tracker'
+
 <Info>
   **Level 2 — Lesson 2 of 6** — Master response controls to regulate agent output and enforce tone.
 </Info>
+
+{/* VIDEO PLACEHOLDER — record a 2–5 min walkthrough of configuring Response Controls and replace VIDEO_ID below */}
+<iframe
+  width="100%"
+  height="400"
+  src="https://www.youtube.com/embed/VIDEO_ID"
+  title="Response controls walkthrough"
+  frameBorder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowFullScreen
+/>
 
 Response Controls regulate the agent's *own output*. They run **after** the model generates text and before anything is spoken or sent to the user.
 
@@ -34,6 +47,22 @@ Response Controls are **string- or regex-based rules** that inspect the agent's 
   They are not about what the *user* says — they are about what the *agent* says.
 </Note>
 
+## Which tool to use for which problem
+
+```mermaid
+flowchart TD
+    A[Unwanted agent behaviour] --> B{What type of problem?}
+    B -->|ASR mishears user| C[Use ASR tools / Keyphrase Boosting]
+    B -->|Wrong topic retrieved| D[Fix Managed Topic name or sample questions]
+    B -->|Agent says something it shouldn't| E[Use Response Controls]
+    E --> F{Should phrase NEVER appear?}
+    F -->|Yes| G[Halt — set Say phrases: TRUE]
+    F -->|No, just monitor it| H[Log — set Say phrases: FALSE]
+    G --> I{Needs a fallback action?}
+    I -->|Yes| J[Attach a function]
+    I -->|No| K[Done]
+```
+
 ## When to use Response Controls
 
 Use Response Controls when you want to fix or prevent:
@@ -44,19 +73,19 @@ Use Response Controls when you want to fix or prevent:
     - "Let me check that for you…"
     - "Please hold while I look into this…"
   </Tab>
-  
+
   <Tab title="Looping behavior">
     **Examples:**
     - Repeating the greeting mid-call
     - Restarting the conversation after silence
   </Tab>
-  
+
   <Tab title="Off-brand phrasing">
     **Examples:**
     - Overly apologetic language
     - Internal system explanations
   </Tab>
-  
+
   <Tab title="Unsafe output">
     **Examples:**
     - Speculation
@@ -123,17 +152,17 @@ Each Response Control includes:
 <CardGroup cols={2}>
   <Card title="Start narrow" icon="crosshairs">
     Broad patterns are hard to debug and can suppress valid responses.
-    
+
     ❌ `.*sorry.*`
-    
+
     ✅ `\b(sorry for the inconvenience|apologies for the delay)\b`
   </Card>
 
   <Card title="Target symptoms" icon="bullseye">
     Encode *specific phrases* you have observed, not abstract concepts.
-    
+
     ❌ "Prevent the agent from being verbose"
-    
+
     ✅ `\b(let me explain how|to give you some background)\b`
   </Card>
 
@@ -295,12 +324,57 @@ Response Controls are a surgical tool.
   Treat them as the final layer of polish — not the first fix.
 </Tip>
 
-<Card>
-    <label style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-      <input type="checkbox"  />
-      <div>
-        <strong>Progress</strong><br />
-        2 of 6 lessons complete
-      </div>
-    </label>
-</Card>
+---
+
+## Try it yourself
+
+<Steps>
+  <Step title="Challenge: Write a response control">
+    You notice the agent frequently says "Let me look into that for you" before answering — which creates an awkward pause in voice calls.
+
+    Write the full Response Control configuration:
+    1. ID
+    2. Description
+    3. Regex
+    4. Say phrases setting
+
+    <Accordion title="Hint">
+      Write the regex to match the specific phrase you observed, not a broad pattern. Start as narrow as possible — you can always widen it if needed.
+    </Accordion>
+
+    <Accordion title="Example solution">
+      - **ID:** `filler_preamble_cutoff`
+      - **Description:** Prevents the agent from saying "Let me look into that for you" before responding — this creates latency and sounds unnatural in voice.
+      - **Regex:** `\blet me (look into|check) that for you\b`
+      - **Say phrases:** TRUE
+    </Accordion>
+  </Step>
+</Steps>
+
+---
+
+## Knowledge check
+
+{/* TALLY_QUIZ_PLACEHOLDER — Lesson L2-2: Response controls
+Replace this block with your Tally embed once forms are created:
+<iframe
+  src="https://tally.so/embed/FORM_ID"
+  width="100%"
+  height="500"
+  frameBorder="0"
+  title="Knowledge check: Response controls"
+/>
+*/}
+
+<AccordionGroup>
+  <Accordion title="Q1: What do Response Controls regulate?">
+    **Answer:** **What the agent says** — its own generated output. They run after the LLM generates a response, before it's spoken or sent to the user. They don't affect what the user says or how ASR works.
+  </Accordion>
+  <Accordion title="Q2: If a phrase should never appear in any response, what should you do?">
+    **Answer:** **Halt it** by setting "Say phrases" to TRUE. Logging (FALSE) lets the phrase through while tracking it — use that for monitoring, not for phrases that should never appear.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+<ProgressTracker lessonKey="l2-2-response-control" lessonNum={2} totalLessons={6} level="Level 2" />

@@ -3,9 +3,22 @@ title: Global ASR
 icon: "ear-listen"
 ---
 
+import { ProgressTracker } from '/snippets/progress-tracker'
+
 <Info>
   **Level 2 — Lesson 4 of 6** — Configure speech recognition to reduce misrecognition and improve routing.
 </Info>
+
+{/* VIDEO PLACEHOLDER — record a 2–5 min walkthrough of Global ASR configuration and replace VIDEO_ID below */}
+<iframe
+  width="100%"
+  height="400"
+  src="https://www.youtube.com/embed/VIDEO_ID"
+  title="Global ASR walkthrough"
+  frameBorder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowFullScreen
+/>
 
 Automatic Speech Recognition (ASR) determines what the agent *hears*. Every downstream system depends on this layer: Knowledge retrieval, routing, response control, and handoff logic. Small transcription errors here can silently break otherwise well-designed agents.
 
@@ -31,6 +44,22 @@ Global ASR configuration is where you correct *systematic* listening problems be
 <Note>
   It is not a substitute for good KB design or clear agent behaviour rules. Think of it as sharpening the agent's ears, not teaching it new facts.
 </Note>
+
+## Which tool to use
+
+```mermaid
+flowchart TD
+    A[ASR problem identified] --> B{What type of error?}
+    B -->|Word is correct but under-recognised| C[Keyphrase Boosting]
+    B -->|ASR consistently hears the wrong thing| D[Transcript Corrections]
+    C --> E[Add keyphrase → start with Default bias strength]
+    D --> F[Add correction → define misheard expression and replacement]
+    E --> G[Test in Call → increase bias only if errors persist]
+    F --> G
+    G --> H{Improvement confirmed?}
+    H -->|Yes| I[Promote carefully]
+    H -->|No| B
+```
 
 ## Two essential tools
 
@@ -189,12 +218,57 @@ Global ASR configuration is where you correct *systematic* listening problems be
   Global ASR tuning is iterative. Small, deliberate adjustments here pay off more than large rewrites elsewhere.
 </Check>
 
-<Card>
-    <label style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-      <input type="checkbox"  />
-      <div>
-        <strong>Progress</strong><br />
-        4 of 6 lessons complete
-      </div>
-    </label>
-</Card>
+---
+
+## Try it yourself
+
+<Steps>
+  <Step title="Challenge: Diagnose and configure an ASR fix">
+    A caller says "I'd like a refund" but ASR consistently transcribes it as "I'd like a reef fund". The `refund_request` topic therefore never triggers.
+
+    Answer:
+    1. Should you use Keyphrase Boosting or Transcript Corrections — and why?
+    2. Write the full configuration.
+
+    <Accordion title="Hint">
+      Ask yourself: is ASR hearing the right word but recognising it poorly, or is it consistently mishearing one thing as another?
+    </Accordion>
+
+    <Accordion title="Example solution">
+      1. **Transcript Corrections** — because ASR is consistently mishearing "refund" as "reef fund". This is a predictable substitution error, not an under-recognition problem.
+
+      2. **Configuration:**
+         - **Match type:** Substring
+         - **Misheard expression:** `reef fund`
+         - **Correction:** `refund`
+    </Accordion>
+  </Step>
+</Steps>
+
+---
+
+## Knowledge check
+
+{/* TALLY_QUIZ_PLACEHOLDER — Lesson L2-4: Global ASR
+Replace this block with your Tally embed once forms are created:
+<iframe
+  src="https://tally.so/embed/FORM_ID"
+  width="100%"
+  height="500"
+  frameBorder="0"
+  title="Knowledge check: Global ASR"
+/>
+*/}
+
+<AccordionGroup>
+  <Accordion title="Q1: When should you use Transcript Corrections instead of Keyphrase Boosting?">
+    **Answer:** When ASR **consistently mishears one specific thing as another** — for example, "refund" → "reef fund". Keyphrase Boosting is for words that are correct but under-recognised; Transcript Corrections rewrite after transcription.
+  </Accordion>
+  <Accordion title="Q2: What is the main risk of over-biasing many keyphrases?">
+    **Answer:** Bias strength is **cumulative** — boosting too many terms can degrade overall ASR accuracy. Always start with Default bias and increase only if errors persist.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+<ProgressTracker lessonKey="l2-4-global-asr" lessonNum={4} totalLessons={6} level="Level 2" />

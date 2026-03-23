@@ -3,9 +3,22 @@ title: Environments and versions
 icon: "code-branch"
 ---
 
+import { ProgressTracker } from '/snippets/progress-tracker'
+
 <Info>
   **Lesson 5 of 6** — Test and promote changes safely: Sandbox → Pre-release → Live. For detailed workflows, see [Version management](/learn/maintain/version-management). For reference, see [Environments and versions](/environments-and-versions/introduction).
 </Info>
+
+{/* VIDEO PLACEHOLDER — record a 2–5 min walkthrough of publishing and promoting versions and replace VIDEO_ID below */}
+<iframe
+  width="100%"
+  height="400"
+  src="https://www.youtube.com/embed/VIDEO_ID"
+  title="Environments and versions walkthrough"
+  frameBorder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowFullScreen
+/>
 
 Each environment runs a published version. Draft changes apply only after publishing and promoting.
 
@@ -30,6 +43,22 @@ Each environment runs a published version. Draft changes apply only after publis
 <Warning>
   Multiple environments can point to the same version, but **only one version per environment** is active at any time.
 </Warning>
+
+## The full promotion flow
+
+```mermaid
+flowchart TD
+    A[Make changes in Draft] --> B[Publish version]
+    B --> C[Test in Sandbox]
+    C --> D{Tests pass?}
+    D -->|Yes| E[Promote to Pre-release]
+    D -->|No| F[Fix in Draft]
+    F --> B
+    E --> G{UAT approved?}
+    G -->|Yes| H[Promote to Live]
+    G -->|No| F
+    H --> I[Monitor first calls]
+```
 
 ## The Environments page
 
@@ -189,7 +218,7 @@ The **Compare versions** view is your primary safety tool.
   - Late checkout KB text changed
   - New SMS action added
   - No rule or voice changes
-  
+
   If you can't explain every change in the diff, don't promote.
 </Tip>
 
@@ -210,7 +239,7 @@ Rollbacks are instant and safe.
     2. Click rollback
     3. Confirm rollback
     4. Verify with a live test call
-    
+
     <Note>
       Rollback restores behaviour immediately without deleting newer versions.
     </Note>
@@ -260,12 +289,54 @@ Each environment can have its own phone number.
   If environments feel slow, that usually means they're doing their job.
 </Check>
 
-<Card>
-    <label style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-      <input type="checkbox"  />
-      <div>
-        <strong>Progress</strong><br />
-        5 of 6 lessons complete
-      </div>
-    </label>
-</Card>
+---
+
+## Try it yourself
+
+<Steps>
+  <Step title="Challenge: Pre-release checklist">
+    You've made three changes in Sandbox: updated the pet policy topic, added a new SMS offer for late checkout, and changed the agent voice stability from 0.6 to 0.8.
+
+    List **at least 4 specific tests** you would run before promoting to Pre-release.
+
+    <Accordion title="Hint">
+      Think about each change you made and what could have broken. Also consider: what tests should always run, regardless of what changed?
+    </Accordion>
+
+    <Accordion title="Example solution">
+      1. **Test pet policy topic** — ask "are dogs allowed?" in both Chat and Call; confirm the correct topic triggers.
+      2. **Test SMS consent flow** — ask "can you text me the late checkout info?" and confirm the agent asks for consent before sending.
+      3. **Make a test call** — listen for the voice stability change; confirm the agent sounds more consistent and no audio artifacts were introduced.
+      4. **Run a full smoke test** — test a simple FAQ, out-of-scope refusal, and a handoff to confirm nothing regressed from your other changes.
+      5. **Compare versions** — open the diff and confirm the three changes are the only ones present.
+    </Accordion>
+  </Step>
+</Steps>
+
+---
+
+## Knowledge check
+
+{/* TALLY_QUIZ_PLACEHOLDER — Lesson L1-5: Environments
+Replace this block with your Tally embed once forms are created:
+<iframe
+  src="https://tally.so/embed/FORM_ID"
+  width="100%"
+  height="500"
+  frameBorder="0"
+  title="Knowledge check: Environments and versions"
+/>
+*/}
+
+<AccordionGroup>
+  <Accordion title="Q1: What does clicking 'Publish' do?">
+    **Answer:** It creates a **snapshot (version)** of the agent at that moment. It does NOT immediately push to Live — you still need to promote the version to an environment.
+  </Accordion>
+  <Accordion title="Q2: Which environment should real user traffic come from?">
+    **Answer:** **Live.** Sandbox is for development, Pre-release is for QA and UAT — neither should receive real user traffic.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+<ProgressTracker lessonKey="l1-5-environments" lessonNum={5} totalLessons={6} level="Level 1" />

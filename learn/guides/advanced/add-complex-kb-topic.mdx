@@ -3,11 +3,24 @@ title: Add complex topics
 icon: "diagram-project"
 ---
 
+import { ProgressTracker } from '/snippets/progress-tracker'
+
 <Info>
   **Level 2 — Lesson 1 of 6** — Build multi-turn flows with SMS, handoffs, and conditional logic.
 </Info>
 
-Not all Managed Topics are simple question-and-answer entries. Some need to guide the user through a decision, send information by text, or route the conversation to the right place when the request isn’t clear.
+{/* VIDEO PLACEHOLDER — record a 2–5 min walkthrough of creating a complex topic and replace VIDEO_ID below */}
+<iframe
+  width="100%"
+  height="400"
+  src="https://www.youtube.com/embed/VIDEO_ID"
+  title="Add complex topics walkthrough"
+  frameBorder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowFullScreen
+/>
+
+Not all Managed Topics are simple question-and-answer entries. Some need to guide the user through a decision, send information by text, or route the conversation to the right place when the request isn't clear.
 
 This lesson explains what makes a topic "complex", and shows a set of reliable patterns you can reuse. The goal is not cleverness, but predictability: topics that retrieve correctly, behave well in Chat and Call, and recover cleanly when users respond in unexpected ways.
 
@@ -31,6 +44,24 @@ A topic is considered complex if it does more than return static information.
   In the UI, complex topics almost always use both **Content** and **Actions**, and often rely on **functions** to control what happens next.
 </Note>
 
+## Topic creation flow
+
+```mermaid
+flowchart TD
+    A[New complex topic idea] --> B[Define intended outcome]
+    B --> C[Choose topic name — one specific intent]
+    C --> D[Write sample questions — 10+ variations]
+    D --> E[Write Content — call script style]
+    E --> F[Add Actions — SMS / handoff / routing]
+    F --> G{Test retrieval in Chat?}
+    G -->|Fails to trigger| C
+    G -->|Triggers correctly| H{Test in Call?}
+    H -->|Responses too long or unnatural| E
+    H -->|Passes| I{Test failure cases?}
+    I -->|Dead ends or loops| F
+    I -->|Recovers cleanly| J[✅ Ready to promote]
+```
+
 ## Before you write anything
 
 Complex topics work best when you make some decisions and plan.
@@ -40,13 +71,13 @@ Be clear on these points first:
 - What is the intended outcome of this topic?
   For example: the user receives a link by SMS, or is transferred to the front desk.
 - What should happen if the user says no?
-- What should happen if the user gives an answer you didn’t expect?
+- What should happen if the user gives an answer you didn't expect?
 
 ## An example workflow for complex topics
 
 ### Step 1: Retrieval
 
-If a topic doesn’t retrieve reliably, nothing else matters. Retrieval depends most on three things, in this order:
+If a topic doesn't retrieve reliably, nothing else matters. Retrieval depends most on three things, in this order:
 
 1. Topic name
 2. Sample questions
@@ -147,9 +178,9 @@ Would you like me to send that now, or would you rather speak to someone?
 
 **Content**
 ```text
-I can send you details about this week’s promotion.
+I can send you details about this week's promotion.
 
-Would you like information about today’s offer,
+Would you like information about today's offer,
 upcoming events, or loyalty rewards?
 ```
 
@@ -188,7 +219,7 @@ This avoids unnecessary turns and makes ownership explicit.
 **Content**
 > Standard checkout is at 11 a.m.
 >
-> If you need to check out later than that, I can connect you with the front desk to see what’s available. Would you like me to do that?
+> If you need to check out later than that, I can connect you with the front desk to see what's available. Would you like me to do that?
 
 **Actions**
 - If yes → handoff to front desk
@@ -206,8 +237,8 @@ This avoids unnecessary turns and makes ownership explicit.
 > Are you looking to change an existing reservation, or make a new one?
 
 **Actions**
-- If “change” → route to reservation modification
-- If “new” → route to booking flow
+- If "change" → route to reservation modification
+- If "new" → route to booking flow
 
 Rules:
 - Ask one question only
@@ -255,7 +286,7 @@ Rules:
 - End with a single question
 - Make one decision per turn
 
-**Don’t**
+**Don't**
 - Use paragraphs
 - Include internal notes
 - Ask multiple questions at once
@@ -305,12 +336,72 @@ The fix is simple and consistent:
 - FAQ troubleshooting
 - Managed Topics maintenance and governance
 
-<Card>
-  <label style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-    <input type="checkbox" />
-    <div>
-      <strong>Progress</strong><br />
-      1 of 6 lessons complete
-    </div>
-  </label>
-</Card>
+---
+
+## Try it yourself
+
+<Steps>
+  <Step title="Challenge: Write a 'bill request' complex topic">
+    Write a complete complex topic for a hotel guest requesting a bill from a previous stay. Use Pattern 1 (SMS with fallback to handoff).
+
+    Include:
+    1. Topic name
+    2. Four sample questions
+    3. Content (2–3 sentences, call-script style)
+    4. Actions (3 branches: agree to SMS, decline SMS, SMS fails)
+
+    <Accordion title="Hint">
+      The topic name should describe one specific scenario (not just "billing"). Content should lead with what happens next and end with one clear question. Actions should cover the "yes", "no", and "error" paths.
+    </Accordion>
+
+    <Accordion title="Example solution">
+      **Topic name:** `bill_request_previous_stay`
+
+      **Sample questions:**
+      - can you send me my bill from last week
+      - I need a receipt from my last stay
+      - text me my invoice
+      - how do I get a folio for my previous visit
+
+      **Content:**
+      ```text
+      The easiest way to get your bill is online.
+      I can send you a text with the link — would you like me to do that,
+      or would you prefer to speak with someone at the front desk?
+      ```
+
+      **Actions:**
+      - If user agrees → `start_sms_flow` with `sms_id="bill_request"`
+      - If user declines → transfer to front desk
+      - If SMS fails → transfer automatically
+    </Accordion>
+  </Step>
+</Steps>
+
+---
+
+## Knowledge check
+
+{/* TALLY_QUIZ_PLACEHOLDER — Lesson L2-1: Add complex topics
+Replace this block with your Tally embed once forms are created:
+<iframe
+  src="https://tally.so/embed/FORM_ID"
+  width="100%"
+  height="500"
+  frameBorder="0"
+  title="Knowledge check: Add complex topics"
+/>
+*/}
+
+<AccordionGroup>
+  <Accordion title="Q1: What is the most important step when building a complex topic?">
+    **Answer:** **Making retrieval work reliably.** If a topic doesn't trigger correctly, nothing else matters — the best content in the world is useless if it's never reached.
+  </Accordion>
+  <Accordion title="Q2: Which pattern should you use when the agent can answer but escalation may still be useful?">
+    **Answer:** **Pattern 4: Answer, then offer handoff.** The agent provides the information first, then offers a transfer — rather than transferring immediately or withholding the answer.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+<ProgressTracker lessonKey="l2-1-complex-topics" lessonNum={1} totalLessons={6} level="Level 2" />

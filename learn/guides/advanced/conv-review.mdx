@@ -3,9 +3,22 @@ title: Conversation reviews (advanced)
 icon: "stethoscope"
 ---
 
+import { ProgressTracker } from '/snippets/progress-tracker'
+
 <Info>
   **Level 2 — Lesson 6 of 6** — Master advanced diagnostics to understand exactly why your agent behaves the way it does.
 </Info>
+
+{/* VIDEO PLACEHOLDER — record a 2–5 min walkthrough of advanced conversation diagnostics and replace VIDEO_ID below */}
+<iframe
+  width="100%"
+  height="400"
+  src="https://www.youtube.com/embed/VIDEO_ID"
+  title="Advanced conversation review walkthrough"
+  frameBorder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowFullScreen
+/>
 
 At this stage, use Conversation Review to answer questions like:
 
@@ -15,7 +28,7 @@ At this stage, use Conversation Review to answer questions like:
 >
 > Why did the agent *not* call a function it was allowed to call?
 
-If you cannot point to a specific system layer and say *“this is where the decision was made”*, the agent is not yet under control.
+If you cannot point to a specific system layer and say *"this is where the decision was made"*, the agent is not yet under control.
 
 ## Moving beyond the transcript
 
@@ -29,6 +42,19 @@ The real work happens in:
 - Latency and interruption signals
 
 You should now review conversations **with toggles on**, not just read them.
+
+## Tracing a problem to its source
+
+```mermaid
+flowchart TD
+    A[Unexpected agent behaviour] --> B{What does the transcript show?}
+    B -->|Wrong word transcribed| C[ASR layer — check Transcript Corrections / Keyphrase Boosting]
+    B -->|Wrong topic retrieved| D[KB layer — check topic name, sample questions]
+    B -->|Right topic, wrong response| E[Rules / Response Controls layer]
+    B -->|Action didn't fire| F[Function trace — check call order and parameters]
+    B -->|Variant A ≠ Variant B| G[Variant layer — check which variant handled each turn]
+    B -->|Response too long for voice| H[Latency / interruption layer — tune pacing]
+```
 
 ## Advanced use of the Conversations table
 
@@ -77,7 +103,7 @@ Use them to detect:
 - Sample question leakage across intents
 
 > Example:
-> Three topics are cited repeatedly for “late checkout”:
+> Three topics are cited repeatedly for "late checkout":
 > - late_checkout
 > - checkout_policy
 > - general_stay_questions
@@ -92,7 +118,7 @@ Inspect:
 - Call order
 - Conditional execution
 - Parameters passed
-- Calls that *should* have happened but didn’t
+- Calls that *should* have happened but didn't
 
 > Example:
 > The agent asks for SMS consent but never calls `start_sms_flow`.
@@ -109,7 +135,7 @@ Flows expose **decision paths**.
 Use them when:
 - Multiple conditions exist
 - Behaviour depends on prior turns
-- The agent appears to “jump” topics
+- The agent appears to "jump" topics
 
 > Example:
 > A billing question enters a reservation flow.
@@ -144,11 +170,11 @@ Inspect entities to:
 - Spot hallucinated structure
 
 > Example:
-> User says “tomorrow morning”
+> User says "tomorrow morning"
 >
 > Entity captured: date = today
 >
-> This is not a KB issue — it’s extraction or phrasing.
+> This is not a KB issue — it's extraction or phrasing.
 
 ### Turn latency and interruptions
 
@@ -171,7 +197,7 @@ Use split audio to:
 - Hear barge-in timing
 - Compare spoken length vs transcript length
 
-This often explains why “perfectly fine” text responses fail in voice.
+This often explains why "perfectly fine" text responses fail in voice.
 
 ## Annotations as a system, not notes
 
@@ -183,11 +209,11 @@ Use them to:
 - Support decisions to split or retire topics
 
 > Example:
-> Five “Missing topic” annotations around refunds in one day is enough evidence to create a dedicated refund topic.
+> Five "Missing topic" annotations around refunds in one day is enough evidence to create a dedicated refund topic.
 
 Annotations turn subjective impressions into actionable signals.
 
-## What “good” looks like at Level 2
+## What "good" looks like at Level 2
 
 A strong advanced review session ends with **specific changes**, not general feelings:
 
@@ -214,12 +240,63 @@ Before treating an agent as stable at Level 2:
 At this point, the agent is no longer opaque.
 It is **inspectable, explainable, and steerable**.
 
-<Card>
-  <label style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-    <input type="checkbox" />
-    <div>
-      <strong>Progress</strong><br />
-      6 of 6 lessons complete
-    </div>
-  </label>
-</Card>
+---
+
+## Try it yourself
+
+<Steps>
+  <Step title="Challenge: Investigate a variant discrepancy">
+    Looking at your Conversations table, you notice that Variant A has a 40% handoff rate and Variant B has a 15% handoff rate — for the same types of customer queries.
+
+    Describe your investigation:
+    1. What is your first hypothesis?
+    2. Which diagnosis layers would you check first?
+    3. What specific data would confirm or rule out each hypothesis?
+
+    <Accordion title="Hint">
+      Think systematically: what could cause two variants to behave differently for the same query? Consider: variant-specific fields, KB topic overrides, response controls, and function logic.
+    </Accordion>
+
+    <Accordion title="Example solution">
+      1. **First hypothesis:** Variant A has a handoff action wired to trigger more broadly — perhaps its SMS flow fails more often, or its fallback routing is more aggressive.
+
+      2. **Layers to check first:**
+         - **Function traces** — compare whether `transfer_call` is being called after different triggers in A vs B
+         - **Variant fields** — check if A has different escalation language or action overrides
+         - **Topic citations** — confirm the same KB topics are being retrieved for both variants
+
+      3. **Confirming data:**
+         - If function traces show `transfer_call` firing after different events → KB action branch issue
+         - If topic citations differ between A and B → variant-specific KB override or sample question difference
+         - If function traces are identical → check variant fields for different routing thresholds or transfer conditions
+    </Accordion>
+  </Step>
+</Steps>
+
+---
+
+## Knowledge check
+
+{/* TALLY_QUIZ_PLACEHOLDER — Lesson L2-6: Advanced conversation review
+Replace this block with your Tally embed once forms are created:
+<iframe
+  src="https://tally.so/embed/FORM_ID"
+  width="100%"
+  height="500"
+  frameBorder="0"
+  title="Knowledge check: Advanced conversation review"
+/>
+*/}
+
+<AccordionGroup>
+  <Accordion title="Q1: At Level 2, the transcript is considered...">
+    **Answer:** Only a **symptom** of deeper issues. The real diagnostic work happens in diagnosis layers, function traces, variant attribution, and latency signals — not by reading the transcript alone.
+  </Accordion>
+  <Accordion title="Q2: The agent asks for SMS consent but never calls start_sms_flow. What are the most likely causes?">
+    **Answer:** Three likely causes: (1) a **missing action branch** in the KB topic, (2) a **Response Control** is interrupting output before the function fires, or (3) a **rules conflict** is preventing the action from executing.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+<ProgressTracker lessonKey="l2-6-conv-review" lessonNum={6} totalLessons={6} level="Level 2" />
