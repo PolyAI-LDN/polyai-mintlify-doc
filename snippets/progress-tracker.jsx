@@ -1,17 +1,19 @@
-import { useState, useEffect } from 'react';
-
 export const ProgressTracker = ({ lessonKey, lessonNum, totalLessons, level }) => {
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem(`academy-${lessonKey}`);
-    if (stored !== null) setChecked(JSON.parse(stored));
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(`academy-${lessonKey}`);
+      if (stored !== null) setChecked(JSON.parse(stored));
+    }
   }, [lessonKey]);
 
   const toggle = () => {
     const next = !checked;
     setChecked(next);
-    localStorage.setItem(`academy-${lessonKey}`, JSON.stringify(next));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`academy-${lessonKey}`, JSON.stringify(next));
+    }
   };
 
   return (
