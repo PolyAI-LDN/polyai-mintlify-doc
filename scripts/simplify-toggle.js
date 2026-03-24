@@ -18,7 +18,7 @@
   ];
 
   // Top-nav tab labels to hide in simplified mode.
-  var HIDDEN_TABS = ['Developer', 'API reference'];
+  var HIDDEN_TABS = ['Developer', 'API reference', 'Advanced'];
 
   // Path prefixes that are "complex" — clicking a link to these exits simplified mode.
   // Must stay in sync with the li[id] checks in markSidebarGroups().
