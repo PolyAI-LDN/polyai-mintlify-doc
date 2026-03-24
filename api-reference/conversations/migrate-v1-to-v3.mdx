@@ -1,0 +1,109 @@
+---
+title: "Migrate from v1 to v3"
+description: "Guide for migrating from Conversations API v1 to v3."
+---
+
+This guide covers the key changes between Conversations API v1 and v3 to help you plan and execute your migration.
+
+<Warning>
+v1 moved to **best-effort support** (no SLA) on 2 March 2026 and will be **unsupported from 31 August 2026**. Migrate to v3 before support ends.
+</Warning>
+
+## Before you start
+
+- Request v3 API keys from your PolyAI representative. v3 keys are **project- and region-scoped** — you need a separate key for each project and region combination.
+- v3 uses the same `X-Api-Key` header authentication as v1, so your HTTP client setup does not need to change.
+- The base URL pattern remains the same, only the version changes:
+
+```
+v1: https://api.{region}.platform.polyai.app/v1/{account_id}/{project_id}/conversations
+v3: https://api.{region}.platform.polyai.app/v3/{account_id}/{project_id}/conversations
+```
+
+## Breaking changes
+
+The following changes require updates to your integration code.
+
+### Null handling
+
+v1 returns `null` for empty text fields. v3 returns empty strings (`""`).
+
+Update any null checks to also handle empty strings:
+
+```python
+# v1
+if turn["user_input"] is not None:
+    process(turn["user_input"])
+
+# v3
+if turn["user_input"]:
+    process(turn["user_input"])
+```
+
+### Timestamps
+
+v3 uses consistent **ISO 8601** timestamps throughout. v1 had inconsistent formatting across some fields.
+
+### New turn-level fields
+
+v3 adds the following fields to each turn object:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `translated_user_input` | string | English translation of the user's input (when translation is enabled) |
+| `english_agent_response` | string | English version of the agent's response (when translation is enabled) |
+| `latency` | object | Per-turn latency metrics (when `include_latency=true`) |
+
+These fields are always present in the response. If translation is not enabled for your project, they return empty strings.
+
+{/* TODO: Confirm with Nebula team whether the public v3 endpoint exposes additional fields beyond those documented here (poly_score, function_events, short_summary, etc.). The internal API schema includes ~30 additional fields, but it's unclear which are filtered before reaching the public proxy. */}
+
+### Pagination
+
+| Behavior | v1 | v3 |
+|----------|----|----|
+| Default limit | 5 | 5 |
+| Max limit | 5,000 | 5,000 |
+| Pagination token | `next_offset` (only present when more pages exist) | `next_offset` |
+
+<Note>
+The query parameters (`start_time`, `end_time`, `client_env`, `limit`, `offset`) and pagination behavior remain the same between v1 and v3.
+</Note>
+
+## Fields to verify
+
+The following v1 fields may behave differently in v3. Check your integration if you depend on these:
+
+| v1 field | v3 status | Notes |
+|----------|-----------|-------|
+| `state` | May not be present | Dialogue state key-value pairs. Verify availability with your PolyAI representative if your integration reads this field. |
+| `variant_name` | May not be present | Check if your integration uses `variant_name` for filtering or routing. `variant_id` remains available. |
+
+{/* TODO: Confirm whether `state` and `variant_name` are included in the public v3 response. The internal schema does not include these fields. */}
+
+## Migration checklist
+
+<Steps>
+  <Step title="Request v3 keys">
+    Contact your PolyAI representative to provision v3 API keys for each project and region you need.
+  </Step>
+  <Step title="Update your endpoint URL">
+    Change `/v1/` to `/v3/` in your API calls. No other URL changes are needed.
+  </Step>
+  <Step title="Update null handling">
+    Replace null checks with empty-string-aware checks for all text fields (`user_input`, `agent_response`, `translated_user_input`, `english_agent_response`, etc.).
+  </Step>
+  <Step title="Test in sandbox">
+    Point your integration at v3 with `client_env=sandbox` and verify that your parsing, storage, and downstream processing handle the new response format correctly.
+  </Step>
+  <Step title="Switch production traffic">
+    Once sandbox testing is complete, update your production integration to use the v3 endpoint and keys.
+  </Step>
+  <Step title="Decommission v1 keys">
+    After confirming v3 is working in production, notify your PolyAI representative that you have migrated so v1 keys can be retired.
+  </Step>
+</Steps>
+
+## Need help?
+
+If you encounter issues during migration, contact your PolyAI representative or reach out via the [support guide](/troubleshoot/support-guide).
