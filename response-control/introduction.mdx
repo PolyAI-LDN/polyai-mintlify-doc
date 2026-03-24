@@ -32,10 +32,16 @@ When a response matches a stop keyword pattern, the system halts the response an
 
 | Field | Type | Description |
 |-------|------|-------------|
-| **ID** | String | Unique identifier for tracking and analytics |
+| **Title** | String | Unique name for the stop keyword rule (max 100 characters) |
 | **Description** | String | Optional note clarifying the keyword's purpose |
-| **Regular Expression** | String | Regex pattern that identifies phrases to control |
-| **Say Phrases** | Boolean | `TRUE` halts the response; `FALSE` logs it for analytics only |
+| **Regular Expression** | String | One or more regex patterns that identify phrases to control |
+| **Say Phrases** | Boolean | `TRUE` — the agent speaks the text up to the matched phrase, then stops. `FALSE` — the agent is interrupted before speaking the phrase. |
+| **Language** | String | Which language this rule applies to. Defaults to "All languages". Only visible for multilingual agents. |
+| **Function** | Reference | Optional — a [function](/tools/introduction) to call when the phrase is detected |
+
+<Warning>
+When a function is triggered by a stop keyword, **caller input and LLM parameters are not passed** to the function. The function runs without conversation context, so it should return a static response or handle the absence of context gracefully.
+</Warning>
 
 ### Creating a stop keyword
 
@@ -168,6 +174,17 @@ PolyAI uses [Text-to-Speech (TTS)](https://www.nvidia.com/en-gb/glossary/text-to
 Pronunciations use the [International Phonetic Alphabet (IPA)](https://pronunciationstudio.com/english-ipa-chart/) to define pronunciation rules. You can also use SSML (Speech Synthesis Markup Language) such as `<break>`, `<prosody>`, and `<emphasis>` in the replacement string.
 
 You may define pronunciation rules using regular expressions and replacements, including support for **regex capture groups**.
+
+### Multilingual pronunciation rules
+
+For multilingual agents, pronunciation rules are organized by language. Each language has its own set of rules, displayed as separate collapsible cards. Rules within a language card only apply to responses in that language.
+
+To add a rule for a specific language:
+1. Expand the language card.
+2. Add the regex pattern and replacement.
+3. The rule automatically scopes to that language.
+
+Rules with no language specified apply globally across all languages.
 
 #### Rule evaluation order
 

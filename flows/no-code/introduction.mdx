@@ -276,3 +276,82 @@ If a branch depends on an entity being present, always include a clear fallback 
 </Tip>
 
 For definitions of key terms (step, edge, condition, entity, exit flow), see the **Key concepts** card at the top of this page.
+
+## Canvas controls
+
+The flow editor provides controls to help you work with complex flows:
+
+- **Zoom in/out** — adjust the view scale (minimum 25%)
+- **Fit to view** — auto-centers and scales to show all nodes
+- **Tidy up** — auto-arranges nodes in a top-to-bottom layout with consistent spacing. Useful after adding many steps or when the layout gets messy
+- **Snap to grid** — nodes align to a 30px grid for clean positioning
+
+### Working with nodes
+
+- **Drag** steps using the drag handle at the top of each node
+- **Copy/paste** nodes using keyboard shortcuts
+- **Connect** steps by clicking the **+** handle at the bottom of a node and selecting the target step
+- **Pan** the canvas by holding the space bar and dragging
+
+### Conditions
+
+When you connect a Default step to another step, a **condition node** appears on the edge. Each condition has:
+
+| Field | Description |
+|---|---|
+| **Label** | A short name the LLM uses to decide when to take this path (max 50 characters, must be unique within the step) |
+| **Description** | Guidance for the model on when this condition should trigger |
+| **Required entities** | Entities that must be collected before this condition can activate |
+
+Write condition labels for humans first — someone reading the flow should understand the routing logic from labels alone.
+
+## Advanced step reference
+
+Advanced steps give maximum control over transitions, ASR biasing, and DTMF collection. They are intended for developers who need precise control that Default steps cannot provide.
+
+### ASR biasing options (per-step)
+
+Advanced steps support structured ASR biasing modes for common input types:
+
+| Mode | Use case |
+|---|---|
+| Alphanumeric | Booking references, confirmation codes |
+| Name spelling | Phonetically spelled names |
+| Numeric | Ages, short numbers |
+| Party size | Group booking numbers |
+| Precise date | Specific calendar dates |
+| Relative date | Flexible time references ("next Tuesday") |
+| Single number | One-digit responses |
+| Time | Spoken times |
+| Yes/No | Confirmation-style responses |
+| Address | Postcodes, street names |
+| Custom keywords | Your own keyphrases |
+
+See [ASR biasing in flows](/flows/asr-biasing) for full details.
+
+### DTMF configuration (per-step)
+
+Advanced steps can collect DTMF (touch-tone) input. Configure:
+
+| Setting | Description |
+|---|---|
+| **Enable DTMF** | Toggle on to accept keypad input |
+| **Inter-digit timeout** | How long to wait between digits (default 3 seconds) |
+| **Max digits** | Maximum number of digits to collect (1–32) |
+| **End key** | Which key signals input is complete (`#`, `*`, or none) |
+| **Collect while speaking** | Whether to accept input while the agent is talking |
+| **Mark as PII** | Flag the collected input as personally identifiable information |
+
+See [DTMF in flows](/flows/dtmf) for full details.
+
+### Rich text references in advanced steps
+
+Advanced step prompts support inline references using template tags:
+
+| Reference type | Syntax | Purpose |
+|---|---|---|
+| Transition function | `{{ft:functionId}}` | Call a transition function from the prompt |
+| Global function | `{{fn:functionId}}` | Call a global function |
+| SMS template | `{{sms:templateId}}` | Send an SMS template |
+| Handoff | `{{ho:destinationId}}` | Trigger a handoff |
+| Variant attribute | `{{va:attributeId}}` | Insert a variant attribute value |
