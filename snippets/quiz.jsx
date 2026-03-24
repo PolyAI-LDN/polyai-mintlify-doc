@@ -2,14 +2,14 @@ export const Quiz = ({ questions = [] }) => {
   const [selected, setSelected] = useState({});
   const [resetCount, setResetCount] = useState(0);
 
-  const letters = ['A', 'B', 'C', 'D'];
+  var letters = ['A', 'B', 'C', 'D'];
 
-  const handleSelect = (qIdx, optIdx) => {
+  var handleSelect = (qIdx, optIdx) => {
     if (selected[qIdx] !== undefined) return;
     setSelected((prev) => ({ ...prev, [qIdx]: optIdx }));
   };
 
-  const handleReset = () => {
+  var handleReset = () => {
     setSelected({});
     setResetCount((c) => c + 1);
   };
@@ -19,58 +19,46 @@ export const Quiz = ({ questions = [] }) => {
   }
 
   return (
-    <div key={resetCount} style={{ margin: '1.25rem 0' }}>
+    <div key={resetCount} className="my-5">
       {questions.map((q, qIdx) => {
-        const answer = selected[qIdx];
-        const hasAnswered = answer !== undefined;
-        const isCorrect = answer === q.correct;
+        var answer = selected[qIdx];
+        var hasAnswered = answer !== undefined;
+        var isCorrect = answer === q.correct;
 
         return (
-          <div key={String(qIdx)} style={{ marginBottom: '1.75rem' }}>
-            <p style={{ fontWeight: 600, fontSize: '0.925rem', marginBottom: '0.75rem', marginTop: 0, color: '#111827', lineHeight: 1.5 }}>
+          <div key={String(qIdx)} className="mb-7">
+            <p className="font-semibold text-sm mb-3 mt-0 leading-normal text-gray-900 dark:text-gray-100">
               {qIdx + 1}. {q.q}
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+            <div className="flex flex-col gap-2">
               {q.options.map((opt, i) => {
-                var bg = '#ffffff';
-                var bc = '#e5e7eb';
-                var col = '#374151';
-                var lbg = '#f3f4f6';
-                var lcol = '#6b7280';
-                var fw = 400;
+                var isThisCorrect = i === q.correct;
+                var isThisSelected = i === answer;
 
-                if (hasAnswered) {
-                  if (i === q.correct) {
-                    bg = '#f0fdf4'; bc = '#16a34a'; col = '#14532d';
-                    lbg = '#16a34a'; lcol = '#ffffff'; fw = 600;
-                  } else if (i === answer) {
-                    bg = '#fef2f2'; bc = '#dc2626'; col = '#7f1d1d';
-                    lbg = '#dc2626'; lcol = '#ffffff';
-                  } else {
-                    col = '#9ca3af'; bc = '#f3f4f6';
-                  }
+                var btnClass = 'flex items-start gap-2.5 py-2 px-3.5 rounded-md text-sm leading-normal transition-all w-full text-left box-border border ';
+                var letterClass = 'min-w-5 h-5 rounded text-xs font-bold flex items-center justify-center shrink-0 mt-px transition-all ';
+
+                if (!hasAnswered) {
+                  btnClass += 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 cursor-pointer hover:border-gray-300 dark:hover:border-gray-500';
+                  letterClass += 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400';
+                } else if (isThisCorrect) {
+                  btnClass += 'border-green-600 bg-green-50 dark:bg-green-950 text-green-900 dark:text-green-100 font-semibold cursor-default';
+                  letterClass += 'bg-green-600 text-white';
+                } else if (isThisSelected) {
+                  btnClass += 'border-red-600 bg-red-50 dark:bg-red-950 text-red-900 dark:text-red-100 cursor-default';
+                  letterClass += 'bg-red-600 text-white';
+                } else {
+                  btnClass += 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-default';
+                  letterClass += 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400';
                 }
 
                 return (
                   <button
                     key={String(i)}
                     onClick={() => handleSelect(qIdx, i)}
-                    style={{
-                      display: 'flex', alignItems: 'flex-start', gap: '0.625rem',
-                      padding: '0.55rem 0.875rem', borderRadius: '0.375rem',
-                      border: '1.5px solid ' + bc, background: bg, color: col,
-                      cursor: hasAnswered ? 'default' : 'pointer', textAlign: 'left',
-                      fontSize: '0.875rem', fontWeight: fw, lineHeight: 1.5,
-                      transition: 'all 0.1s ease', width: '100%', boxSizing: 'border-box',
-                    }}
+                    className={btnClass}
                   >
-                    <span style={{
-                      minWidth: '1.375rem', height: '1.375rem', borderRadius: '0.25rem',
-                      background: lbg, color: lcol, display: 'flex',
-                      alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem',
-                      fontWeight: 700, flexShrink: 0, marginTop: '0.05rem',
-                      transition: 'all 0.1s ease',
-                    }}>
+                    <span className={letterClass}>
                       {letters[i]}
                     </span>
                     <span>{opt}</span>
@@ -78,26 +66,20 @@ export const Quiz = ({ questions = [] }) => {
                 );
               })}
             </div>
-            {hasAnswered && (
-              <div style={{
-                marginTop: '0.75rem', padding: '0.7rem 0.875rem', borderRadius: '0.375rem',
-                background: isCorrect ? '#f0fdf4' : '#fef2f2',
-                border: '1px solid ' + (isCorrect ? '#bbf7d0' : '#fecaca'),
-                fontSize: '0.85rem', color: isCorrect ? '#15803d' : '#b91c1c', lineHeight: 1.55,
-              }}>
+            {hasAnswered ? (
+              <div className={isCorrect
+                ? 'mt-3 py-2.5 px-3.5 rounded-md text-sm leading-normal bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
+                : 'mt-3 py-2.5 px-3.5 rounded-md text-sm leading-normal bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+              }>
                 <strong>{isCorrect ? 'Correct.' : 'Not quite.'}</strong> {q.explanation}
               </div>
-            )}
+            ) : null}
           </div>
         );
       })}
       <button
         onClick={handleReset}
-        style={{
-          marginTop: '0.25rem', padding: '0.45rem 1rem', borderRadius: '0.375rem',
-          border: '1.5px solid #e5e7eb', background: '#fafafa', color: '#6b7280',
-          fontSize: '0.8rem', cursor: 'pointer', fontWeight: 500,
-        }}
+        className="mt-1 py-1.5 px-4 rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs cursor-pointer font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
       >
         Reset quiz
       </button>
