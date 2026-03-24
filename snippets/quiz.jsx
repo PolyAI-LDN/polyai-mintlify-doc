@@ -1,4 +1,3 @@
-'use client';
 import { useState } from 'react';
 
 const LETTER = ['A', 'B', 'C', 'D'];
