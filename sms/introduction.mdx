@@ -57,8 +57,8 @@ A2P 10DLC is specific to US and Canadian numbers. UK and other international num
 Once connected, follow these steps to create SMS templates:
 1. Click **Add SMS** in **Build > SMS**.
 2. Fill in the form:
-   - **Title**: A descriptive name for the SMS template (e.g., `reservation_confirmation`). This is the name you reference when triggering the template in functions.
-   - **SMS Body**: The content of the message.
+   - **Title**: A descriptive name for the SMS template (e.g., `reservation_confirmation`). This is the name you reference when triggering the template in functions. Max 100 characters.
+   - **SMS Body**: The content of the message. Max 500 characters. Supports dynamic tokens (see below).
    - **Phone Number**: Choose the Twilio phone number associated with this message.
 3. Save the template to make it available during conversations.
 
@@ -66,12 +66,30 @@ Once connected, follow these steps to create SMS templates:
 Messages of 160 characters or fewer are sent as a single SMS segment. Longer messages are split across multiple segments, which may increase cost. Keep templates concise where possible.
 </Tip>
 
+### Per-environment phone numbers
+
+Each SMS template can use a different Twilio phone number per environment. This allows you to test SMS in sandbox with a test number while using a production number in Live.
+
+The phone number you select in the template form applies to the **Live** environment. Sandbox and pre-release environments can be configured separately. This prevents test messages from being sent from your production number during development.
+
+### Messaging Service IDs
+
+In addition to phone numbers, you can use a Twilio **Messaging Service ID** (format: `MG` followed by 32 hex characters) instead of a direct phone number. Messaging Services allow Twilio to manage number selection, compliance, and scaling automatically. This is useful for high-volume deployments.
+
 #### Dynamic tokens
 
-You can insert [variant attributes](/variant-management/introduction) into SMS templates for personalization using `${variant_attribute}` syntax. For example:
+You can insert dynamic values into SMS templates using the following syntax:
+
+| Token type | Syntax | Example |
+|---|---|---|
+| [Variant attributes](/variant-management/introduction) | `${attribute_name}` | `${property_name}` |
+| Entities | `{{entity:entity_name}}` | `{{entity:booking_date}}` |
+| Variables | `{{vrbl:VARIABLE_ID}}` | `{{vrbl:CONFIRMATION_CODE}}` |
+
+Example template body:
 
 ```plaintext
-Hi ${customer_name}, your reservation at ${property_name} is confirmed for ${date}.
+Hi ${customer_name}, your reservation at ${property_name} is confirmed for {{entity:booking_date}}.
 ```
 
 For multilingual projects, consider creating separate templates with language suffixes (e.g., `confirmation_en`, `confirmation_es`).

@@ -103,17 +103,50 @@ SIP headers can be used to send additional metadata when making a handoff. To ad
 
 SIP headers allow for custom integrations with external telephony systems and can help manage call behavior dynamically.
 
+### Default handoff
+
+One handoff destination can be marked as the **default**. This is the fallback destination used when no specific routing matches — for example, when the caller requests a transfer but no topic or flow step maps to a specific handoff.
+
+- The first handoff you create is automatically set as the default.
+- To change the default, open the actions menu on a handoff card and select **Set as default**.
+- If the default handoff is deleted, you should assign a new default to avoid unrouted transfers.
+
 ### Managing handoffs
 
-Once a handoff destination is created, it will appear in the list of destinations. You can edit, delete, or update the details as needed.
+Once a handoff destination is created, it will appear in the list of destinations. From the actions menu on each card, you can:
 
-- **Example**: A customer support agent might have a handoff destination called "Billing Support" to route conversations related to payment issues.
+- **Edit** — modify the name, description, method, route, or SIP headers
+- **Duplicate** — create a copy of an existing handoff for a similar destination
+- **Delete** — remove the handoff (requires typing the name to confirm)
+- **Set as default** — mark as the fallback handoff destination
+
+### Encryption options
+
+When using **SIP INVITE**, you can choose the transport encryption:
+
+| Option | Description |
+|--------|-------------|
+| **TLS/SRTP** (default) | Encrypted transport. Use this unless your destination requires unencrypted traffic. |
+| **UDP/RTP** | Unencrypted transport. Some legacy systems require this. |
+
+Encryption only applies to SIP INVITE. SIP REFER and SIP BYE delegate transport to the carrier or SBC.
+
+### Integration-level constraints
+
+Your telephony integration (e.g. Twilio, SIP trunk) may impose constraints on handoff configuration. When constraints are active:
+
+- The **SIP method dropdown may be locked** to a specific method (e.g. all handoffs must use SIP REFER)
+- The **route/phone number field** may be hidden if routing is handled by the carrier
+- The **SIP headers section** may be hidden if the integration does not support custom headers
+
+If a handoff's method does not match the integration's required method, a warning appears on the handoff card. Update the handoff to match, or the transfer may not work as expected.
 
 ### Best practices for call handoffs
 
-- **Use clear descriptions**: Ensure handoffs are labeled with their intended use to avoid confusion.
-- **Test call routing**: Regularly test handoff destinations to verify they are functioning correctly.
-- **Optimize SIP headers**: Use headers to pass relevant metadata and improve call handling.
+- **Use clear descriptions** — label handoffs with their intended use (e.g. "Billing disputes" not "Team A")
+- **Always have a default** — ensure one handoff is marked as default so unmatched transfers have a destination
+- **Test in sandbox** — verify handoff destinations route correctly before promoting to Live
+- **Use SIP headers for context** — pass metadata like `X-Customer-ID` or `X-Reason` so the receiving system can route or display caller context
 
 ### Handoff reason and utterance
 
