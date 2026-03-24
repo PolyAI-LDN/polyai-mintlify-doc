@@ -1,110 +1,98 @@
-const LETTER = ['A', 'B', 'C', 'D'];
+export const Quiz = ({ questions = [] }) => {
+  const [selected, setSelected] = useState({});
+  const [resetCount, setResetCount] = useState(0);
 
-export const Quiz = ({ questions }) => {
-  const [answers, setAnswers] = useState(() => Array(questions.length).fill(null));
-  const [resetKey, setResetKey] = useState(0);
+  const letters = ['A', 'B', 'C', 'D'];
 
-  const select = (qIdx, optIdx) => {
-    if (answers[qIdx] !== null) return;
-    setAnswers(prev => {
-      const next = [...prev];
-      next[qIdx] = optIdx;
-      return next;
-    });
+  const handleSelect = (qIdx, optIdx) => {
+    if (selected[qIdx] !== undefined) return;
+    setSelected((prev) => ({ ...prev, [qIdx]: optIdx }));
   };
 
-  const reset = () => {
-    setAnswers(Array(questions.length).fill(null));
-    setResetKey(k => k + 1);
+  const handleReset = () => {
+    setSelected({});
+    setResetCount((c) => c + 1);
   };
+
+  if (!questions || questions.length === 0) {
+    return null;
+  }
 
   return (
-    <div key={resetKey} style={{ margin: '1.25rem 0' }}>
+    <div key={resetCount} style={{ margin: '1.25rem 0' }}>
       {questions.map((q, qIdx) => {
-        const selected = answers[qIdx];
-        const answered = selected !== null;
-        const isRight = selected === q.correct;
+        const answer = selected[qIdx];
+        const hasAnswered = answer !== undefined;
+        const isCorrect = answer === q.correct;
 
         return (
-          <div key={qIdx} style={{ marginBottom: '1.75rem' }}>
-            <p style={{
-              fontWeight: 600,
-              fontSize: '0.925rem',
-              marginBottom: '0.75rem',
-              marginTop: 0,
-              color: '#111827',
-              lineHeight: 1.5,
-            }}>
+          <div key={String(qIdx)} style={{ marginBottom: '1.75rem' }}>
+            <p style={{ fontWeight: 600, fontSize: '0.925rem', marginBottom: '0.75rem', marginTop: 0, color: '#111827', lineHeight: 1.5 }}>
               {qIdx + 1}. {q.q}
             </p>
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
               {q.options.map((opt, i) => {
-                const isCorrect = i === q.correct;
-                const isSelected = selected === i;
-                let bg = '#ffffff';
-                let borderColor = '#e5e7eb';
-                let color = '#374151';
-                let letterBg = '#f3f4f6';
-                let letterColor = '#6b7280';
-                let fontWeight = 400;
+                var bg = '#ffffff';
+                var bc = '#e5e7eb';
+                var col = '#374151';
+                var lbg = '#f3f4f6';
+                var lcol = '#6b7280';
+                var fw = 400;
 
-                if (answered) {
-                  if (isCorrect) {
-                    bg = '#f0fdf4'; borderColor = '#16a34a'; color = '#14532d';
-                    letterBg = '#16a34a'; letterColor = '#ffffff'; fontWeight = 600;
-                  } else if (isSelected) {
-                    bg = '#fef2f2'; borderColor = '#dc2626'; color = '#7f1d1d';
-                    letterBg = '#dc2626'; letterColor = '#ffffff';
+                if (hasAnswered) {
+                  if (i === q.correct) {
+                    bg = '#f0fdf4'; bc = '#16a34a'; col = '#14532d';
+                    lbg = '#16a34a'; lcol = '#ffffff'; fw = 600;
+                  } else if (i === answer) {
+                    bg = '#fef2f2'; bc = '#dc2626'; col = '#7f1d1d';
+                    lbg = '#dc2626'; lcol = '#ffffff';
                   } else {
-                    color = '#9ca3af'; borderColor = '#f3f4f6';
+                    col = '#9ca3af'; bc = '#f3f4f6';
                   }
                 }
 
                 return (
                   <button
-                    key={i}
-                    onClick={() => select(qIdx, i)}
+                    key={String(i)}
+                    onClick={() => handleSelect(qIdx, i)}
                     style={{
                       display: 'flex', alignItems: 'flex-start', gap: '0.625rem',
                       padding: '0.55rem 0.875rem', borderRadius: '0.375rem',
-                      border: `1.5px solid ${borderColor}`, background: bg, color,
-                      cursor: answered ? 'default' : 'pointer', textAlign: 'left',
-                      fontSize: '0.875rem', fontWeight, lineHeight: 1.5,
+                      border: '1.5px solid ' + bc, background: bg, color: col,
+                      cursor: hasAnswered ? 'default' : 'pointer', textAlign: 'left',
+                      fontSize: '0.875rem', fontWeight: fw, lineHeight: 1.5,
                       transition: 'all 0.1s ease', width: '100%', boxSizing: 'border-box',
                     }}
                   >
                     <span style={{
                       minWidth: '1.375rem', height: '1.375rem', borderRadius: '0.25rem',
-                      background: letterBg, color: letterColor, display: 'flex',
+                      background: lbg, color: lcol, display: 'flex',
                       alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem',
                       fontWeight: 700, flexShrink: 0, marginTop: '0.05rem',
                       transition: 'all 0.1s ease',
                     }}>
-                      {LETTER[i]}
+                      {letters[i]}
                     </span>
-                    {opt}
+                    <span>{opt}</span>
                   </button>
                 );
               })}
             </div>
-
-            {answered && (
+            {hasAnswered && (
               <div style={{
                 marginTop: '0.75rem', padding: '0.7rem 0.875rem', borderRadius: '0.375rem',
-                background: isRight ? '#f0fdf4' : '#fef2f2',
-                border: `1px solid ${isRight ? '#bbf7d0' : '#fecaca'}`,
-                fontSize: '0.85rem', color: isRight ? '#15803d' : '#b91c1c', lineHeight: 1.55,
+                background: isCorrect ? '#f0fdf4' : '#fef2f2',
+                border: '1px solid ' + (isCorrect ? '#bbf7d0' : '#fecaca'),
+                fontSize: '0.85rem', color: isCorrect ? '#15803d' : '#b91c1c', lineHeight: 1.55,
               }}>
-                <strong>{isRight ? '✓ Correct.' : '✕ Not quite.'}</strong>{' '}{q.explanation}
+                <strong>{isCorrect ? 'Correct.' : 'Not quite.'}</strong> {q.explanation}
               </div>
             )}
           </div>
         );
       })}
-
       <button
-        onClick={reset}
+        onClick={handleReset}
         style={{
           marginTop: '0.25rem', padding: '0.45rem 1rem', borderRadius: '0.375rem',
           border: '1.5px solid #e5e7eb', background: '#fafafa', color: '#6b7280',
