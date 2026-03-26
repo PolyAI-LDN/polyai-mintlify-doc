@@ -1,0 +1,312 @@
+---
+title: Flow design patterns
+sidebarTitle: Flow patterns
+icon: "shapes"
+---
+
+import { ProgressTracker } from '/snippets/progress-tracker.jsx'
+import { Quiz } from '/snippets/quiz.jsx'
+
+<Info>
+  **Level 3 — Lesson 3 of 5** — Learn common flow patterns for collecting, validating, and acting on user input.
+</Info>
+
+Most flows follow a small number of repeatable patterns. This lesson covers the patterns you will use most often: value collection, validation, verification, and the trade-offs between letting the model lead and writing deterministic logic.
+
+## The three patterns
+
+When a flow collects information from a user, there are three distinct operations:
+
+<CardGroup cols={3}>
+  <Card title="Collection" icon="inbox">
+    Getting a value you don't already have. The user provides a phone number, name, or tracking number.
+  </Card>
+  <Card title="Validation" icon="check-double">
+    Checking the format. Is this a valid tracking number? Does it match the expected pattern (e.g., 3 letters followed by 5 digits)?
+  </Card>
+  <Card title="Verification" icon="shield-check">
+    Checking against known data. Does this tracking number exist in the system? Does this phone number match the account on file?
+  </Card>
+</CardGroup>
+
+These are separate concerns. A value can be collected but invalid. A value can be valid but not match any record. Handling them separately makes your flows more predictable.
+
+## Collection pattern
+
+The simplest flow pattern: ask for a value, save it, move on.
+
+```python
+# Step prompt: "Ask the user for their tracking number.
+# Once they provide it, call save_tracking_number."
+
+def save_tracking_number(conv, flow, tracking_number: str) -> str:
+    conv.state["tracking_number"] = tracking_number
+    flow.goto_step("validate_tracking")
+    return "Tracking number received."
+```
+
+## Validation pattern
+
+After collecting a value, check whether it matches the expected format before using it.
+
+```python
+import re
+
+def validate_tracking(conv, flow, tracking_number: str) -> str:
+    pattern = r"^[A-Z]{3}\d{5}$"
+    if re.match(pattern, tracking_number):
+        flow.goto_step("lookup_order")
+        return f"Tracking number {tracking_number} is valid."
+    else:
+        return "That doesn't look like a valid tracking number. Ask the user to try again."
+```
+
+When validation fails, the step prompt is still active — the model will ask the user again. This is the sticky prompt at work.
+
+<Warning>
+  In voice, validation failures are often caused by transcription errors, not user mistakes. Avoid phrasing that blames the user.
+
+  Instead of: "That's not a valid tracking number."
+
+  Prefer: "Sorry, I didn't quite catch that — could you repeat your tracking number?"
+</Warning>
+
+## Check your understanding
+
+<Quiz questions={[
+  {
+    q: "A user gives a tracking number that's correctly formatted but doesn't exist in the system. Which pattern handles this?",
+    options: [
+      "Collection — re-ask for the number",
+      "Validation — the format check failed",
+      "Verification — the value is valid but doesn't match known data",
+      "None — this is an API error",
+    ],
+    correct: 2,
+    explanation: "Validation checks format. Verification checks against known data. A correctly formatted number that doesn't exist in the system is a verification failure, not a validation failure.",
+  }
+]} />
+
+## Verification pattern
+
+After validation passes, check the value against your backend.
+
+```python
+def lookup_order(conv, flow) -> str:
+    tracking_number = conv.state.get("tracking_number")
+    result = call_tracking_api(tracking_number)
+
+    if result.get("found"):
+        conv.state["order_status"] = result["status"]
+        flow.goto_step("report_status")
+        return f"Order found. Status: {result['status']}."
+    else:
+        return "I couldn't find an order with that tracking number. Ask the user to double-check and try again."
+```
+
+## LLM-led vs deterministic control
+
+When something goes wrong in a flow (validation fails, API returns no match), you have two approaches:
+
+<Tabs>
+  <Tab title="LLM-led">
+    Let the model decide how to handle retries and rephrasing.
+
+    ```python
+    def validate_tracking(conv, flow, tracking_number: str) -> str:
+        if not is_valid(tracking_number):
+            return "That doesn't seem right. Ask them to repeat it."
+        # ... continue
+    ```
+
+    **Pros:** Flexible, handles edge cases naturally, less code to write.
+
+    **Cons:** Less predictable. The model might retry indefinitely or phrase things inconsistently.
+  </Tab>
+  <Tab title="Deterministic">
+    Use counters in state to enforce strict retry limits.
+
+    ```python
+    def validate_tracking(conv, flow, tracking_number: str) -> dict:
+        attempts = conv.state.get("tracking_attempts", 0) + 1
+        conv.state["tracking_attempts"] = attempts
+
+        if is_valid(tracking_number):
+            flow.goto_step("lookup_order")
+            return {"content": "Tracking number valid."}
+
+        if attempts >= 3:
+            return {
+                "utterance": "I'm having trouble with that number. Let me connect you with someone who can help.",
+                "handoff": True
+            }
+
+        return {"content": "Ask the user to repeat the tracking number."}
+    ```
+
+    **Pros:** Predictable, enforces limits, guarantees escalation after N failures.
+
+    **Cons:** More code, you must handle every scenario yourself.
+  </Tab>
+</Tabs>
+
+### When to use each approach
+
+| Scenario | Approach |
+|---|---|
+| Low-stakes collection (name, preference) | LLM-led |
+| High-stakes collection (account number, payment) | Deterministic |
+| Retry limits required by the client | Deterministic |
+| Natural rephrasing matters | LLM-led |
+| Compliance or audit requirements | Deterministic |
+
+<Tip>
+  A good rule: let the model do what it is good at (natural language, extraction, phrasing) and use code where precision matters (validation, retry limits, escalation).
+</Tip>
+
+## Check your understanding
+
+<Quiz questions={[
+  {
+    q: "You need to collect a date of birth and the client requires exactly 3 attempts before handoff. Which approach should you use?",
+    options: [
+      "LLM-led — the model can count retries itself",
+      "Deterministic — use a counter in conv.state to enforce the limit",
+      "Either approach works equally well",
+      "Neither — use a managed topic instead",
+    ],
+    correct: 1,
+    explanation: "When a client requires a strict retry limit, use deterministic control with a counter. The LLM may not count retries accurately or consistently, and you cannot guarantee it will stop at exactly 3 attempts.",
+  }
+]} />
+
+## Handoff from a flow
+
+When the user fails repeatedly or the flow cannot continue, hand off to a live agent.
+
+```python
+def escalate(conv, flow, utterance: str) -> dict:
+    return {
+        "utterance": utterance,
+        "handoff": True
+    }
+```
+
+Parameter: `utterance` — *The message to say to the user before transferring*
+
+By passing the utterance as a function argument, the model generates a contextually appropriate goodbye message, but the handoff is handled deterministically.
+
+<Warning>
+  If you return a hard-coded `utterance` with `handoff`, no second LLM request occurs. The utterance is played and the call is transferred immediately. This is efficient but means the model does not get a chance to add anything — make sure your utterance provides proper closure.
+</Warning>
+
+## Design principles
+
+<CardGroup cols={2}>
+  <Card title="Guide explicitly" icon="signs-post">
+    Always define what happens after each step. Never assume the model will figure out the next action.
+  </Card>
+  <Card title="Design for failure" icon="triangle-exclamation">
+    Plan what happens when validation fails, APIs are down, or the user gives unexpected input. The happy path is the easy part.
+  </Card>
+  <Card title="Keep steps focused" icon="crosshairs">
+    Each step should do one thing: collect one value, confirm one detail, or present one choice.
+  </Card>
+  <Card title="Balance flexibility and control" icon="scale-balanced">
+    Use the model for language tasks. Use code for logic tasks. Combine them for the best results.
+  </Card>
+</CardGroup>
+
+## Try it yourself
+
+<Steps>
+  <Step title="Challenge: Design a tracking number lookup flow">
+    Design a 3-step flow that:
+    1. Collects a tracking number
+    2. Validates the format (3 uppercase letters + 5 digits)
+    3. Looks up the order and reports the status
+
+    Include:
+    - What happens if validation fails
+    - What happens if the order is not found
+    - A retry limit of 3 attempts before handoff
+
+    <Accordion title="Hint">
+      Use `conv.state` to store the tracking number and an attempt counter. Each step should have a clear prompt and one flow function. The validation step should check the counter before re-prompting.
+    </Accordion>
+
+    <Accordion title="Example solution">
+      **Step 1 — Collect**
+
+      Prompt: "Ask the user for their tracking number. Once they provide it, call `save_tracking`."
+
+      ```python
+      def save_tracking(conv, flow, tracking_number: str) -> str:
+          conv.state["tracking_number"] = tracking_number
+          conv.state["tracking_attempts"] = conv.state.get("tracking_attempts", 0) + 1
+          flow.goto_step("validate")
+          return "Tracking number received."
+      ```
+
+      **Step 2 — Validate**
+
+      Prompt: "The tracking number has been collected. Call `check_format` to validate it."
+
+      ```python
+      import re
+
+      def check_format(conv, flow) -> str:
+          number = conv.state["tracking_number"]
+          attempts = conv.state["tracking_attempts"]
+
+          if re.match(r"^[A-Z]{3}\d{5}$", number):
+              flow.goto_step("lookup")
+              return "Format valid."
+
+          if attempts >= 3:
+              return {
+                  "utterance": "I'm having trouble with that number. Let me transfer you to someone who can help.",
+                  "handoff": True
+              }
+
+          flow.goto_step("collect")
+          return "The format doesn't look right. Ask the user to repeat it."
+      ```
+
+      **Step 3 — Lookup**
+
+      Prompt: "The tracking number is validated. Call `lookup_order` to check the status."
+
+      ```python
+      def lookup_order(conv, flow) -> str:
+          number = conv.state["tracking_number"]
+          result = call_tracking_api(number)
+
+          if result.get("found"):
+              conv.exit_flow()
+              return f"The order status is: {result['status']}."
+
+          flow.goto_step("collect")
+          return "No order found with that number. Ask the user to try again."
+      ```
+    </Accordion>
+  </Step>
+</Steps>
+
+## Check your understanding
+
+<Quiz questions={[
+  {
+    q: "You want the model to generate a natural goodbye message before handing off, but you also need the handoff to happen reliably. What pattern should you use?",
+    options: [
+      "Return content telling the model to say goodbye, then hope it calls the handoff function",
+      "Hard-code a generic goodbye utterance with handoff: True",
+      "Pass the utterance as a function argument so the model generates it, then return it with handoff: True",
+      "Use two separate functions — one for goodbye, one for handoff",
+    ],
+    correct: 2,
+    explanation: "By passing the utterance as a function argument, the model generates contextually appropriate phrasing. The function then returns it as a hard-coded utterance with handoff: True, ensuring the transfer happens deterministically.",
+  }
+]} />
+
+<ProgressTracker lessonKey="l3-3-flow-patterns" lessonNum={3} totalLessons={5} level="Level 3" />

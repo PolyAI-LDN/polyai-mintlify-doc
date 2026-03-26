@@ -1,0 +1,253 @@
+---
+title: "Organizing your code"
+sidebarTitle: "Code organization"
+description: "How to structure functions, imports, and reusable code in Agent Studio."
+icon: "cubes"
+---
+
+import { Quiz } from '/snippets/quiz.jsx'
+import { ProgressTracker } from '/snippets/progress-tracker.jsx'
+
+<Info>
+  **Level 3 — Lesson 1 of 5** — Structure your Agent Studio code so it stays manageable as your project grows.
+</Info>
+
+How Agent Studio's file system works, how to share code between functions, and when to use each approach.
+
+<Note>
+  This lesson assumes familiarity with Python, [functions](/learn/guides/advanced/using-functions), and [flows](/learn/guides/expert/flow-fundamentals). If those concepts are new, complete the earlier lessons first.
+</Note>
+
+## How Agent Studio organises code
+
+Each entry on the **[Functions](/tools/introduction)** page is a Python file, not just a single function. This means you can define multiple functions in one file — utility helpers, validation logic, formatters — alongside the main function that Agent Studio creates.
+
+```
+functions/
+├── getOrder.py              # Main function + any helpers
+├── formattingUtils.py       # Collection of utility functions
+├── startOrderTrackingFlow.py
+└── orderTrackingFlow/       # Flow functions (one folder per flow)
+    ├── saveTrackingNumber.py
+    └── trackingNumberConfirmed.py
+```
+
+**Key rules:**
+- Each file has one **main function** with the same name as the file — this is the one Agent Studio validates and constrains (it must accept `conv` as the first argument)
+- You can define additional functions above the main function — these are helpers that don't need to follow Agent Studio's signature rules
+- Flow functions live in a subfolder named after the flow
+
+## Utility files
+
+You don't need 50 separate function entries for 50 helpers. Group related utilities in a single file:
+
+```python
+# formattingUtils.py
+
+import re
+
+def get_digits_only(text: str) -> str:
+    """Extract only digits from text."""
+    return re.sub(r'\D', '', text)
+
+def is_valid_tracking_number(number: str) -> bool:
+    """Validate format: exactly 3 letters followed by 5 digits."""
+    return bool(re.match(r'^[A-Za-z]{3}\d{5}$', number.strip()))
+
+def tracking_number_to_words(number: str) -> str:
+    """Convert tracking number to TTS-friendly format."""
+    letters = number[:3]
+    digits = number[3:]
+    digit_words = {
+        '0': 'zero', '1': 'one', '2': 'two', '3': 'three',
+        '4': 'four', '5': 'five', '6': 'six', '7': 'seven',
+        '8': 'eight', '9': 'nine'
+    }
+    letter_part = ' '.join(letters.upper())
+    first_two = ' '.join(digit_words[d] for d in digits[:2])
+    last_three = ' '.join(digit_words[d] for d in digits[2:])
+    return f"{letter_part} - {first_two} - {last_three}"
+
+# Main function (required by Agent Studio, but not LLM-callable)
+def formatting_utils(conv):
+    pass
+```
+
+<Tip>
+  The main function at the bottom is required by Agent Studio but can be a no-op. Set the LLM description to indicate this file is a utility collection, not an LLM-callable function.
+</Tip>
+
+## Importing functions
+
+There are two ways to use code from other files.
+
+### Method 1: Python imports
+
+Standard Python import syntax works for any function in any file:
+
+```python
+# Import a specific utility
+from functions.formattingUtils import is_valid_tracking_number
+
+# Import a main function from another file
+from functions.getOrder import getOrder
+
+# Import a flow function
+from functions.orderTrackingFlow.trackingNumberConfirmed import tracking_number_confirmed
+```
+
+When using Python imports with main functions, you must pass `conv` (and `flow` for flow functions) as arguments:
+
+```python
+order = getOrder(conv, tracking_number)
+```
+
+### Method 2: `conv.functions` and `flow.functions`
+
+The platform-supported method for calling main functions:
+
+```python
+# Call a global function
+order = conv.functions.getOrder(tracking_number)
+
+# Call a flow function
+flow.functions.trackingNumberConfirmed()
+```
+
+**Advantages:**
+- Autocomplete and type hints in the editor
+- No need to pass `conv` or `flow` — they're handled automatically
+- Officially supported by the platform
+
+**Limitation:** You can only reference main functions this way. You cannot access utility helpers (like `is_valid_tracking_number`) through `conv.functions`.
+
+<Quiz questions={[
+  {
+    q: "You have a utility function `is_valid_email` defined inside `validationUtils.py` (not the main function). How do you use it in another file?",
+    options: [
+      "conv.functions.validationUtils.is_valid_email()",
+      "from functions.validationUtils import is_valid_email",
+      "flow.functions.is_valid_email()",
+      "import validationUtils; validationUtils.is_valid_email()",
+    ],
+    correct: 1,
+    explanation: "conv.functions only works for main functions. To access a helper defined above the main function, use standard Python import syntax: from functions.fileName import functionName.",
+  }
+]} />
+
+## When to use which method
+
+| Scenario | Method |
+|---|---|
+| Calling a main function from another file | `conv.functions.functionName()` |
+| Calling a utility/helper from a utils file | `from functions.fileName import helperName` |
+| Calling a flow function from outside the flow | `flow.functions.functionName()` |
+| Need autocomplete and type hints | `conv.functions` / `flow.functions` |
+
+<Warning>
+  Python imports in Agent Studio may show squiggly underlines in the editor ("import could not be resolved"). These are false positives — the imports work at runtime.
+</Warning>
+
+## Practical example: order tracking
+
+Here's how a real flow function uses both import methods:
+
+```python
+from functions.formattingUtils import is_valid_tracking_number
+
+def save_tracking_number(conv, flow, tracking_number: str) -> str:
+    # Use imported utility for validation
+    if not is_valid_tracking_number(tracking_number):
+        return "That doesn't look right. The tracking number should be 3 letters followed by 5 digits. Ask the user to try again."
+
+    # Use conv.functions for the main getOrder function
+    order = conv.functions.getOrder(tracking_number)
+
+    if order is None:
+        return f"No order found for {tracking_number}. Ask the user to double-check."
+
+    conv.state["order"] = order
+    conv.state["tracking_number"] = tracking_number
+    flow.goto_step("report_status")
+    return f"Order found: {order}"
+```
+
+## Best practices
+
+<CardGroup cols={2}>
+  <Card title="Group related helpers" icon="folder">
+    Don't create one function entry per helper. Group formatting utils, validation utils, and API utils into their own files.
+  </Card>
+  <Card title="Define once, use everywhere" icon="recycle">
+    If a regex pattern or validation rule is needed in multiple places, define it in a utility file and import it. Update once, fix everywhere.
+  </Card>
+  <Card title="Use conv.functions where possible" icon="check">
+    For main functions, prefer the platform-supported `conv.functions` method. Reserve Python imports for utility helpers.
+  </Card>
+  <Card title="Keep functions focused" icon="crosshairs">
+    Each main function should do one thing. Complex logic should be broken into helpers that are composed together.
+  </Card>
+</CardGroup>
+
+## Try it yourself
+
+<Steps>
+  <Step title="Challenge: Refactor a monolithic function">
+    You have a single function that validates a tracking number, calls an API, formats the result for TTS, and returns it. It's 80 lines long.
+
+    Plan how you would split this into:
+    1. A validation utility
+    2. An API wrapper
+    3. A TTS formatting utility
+    4. A main function that composes them
+
+    <Accordion title="Hint">
+      Create a `trackingUtils.py` with the validation and formatting helpers. Create a `getOrder.py` for the API call. The main flow function imports from both and orchestrates the logic.
+    </Accordion>
+
+    <Accordion title="Example structure">
+      **trackingUtils.py:**
+      - `is_valid_tracking_number(number)` — regex validation
+      - `tracking_number_to_words(number)` — TTS formatting
+      - `tracking_utils(conv)` — no-op main function
+
+      **getOrder.py:**
+      - `getOrder(conv, tracking_number)` — API call, returns order dict or None
+
+      **Flow function (saveTrackingNumber):**
+      ```python
+      from functions.trackingUtils import is_valid_tracking_number
+      from functions.trackingUtils import tracking_number_to_words
+
+      def save_tracking_number(conv, flow, tracking_number: str) -> str:
+          if not is_valid_tracking_number(tracking_number):
+              return "Invalid format. Ask the user to try again."
+
+          order = conv.functions.getOrder(tracking_number)
+          if order is None:
+              return "Order not found."
+
+          readable = tracking_number_to_words(tracking_number)
+          conv.state["order"] = order
+          flow.goto_step("confirm")
+          return f"Found order for {readable}: {order}"
+      ```
+    </Accordion>
+  </Step>
+</Steps>
+
+<Quiz questions={[
+  {
+    q: "You need to update a tracking number format from '3 letters + 5 digits' to '4 letters + 5 digits'. The validation is used in 5 different flow functions. What's the best approach?",
+    options: [
+      "Update the regex in all 5 flow functions",
+      "Update it in the one utility file where the validation function is defined",
+      "Create a new validation function and gradually migrate",
+      "Use conv.functions to centralise the validation",
+    ],
+    correct: 1,
+    explanation: "If validation is defined once in a utility file and imported everywhere, you update it in one place. This is the core benefit of modular code — single source of truth.",
+  }
+]} />
+
+<ProgressTracker lessonKey="l3-1-code-org" lessonNum={1} totalLessons={5} level="Level 3" />

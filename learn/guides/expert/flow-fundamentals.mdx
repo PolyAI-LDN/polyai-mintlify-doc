@@ -1,0 +1,237 @@
+---
+title: Flow fundamentals
+icon: "route"
+---
+
+import { ProgressTracker } from '/snippets/progress-tracker.jsx'
+import { Quiz } from '/snippets/quiz.jsx'
+
+<Info>
+  **Level 3 — Lesson 2 of 5** — Understand flows, steps, and transitions for structured multi-turn interactions.
+</Info>
+
+Flows enforce a specific sequence of steps in multi-turn conversations — preventing the model from improvising and letting you collect, validate, and act on information reliably.
+
+Use flows when order matters: collecting a booking reference, verifying identity, routing based on input. Without flows, the LLM guesses the sequence, which leads to inconsistent outcomes.
+
+<Note>
+  For reference documentation on flows, see the [Flows overview](/flows/introduction). This lesson focuses on how flows work and when to use them.
+</Note>
+
+## When to use flows vs other tools
+
+<CardGroup cols={3}>
+  <Card title="Managed Topics" icon="message-question">
+    Simple question-and-answer. No sequencing needed.
+  </Card>
+  <Card title="Functions" icon="code">
+    Single actions: fetch data, call an API, save a value.
+  </Card>
+  <Card title="Flows" icon="route">
+    Multi-step sequences where order matters and the model must stay on track.
+  </Card>
+</CardGroup>
+
+<Tip>
+  If the interaction takes more than 2–3 turns and the steps must happen in a specific order, you probably need a flow.
+</Tip>
+
+## How flows work
+
+A flow is a sequence of **steps**. Each step contains:
+
+- **A prompt** — instructions the model follows for this step
+- **Functions** — scoped to this step only, used for transitions and actions
+- **A transition** — how the flow moves to the next step (or exits)
+
+<Steps>
+  <Step title="Enter the flow">
+    A start function calls `conv.goto_flow("flow_name")`. This can be triggered from agent behavior, a knowledge base topic, or another function.
+  </Step>
+  <Step title="Step activates">
+    The step prompt is injected as a system message at the end of the conversation history. The model follows these instructions.
+  </Step>
+  <Step title="Model interacts with the user">
+    The model asks for information, confirms details, or takes actions according to the step prompt.
+  </Step>
+  <Step title="Flow function transitions">
+    When the model has what it needs, it calls a flow function. That function can save data, call an API, and then move to the next step or exit the flow.
+  </Step>
+</Steps>
+
+## The sticky prompt
+
+The step prompt is always the **last message** in the conversation history. This is the most important thing to understand about flows.
+
+Unlike content returned from a function (which appears at a specific point in history and becomes less relevant as more turns happen), the step prompt is re-injected on every turn. It cannot be "forgotten" by the model.
+
+<Tabs>
+  <Tab title="Function content">
+    ```
+    assistant: "Hi, how can I help?"
+    user: "I want to register"
+    function: "Ask the user for their phone number"    ← fades over time
+    assistant: "Sure, what's your phone number?"
+    user: "Actually, what are your opening hours?"
+    assistant: "We're open 9 to 5. Now, about that phone number..."  ← model may drift
+    ```
+    The function result moves further back in history with each turn.
+  </Tab>
+  <Tab title="Flow step">
+    ```
+    assistant: "Hi, how can I help?"
+    user: "I want to register"
+    assistant: "Sure, what's your phone number?"
+    user: "Actually, what are your opening hours?"
+    system: "Ask the user for their phone number"    ← always last, always fresh
+    ```
+    The step prompt stays anchored at the end, keeping the model on task.
+  </Tab>
+</Tabs>
+
+This persistent control is why flows are more reliable than prompting alone for multi-turn interactions.
+
+## Check your understanding
+
+<Quiz questions={[
+  {
+    q: "Why is the flow step prompt more persistent than content returned from a function?",
+    options: [
+      "It uses a special LLM mode that locks behavior",
+      "It is always re-injected as the last message in conversation history",
+      "It overrides all other prompting",
+      "It is stored in a separate memory system",
+    ],
+    correct: 1,
+    explanation: "The step prompt is always appended as the last system message. This means it stays relevant regardless of how many turns pass — unlike function content, which moves further back in history over time.",
+  }
+]} />
+
+## Creating and entering a flow
+
+There are two ways to create a flow:
+
+1. Go to **Build → Flows** and create one directly
+2. Create one from any behavior menu (e.g., inside a managed topic action)
+
+When you create a flow, Agent Studio generates:
+- The flow itself (with a start step)
+- A corresponding **start function** that contains `conv.goto_flow("flow_name")`
+
+The start function is what triggers entry into the flow. You must expose it somewhere — in agent behavior, a knowledge base topic, or another function. If a flow has no entry point, it exists but cannot be reached.
+
+<Warning>
+  A common mistake: creating a flow but forgetting to expose the start function. The flow exists but is never entered because nothing triggers `conv.goto_flow`.
+</Warning>
+
+## Step transitions
+
+Each step shows only its own functions to the model. When the model calls a flow function, that function can:
+
+- Save data (to `conv.state`)
+- Call an API
+- Move to the next step using `flow.goto_step("step_name")`
+- Exit the flow using `conv.exit_flow()`
+
+When transitioning between steps:
+- The previous step prompt is removed
+- The new step prompt is injected
+- Only the new step's functions are visible
+
+This means the model cannot skip ahead, look at future steps, or call functions from a previous step.
+
+```python
+def save_phone_number(conv, flow, phone_number: str) -> str:
+    conv.state["phone_number"] = phone_number
+    flow.goto_step("collect_name")
+    return f"Phone number {phone_number} saved. Now ask for their full name."
+```
+
+<Quiz questions={[
+  {
+    q: "You create a flow with three steps but the model skips step 2 and jumps to step 3. What is the most likely cause?",
+    options: [
+      "The model is too smart and optimizes the flow",
+      "Step 2 has no prompt defined",
+      "A flow function in step 1 transitions directly to step 3 via goto_step",
+      "The model can see all steps and chooses the most relevant one",
+    ],
+    correct: 2,
+    explanation: "The model cannot see other steps — it only sees the current step prompt and its functions. If a step is skipped, the transition function must be routing directly past it. Check the goto_step calls in your flow functions.",
+  }
+]} />
+
+## What happens without transitions
+
+If you tell the model to ask for a phone number but don't define what happens next, the model improvises. It may start asking for names, emails, or other details based on its training patterns.
+
+This is not a model failure — it is a design failure. You did not give it the next step.
+
+<Warning>
+  Always define explicit transitions between steps. Never rely on the model to "know what to do next."
+</Warning>
+
+## Exiting a flow
+
+When `conv.exit_flow()` is called:
+- The step prompt disappears from conversation history
+- The model returns to normal behavior (agent rules, knowledge base, global functions)
+- Any state saved during the flow persists in `conv.state`
+
+## Try it yourself
+
+<Steps>
+  <Step title="Challenge: Design a two-step registration flow">
+    Design a flow that collects a phone number and then a full name.
+
+    Plan:
+    1. What is the start step prompt?
+    2. What flow function transitions from step 1 to step 2?
+    3. What does the second step prompt say?
+    4. How does the flow exit?
+
+    <Accordion title="Hint">
+      Each step should have a clear prompt (one instruction) and a flow function that saves the collected value and transitions. The final function should call `conv.exit_flow()`.
+    </Accordion>
+
+    <Accordion title="Example solution">
+      **Step 1 prompt:** "Ask the user for the phone number we can contact them on. Once they provide it, call `save_phone_number`."
+
+      **Step 1 function (`save_phone_number`):**
+      ```python
+      def save_phone_number(conv, flow, phone_number: str) -> str:
+          conv.state["phone_number"] = phone_number
+          flow.goto_step("collect_name")
+          return "Phone number saved."
+      ```
+
+      **Step 2 prompt:** "Ask the user for their full name. Once they provide it, call `save_name`."
+
+      **Step 2 function (`save_name`):**
+      ```python
+      def save_name(conv, flow, full_name: str) -> str:
+          conv.state["full_name"] = full_name
+          conv.exit_flow()
+          return f"Registration complete for {full_name}."
+      ```
+    </Accordion>
+  </Step>
+</Steps>
+
+## Check your understanding
+
+<Quiz questions={[
+  {
+    q: "After exiting a flow, what happens to values saved in conv.state during the flow?",
+    options: [
+      "They are deleted when the flow exits",
+      "They persist and remain accessible for the rest of the conversation",
+      "They are only available if you re-enter the same flow",
+      "They are moved to a separate flow-specific storage",
+    ],
+    correct: 1,
+    explanation: "conv.state persists across the entire conversation. Values saved during a flow remain accessible after the flow exits — they are not scoped to the flow.",
+  }
+]} />
+
+<ProgressTracker lessonKey="l3-2-flow-fundamentals" lessonNum={2} totalLessons={5} level="Level 3" />
