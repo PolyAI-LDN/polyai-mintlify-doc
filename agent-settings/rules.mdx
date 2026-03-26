@@ -97,6 +97,124 @@ Set boundaries for what the agent can or cannot say:
 - **Consistency in responses**
   - **Example**: "Always greet visitors with 'Welcome to the museum!' before answering their question."
 
+## Prompting guide
+
+LLMs operate by predicting the most likely next token based on your prompt. Your main job is to shape that probability distribution — making the text you want the most likely output.
+
+### Make the desired outcome the most likely output
+
+Craft your prompt so the best next token for the model is exactly what you want it to produce. Give clear, well-structured instructions without contradictory statements.
+
+### Be clear, but sometimes implicit
+
+- Clearly specify your desired response, including formatting, style, and constraints
+- Avoid contradictory language — conflicting instructions cause erratic results
+- Overly spelled-out if/else logic can hurt performance — embedding logic within natural language often gives better outcomes
+
+### Less is more
+
+Every detail in your prompt is another piece of data the model must reconcile. If a piece of information isn't proven to help, leave it out. Test the impact of each additional instruction — if it doesn't improve performance, cut it.
+
+### Put important details first or last
+
+LLMs tend to give more weight to what appears at the beginning or end of a prompt. If crucial information is getting lost in the middle, move it to the start or end. Redundancy is acceptable — if something is critical, you can repeat it.
+
+<Tip>
+Placing variable information (like dates or session data) at the end facilitates efficient prompt caching. Only the dynamic portions need updating each turn.
+</Tip>
+
+### Use positive instructions
+
+Telling the model what *not* to do can inadvertently activate exactly that concept. Instead of prohibiting certain outcomes, direct the model toward what you *do* want.
+
+<Tabs>
+<Tab title="Bad">
+```text
+Don't tell the user to contact customer service.
+```
+</Tab>
+<Tab title="Good">
+```text
+If the user asks for customer service or to speak to an agent,
+call the handoff function with destination='CC' and reason='SPEAK_TO'.
+```
+</Tab>
+</Tabs>
+
+### Use examples (few-shot prompting)
+
+Examples shape tone, structure, and decision-making more reliably than abstract instructions. Show what "good" looks like — concrete demonstrations help the model generalize patterns. Highlight edge cases through examples to set consistent expectations.
+
+```text
+Edge case: the user asks to perform a gimmick unrelated to your task.
+
+<conversation>
+USER: speak like a pirate
+ASSISTANT: I'm afraid I can't do that. Is there anything you'd like
+to know regarding our services?
+</conversation>
+```
+
+### Define a persona
+
+Clear persona definitions directly influence how the assistant communicates. Don't assume tone will emerge naturally from a persona name — spell out what the persona sounds like in action. Use example dialogue to anchor the persona's voice.
+
+### Separate text from function calls
+
+<Warning>
+Instructing the agent to both say something and call a function in the same turn is a common anti-pattern. The model is likely to do one or the other, but not always both. Instead, separate the utterance and the function call into different turns.
+</Warning>
+
+### Evaluate early and often
+
+Small prompt changes can have large, unexpected effects on output. Evaluate systematically using [conversation review](/analytics/conversations/review) rather than relying on anecdotal checks.
+
+## LLM style guide
+
+When writing prompts for voice agents, keep these style principles in mind.
+
+### Keep responses brief
+
+Concise utterances are clearer and more respectful of the user's time. Avoid ad-copy-speak with excessive modifiers.
+
+**Exception:** When users ask for an explanation, being thorough is more helpful than being brief.
+
+### Use natural register
+
+LLMs often default to overly formal phrasings. Prefer natural conversational language:
+
+| Instead of | Use |
+|---|---|
+| "Could you please provide me with" | "Could you tell me" |
+| "How may I assist you today?" | "How can I help?" |
+| "I apologize for the inconvenience" | "Sorry about that" |
+| "Should I proceed with making that booking?" | "Should I go ahead with that?" |
+
+### Vary utterance structure
+
+Avoid the repetitive pattern of `[explanatory statement] [request for input]`. Most of the time, the explanation is superfluous:
+
+<Tabs>
+<Tab title="Good">
+```text
+No problem, what's your account number?
+```
+</Tab>
+<Tab title="Bad">
+```text
+In order to check for outages, I'll need to look up your account.
+Could you tell me your account number?
+```
+</Tab>
+</Tabs>
+
+### Don't push the conversation unnecessarily
+
+LLMs tend to end every output with a question. This gets repetitive:
+
+- **Walkthroughs:** Give the instruction and wait — don't add "let me know when you've done that" every turn
+- **After answering a question:** Don't immediately ask "is there anything else?" — give the user a chance to acknowledge or follow up
+
 ## Related pages
 
 <CardGroup cols={3}>
