@@ -1,0 +1,121 @@
+---
+title: "Design principles"
+description: "Three laws and ten rules for building agents that actually work."
+icon: "lightbulb"
+---
+
+import { Quiz } from '/snippets/quiz.jsx'
+
+<Info>
+  Read this before the hands-on lessons. It covers **why** agent design works the way it does.
+</Info>
+
+## The three laws
+
+Every design decision should be judged against these three laws, **in order**:
+
+<Steps>
+  <Step title="1. Do the thing">
+    The user must be able to complete their goal. Right integrations, edge-case fallbacks, no dead ends. If the task is impossible, nothing else matters.
+  </Step>
+  <Step title="2. Make it easy">
+    Once the task is possible, remove friction. Each step should be obvious, unnecessary steps should be cut, and the path to completion should be short.
+  </Step>
+  <Step title="3. Add delight">
+    Once it works and it's easy, polish it. Natural pacing, warm tone, good turn-taking.
+  </Step>
+</Steps>
+
+<Warning>
+  **The order is non-negotiable.** If there's a conflict, the earlier law wins. A polished agent that can't complete the task is a failure.
+</Warning>
+
+### When laws conflict
+
+Collecting a long reference number by voice has a high transcription error rate. Asking for DTMF (keypad) input is less conversational — but if the alternative is three failed attempts and a handoff, law 1 wins. Use DTMF.
+
+<Quiz questions={[
+  {
+    q: "A user can complete their task, but the flow asks for information in a confusing order and takes 5 minutes when it should take 2. Which law is violated?",
+    options: [
+      "Law 1: Do the thing",
+      "Law 2: Make it easy",
+      "Law 3: Add delight",
+      "No law — the task gets done",
+    ],
+    correct: 1,
+    explanation: "Law 2. The task is possible but the design makes it slow and confusing.",
+  }
+]} />
+
+## Why sound human
+
+PolyAI agents sound human by design. Not to deceive — because **humans know how to talk to other humans**. Open questions, natural turn-taking, and a human-like voice remove the need for users to learn a new interaction model. Even when users know it's automated, they're more comfortable and more successful when the agent meets them on familiar territory.
+
+## The ten rules
+
+Use these during design, before build, and when reviewing live conversations.
+
+### 1. Guide the user
+Make clear how the user can respond. Use implicit guidance (sounding conversational so users give conversational responses) and explicit guidance ("Your order number should be six digits starting with a letter").
+
+### 2. Listen robustly
+Handle information in any order, or-questions ("yes", "no", "both", "neither"), and predictable out-of-scope requests.
+
+### 3. Give feedback
+Use implicit confirmation ("To update the address on your account, I'll need your policy number") rather than explicit ("Did you say you want to update your address?"). Tell users when something is happening behind the scenes.
+
+### 4. Support correction
+Let users undo actions, switch workflows, and correct collected values without restarting.
+
+### 5. Prevent errors
+Before irreversible actions (booking submissions, payments), confirm details back to the user. Plan for failure — APIs time out, speech recognition fails.
+
+### 6. Act efficiently
+Cut unnecessary steps. Shorten utterances. Optimise for the most common task.
+
+### 7. Speak clearly and naturally
+Err on the side of informality. "What's your phone number?" beats "Could you please provide me with your phone number?"
+
+### 8. Behave consistently
+Same voice, same phrasing style, same response length — unless a deliberate change signals a mode shift (e.g., legal disclaimer).
+
+### 9. Be flexible
+Support users who can't receive SMS, can't spell their name, or don't fit the happy path. The task must be possible for *every* user.
+
+### 10. Adapt to the user
+Use available data. If you can see a cancelled flight, open with "I can see you just cancelled a flight. Is that what you're calling about?"
+
+<Quiz questions={[
+  {
+    q: "You're about to submit a restaurant booking via API. What should the agent do first?",
+    options: [
+      "Submit immediately to minimise call time",
+      "Confirm all collected details back to the user before submitting",
+      "Ask if the user wants to add more details",
+      "Transfer to a live agent for final confirmation",
+    ],
+    correct: 1,
+    explanation: "Booking submissions are irreversible. Always confirm collected details before executing a non-reversible action, even if it adds a turn.",
+  }
+]} />
+
+<Quiz questions={[
+  {
+    q: "A user says 'I want to book a table for tomorrow at 6, and there'll be three of us — oh, and my kid has a nut allergy.' Your flow asks for date, time, and party size one at a time. What should happen?",
+    options: [
+      "Ignore the extra info and ask each question sequentially",
+      "Accept all provided information at once and skip already-answered questions",
+      "Ask the user to repeat each piece separately",
+      "Transfer to a live agent because the input is too complex",
+    ],
+    correct: 1,
+    explanation: "Rule 2 (listen robustly): handle information in any order and combination. If the user gives everything at once, accept it and skip the questions they've answered.",
+  }
+]} />
+
+---
+
+<Tip>
+  Ready to build? Start with [Level 1: Get started](/learn/guides/get-started).
+</Tip>
