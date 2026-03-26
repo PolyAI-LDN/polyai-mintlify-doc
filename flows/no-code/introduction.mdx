@@ -1,10 +1,10 @@
 ---
-title: "No-code Flows"
+title: "No-code flows"
 sidebarTitle: "Overview"
 description: "Build conversational workflows visually."
 ---
 
-Use no-code flows when you need structured conversations — collecting information, routing based on caller input, or confirming details — without writing Python. Most booking, verification, and data-collection workflows can be built entirely with Default steps.
+Use no-code flows when you need structured conversations -- collecting information, routing based on caller input, or confirming details -- without writing Python. Most booking, verification, and data-collection workflows can be built entirely with Default steps.
 
 ![rules-examples](/images/no-code-flows/default.png)
 
@@ -38,7 +38,7 @@ You can build most structured interactions using Default steps alone.
 
 | | Default step | Function step | Advanced step |
 |---|---|---|---|
-| **Best for** | Most flows — collecting info, routing by intent | API calls, business rules, strict comparisons | Full prompt control with code-based transitions |
+| **Best for** | Most flows -- collecting info, routing by intent | API calls, business rules, strict comparisons | Full prompt control with code-based transitions |
 | **Prompt field** | Yes | No (code only) | Yes |
 | **Routing** | LLM evaluates condition labels | Your code calls `flow.goto_step()` | Transition functions called by the LLM |
 | **Entity extraction** | Built-in | Access via `conv.entities` in code | Access via code in transition functions |
@@ -46,14 +46,14 @@ You can build most structured interactions using Default steps alone.
 | **ASR biasing / DTMF** | No | No | Yes |
 | **Requires Python** | No | Yes | Yes |
 
-**Start with Default steps.** Move to a Function step only when you need code (API calls, numeric comparisons, custom validation). Use an Advanced step when you need per-step ASR biasing, DTMF collection, or direct control over transition function references in the prompt.
+**Start with Default steps.** Move to a Function step only when you need code (API calls, numeric comparisons, custom validation). Use an [Advanced step](/flows/no-code/advanced-steps) when you need per-step ASR biasing, DTMF collection, or direct control over transition function references in the prompt.
 
 ### Default step (no-code)
 
 Use Default steps for most of your flow. They allow you to:
 
 - Write natural-language instructions (prompt)
-- Extract entities
+- Extract [entities](/flows/no-code/entities)
 - Branch to other steps using labeled edges
 
 Most booking, verification, and data-collection flows can be built entirely with Default steps.
@@ -77,8 +77,8 @@ Use Function steps only when you need more control, such as:
 
 Function steps differ from Default steps in several ways:
 
-- They contain **code only** — there is no prompt field.
-- They support conditions for visual routing, but conditions on Function steps **do not have required entities** — your code handles all validation.
+- They contain **code only** -- there is no prompt field.
+- They support conditions for visual routing, but conditions on Function steps **do not have required entities** -- your code handles all validation.
 - They do not support ASR biasing, DTMF, or other per-step audio configuration.
 
 If your flow starts to require complex logic, that's when a Function step becomes appropriate.
@@ -99,7 +99,7 @@ Every flow should end in an Exit flow.
 
 There are two execution models inside flows. Understanding this prevents most confusion.
 
-### Default steps (LLM-driven) — no code required
+### Default steps (LLM-driven) -- no code required
 
 In a Default step:
 
@@ -111,14 +111,14 @@ In a Default step:
 If you reference collected entities inside the prompt, you can use rich text `/entities`. This inserts a template tag in the format `{{entity:entity_name}}` that the system resolves at runtime.
 
 <Note>
-Default step prompts support entity and variant attribute references, but do not support function references. To call transition functions or global functions from a prompt, use an [Advanced step](#advanced-step-reference).
+Default step prompts support entity and variant attribute references, but do not support function references. To call transition functions or global functions from a prompt, use an [Advanced step](/flows/no-code/advanced-steps).
 </Note>
 
 In Conversation Review, you may see system-generated events that represent automatic entity validation and condition evaluation. These are normal and indicate the system is processing your flow steps correctly.
 
 You do not need to write code for this.
 
-### Function steps (code-driven) — for developers
+### Function steps (code-driven) -- for developers
 
 <Info>
 The following section covers writing Python code to control flow logic. If you are building flows without code, you can skip this section.
@@ -186,180 +186,19 @@ Use one only when you need:
 
 If routing can be expressed clearly with labeled branches in Default steps, prefer Default steps.
 
-## Quickstart: build your first flow
-
-This walkthrough builds a simple booking flow:
-
-- Collect phone number (or fallback to email)
-- Collect booking details
-- Route large parties differently
-- Finish cleanly
-
-### Step 1 — Create a flow
-
-1. Go to **Build > Flows**
-2. Click **+ Create flow**
-3. Name it (example: **Make a booking**)
-
-Tip: start with a Default step as your entry point.
-
-### Step 2 — Add your first Default step (entry point)
-
-1. Add a **Default step**
-2. Name it **Collect contact details**
-3. In the **Prompt**, write something like:
-
-```text
-Ask for the caller's phone number to create or look up the booking.
-If they don't want to provide a phone number, ask for an email address instead.
-Confirm what you captured in one sentence.
-```
-
-### Step 3 — Add entities to the step
-
-In **Collect contact details**, add:
-
-- Phone number
-- Email address (fallback)
-
-This tells the system what structured information to extract and validate.
-
-### Step 4 — Add routing
-
-After collecting information, add labeled edges such as:
-
-- phone collected
-- phone missing
-- caller refuses
-
-Keep labels short and explicit.
-
-If you later add a step like **Collect Number of Passengers**, you might branch into:
-
-- Individual Booking
-- Group Booking
-
-Clear labels make routing easier to understand and maintain.
-
-### Step 5 — Add a finish/exit step
-
-1. Add an **Exit flow**
-2. Name it **Booking complete**
-3. Connect your success branches to it
-
-## Write condition labels for humans first
-
-Good labels are:
-
-- Short
-- Unambiguous
-- Business-focused
-
-Examples:
-
-- phone collected
-- phone missing
-- party size above 15
-- requires handoff
-- unclear
-
-Avoid vague labels like:
-
-- valid
-- ok
-- continue
-
-If someone else looks at your flow, they should understand the logic immediately from the labels alone.
-
-## Entities
-
-Entities are structured values the agent can collect and reuse. Each entity has a **type** that determines what validation is applied. Entity names must be unique across all entities in your project.
-
-Mark an entity as required on a condition if the LLM should not consider that condition satisfied without a valid value. In Function steps, you must enforce this yourself in code.
-
-### Entity types and configuration
-
-<AccordionGroup>
-<Accordion title="Free text">
-Open-ended responses with no validation. Use when you need to capture unstructured input like comments or descriptions.
-</Accordion>
-
-<Accordion title="Number (numeric)">
-Numeric values. Configure:
-- **Decimal** — toggle to accept decimal values (float) or restrict to integers
-- **Range** — optionally set a **minimum** and **maximum** value (up to 1,000,000)
-</Accordion>
-
-<Accordion title="Alphanumeric">
-Any mix of letters and numbers. Useful for booking references, confirmation codes, or postal codes. Configure:
-- **Validation type** — choose a built-in preset or custom regex:
-  - **Zip code** — US zip code format (e.g. `12345` or `12345-6789`)
-  - **Postal code** — UK postal code format
-  - **Custom** — your own regular expression
-</Accordion>
-
-<Accordion title="Phone number">
-Telephone numbers. Configure:
-- **Country codes** — restrict to specific countries (26 supported, including US, CA, GB, AU, DE, FR, and others)
-</Accordion>
-
-<Accordion title="Date">
-Calendar dates. Configure:
-- **Day first** — toggle whether day or month comes first in ambiguous formats
-- **Date range** — optionally set a start and end date
-</Accordion>
-
-<Accordion title="Time">
-Clock times. Configure:
-- **Time range** — set a start and end time to restrict valid values
-</Accordion>
-
-<Accordion title="Multiple choice (enum)">
-Selection from a predefined list. Configure:
-- **Options** — the accepted values the caller can choose from
-</Accordion>
-
-<Accordion title="Name">
-Personal names (first name, last name, or both). No additional configuration.
-</Accordion>
-
-<Accordion title="Address">
-Street addresses or locations. No additional configuration.
-</Accordion>
-
-<Accordion title="Email">
-Email addresses. Validated using a standard email pattern.
-</Accordion>
-</AccordionGroup>
-
-### Validation and retries
-
-Depending on the entity type:
-
-- Valid values allow the flow to continue.
-- Invalid values trigger re-asking or fallback routing.
-
-Because there is no automatic cap on retries, always design your flow with a **fallback condition** (e.g. "caller unable to provide") so the conversation can exit the step gracefully if collection stalls.
-
-<Tip>
-If a branch depends on an entity being present, always include a clear fallback path for when it is not collected or fails validation.
-</Tip>
-
-For definitions of key terms (step, edge, condition, entity, exit flow), see the **Key concepts** card at the top of this page.
-
 ## Step naming rules
 
 - Step names must be **unique within a flow** (case-sensitive).
-- The **start step** cannot be deleted — reassign the start step to a different node first.
+- The **start step** cannot be deleted -- reassign the start step to a different node first.
 
 ## Canvas controls
 
 The flow editor provides controls to help you work with complex flows:
 
-- **Zoom in/out** — adjust the view scale (minimum 25%)
-- **Fit to view** — auto-centers and scales to show all nodes
-- **Tidy up** — auto-arranges nodes in a top-to-bottom layout with consistent spacing. Useful after adding many steps or when the layout gets messy
-- **Snap to grid** — nodes align to a 30px grid for clean positioning
+- **Zoom in/out** -- adjust the view scale (minimum 25%)
+- **Fit to view** -- auto-centers and scales to show all nodes
+- **Tidy up** -- auto-arranges nodes in a top-to-bottom layout with consistent spacing. Useful after adding many steps or when the layout gets messy
+- **Snap to grid** -- nodes align to a 30px grid for clean positioning
 
 ### Working with nodes
 
@@ -375,76 +214,25 @@ When you connect a Default step to another step, a **condition node** appears on
 | Field | Required | Description |
 |---|---|---|
 | **Label** | Yes | A short name the LLM uses to decide when to take this path (max 50 characters, must be unique within the step) |
-| **Description** | Yes | Describe **when** the model should trigger this condition. Provide as much detail as necessary — this is the primary signal the LLM uses to choose between paths. |
+| **Description** | Yes | Describe **when** the model should trigger this condition. Provide as much detail as necessary -- this is the primary signal the LLM uses to choose between paths. |
 | **Required entities** | No | Entities that must be collected and validated before this condition can activate |
 
 <Tip>
-The **description** field is critical for routing accuracy. A label like "large party" tells the LLM *what* the path is; the description tells it *when* to take it — for example, "The caller has confirmed they need a booking for more than 15 guests."
+The **description** field is critical for routing accuracy. A label like "large party" tells the LLM *what* the path is; the description tells it *when* to take it -- for example, "The caller has confirmed they need a booking for more than 15 guests."
 </Tip>
 
-Write condition labels for humans first — someone reading the flow should understand the routing logic from labels alone.
-
-## Advanced step reference
-
-Advanced steps give maximum control over transitions, ASR biasing, and DTMF collection. They are intended for developers who need precise control that Default steps cannot provide.
-
-### ASR biasing options (per-step)
-
-Advanced steps support structured ASR biasing modes for common input types:
-
-| Mode | Use case |
-|---|---|
-| Alphanumeric | Booking references, confirmation codes |
-| Name spelling | Phonetically spelled names |
-| Numeric | Ages, short numbers |
-| Party size | Group booking numbers |
-| Precise date | Specific calendar dates |
-| Relative date | Flexible time references ("next Tuesday") |
-| Single number | One-digit responses |
-| Time | Spoken times |
-| Yes/No | Confirmation-style responses |
-| Address | Postcodes, street names |
-| Custom keywords | Your own keyphrases |
-
-See [ASR biasing in flows](/flows/asr-biasing) for full details.
-
-### DTMF configuration (per-step)
-
-Advanced steps can collect DTMF (touch-tone) input. Configure:
-
-| Setting | Description |
-|---|---|
-| **Enable DTMF** | Toggle on to accept keypad input |
-| **Inter-digit timeout** | How long to wait between digits (default 3 seconds) |
-| **Max digits** | Maximum number of digits to collect (1–32) |
-| **End key** | Which key signals input is complete (`#`, `*`, or none) |
-| **Collect while speaking** | Whether to accept input while the agent is talking |
-| **Mark as PII** | Flag the collected input as personally identifiable information |
-
-See [DTMF in flows](/flows/dtmf) for full details.
-
-### Rich text references in advanced steps
-
-Advanced step prompts support inline references using template tags:
-
-| Reference type | Syntax | Purpose |
-|---|---|---|
-| Transition function | `{{ft:functionId}}` | Call a transition function from the prompt |
-| Global function | `{{fn:functionId}}` | Call a global function |
-| SMS template | `{{sms:templateId}}` | Send an SMS template |
-| Handoff | `{{ho:destinationId}}` | Trigger a handoff |
-| Variant attribute | `{{va:attributeId}}` | Insert a variant attribute value |
+Write condition labels for humans first -- someone reading the flow should understand the routing logic from labels alone.
 
 ## Related pages
 
 <CardGroup cols={3}>
-  <Card title="Flows overview" icon="diagram-project" href="/flows/introduction">
-    Understand how flows work and when to use them.
+  <Card title="Entities" icon="puzzle-piece" href="/flows/no-code/entities">
+    Configure entity types, validation, and collection in your flows.
   </Card>
-  <Card title="Transition functions" icon="code" href="/flows/transition-functions">
-    Add Python logic to control how your agent moves between steps.
+  <Card title="Quickstart" icon="rocket" href="/flows/no-code/quickstart">
+    Build your first no-code flow step by step.
   </Card>
-  <Card title="ASR biasing" icon="microphone" href="/flows/asr-biasing">
-    Improve transcription accuracy for structured inputs in flow steps.
+  <Card title="Advanced steps" icon="gear" href="/flows/no-code/advanced-steps">
+    ASR biasing, DTMF collection, and rich text references in advanced steps.
   </Card>
 </CardGroup>
