@@ -1,0 +1,203 @@
+---
+title: "Using functions"
+description: "How the LLM calls Python functions to integrate with external systems — and what it actually sees."
+icon: "code"
+---
+
+import { Quiz } from '/snippets/quiz.jsx'
+
+<Info>
+  This lesson explains what functions are, why they exist, and how the LLM uses them. By the end you will understand the full request-response loop and be able to create and reference a function correctly.
+</Info>
+
+## Why functions exist
+
+You can build a basic agent using only the Agent tab — personality, role, and rules. But you will quickly hit a wall.
+
+Without functions, the agent cannot:
+
+- retrieve user-specific data (account balance, booking status)
+- execute actions (make a booking, send a confirmation)
+- save information from the conversation
+- integrate with any external system
+
+Prompt engineering alone is also not enough for large enterprise projects with dozens of user journeys. Putting all of that into a single rules box gives the LLM too much context at once and makes it harder to reason reliably about any single scenario.
+
+Functions solve both problems. They let you integrate with external systems **and** give you fine-grained control over what the LLM knows and does at each step of the conversation.
+
+## How LLMs use tools
+
+Before looking at Agent Studio specifically, it helps to understand how LLMs use tools in general — because this pattern is the same across all modern AI systems.
+
+An LLM can produce two kinds of output:
+
+<CardGroup cols={2}>
+  <Card title="Text output" icon="comment">
+    The model speaks to the **user** using natural language.
+
+    *"The weather in Paris is usually mild in October."*
+  </Card>
+  <Card title="Tool call" icon="code">
+    The model communicates with a **system** — a function, API, or piece of code — to fetch data or trigger an action.
+
+    *call: `get_weather` with `{city: "Paris"}`*
+  </Card>
+</CardGroup>
+
+The LLM **mediates** between the user and the system. It takes a user request, decides whether it needs to call a tool to answer it, calls that tool, receives a result, and then reports the result back to the user as text.
+
+```
+User → LLM → tool call → system
+                           ↓
+User ← LLM ← result ← system
+```
+
+This is the core loop that powers almost everything beyond basic FAQ responses.
+
+<Quiz questions={[
+  {
+    q: "What is the difference between a text output and a tool call from an LLM?",
+    options: [
+      "Text outputs go to the user; tool calls go to a system",
+      "Tool calls are more reliable than text outputs",
+      "Text outputs are only used for greetings",
+      "There is no practical difference",
+    ],
+    correct: 0,
+    explanation: "Text outputs are user-facing — the agent speaking. Tool calls are system-facing — the agent communicating with Python code or an external API to fetch data or trigger an action.",
+  }
+]} />
+
+## Creating a function in Agent Studio
+
+In Agent Studio, tools are called **functions**. You write them in Python and they are available for the LLM to call during a conversation.
+
+To create a function, go to **Build → Functions** and click the **+** button.
+
+Every function has:
+
+- **Name** — how the function is identified (used by the LLM to decide when to call it)
+- **Description** — what the function does (also read by the LLM when deciding whether to call it)
+- **Parameters** — the inputs the function needs, each with a name, description, and type
+- **Python code** — what the function actually does when called
+
+<Tip>
+  The LLM reads the function name, description, and parameter descriptions when deciding whether to call the function and what to pass as arguments. **Name and describe everything clearly** — this directly affects whether the LLM uses your function correctly.
+</Tip>
+
+### Example: a simple addition function
+
+```python
+def add_two_numbers(conv, first_number: float, second_number: float) -> str:
+    total = first_number + second_number
+    return f"The total is {total}"
+```
+
+Parameters:
+- `first_number` — *The first number the user wants to add* (type: number)
+- `second_number` — *The second number the user wants to add* (type: number)
+
+<Warning>
+  Functions called by the LLM must return either a **string** or a **dictionary** with specific keys. Returning an integer, list, or other type will cause an error that the LLM will encounter and retry up to three times before giving up.
+</Warning>
+
+## Making a function visible to the LLM
+
+Creating a function is not enough. **The LLM will not call a function it does not know exists.**
+
+To make a function available to the LLM, you must reference it somewhere — in a topic action, a flow step, or directly in the Rules field using the `@function_name` syntax.
+
+When you reference a function, Agent Studio highlights it and registers it in the LLM request. The LLM will then see the function's full definition (name, description, parameters) and can choose to call it.
+
+<Warning>
+  A common mistake is creating a function and testing the agent, only to find the LLM never calls it. Check the LLM request in Conversation Diagnosis — if the function is not listed under "functions", it has not been referenced anywhere.
+</Warning>
+
+## What the LLM actually sees
+
+When the LLM is deciding whether to call a function, it sees:
+
+1. The base system prompt (personality + role + rules from the Agent tab)
+2. Any function definitions that have been referenced — including name, description, and all parameter names, descriptions, and types
+3. The conversation history so far
+
+The LLM does **not** see the Python code inside the function. It only sees the function's name, description, and parameters.
+
+This means your function name and description are part of the prompt. Write them with the same care as any other prompt text.
+
+<Quiz questions={[
+  {
+    q: "You create a function called `check_order_status` but the LLM never calls it. What is the most likely cause?",
+    options: [
+      "The function has a bug in the Python code",
+      "The function has not been referenced anywhere in a topic, flow, or rules",
+      "The LLM does not support functions",
+      "The function name contains underscores",
+    ],
+    correct: 1,
+    explanation: "Creating a function does not make it visible to the LLM. You must reference it — in a topic action, a flow step, or the Rules field. If the function does not appear in the LLM request's functions list, it has not been registered.",
+  }
+]} />
+
+## The two-request pattern
+
+When the LLM calls a function, it takes **two LLM requests** to produce the final response to the user.
+
+<Steps>
+  <Step title="Request 1: the LLM decides to call a function">
+    The LLM receives the user input, sees the available function definitions, and outputs a **tool call** rather than text.
+
+    The response content is empty. The function call object contains the function name and the parameter values the LLM extracted from the conversation.
+  </Step>
+  <Step title="The function runs">
+    Agent Studio executes the Python function with the provided parameters and gets back a result.
+  </Step>
+  <Step title="Request 2: the LLM reports the result">
+    The function result is inserted into the conversation history under a `function` role. The LLM sees this result and produces a **text response** to communicate the result to the user.
+  </Step>
+</Steps>
+
+This is visible in Conversation Diagnosis. When a function is called, you will see two requests instead of one. Enable the **Function calls** toggle to see what parameters were passed and what was returned.
+
+### What the conversation history looks like after a function call
+
+```
+assistant: "Hi, thanks for calling. How can I help?"
+user: "What's 2 plus 3?"
+assistant: [calls add_two_numbers with first_number=2, second_number=3]
+function: "The total is 5"
+assistant: "2 plus 3 equals 5."
+```
+
+The `function` role is the third role alongside `user` and `assistant`. This is how function results are fed back into the LLM's context.
+
+<Quiz questions={[
+  {
+    q: "Why are there two LLM requests when a function is called?",
+    options: [
+      "The first request checks permissions, the second runs the function",
+      "The first request produces the tool call, the second reads the function result and generates the user response",
+      "Both requests are identical — it is a retry mechanism",
+      "The first request is for voice, the second for chat",
+    ],
+    correct: 1,
+    explanation: "Request 1 produces the tool call (the LLM's decision to call the function). After the function runs, its result is inserted into conversation history. Request 2 lets the LLM read that result and produce the text response for the user.",
+  }
+]} />
+
+## Try it yourself
+
+<Steps>
+  <Step title="Create a function">
+    In **Build → Functions**, create a function called `get_store_hours` with no parameters. Return a string like `"The store is open Monday–Friday, 9am to 6pm."`.
+  </Step>
+  <Step title="Reference it">
+    In **Build → Agent → Rules**, add a reference to `@get_store_hours`. Confirm it highlights.
+  </Step>
+  <Step title="Test it">
+    Open **Chat** and ask "What are your opening hours?" Check the LLM request in **Conversation Diagnosis** to confirm:
+    - The function appears in the functions list
+    - Two requests are shown (one tool call, one text response)
+    - The function result appears in conversation history under the `function` role
+  </Step>
+</Steps>
