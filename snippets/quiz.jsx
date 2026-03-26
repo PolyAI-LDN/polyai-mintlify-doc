@@ -6,21 +6,11 @@ export const Quiz = ({ questions = [] }) => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const root = document.documentElement;
-    const check = () => {
-      setIsDark(
-        root.classList.contains('dark') ||
-        window.matchMedia('(prefers-color-scheme: dark)').matches
-      );
-    };
+    const check = () => setIsDark(root.classList.contains('dark'));
     check();
     const observer = new MutationObserver(check);
     observer.observe(root, { attributes: true, attributeFilter: ['class'] });
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    mq.addEventListener('change', check);
-    return () => {
-      observer.disconnect();
-      mq.removeEventListener('change', check);
-    };
+    return () => observer.disconnect();
   }, []);
 
   var letters = ['A', 'B', 'C', 'D'];
