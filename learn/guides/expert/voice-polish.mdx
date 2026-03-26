@@ -1,0 +1,181 @@
+---
+title: "Polishing the voice experience"
+sidebarTitle: "Voice polish"
+description: "Techniques for making voice agents sound natural, smooth, and enjoyable."
+icon: "wand-magic-sparkles"
+---
+
+import { Quiz } from '/snippets/quiz.jsx'
+import { ProgressTracker } from '/snippets/progress-tracker.jsx'
+
+<Info>
+  **Level 3 — Lesson 3 of 3** — Go beyond usability to create voice experiences that sound genuinely good.
+</Info>
+
+Once the agent works and is easy to use, the final layer is polish. This lesson covers voice quality, natural filler, turn-taking, and personalisation — the techniques that make voice interactions feel smooth and human.
+
+## The layers of a good voice experience
+
+<Steps>
+  <Step title="It works">
+    Speech recognition transcribes correctly, APIs respond, the task can be completed.
+  </Step>
+  <Step title="It's easy to use">
+    The interaction is efficient, intuitive, and follows the [design checklist](/learn/guides/design-checklist).
+  </Step>
+  <Step title="It sounds good">
+    Copywriting, voice quality, turn-taking, and personalisation make the experience enjoyable. This is the focus of this lesson.
+  </Step>
+</Steps>
+
+## Voice selection and quality
+
+Pick a voice that sounds good in practice, not just in samples. If you need to regenerate 50 times to find one good take, that voice won't produce consistent quality in a live deployment.
+
+**After selecting a voice:**
+- Listen to the most common things the agent says: greeting, "how can I help", "anything else", and the main flow prompts
+- The LLM often generates similar phrasing for repeated scenarios — these get cached, so make sure they sound good
+- Regenerate cached audio until it sounds right
+
+<Tip>
+  Written copy always looks more informal than it sounds. Don't let written reviews make you over-formalise. When in doubt, build a short audio prototype and share that with the client instead of written text.
+</Tip>
+
+## Natural filler and hesitation
+
+Real humans pause, say "um", and hesitate — especially when they're thinking. Adding small amounts of this to agent speech makes it sound more natural. In linguistics this is called **disfluency**, and it includes filled pauses ("um", "uh"), slight repetitions, and drawn-out sounds.
+
+### When to use it
+
+| Context | What to add | Example |
+|---|---|---|
+| API call / lookup | Filler phrase | "Um, let me just have a look at what space we have..." |
+| Complex instructions | Slight hesitation | "So what you'll want to do is, uh, go to settings and then..." |
+| After a misunderstanding | Drawn-out sound, regrouping | "Hmm, what was it I can do for you?" |
+
+### Why it works
+
+- **During API calls**: filler sounds like someone checking another screen — it matches what the user expects is happening
+- **After misunderstandings**: hesitation sounds like someone regrouping after a miscommunication, which is exactly what's happening
+- **In general**: small pauses signal that the agent is "thinking", which makes silence less awkward
+
+<Warning>
+  Keep it subtle. Too much filler makes the agent sound confused rather than natural. Use it situationally, not on every turn.
+</Warning>
+
+## Turn-taking
+
+Turn-taking — how the agent and user take turns speaking — is one of the most impactful aspects of voice experience, and one of the hardest to control at the project level.
+
+Three common problems:
+- **Too much latency** — the agent takes too long to respond after the user finishes speaking. Users disengage.
+- **Interruptions** — the agent starts speaking before the user has finished. Users get frustrated.
+- **No barge-in** — the user cannot interrupt the agent, even when the agent is saying something wrong or irrelevant.
+
+<Note>
+  Many turn-taking issues need platform-level improvements rather than project-level fixes. Your role is to identify and document these issues with specific examples so the engineering team can prioritise improvements.
+</Note>
+
+### What you can control
+
+- **Response length** — shorter responses reduce the chance of the agent and user talking over each other
+- **Interaction style settings** — adjust latency thresholds in [audio management](/learn/guides/advanced/audio-management)
+- **Barge-in configuration** — enable or disable based on the interaction type
+- **Front-load key information** — put the important part first, so even if the user interrupts, they've heard what matters
+
+## Personalisation
+
+Personalisation uses information about the user to tailor the experience. It works at three levels:
+
+### From the current conversation
+
+If the user gives their name, you can use it — but not on every turn. LLMs tend to overuse names, which sounds scripted. Use sparingly for warmth.
+
+### From API data
+
+If you can see a user's recent activity, use it to shortcut the conversation:
+
+> "I can see you just cancelled a flight. Is that what you're calling about?"
+
+This proves competence immediately and shortens the interaction.
+
+### From previous calls
+
+If the user called before and was sent an SMS for self-service, and they're calling back:
+
+> "I see you were calling about this earlier. Was that text not working for you?"
+
+This kind of continuity across calls makes the system feel like it remembers and cares.
+
+<Warning>
+  Personalisation can feel intrusive if overdone. Use it when it clearly helps the user reach their goal faster. Avoid making users feel surveilled.
+</Warning>
+
+<Quiz questions={[
+  {
+    q: "The agent is about to make an API call that takes 2-3 seconds. What's the best way to handle the silence?",
+    options: [
+      "Play hold music",
+      "Say nothing — users are accustomed to brief pauses",
+      "Use a filler phrase: 'Um, let me just look that up for you...'",
+      "Return a hard-coded message explaining what's happening technically",
+    ],
+    correct: 2,
+    explanation: "A filler phrase sounds like someone checking another screen — it matches what the user expects and masks the waiting time naturally. Silence or technical explanations break the conversational flow.",
+  }
+]} />
+
+## Matching the user's style
+
+People naturally adjust how they speak depending on who they're talking to. In voice agents, this happens partially through the LLM (which adjusts vocabulary and formality based on user input).
+
+For now, focus on:
+
+- **Word choice** — if the user uses informal language, the agent should match
+- **Pacing** — if the user speaks slowly, don't rush them with rapid-fire responses
+- **Formality** — match the user's level of formality
+
+## Try it yourself
+
+<Steps>
+  <Step title="Challenge: Design the experience around an API lookup">
+    A user asks to track their order. The flow collects the tracking number and then makes an API call that takes 2-3 seconds.
+
+    Design:
+    1. What does the agent say while the API call runs?
+    2. How do you handle a successful lookup?
+    3. How do you handle a failed lookup?
+
+    For each, consider: filler, tone, brevity, and what information to say first.
+
+    <Accordion title="Example solution">
+      **During API call:**
+      > "Okay, let me just pull that up for you..."
+      (Subtle filler — sounds like checking a screen)
+
+      **Successful lookup:**
+      > "Got it — your order's been shipped and should arrive Thursday. Want me to send you the tracking link?"
+      (Brief, key info first, natural offer for follow-up)
+
+      **Failed lookup:**
+      > "Hmm, I'm not finding anything for that number. Could you double-check it and try again?"
+      (Hesitation signals regrouping, blames the number not the user)
+    </Accordion>
+  </Step>
+</Steps>
+
+<Quiz questions={[
+  {
+    q: "You're reviewing a live call and notice the agent uses the caller's name in every single response. What should you do?",
+    options: [
+      "Nothing — personalisation is always good",
+      "Remove name usage entirely",
+      "Reduce frequency — use the name occasionally for warmth, not on every turn",
+      "Only use the name at the start and end of the call",
+    ],
+    correct: 2,
+    explanation: "LLMs tend to overuse names, which sounds scripted and unnatural. Use names sparingly for genuine warmth, not as a mechanical pattern on every turn.",
+  }
+]} />
+
+<ProgressTracker lessonKey="l3-3-voice-polish" lessonNum={3} totalLessons={3} level="Level 3" />
