@@ -72,18 +72,32 @@ def authenticate_customer(conv: Conversation, customer_id: str, name: str):
 
 ### Decorators
 
-Functions that accept LLM parameters require two decorators:
+Decorators register your function with the platform so the LLM knows when and how to call it. There are two decorators used when defining tools:
 
-- **`@func_description`** — describes when and why the LLM should call this function. This serves the same purpose as the "Description" field in the UI.
-- **`@func_parameter`** — defines each parameter the LLM needs to collect from the caller. Add one decorator per parameter. This serves the same purpose as adding entries in the "LLM Parameters" section of the UI.
+- **`@func_description`** — describes when and why the LLM should call this function. Required on every LLM-callable function, including [start functions](/tools/start-function) and [end functions](/tools/end-function).
+- **`@func_parameter`** — defines each parameter the LLM needs to collect from the caller. Add one decorator per parameter. Only needed on functions that accept arguments beyond `conv` (and `flow` for [transition functions](/flows/transition-functions)).
+
+<Note>
+[Start functions](/tools/start-function) and [end functions](/tools/end-function) only use `@func_description` — they do not accept LLM parameters, so `@func_parameter` is not needed.
+</Note>
+
+#### Decorator rules
+
+| Function type | `@func_description` | `@func_parameter` |
+|---|---|---|
+| LLM-callable tool (with parameters) | Required | Required (one per parameter) |
+| LLM-callable tool (no parameters) | Required | Not needed |
+| [Start function](/tools/start-function) | Required | Not needed |
+| [End function](/tools/end-function) | Required | Not needed |
+| Utility / helper function | Do not add | Do not add |
 
 <Warning>
 The `name` in each `@func_parameter` decorator must **exactly match** the corresponding function argument name. A mismatch causes a `SyntaxError` when saving. For example, `@func_parameter(name="customer_id", ...)` must pair with the argument `customer_id: str`.
 </Warning>
 
-<Note>
-Only add decorators to the **primary function**. Do not add `@func_description` or `@func_parameter` to helper functions called within your main function — this will cause import errors.
-</Note>
+<Warning>
+Only add decorators to **LLM-callable functions** — functions the LLM invokes directly during a conversation. Do not add `@func_description` or `@func_parameter` to utility or helper functions that are imported or called internally by other functions. Adding decorators to helper functions will cause import errors.
+</Warning>
 
 ### Example with `conv.api`
 
