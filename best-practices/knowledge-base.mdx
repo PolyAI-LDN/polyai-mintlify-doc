@@ -1,0 +1,113 @@
+---
+title: Knowledge base best practices
+description: Structure your knowledge base topics for accurate, reliable agent responses.
+---
+
+The knowledge base (KB) contains the information your agent uses to interact with users. Each topic entry is like a dish on a menu — a foreseeable user query with corresponding directions for the agent to follow.
+
+## Topic structure
+
+Each knowledge base topic has four parts:
+
+| Part | Description | Shown to retriever |
+|---|---|---|
+| **Name** | The name of the entry | Yes |
+| **Sample questions** | User utterances that trigger this topic | Yes |
+| **Content** | Information the LLM uses to formulate its response | Yes |
+| **Actions** | Follow-up behavior like function calls, flow triggers, SMS, or handoffs | No |
+
+## How RAG works
+
+Rather than passing the entire KB to the LLM each turn, PolyAI uses Retrieval-Augmented Generation (RAG) to narrow down the most relevant topics.
+
+The retriever compares the current user utterance to each topic's **Name**, **Sample questions**, and **Content** fields to find the semantically closest matches. These are then shown alongside the user utterance to the LLM, which makes the final decision on which topic to use.
+
+<Tip>
+Because the topic **Name** is shown to the retriever, it should be semantically close to the topic. For instance, a topic about payment disputes named "general_behavior-payment" will likely trigger on payment queries in general rather than only on disputes.
+</Tip>
+
+## Writing sample questions
+
+Include at least **3 sample questions** per topic. This baseline helps the AI generalize intent across typical phrasings. For broad topics, add more to ensure better coverage.
+
+### Tips for good sample questions
+
+- Focus on variety in language and structure
+- Think about how real users might describe the same issue — confused, specific, vague, or using non-standard terminology
+- Additional examples should reflect **distinct phrasings**, not slight rewordings
+- Vary sentence lengths alongside phrasing variety
+
+<Info>
+If migrating from an intent-based project, you might have more than 10 sample questions. Trim to the 10 most diverse items while preserving the full semantic scope of the original list.
+</Info>
+
+## Types of KB topics
+
+### Simple FAQ
+
+The most basic type. When triggered, the agent answers using the information in **Content**.
+
+- **Content**: Populate with FAQ content
+- **Actions**: Leave empty
+
+For multi-turn FAQs, spread the agent's utterances over multiple turns within the same topic content.
+
+### Handoff topics
+
+**Offer handoff:** Answer the question using Content, then *offer* to transfer the call.
+
+- **Content**: FAQ content + offer to transfer
+- **Actions**: If the user accepts, call `transfer_call` with the appropriate destination and reason
+
+**Direct handoff:** Immediately transfer the call with a handoff message.
+
+- **Content**: Leave empty
+- **Actions**: Call `transfer_call` with destination, reason, and utterance
+
+**Conditional handoff:** Multiple possible transfer destinations. The agent disambiguates, then transfers to the correct one.
+
+- **Content**: Ask a disambiguation question
+- **Actions**: List possible destinations with conditions
+
+### SMS topics
+
+**Offer SMS:** Answer the question, then offer to send a text with more information.
+
+- **Content**: FAQ content + offer to send SMS
+- **Actions**: If the user accepts, call `start_sms_flow` with the appropriate SMS ID
+
+**Conditional SMS:** Multiple SMS options — the agent disambiguates before sending.
+
+### Info dump
+
+Instead of providing sample responses, give the agent a body of information from which to generate contextually relevant answers.
+
+- **Content**: List relevant information
+- **Actions**: Leave empty
+
+## Common anti-patterns
+
+### Mixing text and function calls in one turn
+
+Instructing the agent to both say something *and* call a function in the same turn is unreliable. The model may do one or the other, but not always both.
+
+**Instead:** Split utterances and function calls into separate turns. Give the agent one task per turn to improve reliability.
+
+<Tabs>
+<Tab title="Good">
+Turn 1: Agent answers the question and asks if user wants to be transferred.
+
+Turn 2: If user says yes, call `transfer_call` with a handoff utterance.
+</Tab>
+<Tab title="Bad">
+Single turn: Answer the question, then immediately call `transfer_call` with utterance — the agent may skip one of these tasks.
+</Tab>
+</Tabs>
+
+### Using the topic name as an FAQ question
+
+When the topic name is too vague or unrelated to the actual content, the retriever may match it to the wrong user utterances. Make topic names semantically descriptive.
+
+### Forgetting "anything else" handling
+
+After simple FAQs, the agent may not ask if the user needs more help. Either add "Is there anything else I can help you with?" to the end of topic content, or add a global rule that instructs this behavior.

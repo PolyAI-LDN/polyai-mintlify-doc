@@ -1,0 +1,107 @@
+---
+title: Multichannel agents
+description: Build agents that work across voice and webchat from a single project.
+---
+
+A multichannel agent is a single virtual assistant that works consistently across different channels — such as **voice** and **web chat** — while adapting to each channel's unique needs. The design separates what stays the same (core behavior) from what changes depending on the channel (greetings, formatting, available actions).
+
+## How voice and chat differ
+
+Voice and web chat interactions differ in meaningful ways:
+
+- **Voice** is shaped by latency and audio limitations — users speak casually, may interrupt, and prefer short responses
+- **Web chat** is more deliberate — users type at their own pace, can scroll back, and expect clear visual structure. Chat also enables rich UI elements like buttons and quick replies that aren't possible in voice
+
+Despite these differences, the **core agent logic remains the same** across channels.
+
+## Core principles
+
+### Keep core behavior unified
+
+The core behavior of your agent should remain consistent across all channels. This includes:
+
+- Prompting logic and knowledge base
+- Reasoning steps and flows
+- Metrics and reporting
+
+### Handle channel differences in one place
+
+Channel-specific differences — such as greetings or formatting — should be handled in a single location. This avoids duplicating code and makes updates easier.
+
+The platform automatically selects capabilities based on the channel. For example, voice-specific delays are turned off automatically for web chat at runtime.
+
+## Channel-specific greetings
+
+Each channel can have its own greeting message. Store greetings as **variables** so they're easy to update.
+
+- **Web chat** greetings might include emoji and HTML formatting
+- **Voice** greetings should use a more conversational tone
+
+Set channel variables in your start function:
+
+```python
+def start(conv):
+    if conv.channel_type.startswith("webchat"):
+        conv.state.greet_message = (
+            f"Hi, you're speaking with Poly, a virtual agent for "
+            f"{conv.variant.webchat_site_name} 👋<br><br>How may I help you today?"
+        )
+    else:
+        conv.state.greet_message = (
+            f"Hi there, you're speaking with a virtual assistant for "
+            f"{conv.variant.site_name}. How can I help?"
+        )
+```
+
+## LLM and style prompt
+
+You don't need to manually add style guidelines to your behavior prompt for voice. A **prompt decorator** is automatically applied per channel — for example, the Raven voice model includes built-in style guidelines.
+
+<Warning>
+Do not use Raven for webchat deployments. Raven is trained for voice and does not have Azure guardrails automatically applied. Use a GPT model for webchat instead.
+</Warning>
+
+Configure which LLM powers each channel in **Agent > Model use** or via the experimental configuration.
+
+## Knowledge base and links
+
+- To share a **URL** in chat, include it directly in the knowledge base topic — the system presents it correctly inline
+- **SMS** is only available for voice, so don't rely on it for other channels
+- Keep your content as channel-agnostic as possible to minimize maintenance
+
+<Tip>
+Where voice sends an SMS with a link, webchat can display the link or content inline instead. Adjust the action per channel when needed.
+</Tip>
+
+## Metrics and reporting
+
+The same metrics system applies across all channels. Metrics designed for voice (like transfer rates or conversation length) also apply to web chat. All results are stored in the same database for unified reporting.
+
+## Deploy and test
+
+<Steps>
+
+<Step title="Configure chat settings">
+From **Channels > Chat**, configure your greeting, LLM, and style prompt for the chat channel.
+</Step>
+
+<Step title="Deploy the widget">
+From **Channels > Chat > Widget**, generate a script tag and embed it in your website's HTML headers. See the [widget deployment guide](/webchat/widget-installation) for details.
+</Step>
+
+<Step title="Test with preview">
+Use the **Preview** button to test your webchat agent. Verify that formatting displays correctly and channel-specific behaviors work as expected.
+</Step>
+
+</Steps>
+
+## Summary
+
+| Concern | Approach |
+|---|---|
+| Core agent behavior | Unified across channels |
+| Greetings and formatting | Channel-specific variables |
+| LLM model | Raven for voice, GPT for webchat |
+| Style guidelines | Handled by prompt decorator per channel |
+| Metrics | Same system, unified database |
+| SMS actions | Voice only — use inline content for chat |
