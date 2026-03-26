@@ -20,6 +20,45 @@ export const Quiz = ({ questions = [] }) => {
 
   return (
     <div key={resetCount} className="my-5">
+      <style>{`
+        .dark .quiz-btn-correct {
+          background-color: rgba(20, 83, 45, 0.35) !important;
+          border-color: #4ade80 !important;
+          color: #bbf7d0 !important;
+        }
+        .dark .quiz-btn-wrong {
+          background-color: rgba(127, 29, 29, 0.35) !important;
+          border-color: #f87171 !important;
+          color: #fecaca !important;
+        }
+        .dark .quiz-btn-dimmed {
+          background-color: #1f2937 !important;
+          border-color: #374151 !important;
+          color: #6b7280 !important;
+        }
+        .dark .quiz-letter-correct {
+          background-color: #22c55e !important;
+          color: #fff !important;
+        }
+        .dark .quiz-letter-wrong {
+          background-color: #ef4444 !important;
+          color: #fff !important;
+        }
+        .dark .quiz-letter-dimmed {
+          background-color: #374151 !important;
+          color: #9ca3af !important;
+        }
+        .dark .quiz-explanation-correct {
+          background-color: rgba(20, 83, 45, 0.35) !important;
+          border-color: rgba(74, 222, 128, 0.4) !important;
+          color: #86efac !important;
+        }
+        .dark .quiz-explanation-wrong {
+          background-color: rgba(127, 29, 29, 0.35) !important;
+          border-color: rgba(248, 113, 113, 0.4) !important;
+          color: #fca5a5 !important;
+        }
+      `}</style>
       {questions.map((q, qIdx) => {
         var answer = selected[qIdx];
         var hasAnswered = answer !== undefined;
@@ -42,14 +81,14 @@ export const Quiz = ({ questions = [] }) => {
                   btnClass += 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 cursor-pointer hover:border-gray-300 dark:hover:border-gray-500';
                   letterClass += 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400';
                 } else if (isThisCorrect) {
-                  btnClass += 'border-green-400 dark:border-green-400 bg-green-50 dark:bg-green-900 text-green-900 dark:text-green-200 font-semibold cursor-default';
-                  letterClass += 'bg-green-600 dark:bg-green-500 text-white';
+                  btnClass += 'quiz-btn-correct border-green-400 bg-green-50 text-green-900 font-semibold cursor-default';
+                  letterClass += 'quiz-letter-correct bg-green-600 text-white';
                 } else if (isThisSelected) {
-                  btnClass += 'border-red-400 dark:border-red-400 bg-red-50 dark:bg-red-900 text-red-900 dark:text-red-200 cursor-default';
-                  letterClass += 'bg-red-600 dark:bg-red-500 text-white';
+                  btnClass += 'quiz-btn-wrong border-red-400 bg-red-50 text-red-900 cursor-default';
+                  letterClass += 'quiz-letter-wrong bg-red-600 text-white';
                 } else {
-                  btnClass += 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-default';
-                  letterClass += 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400';
+                  btnClass += 'quiz-btn-dimmed border-gray-100 bg-white text-gray-400 cursor-default';
+                  letterClass += 'quiz-letter-dimmed bg-gray-100 text-gray-500';
                 }
 
                 return (
@@ -68,8 +107,8 @@ export const Quiz = ({ questions = [] }) => {
             </div>
             {hasAnswered ? (
               <div className={isCorrect
-                ? 'mt-3 py-2.5 px-3.5 rounded-md text-sm leading-normal bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 text-green-700 dark:text-green-300'
-                : 'mt-3 py-2.5 px-3.5 rounded-md text-sm leading-normal bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300'
+                ? 'quiz-explanation-correct mt-3 py-2.5 px-3.5 rounded-md text-sm leading-normal bg-green-50 border border-green-200 text-green-700'
+                : 'quiz-explanation-wrong mt-3 py-2.5 px-3.5 rounded-md text-sm leading-normal bg-red-50 border border-red-200 text-red-700'
               }>
                 <strong>{isCorrect ? 'Correct.' : 'Not quite.'}</strong> {q.explanation}
               </div>
