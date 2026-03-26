@@ -34,6 +34,20 @@ You can build most structured interactions using Default steps alone.
 
 ## Step types
 
+### Choosing a step type
+
+| | Default step | Function step | Advanced step |
+|---|---|---|---|
+| **Best for** | Most flows — collecting info, routing by intent | API calls, business rules, strict comparisons | Full prompt control with code-based transitions |
+| **Prompt field** | Yes | No (code only) | Yes |
+| **Routing** | LLM evaluates condition labels | Your code calls `flow.goto_step()` | Transition functions called by the LLM |
+| **Entity extraction** | Built-in | Access via `conv.entities` in code | Access via code in transition functions |
+| **Conditions** | Labels + descriptions guide the LLM | Labels are decorative (code decides) | Transition functions control routing |
+| **ASR biasing / DTMF** | No | No | Yes |
+| **Requires Python** | No | Yes | Yes |
+
+**Start with Default steps.** Move to a Function step only when you need code (API calls, numeric comparisons, custom validation). Use an Advanced step when you need per-step ASR biasing, DTMF collection, or direct control over transition function references in the prompt.
+
 ### Default step (no-code)
 
 Use Default steps for most of your flow. They allow you to:
@@ -318,14 +332,14 @@ Email addresses. Validated using a standard email pattern.
 </Accordion>
 </AccordionGroup>
 
-### Validation
+### Validation and retries
 
 Depending on the entity type:
 
 - Valid values allow the flow to continue.
-- Invalid values can trigger re-asking or fallback routing.
+- Invalid values trigger re-asking or fallback routing.
 
-In Default steps, the LLM automatically re-asks for an entity when validation fails. In Function steps, you must handle retries and fallback routing yourself in code.
+Because there is no automatic cap on retries, always design your flow with a **fallback condition** (e.g. "caller unable to provide") so the conversation can exit the step gracefully if collection stalls.
 
 <Tip>
 If a branch depends on an entity being present, always include a clear fallback path for when it is not collected or fails validation.
