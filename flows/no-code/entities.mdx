@@ -1,0 +1,102 @@
+---
+title: "Entities"
+description: "Configure entity types, validation, and collection in no-code flows."
+---
+
+Entities are structured values the agent can collect and reuse during a flow. Each entity has a **type** that determines what validation is applied. Entity names must be unique across all entities in your project.
+
+Mark an entity as required on a condition if the LLM should not consider that condition satisfied without a valid value. In Function steps, you must enforce this yourself in code.
+
+## Entity types and configuration
+
+<AccordionGroup>
+<Accordion title="Free text">
+Open-ended responses with no validation. Use when you need to capture unstructured input like comments or descriptions.
+</Accordion>
+
+<Accordion title="Number (numeric)">
+Numeric values. Configure:
+- **Decimal** -- toggle to accept decimal values (float) or restrict to integers
+- **Range** -- optionally set a **minimum** and **maximum** value (up to 1,000,000)
+</Accordion>
+
+<Accordion title="Alphanumeric">
+Any mix of letters and numbers. Useful for booking references, confirmation codes, or postal codes. Configure:
+- **Validation type** -- choose a built-in preset or custom regex:
+  - **Zip code** -- US zip code format (e.g. `12345` or `12345-6789`)
+  - **Postal code** -- UK postal code format
+  - **Custom** -- your own regular expression
+</Accordion>
+
+<Accordion title="Phone number">
+Telephone numbers. Configure:
+- **Country codes** -- restrict to specific countries (26 supported, including US, CA, GB, AU, DE, FR, and others)
+</Accordion>
+
+<Accordion title="Date">
+Calendar dates. Configure:
+- **Day first** -- toggle whether day or month comes first in ambiguous formats
+- **Date range** -- optionally set a start and end date
+</Accordion>
+
+<Accordion title="Time">
+Clock times. Configure:
+- **Time range** -- set a start and end time to restrict valid values
+</Accordion>
+
+<Accordion title="Multiple choice (enum)">
+Selection from a predefined list. Configure:
+- **Options** -- the accepted values the caller can choose from
+</Accordion>
+
+<Accordion title="Name">
+Personal names (first name, last name, or both). No additional configuration.
+</Accordion>
+
+<Accordion title="Address">
+Street addresses or locations. No additional configuration.
+</Accordion>
+
+<Accordion title="Email">
+Email addresses. Validated using a standard email pattern.
+</Accordion>
+</AccordionGroup>
+
+## Validation and retries
+
+Depending on the entity type:
+
+- Valid values allow the flow to continue.
+- Invalid values trigger re-asking or fallback routing.
+
+Because there is no automatic cap on retries, always design your flow with a **fallback condition** (e.g. "caller unable to provide") so the conversation can exit the step gracefully if collection stalls.
+
+<Tip>
+If a branch depends on an entity being present, always include a clear fallback path for when it is not collected or fails validation.
+</Tip>
+
+## Accessing entities in code
+
+Entities collected earlier in a flow are available in Function steps as:
+
+```python
+conv.entities.entity_name.value
+```
+
+<Note>
+Entity values are always strings. Cast to `int()` or `float()` before numeric comparisons.
+</Note>
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="No-code flows overview" icon="diagram-project" href="/flows/no-code/introduction">
+    Step types, routing logic, and canvas controls.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/flows/no-code/quickstart">
+    Build your first no-code flow step by step.
+  </Card>
+  <Card title="Advanced steps" icon="gear" href="/flows/no-code/advanced-steps">
+    ASR biasing, DTMF, and rich text references.
+  </Card>
+</CardGroup>

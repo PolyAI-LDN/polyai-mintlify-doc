@@ -1,0 +1,65 @@
+---
+title: "LLM request"
+description: "Inspect the full LLM request payload for any conversation turn."
+---
+
+Use the LLM Request view to see exactly what was sent to the language model for a given turn. This is the most detailed debugging tool available in Conversation Review -- it shows the complete request payload including conversation history, system prompt, and model metadata.
+
+![llm-request-panel](/images/release-notes/2603/llm-request-panel.png)
+
+## How to access
+
+1. Open a conversation in **Analytics > Conversations**.
+2. In the **Diagnosis** dropdown, toggle **LLM Request** on.
+3. A **Request** button appears inline on turns where an LLM call was made.
+4. Click the button to open a side panel with the full request payload.
+
+## What the panel shows
+
+| Section | Description |
+|---------|-------------|
+| **System prompt** | The full system-level instructions sent to the model, including rules, knowledge context, and flow instructions |
+| **Conversation history** | The message history the model received for context |
+| **Model metadata** | Which model was used, parameters, and configuration |
+| **Retrieved content** | Any knowledge or source content injected into the prompt |
+
+## When to use LLM Request
+
+- **Unexpected responses**: When the agent says something wrong or off-topic, check whether the system prompt or retrieved content explains the behavior.
+- **Missing knowledge**: If the agent ignores a topic you expected it to use, verify whether that content was included in the request.
+- **Prompt debugging**: Confirm that rules, response controls, and flow instructions are being assembled correctly.
+- **Model comparison**: When testing different models, compare the request payloads to understand differences in behavior.
+
+<Tip>
+Combine LLM Request with [Topic citations](/analytics/conversations/diagnosis#topic-citations) and [Sources](/analytics/conversations/diagnosis#sources) to get a complete picture of what the agent knew, what it was told, and what it retrieved for each turn.
+</Tip>
+
+## Common patterns
+
+### Agent ignores a Managed Topic
+
+1. Open the turn where the wrong response was given.
+2. Check **Topic citations** to see which topic was matched.
+3. Open the **LLM Request** to see if the correct topic content was included in the prompt.
+4. If the topic is missing from the request, the issue is in retrieval (topic naming or sample questions). If the topic is present but ignored, the issue may be in rules or prompt conflict.
+
+### Agent gives outdated information
+
+1. Open the **LLM Request** for the relevant turn.
+2. Check the **Retrieved content** section for Connected Knowledge sources.
+3. If the content is stale, sync the source in **Build > Knowledge > Connected**.
+4. If the content is current but the agent still gives outdated info, check for conflicting Managed Topics.
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="Diagnosis" icon="stethoscope" href="/analytics/conversations/diagnosis">
+    Overview of all diagnosis layers available in Conversation Review.
+  </Card>
+  <Card title="Review" icon="messages" href="/analytics/conversations/review">
+    Full conversation review including transcripts and metadata.
+  </Card>
+  <Card title="Connected Knowledge" icon="database" href="/connected-knowledge/introduction">
+    Manage external knowledge sources that inform agent responses.
+  </Card>
+</CardGroup>
