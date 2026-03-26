@@ -34,10 +34,219 @@ Create a function in **Build > Tools**.
 
 ### 6. **Define the function**
    - Use the "Function Definition" field to write the function in Python. You can retrieve secrets in your Python definition — see [Secrets](/secrets/introduction) for details.
+   - The function must accept `conv: Conversation` as its first argument. Any LLM parameters you defined in step 5 are passed as additional arguments, using the **Name** you assigned to each parameter.
    - The function should return a string or dictionary. A string provides additional context for the LLM. A dictionary can control agent behavior (handoff, hangup, listen, etc.). See [Return values](/tools/return-values) for the full list of supported return types.
 
 ### 7. **Save the function**
    - Click "Save" to finalize and create your function.
+
+## Complete example
+
+This example creates a function that authenticates a customer by looking up their ID and name.
+
+**LLM parameters** (defined in the UI):
+
+| Name | Context description | Type |
+|------|-------------------|------|
+| `customer_id` | The customer's unique ID number | string |
+| `name` | The customer's full name | string |
+
+**Function definition:**
+
+```python
+@func_description("Authenticates a customer by verifying their ID and name")
+@func_parameter(name="customer_id", description="The customer's unique ID number")
+@func_parameter(name="name", description="The customer's full name")
+def authenticate_customer(conv: Conversation, customer_id: str, name: str):
+    # Customer data — in production, fetch this from an API
+    customers = {
+        "123": "alice",
+        "456": "bob",
+    }
+
+    if customers.get(customer_id, "").lower() == name.lower():
+        conv.state.authenticated = True
+        return "Customer authenticated successfully."
+    return "Customer not found. Authentication failed."
+```
+
+### Decorators
+
+Decorators register your function with the platform so the LLM knows when and how to call it. There are two decorators used when defining tools:
+
+- **`@func_description`** — describes when and why the LLM should call this function. Required on every LLM-callable function, including [start functions](/tools/start-function) and [end functions](/tools/end-function).
+- **`@func_parameter`** — defines each parameter the LLM needs to collect from the caller. Add one decorator per parameter. Only needed on functions that accept arguments beyond `conv` (and `flow` for [transition functions](/flows/transition-functions)).
+
+<Note>
+[Start functions](/tools/start-function) and [end functions](/tools/end-function) only use `@func_description` — they do not accept LLM parameters, so `@func_parameter` is not needed.
+</Note>
+
+#### Decorator rules
+
+| Function type | `@func_description` | `@func_parameter` |
+|---|---|---|
+| LLM-callable tool (with parameters) | Required | Required (one per parameter) |
+| LLM-callable tool (no parameters) | Required | Not needed |
+| [Start function](/tools/start-function) | Required | Not needed |
+| [End function](/tools/end-function) | Required | Not needed |
+| Utility / helper function | Do not add | Do not add |
+
+<Warning>
+The `name` in each `@func_parameter` decorator must **exactly match** the corresponding function argument name. A mismatch causes a `SyntaxError` when saving. For example, `@func_parameter(name="customer_id", ...)` must pair with the argument `customer_id: str`.
+</Warning>
+
+<Warning>
+Only add decorators to **LLM-callable functions** — functions the LLM invokes directly during a conversation. Do not add `@func_description` or `@func_parameter` to utility or helper functions that are imported or called internally by other functions. Adding decorators to helper functions will cause import errors.
+</Warning>
+
+### Example with `conv.api`
+
+This example uses LLM-collected parameters to call an external API configured in the **APIs** tab:
+
+```python
+@func_description("Looks up customer details by ID and name")
+@func_parameter(name="customer_id", description="The customer's account ID")
+@func_parameter(name="customer_name", description="The customer's full name")
+def get_customer_details(conv: Conversation, customer_id: str, customer_name: str):
+    response = conv.api.customer_api.get_customer(
+        customer_id=customer_id,
+        params={"name": customer_name}
+    )
+
+    if response.status_code == 404:
+        return "No customer was found with the provided details."
+
+    if response.status_code != 200:
+        conv.log.error("Customer API failed", status=response.status_code)
+        return "We couldn't retrieve customer information right now."
+
+    data = response.json()
+    conv.state.customer_id = customer_id
+    return f"Customer found: {data}. Summarize the details to the user."
+```
+
+See [conv.api](/tools/classes/conv-api) for details on calling configured API integrations.
+
+## Common mistakes
+
+<AccordionGroup>
+  <Accordion title="Wrong function signature">
+    Every global tool function must include `conv: Conversation` as its first argument. LLM parameters are passed as additional arguments after `conv`.
+
+    <Tabs>
+      <Tab title="Incorrect">
+        ```python
+        # Missing conv — will cause an error
+        def lookup_order(order_id: str):
+            ...
+        ```
+      </Tab>
+      <Tab title="Correct">
+        ```python
+        @func_description("Looks up an order by ID")
+        @func_parameter(name="order_id", description="The order ID to look up")
+        def lookup_order(conv: Conversation, order_id: str):
+            ...
+        ```
+      </Tab>
+    </Tabs>
+  </Accordion>
+
+  <Accordion title="Decorator name mismatch">
+    The `name` in `@func_parameter` must exactly match the function argument name. A mismatch causes a `SyntaxError` when you save or push.
+
+    <Tabs>
+      <Tab title="Incorrect">
+        ```python
+        # "id" does not match "order_id" — SyntaxError
+        @func_parameter(name="id", description="The order ID")
+        def lookup_order(conv: Conversation, order_id: str):
+            ...
+        ```
+      </Tab>
+      <Tab title="Correct">
+        ```python
+        @func_parameter(name="order_id", description="The order ID")
+        def lookup_order(conv: Conversation, order_id: str):
+            ...
+        ```
+      </Tab>
+    </Tabs>
+  </Accordion>
+
+  <Accordion title="Decorators on helper functions">
+    Only add `@func_description` and `@func_parameter` to the **primary function** — the one the LLM calls directly. Adding these decorators to helper functions called within your main function will cause import errors.
+
+    <Tabs>
+      <Tab title="Incorrect">
+        ```python
+        @func_description("Helper that formats data")  # ❌ crashes on import
+        def format_data(data):
+            return str(data)
+
+        @func_description("Looks up an order")
+        @func_parameter(name="order_id", description="The order ID")
+        def lookup_order(conv: Conversation, order_id: str):
+            result = format_data(some_data)
+            ...
+        ```
+      </Tab>
+      <Tab title="Correct">
+        ```python
+        def format_data(data):
+            return str(data)
+
+        @func_description("Looks up an order")
+        @func_parameter(name="order_id", description="The order ID")
+        def lookup_order(conv: Conversation, order_id: str):
+            result = format_data(some_data)
+            ...
+        ```
+      </Tab>
+    </Tabs>
+  </Accordion>
+
+  <Accordion title="Trying to read local files">
+    Functions run in a **sandboxed cloud environment** — they do not have access to your local file system. You cannot read CSV files, text files, or any files stored on your machine.
+
+    Instead:
+    - **Hardcode small datasets** directly in the function (e.g., a dictionary of values)
+    - **Host the file externally** and fetch it at runtime using the [`requests`](/tools/import-library) library
+    - **Use an API** to query the data from an external service
+
+    ```python
+    # This will NOT work — no local file system access
+    import csv
+    with open("customers.csv") as f:
+        reader = csv.reader(f)
+
+    # Instead, fetch from a hosted URL
+    import requests
+    response = requests.get("https://your-api.com/customers")
+    customers = response.json()
+    ```
+  </Accordion>
+
+  <Accordion title="Unreachable code after return">
+    Code after a `return` statement is never executed. While this does not cause an error, it indicates a logic issue.
+
+    <Tabs>
+      <Tab title="Unnecessary">
+        ```python
+        def my_function(conv: Conversation):
+            return "done"
+            pass  # unreachable — remove this
+        ```
+      </Tab>
+      <Tab title="Clean">
+        ```python
+        def my_function(conv: Conversation):
+            return "done"
+        ```
+      </Tab>
+    </Tabs>
+  </Accordion>
+</AccordionGroup>
 
 ## Best practices
 
