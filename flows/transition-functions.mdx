@@ -81,6 +81,7 @@ stateDiagram-v2
 ```
 
 ```python
+@func_description("Routes to account details or verification based on user status")
 def check_user_verified(conv: Conversation, flow: Flow):
     if conv.state.user_verified:
         flow.goto_step("Account details")
@@ -94,6 +95,7 @@ def check_user_verified(conv: Conversation, flow: Flow):
 Use `conv.goto_flow()` when the conversation needs to leave the current flow entirely — for example, to start an identity verification or escalation flow.
 
 ```python
+@func_description("Checks verification status and escalates after 3 failed attempts")
 def check_verification(conv: Conversation, flow: Flow):
     attempts = conv.state.verification_attempts or 0
     if not conv.state.is_verified:
@@ -138,6 +140,8 @@ flow.goto_step("Next")
 <Tab title="Instead, use">
 Consolidate step logic into one function wherever possible.
 ```python
+@func_description("Saves user input and checks availability")
+@func_parameter(name="value", description="The value provided by the user")
 def save_and_check(conv: Conversation, flow: Flow, value: str):
     conv.state.value = value
     if check_availability(value):
