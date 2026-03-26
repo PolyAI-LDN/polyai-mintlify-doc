@@ -42,11 +42,11 @@ export const Quiz = ({ questions = [] }) => {
                   btnClass += 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 cursor-pointer hover:border-gray-300 dark:hover:border-gray-500';
                   letterClass += 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400';
                 } else if (isThisCorrect) {
-                  btnClass += 'border-green-600 bg-green-50 dark:bg-green-950 text-green-900 dark:text-green-100 font-semibold cursor-default';
-                  letterClass += 'bg-green-600 text-white';
+                  btnClass += 'border-green-500 dark:border-green-400 bg-green-50 dark:bg-green-900/30 text-green-900 dark:text-green-200 font-semibold cursor-default';
+                  letterClass += 'bg-green-600 dark:bg-green-500 text-white';
                 } else if (isThisSelected) {
-                  btnClass += 'border-red-600 bg-red-50 dark:bg-red-950 text-red-900 dark:text-red-100 cursor-default';
-                  letterClass += 'bg-red-600 text-white';
+                  btnClass += 'border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/30 text-red-900 dark:text-red-200 cursor-default';
+                  letterClass += 'bg-red-600 dark:bg-red-500 text-white';
                 } else {
                   btnClass += 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-default';
                   letterClass += 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400';
@@ -68,8 +68,8 @@ export const Quiz = ({ questions = [] }) => {
             </div>
             {hasAnswered ? (
               <div className={isCorrect
-                ? 'mt-3 py-2.5 px-3.5 rounded-md text-sm leading-normal bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
-                : 'mt-3 py-2.5 px-3.5 rounded-md text-sm leading-normal bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+                ? 'mt-3 py-2.5 px-3.5 rounded-md text-sm leading-normal bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-500/40 text-green-700 dark:text-green-300'
+                : 'mt-3 py-2.5 px-3.5 rounded-md text-sm leading-normal bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-500/40 text-red-700 dark:text-red-300'
               }>
                 <strong>{isCorrect ? 'Correct.' : 'Not quite.'}</strong> {q.explanation}
               </div>
