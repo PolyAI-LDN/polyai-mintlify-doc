@@ -34,10 +34,107 @@ Create a function in **Build > Tools**.
 
 ### 6. **Define the function**
    - Use the "Function Definition" field to write the function in Python. You can retrieve secrets in your Python definition — see [Secrets](/secrets/introduction) for details.
+   - The function must accept `conv: Conversation` as its first argument. Any LLM parameters you defined in step 5 are passed as additional arguments, using the **Name** you assigned to each parameter.
    - The function should return a string or dictionary. A string provides additional context for the LLM. A dictionary can control agent behavior (handoff, hangup, listen, etc.). See [Return values](/tools/return-values) for the full list of supported return types.
 
 ### 7. **Save the function**
    - Click "Save" to finalize and create your function.
+
+## Complete example
+
+This example creates a function that authenticates a customer by looking up their ID and name.
+
+**LLM parameters** (defined in the UI):
+
+| Name | Context description | Type |
+|------|-------------------|------|
+| `customer_id` | The customer's unique ID number | string |
+| `name` | The customer's full name | string |
+
+**Function definition:**
+
+```python
+def authenticate_customer(conv: Conversation, customer_id: str, name: str):
+    # Customer data — in production, fetch this from an API
+    customers = {
+        "123": "Madhu",
+        "456": "John",
+    }
+
+    if customers.get(customer_id, "").lower() == name.lower():
+        conv.state.authenticated = True
+        return "Customer authenticated successfully."
+    return "Customer not found. Authentication failed."
+```
+
+<Note>
+LLM parameters are passed as function arguments — use the exact **Name** from the LLM Parameters field. The LLM collects these values from the caller during the conversation before invoking the function.
+</Note>
+
+## Common mistakes
+
+<AccordionGroup>
+  <Accordion title="Wrong function signature">
+    Every global tool function must include `conv: Conversation` as its first argument. LLM parameters are passed as additional arguments after `conv`.
+
+    <Tabs>
+      <Tab title="Incorrect">
+        ```python
+        # Missing conv — will cause an error
+        def lookup_order(order_id: str):
+            ...
+        ```
+      </Tab>
+      <Tab title="Correct">
+        ```python
+        def lookup_order(conv: Conversation, order_id: str):
+            ...
+        ```
+      </Tab>
+    </Tabs>
+  </Accordion>
+
+  <Accordion title="Trying to read local files">
+    Functions run in a **sandboxed cloud environment** — they do not have access to your local file system. You cannot read CSV files, text files, or any files stored on your machine.
+
+    Instead:
+    - **Hardcode small datasets** directly in the function (e.g., a dictionary of values)
+    - **Host the file externally** and fetch it at runtime using the [`requests`](/tools/import-library) library
+    - **Use an API** to query the data from an external service
+
+    ```python
+    # This will NOT work — no local file system access
+    import csv
+    with open("customers.csv") as f:
+        reader = csv.reader(f)
+
+    # Instead, fetch from a hosted URL
+    import requests
+    response = requests.get("https://your-api.com/customers")
+    customers = response.json()
+    ```
+  </Accordion>
+
+  <Accordion title="Unreachable code after return">
+    Code after a `return` statement is never executed. While this does not cause an error, it indicates a logic issue.
+
+    <Tabs>
+      <Tab title="Unnecessary">
+        ```python
+        def my_function(conv: Conversation):
+            return "done"
+            pass  # unreachable — remove this
+        ```
+      </Tab>
+      <Tab title="Clean">
+        ```python
+        def my_function(conv: Conversation):
+            return "done"
+        ```
+      </Tab>
+    </Tabs>
+  </Accordion>
+</AccordionGroup>
 
 ## Best practices
 
