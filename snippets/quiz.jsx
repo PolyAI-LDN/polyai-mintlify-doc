@@ -46,12 +46,12 @@ export const Quiz = ({ questions = [] }) => {
                     'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400';
                 } else if (isThisCorrect) {
                   btnClass +=
-                    'cursor-default border-green-400 bg-green-50 text-green-900 font-semibold dark:border-green-700 dark:bg-green-900/30 dark:text-green-100';
+                    'cursor-default border-green-400 bg-green-50 text-green-900 font-semibold dark:border-green-700 dark:bg-green-950 dark:text-green-100';
                   letterClass +=
                     'bg-green-600 text-white dark:bg-green-500 dark:text-white';
                 } else if (isThisSelected) {
                   btnClass +=
-                    'cursor-default border-red-400 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-900/30 dark:text-red-100';
+                    'cursor-default border-red-400 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-950 dark:text-red-100';
                   letterClass +=
                     'bg-red-600 text-white dark:bg-red-500 dark:text-white';
                 } else {
@@ -79,8 +79,8 @@ export const Quiz = ({ questions = [] }) => {
               <div
                 className={
                   isCorrect
-                    ? 'mt-3 rounded-md border border-green-200 bg-green-50 px-3.5 py-2.5 text-sm leading-normal text-green-700 dark:border-green-800 dark:bg-green-900/30 dark:text-green-100'
-                    : 'mt-3 rounded-md border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm leading-normal text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-100'
+                    ? 'mt-3 rounded-md border border-green-200 bg-green-50 px-3.5 py-2.5 text-sm leading-normal text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-100'
+                    : 'mt-3 rounded-md border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm leading-normal text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-100'
                 }
               >
                 <strong>{isCorrect ? 'Correct.' : 'Not quite.'}</strong> {q.explanation}
@@ -97,9 +97,6 @@ export const Quiz = ({ questions = [] }) => {
       >
         Reset quiz
       </button>
-
-      {/* Safelist: ensures Tailwind generates these classes even if its content scan misses them */}
-      <div className="hidden dark:border-green-700 dark:bg-green-900/30 dark:text-green-100 dark:border-red-700 dark:bg-red-900/30 dark:text-red-100 dark:border-green-800 dark:border-red-800 dark:bg-green-500 dark:bg-red-500" />
     </div>
   );
 };
