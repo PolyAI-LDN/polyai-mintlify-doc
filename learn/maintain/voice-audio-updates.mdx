@@ -3,316 +3,108 @@ title: 'Voice and audio updates'
 description: 'Maintain and optimize your agent voice and audio settings.'
 ---
 
-Your agent's voice is a critical part of the customer experience. This page covers how to update voice settings, manage audio quality, and troubleshoot common audio issues.
+Your agent's voice is a critical part of the customer experience. This page covers how to update voice settings, manage audio quality, and fix common audio issues.
 
 ## Quick reference
 
-| I need to... | Action | Time estimate |
-|--------------|--------|---------------|
-| Change the agent's voice | Channels > Voice > Agent Voice → Change | 5 min |
-| Adjust voice parameters | Channels > Voice > Agent Voice → Settings gear | 2 min |
-| Fix a mispronunciation | Channels > Voice > Response Control → Pronunciations | 5 min |
-| Update cached audio | Audio Management → Edit → Sync | 3 min |
-| Change interaction style (latency) | Channels > Voice > Audio Management → Interaction style | 2 min |
-| Enable/disable barge-in | Channels > Voice > Audio Management → Enable barge-in toggle | 1 min |
-| Upload custom audio file | Audio Management → Upload | 5 min |
+| I need to... | Action |
+|---|---|
+| Change the agent's voice | **Channels > Voice > Agent Voice** → Change |
+| Adjust voice parameters | **Channels > Voice > Agent Voice** → settings gear |
+| Fix a mispronunciation | **Channels > Voice > Response Control** → Pronunciations |
+| Update cached audio | **Audio Management** → Edit → Sync |
+| Change interaction style | **Channels > Voice > Audio Management** → Interaction style |
+| Enable/disable barge-in | **Channels > Voice > Audio Management** → toggle |
+| Upload custom audio | **Audio Management** → Upload |
 
 ## Changing your agent's voice
 
-### When to change voices
-
-Consider updating your agent's voice when:
-
-- **Brand refresh** - Your company updates its brand identity
-- **Customer feedback** - Users report the voice is unclear or unpleasant
-- **Language changes** - You're expanding to new languages or regions
-- **Quality improvements** - Newer voice models become available
-- **A/B testing** - You want to test different voices for effectiveness
-
-### How to change the voice
+Consider updating when your brand refreshes, customers report clarity issues, you're expanding to new languages, or newer voice models become available.
 
 1. Go to **Channels > Voice > Agent Voice**
-2. Click **Change** next to the **Assistant** or **Disclaimer** section
-3. The [Voice Library](/voice/voice-library) opens with **Explore** and **Favorites** tabs
-4. Filter voices by **Language**, **Region**, and **Gender**
-5. Preview voices using the play button or enter custom text
-6. Click **Select** to apply the voice
-7. Test in Agent Chat before publishing
+2. Click **Change** to open the [Voice Library](/voice/voice-library)
+3. Filter by **Language**, **Region**, and **Gender**
+4. Preview voices with custom text
+5. Click **Select** to apply
+6. Test in Agent Chat before publishing
 
 <Tip>For non-English projects, use a `multilingual_v2` model to ensure proper language support.</Tip>
 
-### Voice configuration in functions
+For programmatic voice configuration, see [voice classes](/tools/classes/voice) and [Add a voice](/voice/add-a-new-voice).
 
-If you're using voice settings in functions, you can configure provider-specific parameters:
-
-**ElevenLabs:**
-```python
-from polyai.voice import ElevenLabsVoice
-
-conv.set_voice(
-    ElevenLabsVoice(
-        provider_voice_id="a1b2C3d4E5f6G7h8I9j0",
-        stability=0.5,        # 0.0-1.0: consistency of tone
-        similarity_boost=0.7  # 0.0-1.0: match to original voice
-    )
-)
-```
-
-**Cartesia:**
-```python
-from polyai.voice import CartesiaVoice, Emotion, EmotionKind, EmotionIntensity
-
-conv.set_voice(
-    CartesiaVoice(
-        provider_voice_id="cartesia_ai_voice",
-        speed=0.0,  # -1.0 (slowest) to 1.0 (fastest)
-        emotions=[
-            Emotion(EmotionKind.POSITIVITY, EmotionIntensity.HIGH)
-        ],
-        model_id="sonic"
-    )
-)
-```
-
-**Hume:**
-```python
-from polyai.voice import HumeVoice
-
-conv.set_voice(
-    HumeVoice(
-        provider_voice_id="voice_uuid_or_name",
-        version="2",        # "1" for octave-1, "2" for octave-2
-        instant_mode=False,  # Ultra-low latency mode
-    )
-)
-```
-
-**Rime:**
-```python
-from polyai.voice import RimeVoice
-
-conv.set_voice(
-    RimeVoice(
-        provider_voice_id="s3://path/to/manifest.json",
-        speech_alpha=1.0  # <1.0 faster, >1.0 slower
-    )
-)
-```
-
-See [Add a voice](/voice/add-a-new-voice) and [Voice classes](/tools/classes/voice) for the full list of providers and parameters.
-
-## Adjusting speech speed and timing
-
-### Global speech rate
-
-To adjust how fast your agent speaks:
-
-1. Go to **Channels > Voice > Agent Voice**
-2. Click the **Settings** gear icon next to the voice
-3. Adjust the **Stability** and **Clarity and Similarity** sliders
-4. Click **Done** to save, then test with sample phrases
-
-**Recommended ranges:**
-- **0.9-1.0** - Slightly slower, clearer for complex information
-- **1.0** - Normal conversational speed
-- **1.0-1.2** - Faster, more energetic
+## Interaction style and barge-in
 
 ### Interaction style (response latency)
 
-Control how quickly your agent responds after the user stops speaking:
+Control how quickly your agent responds in **Channels > Voice > Audio Management**:
 
-1. Locate the **Interaction style** section in **Channels > Voice > Audio management**
-2. Choose a mode:
-   - **Turbo** (400ms) - Ultra-fast, may interrupt more
-   - **Swift** (1200ms) - Fast responses, good for simple queries
-   - **Balanced** (1600ms) - Default, works for most use cases
-   - **Precise** (2000ms) - Slower but more accurate
+| Mode | Delay | Best for |
+|---|---|---|
+| **Turbo** | 400ms | Ultra-fast, may interrupt more |
+| **Swift** | 1200ms | Simple queries |
+| **Balanced** | 1600ms | Most use cases (default) |
+| **Precise** | 2000ms | Complex queries needing accuracy |
 
-<Warning>Turbo mode increases interruptions. Enable **barge-in** to let callers interrupt the agent naturally.</Warning>
+### Barge-in
 
-### Barge-in settings
+Toggle in **Channels > Voice > Audio Management**. Lets callers interrupt the agent mid-sentence.
 
-Barge-in allows callers to interrupt the agent mid-sentence:
-
-1. Find **Enable barge-in** in **Channels > Voice > Audio management**
-2. Toggle it on or off
-3. Test in Agent Chat to ensure it feels natural
-
-**When to enable:**
-- Using Turbo interaction mode
-- Callers frequently try to interrupt
-- You want more natural, human-like conversations
-
-**When to disable:**
-- Agent needs to deliver complete information (e.g., legal disclaimers)
-- Background noise causes false interruptions
-- Callers prefer to listen fully before responding
+**Enable when:** using Turbo mode, callers frequently interrupt, or you want more natural conversations.
+**Disable when:** delivering complete information (legal disclaimers), background noise causes false interruptions.
 
 ## Managing audio quality
 
-### Audio Management tab
+### Cached audio
 
-The Audio Management tab lets you cache and optimize frequently-used audio:
+The Audio Management tab lets you cache and optimize frequently-used audio for reduced latency and consistent quality.
 
-1. Go to **Channels > Voice > Audio management**
-2. Review cached audio files
-3. Edit, delete, or upload new versions
+- Find utterances in **Channels > Voice > Audio Management**
+- Click **Edit** to adjust stability/clarity settings or add IPA pronunciation corrections
+- Click the **sync** icon to regenerate, then preview
 
-**Benefits:**
-- **Reduced latency** - Cached audio plays instantly
-- **Consistent quality** - Same audio every time
-- **Better pronunciation** - Fine-tune specific phrases
+<Tip>Audio is only cached after the same TTS is generated at least twice within 24 hours. For critical phrases (greetings, transfers), generate them repeatedly or upload manually.</Tip>
 
-### Editing cached audio
+### Custom audio uploads
 
-To update a cached audio file:
+Upload pre-recorded audio (WAV or MP3) for maximum control over greetings, legal disclaimers, or brand-specific moments.
 
-1. Find the utterance in Audio Management
-2. Click **Edit**
-3. Adjust **stability** and **clarity** settings
-4. Add IPA syntax for pronunciation corrections
-5. Click the **sync** icon to regenerate
-6. Click **play** to preview
-7. Save when satisfied
+## Fixing pronunciations
 
-<Tip>Audio is only cached if the same TTS is generated at least twice within 24 hours. For critical phrases (greetings, transfers), generate them repeatedly or upload manually.</Tip>
+When the agent mispronounces words:
 
-### Uploading custom audio
-
-For maximum control, upload pre-recorded audio:
-
-1. Go to **Channels > Voice > Audio management**
-2. Click **Upload**
-3. Select your audio file (WAV or MP3)
-4. Associate it with a specific utterance or trigger
-5. Test in Agent Chat
-
-**Use cases for custom audio:**
-- Brand-specific greetings
-- Legal disclaimers requiring exact wording
-- Music or sound effects
-- Celebrity or executive voices
-
-## Fixing pronunciation issues
-
-### Using Pronunciations
-
-When the agent mispronounces words, use the Pronunciations feature:
-
-1. Go to **Channels > Voice > Response Control** and open the **Pronunciations** tab
+1. Go to **Channels > Voice > Response Control** → **Pronunciations** tab
 2. Click **Add pronunciation**
-3. Enter the word or phrase as it appears in text
-4. Provide the IPA (International Phonetic Alphabet) pronunciation
+3. Enter the word as it appears in text
+4. Provide the IPA pronunciation (e.g., "PolyAI" → `/ˈpɒli eɪ aɪ/`)
 5. Test in Agent Chat
 
-**Example:**
-- **Text:** "PolyAI"
-- **IPA:** `/ˈpɒli eɪ aɪ/`
-
-### Using SSML for advanced control
-
-You can also use SSML (Speech Synthesis Markup Language) in pronunciations:
+You can also use SSML for advanced control:
 
 ```xml
-<break time="500ms"/>  <!-- Pause for 500 milliseconds -->
+<break time="500ms"/>
 <prosody rate="slow">Speak this slowly</prosody>
-<emphasis level="strong">Emphasize this</emphasis>
 ```
 
-### Common pronunciation fixes
+## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| Name mispronounced | Add IPA pronunciation |
-| Numbers spoken too fast | Add `<break>` tags between digits |
-| Acronyms spelled out | Add pronunciation as word (e.g., "NASA" → "nassa") |
-| Domain jargon unclear | Add IPA or SSML emphasis |
-
-<Note>Pronunciations affect **how** things are spoken. If the issue is **what** is said, use Response Controls instead.</Note>
-
-## Troubleshooting audio issues
-
-### Common issues and solutions
-
-| Issue | Likely cause | Solution |
-|-------|--------------|----------|
-| Voice sounds robotic | Low-quality TTS provider | Switch to Cartesia or ElevenLabs, or upgrade voice model |
-| Agent speaks too fast | Rate set too high | Adjust voice settings via the gear icon in Channels > Voice > Agent Voice |
-| Agent interrupts frequently | Turbo mode without barge-in | Enable barge-in or switch to Balanced mode |
+| Issue | Likely cause | Fix |
+|---|---|---|
+| Voice sounds robotic | Low-quality TTS | Switch to Cartesia or ElevenLabs |
+| Agent speaks too fast | Rate set too high | Adjust via settings gear in Agent Voice |
+| Agent interrupts frequently | Turbo mode without barge-in | Enable barge-in or switch to Balanced |
 | Mispronunciations | TTS doesn't recognize word | Add pronunciation in Response Control |
-| Inconsistent audio quality | Not using cached audio | Enable Audio Management for key phrases |
-| High latency | Slow TTS provider or network | Switch to Cartesia or use cached audio |
-| Audio cuts out | Network issues or buffer problems | Check interaction style settings |
-| Background noise causes interruptions | Barge-in too sensitive | Disable barge-in or adjust VAD settings |
+| High latency | Slow TTS provider | Switch to Cartesia or use cached audio |
+| Background noise interruptions | Barge-in too sensitive | Disable barge-in or adjust interaction style |
 
-### Testing audio changes
+## Maintenance routine
 
-After making audio updates:
-
-1. **Test in Agent Chat** - Try various scenarios
-2. **Listen for quality** - Is the voice clear and natural?
-3. **Check timing** - Are pauses and speed appropriate?
-4. **Verify pronunciations** - Are custom words spoken correctly?
-5. **Test interruptions** - Does barge-in work as expected?
-6. **Review in Sandbox** - Make test calls before promoting
-
-## Best practices
-
-### Voice selection
-
-- **Match your brand** - Choose a voice that reflects your company's personality
-- **Consider your audience** - Age, region, and preferences matter
-- **Test with real users** - Get feedback before going live
-- **Use multilingual voices** - For non-English projects, ensure proper language support
-
-### Audio optimization
-
-- **Cache common phrases** - Greetings, transfers, and FAQs should be cached
-- **Use custom audio sparingly** - Only for critical brand moments
-- **Monitor latency** - Balance quality with response speed
-- **Test across devices** - Audio quality varies on different phones
-
-### Maintenance routine
-
-- **Monthly voice review** - Listen to recent calls and identify issues
-- **Update pronunciations** - Add new terms as your business evolves
-- **Refresh cached audio** - When voice settings change, regenerate cache
-- **A/B test changes** - Use variants to test voice updates before full rollout
-
-## Common workflows
-
-### Updating voice for a new brand
-
-1. Select a new voice from the [Voice Library](/voice/voice-library) at **Channels > Voice > Agent Voice**
-2. Adjust stability and clarity via the settings gear icon
-3. Update cached audio for key phrases
-4. Add pronunciations for brand-specific terms
-5. Test thoroughly in Sandbox
-6. Promote to Pre-release for UAT
-7. Gather feedback and refine
-8. Promote to Live
-
-### Fixing a pronunciation issue
-
-1. Identify the mispronounced word from call recordings
-2. Go to **Channels > Voice > Response Control** → **Pronunciations** tab
-3. Add the word with correct IPA pronunciation
-4. Test in Agent Chat
-5. Publish and promote if working correctly
-
-### Optimizing for speed
-
-1. Switch to Cartesia or another low-latency provider
-2. Set interaction style to Turbo
-3. Enable barge-in
-4. Cache all common phrases in Audio Management
-5. Test for interruption issues
-6. Adjust as needed
+- **Monthly:** Listen to recent calls and identify voice quality issues
+- **As needed:** Add pronunciations for new terms
+- **After voice changes:** Regenerate cached audio
 
 ## Related pages
 
-- [Audio Management overview](/audio-management/introduction) - Learn about audio caching and optimization
-- [Response Control](/response-control/introduction) - Manage pronunciations and output controls
-- [Voice Library](/voice/voice-library) - Browse and select voices
-- [Agent Voice](/voice/agent) - Voice configuration options
-- [Multi-language setup](/agent-settings/multilingual) - Configure language support
+- [Audio Management](/audio-management/introduction) — audio caching and optimization
+- [Response Control](/response-control/introduction) — pronunciations and output controls
+- [Voice Library](/voice/voice-library) — browse and select voices
+- [Agent Voice](/voice/agent) — voice configuration options
