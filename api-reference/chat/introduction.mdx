@@ -15,7 +15,7 @@ The Chat API powers webchat integrations including in-browser widgets, web SDK i
 1. **Start a conversation**
    Call `POST /{version}/{account_id}/{project_id}/chat/create`.
    The response includes a `conversation_id` and the assistant's initial `response`.
-   You can optionally pass `integration_attributes` to provide custom context to the agent.
+   You can optionally pass `integration_attributes` to provide custom context to the agent, and `variant_id` to target a specific variant.
 
 2. **Send and receive messages**
    Call `POST /{version}/{account_id}/{project_id}/chat/respond` with the `conversation_id`.
@@ -33,6 +33,7 @@ The Chat API powers webchat integrations including in-browser widgets, web SDK i
 |-------:|-------------------------------------------|
 | US     | https://api.us-1.platform.polyai.app      |
 | UK     | https://api.uk-1.platform.polyai.app      |
+| EUW    | https://api.euw-1.platform.polyai.app     |
 
 **Endpoint format:**
 `/{version}/{account_id}/{project_id}/chat/{operation}`
@@ -61,6 +62,7 @@ All requests must include the following headers (case-sensitive):
 
 ```json
 {
+  "variant_id": "VARIANT-xxxxxxxx",
   "integration_attributes": {
     "user_id": "12345",
     "session_id": "abc-123-def",
@@ -170,9 +172,21 @@ def start(conv):
 
 <Note>Pass `integration_attributes` when creating the chat. They're set on the first turn and available throughout the conversation. Store values in `conv.state` to access them in later turns.</Note>
 
+## Targeting a variant with `variant_id`
+
+Pass `variant_id` in the `create` request body to route the conversation to a specific variant. This is useful for multi-site deployments where different variants serve different brands, languages, or regions.
+
+```json
+{
+  "variant_id": "VARIANT-xxxxxxxx"
+}
+```
+
+<Note>`variant_id` is only accepted on `POST /chat/create`. It cannot be changed after the conversation starts.</Note>
+
 ## Notes
 
-- `create` accepts an optional request body with `integration_attributes`.
+- `create` accepts an optional request body with `variant_id` and `integration_attributes`.
 - `respond` requires `conversation_id`; `message` is optional.
 - `handoff` may appear in the `respond` response with `destination` and `reason`.
 - `close` requires a JSON body containing `conversation_id`.
