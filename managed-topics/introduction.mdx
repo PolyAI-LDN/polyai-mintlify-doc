@@ -112,6 +112,25 @@ Used for static reference material (like opening hours or prices). No interactio
 
 ## Best practices
 
+### Writing good sample questions
+
+Include at least **3 sample questions** per topic. This baseline helps the AI generalize intent across typical phrasings. For broad topics, add more to ensure better coverage.
+
+- Focus on variety in language and structure
+- Think about how real users might describe the same issue — confused, specific, vague, or using non-standard terminology
+- Additional examples should reflect **distinct phrasings**, not slight rewordings
+- Vary sentence lengths alongside phrasing variety
+
+<Info>
+If migrating from an intent-based project, you might have more than 10 sample questions. Trim to the 10 most diverse items while preserving the full semantic scope of the original list.
+</Info>
+
+### Topic naming
+
+Because the topic **Name** is shown to the retriever, it should be semantically close to the topic content. For instance, a topic about payment disputes named "general_behavior-payment" will likely trigger on payment queries in general rather than only on disputes. Make topic names semantically descriptive.
+
+### General guidelines
+
 **Do this:**
 
 - Use specific topic names.
@@ -119,12 +138,28 @@ Used for static reference material (like opening hours or prices). No interactio
 - Keep replies short, helpful, and on-brand.
 - Use `actions` only when necessary.
 - Split multi-part flows into separate turns or topics.
+- After simple FAQs, ensure the agent asks if the user needs more help — either in the topic content or via a global [rule](/agent-settings/rules).
 
 **Avoid this:**
 
 - Bundling multiple intents into one topic.
 - Running too many actions in a single turn (keep it simple — one or two is usually enough).
 - Using vague topic names like `Misc`, `Help`, or `Info`.
+
+### Common anti-patterns
+
+**Mixing text and function calls in one turn:** Instructing the agent to both say something *and* call a function in the same turn is unreliable. The model may do one or the other, but not always both. Instead, split utterances and function calls into separate turns — give the agent one task per turn.
+
+<Tabs>
+<Tab title="Good">
+Turn 1: Agent answers the question and asks if the user wants to be transferred.
+
+Turn 2: If the user says yes, call `transfer_call` with a handoff utterance.
+</Tab>
+<Tab title="Bad">
+Single turn: Answer the question, then immediately call `transfer_call` with utterance — the agent may skip one of these tasks.
+</Tab>
+</Tabs>
 
 ## Activating and deactivating topics
 
