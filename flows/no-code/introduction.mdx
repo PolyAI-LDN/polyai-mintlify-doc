@@ -61,7 +61,13 @@ Use Function steps only when you need more control, such as:
 - Performing numeric comparisons
 - Writing state changes
 
-If your flow starts to require complex logic, that’s when a Function step becomes appropriate.
+Function steps differ from Default steps in several ways:
+
+- They contain **code only** — there is no prompt field.
+- They support conditions for visual routing, but conditions on Function steps **do not have required entities** — your code handles all validation.
+- They do not support ASR biasing, DTMF, or other per-step audio configuration.
+
+If your flow starts to require complex logic, that's when a Function step becomes appropriate.
 
 If you can express the routing clearly using labeled branches, prefer Default steps.
 
@@ -85,10 +91,14 @@ In a Default step:
 
 - The LLM evaluates conditions.
 - Condition labels are meaningful.
-- “Required entities” inform the LLM what must be present before a condition can pass.
+- "Required entities" inform the LLM what must be present before a condition can pass.
 - Routing is determined by the model.
 
-If you reference collected entities inside the prompt, you can use rich text `/entities`. This inserts a template tag in the format `{{entity:entity_name}}` that the system resolves at runtime.
+If you reference collected entities inside the prompt, you can use rich text `/entities`. This inserts a template tag in the format `{{entity:entity_name}}` that the system resolves at runtime. Default step prompts also support variant attribute references (`{{va:attributeId}}`), but **cannot** reference transition functions or global functions — use an [Advanced step](#advanced-step-reference) or [Function step](#function-step-low-code-still-visual) for that.
+
+<Tip>
+**Auto-transition:** When a Default step has only one outgoing condition and all its required entities are collected and valid, the system skips the LLM condition-selection call and transitions automatically. This reduces latency for simple linear flows.
+</Tip>
 
 In Conversation Review, you may see system-generated events that represent automatic entity validation and condition evaluation. These are normal and indicate the system is processing your flow steps correctly.
 
@@ -249,18 +259,64 @@ If someone else looks at your flow, they should understand the logic immediately
 
 ## Entities
 
-Entities are structured values the agent can collect and reuse, such as:
+Entities are structured values the agent can collect and reuse. Each entity has a **type** that determines what validation is applied. Entity names must be unique across all entities in your project.
 
-- Phone number
-- Email
-- Date
-- Time
-- Address
-- Name
-- Number
-- Free text
+Mark an entity as required on a condition if the LLM should not consider that condition satisfied without a valid value. In Function steps, you must enforce this yourself in code.
 
-Mark an entity as required if the LLM should not consider a condition satisfied without a valid value. In Function steps, you must enforce this yourself in code.
+### Entity types and configuration
+
+<AccordionGroup>
+<Accordion title="Free text">
+Open-ended responses with no validation. Use when you need to capture unstructured input like comments or descriptions.
+</Accordion>
+
+<Accordion title="Number (numeric)">
+Numeric values. Configure:
+- **Decimal** — toggle to accept decimal values (float) or restrict to integers
+- **Range** — optionally set a **minimum** and **maximum** value (up to 1,000,000)
+</Accordion>
+
+<Accordion title="Alphanumeric">
+Any mix of letters and numbers. Useful for booking references, confirmation codes, or postal codes. Configure:
+- **Validation type** — choose a built-in preset or custom regex:
+  - **Zip code** — US zip code format (e.g. `12345` or `12345-6789`)
+  - **Postal code** — UK postal code format
+  - **Custom** — your own regular expression
+</Accordion>
+
+<Accordion title="Phone number">
+Telephone numbers. Configure:
+- **Country codes** — restrict to specific countries (26 supported, including US, CA, GB, AU, DE, FR, and others)
+</Accordion>
+
+<Accordion title="Date">
+Calendar dates. Configure:
+- **Day first** — toggle whether day or month comes first in ambiguous formats
+- **Date range** — optionally set a start and end date
+</Accordion>
+
+<Accordion title="Time">
+Clock times. Configure:
+- **Time range** — set a start and end time to restrict valid values
+</Accordion>
+
+<Accordion title="Multiple choice (enum)">
+Selection from a predefined list. Configure:
+- **Options** — the accepted values the caller can choose from
+</Accordion>
+
+<Accordion title="Name">
+Personal names (first name, last name, or both). No additional configuration.
+</Accordion>
+
+<Accordion title="Address">
+Street addresses or locations. No additional configuration.
+</Accordion>
+
+<Accordion title="Email">
+Email addresses. Validated using a standard email pattern.
+</Accordion>
+</AccordionGroup>
 
 ### Validation
 
@@ -276,6 +332,13 @@ If a branch depends on an entity being present, always include a clear fallback 
 </Tip>
 
 For definitions of key terms (step, edge, condition, entity, exit flow), see the **Key concepts** card at the top of this page.
+
+## Step naming rules
+
+- Step names must be **unique within a flow** (case-sensitive).
+- Allowed characters: letters (including accented characters), numbers, spaces, and `_ & , / . -`
+- The **start step** cannot be deleted — reassign the start step to a different node first.
+- Condition labels must be **unique within a step** and cannot exceed **50 characters**.
 
 ## Canvas controls
 
@@ -297,13 +360,23 @@ The flow editor provides controls to help you work with complex flows:
 
 When you connect a Default step to another step, a **condition node** appears on the edge. Each condition has:
 
-| Field | Description |
-|---|---|
-| **Label** | A short name the LLM uses to decide when to take this path (max 50 characters, must be unique within the step) |
-| **Description** | Guidance for the model on when this condition should trigger |
-| **Required entities** | Entities that must be collected before this condition can activate |
+| Field | Required | Description |
+|---|---|---|
+| **Label** | Yes | A short name the LLM uses to decide when to take this path (max 50 characters, must be unique within the step) |
+| **Description** | Yes | Describe **when** the model should trigger this condition. Provide as much detail as necessary — this is the primary signal the LLM uses to choose between paths. |
+| **Required entities** | No | Entities that must be collected and validated before this condition can activate |
+
+<Tip>
+The **description** field is critical for routing accuracy. A label like "large party" tells the LLM *what* the path is; the description tells it *when* to take it — for example, "The caller has confirmed they need a booking for more than 15 guests."
+</Tip>
 
 Write condition labels for humans first — someone reading the flow should understand the routing logic from labels alone.
+
+## ASR biasing and DTMF on Default steps
+
+Default steps support the same ASR biasing and DTMF configuration as Advanced steps. Access these settings from the right-hand configuration panel when editing a step.
+
+For details on each setting, see [ASR biasing in flows](/flows/asr-biasing) and [DTMF in flows](/flows/dtmf).
 
 ## Advanced step reference
 
@@ -311,7 +384,7 @@ Advanced steps give maximum control over transitions, ASR biasing, and DTMF coll
 
 ### ASR biasing options (per-step)
 
-Advanced steps support structured ASR biasing modes for common input types:
+Both Advanced and Default steps support structured ASR biasing modes for common input types:
 
 | Mode | Use case |
 |---|---|
