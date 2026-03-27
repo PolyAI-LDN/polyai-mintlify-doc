@@ -92,7 +92,7 @@ The Conversations API supports several query parameters for filtering and contro
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `include_latency` | Include latency metrics per conversation | `false` |
-| `include_turn_metadata` | Include genai metadata for each turn | `false` |
+| `include_turn_metadata` | Include additional generative AI metadata for each turn. This does not control whether the `turns` array is returned — turns are always included. | `false` |
 
 ## Response structure
 
@@ -111,7 +111,7 @@ The Conversations API supports several query parameters for filtering and contro
 | `from_number` | Caller phone number |
 | `to_number` | Agent phone number |
 | `in_progress` | Whether call is still active |
-| `num_turns` | Number of turns |
+| `num_turns` | Total number of turns in the conversation (integer count) |
 | `total_duration` | Total call duration (seconds) |
 | `polyai_duration` | PolyAI-handled duration (seconds) |
 | `handoff` | Whether handoff occurred |
@@ -121,7 +121,7 @@ The Conversations API supports several query parameters for filtering and contro
 | `num_ood` | Count of out-of-domain turns |
 | `metrics` | Custom metrics logged by agent |
 | `state` | Dialogue state key-value pairs |
-| `turns` | Ordered list of conversation turns |
+| `turns` | Ordered list of conversation turn objects. May be empty if transcript access is disabled in your project's API configuration (see [transcript visibility](#transcript-visibility)). |
 
 ### Turn object
 
@@ -154,3 +154,33 @@ A successful response includes:
 - latency metrics (when `include_latency=true`)
 - translation outputs (when enabled)
 - handoff metadata (if applicable)
+
+## Understanding `turns`, `num_turns`, and `include_turn_metadata`
+
+These three fields are often confused. Here's how they relate:
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `turns` | Array of turn objects | The full ordered list of conversation turns. Included by default, but may be empty if transcript access is disabled in the project's API configuration. |
+| `num_turns` | Integer | A count of turns in the conversation. This value reflects the number of turns that occurred, even if the `turns` array is empty due to configuration. |
+| `include_turn_metadata` | Query parameter (boolean) | When `true`, adds an extra `metadata` field to each turn with generative AI details. Does **not** control whether the `turns` array itself is populated. |
+
+<Note>
+Setting `include_turn_metadata=true` enriches each turn object with additional generative AI metadata. It does not affect whether turns are returned — the `turns` array population is controlled by your project's API configuration, not by this parameter.
+</Note>
+
+## Transcript visibility
+
+The `turns` array in the API response is controlled by the **transcript visibility** setting in your project's API configuration. When transcript access is disabled (`show_transcripts: false`), the API returns an empty `turns` array even though `num_turns` still reports the actual count.
+
+If you need turn-level data and `turns` is empty, contact your PolyAI representative to check or update your project's API configuration.
+
+## Troubleshooting
+
+### `turns` is empty but `num_turns` is greater than zero
+
+If `num_turns` reports a count but the `turns` array is empty:
+
+1. **Check your project's API configuration.** Transcript visibility may be disabled for your project. This is the most common cause — the `turns` array is intentionally empty when `show_transcripts` is set to `false`. Contact your PolyAI representative to verify or update this setting.
+2. **Check if the conversation is still in progress.** If `in_progress` is `true`, turn data may still be arriving and may not be fully available yet.
+3. **Contact your PolyAI representative** if neither of the above applies. This may indicate a data pipeline delay or ingestion issue.
