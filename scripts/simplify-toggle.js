@@ -14,7 +14,8 @@
     'Speech recognition', 'Response control', 'Audio management',
     'Variant management',
     'Flows', 'Test suite',
-    'APIs', 'API and export'
+    'APIs', 'API and export',
+    'PolyAcademy level 2', 'PolyAcademy level 3'
   ];
 
   // Top-nav tab labels to hide in simplified mode.

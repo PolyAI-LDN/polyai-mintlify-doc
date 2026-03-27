@@ -1,5 +1,6 @@
 ---
 title: Flow fundamentals
+description: "Understand flows, steps, and transitions for structured multi-turn interactions."
 icon: "route"
 ---
 
@@ -177,6 +178,50 @@ This is not a model failure — it is a design failure. You did not give it the 
 
 <Warning>
   Always define explicit transitions between steps. Never rely on the model to "know what to do next."
+</Warning>
+
+## Transition pitfalls
+
+Neither `conv.goto_flow` nor `flow.goto_step` interrupt the execution of your function. If you have multiple conditions, be careful not to overwrite one transition with another.
+
+<Tabs>
+  <Tab title="Incorrect">
+    ```python
+    # If condition_1 and condition_2 are both True,
+    # we set step A, then overwrite with B, then C.
+    # Final transition is always C.
+    if condition_1:
+        flow.goto_step("A")
+    if condition_2:
+        flow.goto_step("B")
+    flow.goto_step("C")
+    ```
+  </Tab>
+  <Tab title="Correct (return)">
+    ```python
+    if condition_1:
+        flow.goto_step("A")
+        return
+    if condition_2:
+        flow.goto_step("B")
+        return
+    flow.goto_step("C")
+    ```
+  </Tab>
+  <Tab title="Correct (elif)">
+    ```python
+    if condition_1:
+        flow.goto_step("A")
+    elif condition_2:
+        flow.goto_step("B")
+    else:
+        flow.goto_step("C")
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  This is one of the most common bugs in flow functions. Always use explicit `return` statements or `if/elif/else` chains to prevent unintended transition overwrites.
 </Warning>
 
 ## Exiting a flow

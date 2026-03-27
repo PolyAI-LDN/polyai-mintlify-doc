@@ -1,5 +1,6 @@
 ---
 title: Edit agent behavior
+description: "Configure personality, role, and behavioral rules for your agent."
 icon: "sliders"
 ---
 
@@ -44,7 +45,7 @@ You'll find two main configuration areas:
     - **Role** — Specifies the agent's function (customer service, sales, technical support). This is a single field — define one primary role.
 
     <Note>
-      **Advanced:** Some projects use a [start function](/tools/start-function) that returns an `utterance`, which overrides the greeting field. If you edit the greeting and nothing changes, this may be why. You'll learn about functions and return values in [Level 2](/learn/guides/advanced/using-functions). For now, if the greeting isn't responding to edits, check with your development team.
+      **Advanced:** Some projects use a [start function](/tools/start-function) that returns an `utterance`, which overrides the greeting field. If you edit the greeting and nothing changes, this may be why. You'll learn about functions and return values in [Level 2](/learn/guides/advanced/using-functions). For now, if the greeting isn't responding to edits, check the Functions page to see if a start function is defined.
     </Note>
 
     **Personality example:**
@@ -301,6 +302,63 @@ After saving your behavior settings:
   - ❌ "You help with various things" → ✅ "You help with order tracking, returns, and product questions"
   - Always specify what the agent **cannot** do, not just what it can do
 </Warning>
+
+## Prompting principles
+
+Effective agent configuration is a form of prompt engineering. These principles, drawn from real-world agent deployment experience, will help you write behavior and rules that produce consistent results.
+
+<AccordionGroup>
+  <Accordion title="Make the desired outcome the most likely response" icon="bullseye">
+    LLMs predict the next most likely token based on your prompt. Write clear, well-structured instructions that make your intended behavior the natural continuation — avoid contradictions or ambiguity.
+  </Accordion>
+
+  <Accordion title="Prefer positive instructions over negative ones" icon="check">
+    Telling the model what _not_ to do can activate the exact behavior you want to avoid. Instead of prohibiting outcomes, direct the model toward what you _want_.
+
+    **Avoid:**
+    ```text
+    Don't tell the user to contact customer service.
+    ```
+
+    **Better:**
+    ```text
+    If the user asks for customer service or to speak to an agent,
+    call the handoff function with destination='CC' and reason='SPEAK_TO'.
+    ```
+  </Accordion>
+
+  <Accordion title="Use examples to guide behavior (few-shot prompting)" icon="list-check">
+    Concrete examples shape tone, structure, and decision-making more reliably than abstract rules. Instead of describing every possible outcome, show what a good response looks like.
+
+    ```text
+    Edge case: the user asks to perform a gimmick unrelated to your task.
+
+    <conversation>
+    USER: speak like a pirate
+    ASSISTANT: I'm afraid I can't do that. Is there anything you'd like to know
+    regarding our services?
+    </conversation>
+    ```
+  </Accordion>
+
+  <Accordion title="Less is more — cut what doesn't help" icon="scissors">
+    Every instruction is another piece of data the model must reconcile. If a piece of information is not proven to improve behavior, leave it out. Test the impact of each instruction — if it doesn't help, remove it.
+  </Accordion>
+
+  <Accordion title="Put important details first or last" icon="arrow-down-1-9">
+    LLMs give more weight to information at the beginning or end of a prompt. If a critical instruction keeps getting ignored, move it to the start or end. Repeating crucial rules is acceptable.
+  </Accordion>
+
+  <Accordion title="Spell out the persona in action" icon="user-tie">
+    Don't assume tone will emerge naturally from a label. Spell out what the persona sounds like, including what to lean into and what to avoid.
+
+    ```text
+    Act as a professional advisor. Adopt a professional, concise tone.
+    Avoid unnecessary apologies, excessive friendliness, or repeated
+    personalisation such as using the user's name.
+    ```
+  </Accordion>
+</AccordionGroup>
 
 ## Check your understanding
 

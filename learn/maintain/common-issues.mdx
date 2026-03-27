@@ -1,14 +1,16 @@
 ---
 title: Common issues
-description: Quick fixes for some possible issues
+description: "Diagnose and fix the most frequent agent issues with step-by-step troubleshooting."
 ---
 
 Most hiccups fall into a handful of patterns. Before you open a support ticket, run through the checks below.
 
+## Quick reference
+
 | Symptom | Likely cause | Quick fix | Where to look |
 |---------|--------------|-----------|---------------|
 | **My edit isn't live** | You saved in *Sandbox* but didn't promote. | Promote the new version in **Deployments > Environments**. | [Environments & versions ↗](/environments-and-versions/introduction) |
-| **The bot still uses the old answer** | Cached variant or conflicting topic. | 1) Clear your browser cache / soft-reload. 2) Check if another topic has similar sample questions and higher priority. | [Managed Topics ↗](./knowledge-base) |
+| **The agent still uses the old answer** | Cached variant or conflicting topic. | 1) Clear your browser cache / soft-reload. 2) Check if another topic has similar sample questions and higher priority. | [Managed Topics ↗](./knowledge-base) |
 | **Calls aren't transferring** | Wrong number format, SIP error, or firewall. | Confirm **Route** starts with `+` and country code. If SIP, double-check URI and headers. Test in *Sandbox* first. | [Routing and handoffs ↗](./routing-handoffs) |
 | **Analytics show zero calls** | Dashboard filtered to the wrong environment or date. | Switch environment to **Live** and widen the date range. | [Dashboards overview ↗](/analytics/dashboards/introduction) |
 | **CSV import failed** | Header names or file encoding off. | Re-export a fresh CSV, copy-paste rows, save as UTF-8, re-import. | [CSV imports ↗](/variant-management/csv-imports) |
@@ -16,21 +18,142 @@ Most hiccups fall into a handful of patterns. Before you open a support ticket, 
 | **Audio is silent or distorted** | Voice config mismatch or bad network. | Check **Channels > Voice > Voice Configuration** for the correct TTS voice. Test your network or try another device. | [Voice config ↗](/voice/voice-configuration) |
 | **Agent answers a totally different question** | Mis-matched topic or ASR error. | Review the conversation, tag **Wrong transcription** or **Missing topic**, and fix accordingly. | [Conversation review ↗](/analytics/conversations/review) |
 
+## Knowledge base issues
+
+<AccordionGroup>
+  <Accordion title="Agent gives a wrong or unexpected answer" icon="circle-question">
+    **Diagnosis steps:**
+    1. Open the conversation in **Conversations** and enable **Topic citations** in the diagnosis panel.
+    2. Check which topic was retrieved — is it the right one?
+    3. If the wrong topic was retrieved, the sample questions or topic names may be too similar between topics. Make them more distinct.
+    4. If the right topic was retrieved but the answer is wrong, update the **Content** field.
+
+    **Common causes:**
+    - Two topics with overlapping sample questions — the retriever picks the wrong one
+    - Topic name is too vague (e.g., `info` or `general`) and matches too broadly
+    - Content is outdated or incomplete
+  </Accordion>
+
+  <Accordion title="Agent says 'I don't know' for a topic that exists" icon="ban">
+    **Diagnosis steps:**
+    1. Check that the topic has been **published** and **promoted** to the environment you are testing in.
+    2. Verify the topic has sample questions — without them, retrieval accuracy drops significantly.
+    3. Test different phrasings. If only very specific wording triggers the topic, add more varied sample questions.
+
+    **Common causes:**
+    - Topic exists in Sandbox but hasn't been promoted to Live
+    - Sample questions are too few or too narrow
+    - Topic name is not semantically related to the user's query
+  </Accordion>
+
+  <Accordion title="Agent ignores the Actions section" icon="code">
+    When a topic instructs the agent to both say something and call a function in the same turn, the agent may do one but not the other. This is a common anti-pattern.
+
+    **Fix:** Structure actions so the agent only has one task per turn. If you need to say something and then call a function, split the instruction across turns — let the agent deliver the answer first, then handle the action in a follow-up.
+  </Accordion>
+</AccordionGroup>
+
+## Voice and audio issues
+
+<AccordionGroup>
+  <Accordion title="Voice speed change isn't reflected in calls" icon="gauge-high">
+    The change may be pulling from cached audio. Go to **Audio Management**, find the specific audio clip, update the speed setting, and regenerate the audio.
+  </Accordion>
+
+  <Accordion title="Agent mispronounces a word or brand name" icon="volume-xmark">
+    Use the **Pronunciations** feature in Audio Management. You can provide IPA notation, SSML overrides, or regex-based corrections. See [Audio Management](/learn/guides/advanced/audio-management) for details.
+  </Accordion>
+
+  <Accordion title="Disclaimer voice sounds different from the main agent" icon="microphone-lines">
+    The disclaimer uses a separate voice configuration. Check **Voice > Agent Voice** — the **Disclaimer** section has its own voice selection and tuning, independent of the main assistant voice.
+  </Accordion>
+</AccordionGroup>
+
+## Deployment and version issues
+
+<AccordionGroup>
+  <Accordion title="Changes work in Sandbox but not in Live" icon="rocket">
+    You need to **publish** your changes and then **promote** them through your environments (Sandbox → Pre-release → Live). Changes in Draft or Sandbox are not automatically applied to Live.
+
+    See [Environments and versions](/environments-and-versions/introduction) for the full promotion flow.
+  </Accordion>
+
+  <Accordion title="I promoted but the old behavior persists" icon="clock-rotate-left">
+    1. Wait a few minutes — promotion can take a short time to propagate.
+    2. Check that you promoted the **correct version** by comparing version numbers in the Environments page.
+    3. If using a phone number to test, confirm the number is assigned to the correct environment.
+  </Accordion>
+
+  <Accordion title="Call drops after the disclaimer" icon="phone-slash">
+    If there are no knowledge base topics published to the Live environment, the agent has nothing to say after the disclaimer and will end the call. Ensure at least one topic is published and promoted before going live.
+  </Accordion>
+</AccordionGroup>
+
+## Function and flow issues
+
+<AccordionGroup>
+  <Accordion title="Function isn't being called by the agent" icon="code">
+    1. Check that the function is referenced in a topic's **Actions** field or a step's function list using `@function_name`.
+    2. Verify the function description is clear — the LLM uses it to decide when to call the function.
+    3. Check for typos in the function name reference.
+    4. Use `conv.log` statements to confirm whether the function is being reached at all.
+  </Accordion>
+
+  <Accordion title="Flow skips a step or transitions incorrectly" icon="route">
+    Check the `goto_step` calls in your flow functions. A common bug is using multiple `if` statements instead of `if/elif/else`, which causes later transitions to overwrite earlier ones. See [Flow fundamentals](/learn/guides/expert/flow-fundamentals) for the correct pattern.
+  </Accordion>
+
+  <Accordion title="Function returns an error" icon="triangle-exclamation">
+    1. Add `conv.log` statements to trace execution.
+    2. Check the function's parameters match what the LLM is passing.
+    3. If calling an external API, verify secrets are configured for the correct environment.
+    4. Review the conversation in **Conversations** with the **Function calls** diagnosis toggle enabled.
+
+    See [Function maintenance](/learn/maintain/function-maintenance) for detailed debugging steps.
+  </Accordion>
+</AccordionGroup>
+
+## Telephony and call routing issues
+
+<AccordionGroup>
+  <Accordion title="Call isn't being forwarded to the agent" icon="phone-arrow-right">
+    1. Verify the forwarding number is correct and includes the country code.
+    2. Check that call forwarding is enabled with your telephone provider.
+    3. Ensure the transfer number is not part of the same ring group as the mainline number, which can create a loop.
+  </Accordion>
+
+  <Accordion title="Call transfers fail or drop" icon="phone-xmark">
+    1. Check that the transfer number includes the country code (starts with `+`).
+    2. For SIP transfers, verify the URI and any custom headers.
+    3. Test in Sandbox first before promoting to Live.
+    4. If using Twilio, confirm the fallback number is configured correctly.
+
+    See [Routing and handoffs](/learn/maintain/routing-handoffs) for step-by-step guidance.
+  </Accordion>
+
+  <Accordion title="Caller's phone number shows incorrectly" icon="address-card">
+    Some telephone providers mask the caller number during forwarding, replacing it with the restaurant or business number. Contact your telephone provider and ask them to pass the caller's real number through instead of overwriting it.
+  </Accordion>
+</AccordionGroup>
+
 ## Additional troubleshooting resources
 
 For more specific issues, see:
 
-- [Performance monitoring](/learn/maintain/performance-monitoring) - Latency, ASR, and quality issues
-- [Function maintenance](/learn/maintain/function-maintenance) - Debugging function errors
-- [Voice and audio updates](/learn/maintain/voice-audio-updates) - Audio quality and pronunciation
-- [Version management](/learn/maintain/version-management) - Deployment and rollback issues
+- [Performance monitoring](/learn/maintain/performance-monitoring) — latency, ASR, and quality issues
+- [Function maintenance](/learn/maintain/function-maintenance) — debugging function errors
+- [Voice and audio updates](/learn/maintain/voice-audio-updates) — audio quality and pronunciation
+- [Version management](/learn/maintain/version-management) — deployment and rollback issues
 
 ## When to escalate
 
-- You see repeated **4XX/5XX** errors in call logs.
-- SIP handoffs fail and you've validated the number/URI.
-- Dashboards or transcripts aren't loading at all.
+Contact [PolyAI support](/troubleshoot/faq) when:
 
-For broader troubleshooting, see the main [FAQ](/troubleshoot/faq) or the [support guide](/troubleshoot/support-guide).
+- You see repeated **4XX/5XX** errors in call logs that persist after retrying
+- SIP handoffs fail consistently and you've validated the number, URI, and headers
+- Dashboards or transcripts aren't loading at all
+- Call volume drops more than **30%** unexpectedly
+- The agent's error rate exceeds **5%** across conversations
+- You need changes beyond what's available in the UI
 
-<Tip> Keep a short changelog of what you tweak.</Tip>
+<Tip>Keep a short changelog of what you tweak — it makes debugging much faster when issues arise later.</Tip>
