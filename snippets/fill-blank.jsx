@@ -46,9 +46,9 @@ export const FillBlank = ({ prompt, answer, hint, explanation }) => {
         {submitted ? (
           <div className={getResultClasses(isCorrect)}>
             {isCorrect ? (
-              <><strong>Correct.</strong> {explanation}</>
+              <><strong className="text-black">Correct.</strong>{' '}<span className="text-black">{explanation}</span></>
             ) : (
-              <><strong>Not quite.</strong> The answer is <code>{answers[0]}</code>. {explanation}</>
+              <><strong className="text-black">Not quite.</strong>{' '}<span className="text-black">The answer is <code className="text-black">{answers[0]}</code>. {explanation}</span></>
             )}
           </div>
         ) : null}

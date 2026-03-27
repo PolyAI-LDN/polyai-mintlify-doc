@@ -92,7 +92,7 @@ export const Quiz = ({ questions = [] }) => {
 
             {hasAnswered ? (
               <div className={getExplanationClasses(isCorrect)}>
-                <strong>{isCorrect ? 'Correct.' : 'Not quite.'}</strong> {q.explanation}
+                <strong className="text-black">{isCorrect ? 'Correct.' : 'Not quite.'}</strong>{' '}<span className="text-black">{q.explanation}</span>
               </div>
             ) : null}
           </div>
