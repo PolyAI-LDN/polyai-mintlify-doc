@@ -1,0 +1,165 @@
+---
+title: 'Bring your own model (BYOM)'
+description: 'Connect your own LLM endpoint to PolyAI.'
+---
+
+PolyAI supports **bring-your-own-model (BYOM)** with a simple API integration. If you run your own LLM, expose an endpoint that follows the OpenAI [`chat/completions`](https://platform.openai.com/docs/api-reference/chat/create) schema and PolyAI will treat it like any other provider.
+
+```mermaid
+sequenceDiagram
+    participant Agent as PolyAI Agent
+    participant Endpoint as Your BYOM Endpoint
+    Agent->>Endpoint: POST /chat/completions (OpenAI format)
+    Note over Endpoint: Your model processes the request
+    Endpoint-->>Agent: Response (OpenAI format)
+    Note over Agent: Agent uses response in conversation
+```
+
+## Overview
+
+<Steps>
+  <Step title="Expose an API endpoint">
+    Accept and return data in the OpenAI `chat/completions` format.
+  </Step>
+  <Step title="Configure authentication">
+    PolyAI can send either an `x-api-key` header **or** a Bearer token.
+  </Step>
+  <Step title="Enable streaming (optional)">
+    Support streaming responses using `stream: true` for lower latency.
+  </Step>
+</Steps>
+
+## API endpoint
+
+<Tabs>
+  <Tab title="Request format">
+    ```json
+    {
+      "model": "your-model-id",
+      "messages": [
+        { "role": "system", "content": "You are a helpful assistant." },
+        { "role": "user", "content": "What's the weather today?" }
+      ],
+      "temperature": 0.7,
+      "top_p": 1.0,
+      "stream": false
+    }
+    ```
+
+    <Note>
+      You might receive extra OpenAI-style fields such as `frequency_penalty`, `presence_penalty`, etc.
+    </Note>
+  </Tab>
+  <Tab title="Response format">
+    ```json
+    {
+      "id": "chatcmpl-abc123",
+      "object": "chat.completion",
+      "created": 1712345678,
+      "model": "your-model-id",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "It's sunny today in London."
+          },
+          "finish_reason": "stop"
+        }
+      ]
+    }
+    ```
+  </Tab>
+  <Tab title="Streaming (SSE)">
+    If `stream` is `true`, send Server-Sent Events (SSE) mirroring OpenAI's format:
+
+    ```json
+    data: {
+      "id": "...",
+      "object": "chat.completion.chunk",
+      "choices": [{
+        "delta": { "content": "Hello" },
+        "index": 0,
+        "finish_reason": null
+      }]
+    }
+
+    data: {
+      "choices": [{
+        "delta": {},
+        "index": 0,
+        "finish_reason": "stop"
+      }]
+    }
+
+    data: [DONE]
+    ```
+  </Tab>
+</Tabs>
+
+## Authentication
+
+| Method | Header sent by PolyAI |
+|--------|------------------------|
+| **API Key** | `x-api-key: YOUR_API_KEY` |
+| **Bearer** | `Authorization: Bearer YOUR_TOKEN` |
+
+Configure your server to accept **one** of the above.
+
+## Sample implementation (Python / Flask)
+
+```python
+from flask import Flask, request, jsonify
+import time, uuid
+
+app = Flask(__name__)
+
+@app.route('/chat/completions', methods=['POST'])
+def chat_completions():
+    data = request.json
+    messages = data.get('messages', [])
+    user_input = messages[-1]['content'] if messages else ''
+
+    # Replace with your model inference logic
+    reply = f'You said: {user_input}'
+
+    return jsonify({
+        'id': f'chatcmpl-{uuid.uuid4().hex}',
+        'object': 'chat.completion',
+        'created': int(time.time()),
+        'model': 'my-llm',
+        'choices': [{
+            'index': 0,
+            'message': { 'role': 'assistant', 'content': reply },
+            'finish_reason': 'stop'
+        }]
+    })
+```
+
+## Final checklist
+
+<Warning>
+  Before going live, verify all of the following:
+</Warning>
+
+- [ ] Endpoint reachable with **POST**.
+- [ ] Request/response match **OpenAI `chat/completions`** schema.
+- [ ] Authentication header configured (API Key **or** Bearer token).
+- [ ] (Optional) Streaming supported if needed.
+
+**Send the following to your PolyAI representative to complete setup:**
+
+- **Endpoint URL**
+- **Model ID**
+- **Auth method & credential**
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Model selection" icon="brain" href="/agent-settings/model-use">
+    Choose which LLM powers your agent.
+  </Card>
+  <Card title="Rules" icon="list-check" href="/agent-settings/rules">
+    Set global behavior rules interpreted by the model.
+  </Card>
+</CardGroup>

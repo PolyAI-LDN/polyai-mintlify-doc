@@ -50,273 +50,31 @@ Common questions about Knowledge (Managed Topics and Connected), rules, actions,
   </Accordion>
 </AccordionGroup>
 
-## Managed topics
+## Topic-specific FAQs
 
-Full page: [**Managed Topics**](/managed-topics/introduction)
-
-<AccordionGroup>
-  <Accordion title="How should I structure a topic?" icon="sitemap">
-    Each topic should have:
-
-    - **A clear name**: Use short, descriptive titles like "Refund policy" or "Store hours." The topic name is heavily weighted during [retrieval](/managed-topics/RAG/introduction), so make it specific.
-    - **Sample questions**: You can add up to **20** sample questions per topic. More sample questions help the retriever find the right topic.
-      - Example for *Refund policy*:
-        - "How do I get a refund?"
-        - "Can I return a product for a refund?"
-        - "What's the refund timeline?"
-    - **Content and actions**: Content defines what the agent says; actions define what it does (like triggering a handoff or sending an SMS). See the [actions overview](/managed-topics/how-to-setup-action/introduction) for setup details.
-
-    <Tip>
-      Topic names and sample questions matter more than content for retrieval. The [RAG system](/managed-topics/RAG/introduction) compares user input against all topics and returns the top matches — so well-written names and questions directly improve accuracy.
-    </Tip>
-  </Accordion>
-  <Accordion title="How does topic retrieval (RAG) work?" icon="magnifying-glass">
-    When a user sends a message, the agent does **not** see all topics at once. Instead, it uses [retrieval-augmented generation (RAG)](/managed-topics/RAG/introduction):
-
-    1. The retriever compares the user's message against every topic's **name**, **sample questions**, and **content** — with higher weighting on the name and sample questions.
-    2. The top matching topics are returned to the LLM.
-    3. The LLM selects the best match and generates a response (and may trigger an action, function, or flow).
-
-    This is why topic naming and sample questions are so important — they are the primary signals the retriever uses to find the right content.
-  </Accordion>
-  <Accordion title="Should I use smaller or larger topics?" icon="scale-balanced">
-    - **Larger topics**: Better for agents using newer LLM models (like Raven 3.5), because they can handle more context in a single turn.
-    - **Smaller topics**: Easier for reporting, analysis, and debugging. Also better for agents using older models with limited context windows.
-
-    Balance scope and specificity based on your use case. If you find the agent is confusing similar topics, consider splitting them.
-  </Accordion>
-  <Accordion title="How do I manage a large number of topics?" icon="folder-tree">
-    If you have hundreds of topics, keeping them organized is important for maintenance:
-
-    - **Use consistent naming conventions**: Prefix topics by category (e.g., "Billing - refund policy", "Billing - payment methods") so they sort together.
-    - **Review regularly**: Deactivate topics that are no longer relevant rather than deleting them — you can reactivate later if needed. See [activating and deactivating topics](/managed-topics/introduction#activating-and-deactivating-topics).
-    - **Use CSV import/export**: Managed Topics support CSV export and import for bulk updates — use the **Export CSV** button in the Managed Topics view to get started.
-
-    <Note>
-      There is currently no folder or grouping structure for topics in the UI. Naming conventions are the best way to keep large topic sets navigable.
-    </Note>
-  </Accordion>
-  <Accordion title="How do I manage out-of-scope queries?" icon="ban">
-    Create an "Out-of-scope" topic or add instructions in [global rules](/agent-settings/rules).
-
-    **Example response**: "I'm sorry, I can only help with questions about \[service]. For other inquiries, please contact our support team at \[number/email]."
-
-    Before UAT, clearly define what your agent handles and what it doesn't. This helps testers and customers set expectations, and reduces frustration when the agent declines a request.
-  </Accordion>
-  <Accordion title="How can I handle clarification questions?" icon="circle-question">
-    Add a disambiguation prompt in the content.
-
-    **Example:**
-    - **Topic**: "Booking issues"
-    - **Content**: "Can you confirm if the booking was made online or over the phone?"
-  </Accordion>
-</AccordionGroup>
-
-## Connected knowledge
-
-Full page: [**Connected Knowledge**](/connected-knowledge/introduction)
-
-<AccordionGroup>
-  <Accordion title="What is Connected knowledge and how does it differ from Managed Topics?" icon="plug">
-    Both **Connected** and **Managed Topics** live under the **Knowledge** area in Build, but they serve different purposes:
-
-    - **Connected knowledge** is a fast way to expose external content (websites, PDFs, Zendesk articles) to your agent. It is read-only, synced from external sources, and requires no prompting expertise. However, it **cannot** trigger actions, flows, SMS, or handoffs.
-    - **Managed Topics** are version-controlled, fully editable topics where you control sample questions, content, and actions. They support functions, flows, and all agent behaviors.
-
-    For a detailed comparison, see the [Connected knowledge introduction](/connected-knowledge/introduction#how-connected-knowledge-differs-from-managed-topics).
-  </Accordion>
-  <Accordion title="When should I use Connected knowledge vs. Managed Topics?" icon="scale-balanced">
-    | Scenario | Recommendation |
-    |----------|---------------|
-    | Large FAQ library from an existing help center | **Connected** — fast to set up, auto-syncs |
-    | Content that changes frequently in an external system | **Connected** — stays up to date via sync |
-    | Topics that need to trigger handoffs, SMS, or functions | **Managed Topics** — only option for actions |
-    | You need control over exactly what the agent says | **Managed Topics** — you write the utterances |
-    | Seasonal or toggleable content | **Managed Topics** — supports activation/deactivation per environment |
-
-    Both use RAG for retrieval. If there is a conflict, **Managed Topics content takes priority**.
-
-    <Tip>
-      If you're unsure, start with Connected knowledge for general FAQ content and use Managed Topics for anything that requires specific wording or triggers an action.
-    </Tip>
-  </Accordion>
-  <Accordion title="Why isn't the agent using my Connected knowledge sources?" icon="circle-exclamation">
-    Several factors can affect retrieval:
-
-    - **Data structure**: Connected knowledge splits content into chunks. Very large or loosely structured documents may struggle with relevance. Restructure into smaller, tighter pieces.
-    - **Sync state**: Both the source and the agent must be up to date. Trigger a manual sync if needed.
-    - **Environment and variant**: Each source must be enabled in the correct environment and variant.
-
-    If a topic is critical, consider curating it as a Managed Topic for guaranteed retrieval.
-  </Accordion>
-</AccordionGroup>
-
-## Rules
-
-Full page: [**Rules**](/agent-settings/rules)
-
-<AccordionGroup>
-  <Accordion title="What are global rules?" icon="globe">
-    Global rules set consistent agent behavior across all interactions. Use them for tone, scope, and task-specific instructions.
-
-    **Examples:**
-    - "Always remain professional and empathetic, even when the customer is frustrated."
-    - "Only answer questions about \[service]. For anything else, say: 'I can only help with \[service]-related questions.'"
-  </Accordion>
-  <Accordion title="How long should global rules be?" icon="ruler">
-    Keep global rules **concise** so the model can follow them consistently.
-
-    **Best practices:**
-    - State the most important rules first.
-    - Combine overlapping rules into a single, clear instruction.
-    - Remove redundant or contradictory rules.
-    - Regularly audit your rules against actual agent behavior using [conversation review](/analytics/conversations/review).
-  </Accordion>
-  <Accordion title="Should I include examples in global rules?" icon="lightbulb">
-    Yes — specific examples are more reliable than general instructions. The more concrete you are about what the agent should say, the more consistently it will follow the rule.
-
-    **Instead of:** "Be empathetic."
-
-    **Use:** "When a customer expresses frustration, respond with empathy before problem-solving. Example: 'I completely understand your concern, and I want to make sure we get this sorted for you.'"
-  </Accordion>
-  <Accordion title="Can I apply rules to specific channels or languages?" icon="filter">
-    Yes. You can use channel and language tags to filter content and rules:
-
-    - `<channel:voice>` — applies only to voice calls
-    - `<channel:webchat>` — applies only to webchat
-    - `<language:en>` — applies only to English interactions
-
-    This is useful for multi-channel agents (where voice and chat may need different handling) and [multilingual agents](/agent-settings/multilingual) (where certain phrases or instructions only apply in specific languages).
-  </Accordion>
-  <Accordion title="How should I handle small talk, silence, and broken input?" icon="comment-slash">
-    These are common patterns that benefit from explicit global rules:
-
-    - **Small talk**: "If the user makes small talk, briefly acknowledge and redirect to the task."
-    - **Silence / no input**: "If the user does not respond, prompt them once, then offer to transfer to an agent."
-    - **Broken or unintelligible input**: "If you cannot understand the user's request after two attempts, offer to transfer to a human agent."
-
-    These rules help the agent handle real-world edge cases that are especially common in voice interactions.
-  </Accordion>
-  <Accordion title="How should I plan for risky scenarios?" icon="shield-halved">
-    Identify high-risk situations (like refunds, cancellations, or emergencies) and add clear rules or dedicated topics.
-
-    **Example for refunds:**
-    "Route all refund-related queries to a support specialist."
-
-    <Warning>
-      Always test risky scenario handling in [sandbox](/environments-and-versions/introduction) before deploying to production.
-    </Warning>
-  </Accordion>
-</AccordionGroup>
-
-## Actions
-
-Full page: [**Actions**](/managed-topics/how-to-setup-action/introduction)
-
-<AccordionGroup>
-  <Accordion title="What are actions and what types are there?" icon="bolt">
-    Actions let the agent do things beyond responding with text. They are defined in Managed Topics under the **Actions field**. The main types are:
-
-    - **[SMS](/managed-topics/how-to-setup-action/send-sms)**: Send a text message to the user (e.g., a link, confirmation, or follow-up details).
-    - **[Function calls](/managed-topics/how-to-setup-action/function-call)**: Run a custom function to look up data, perform calculations, or update conversation state.
-    - **[Handoffs](/managed-topics/how-to-setup-action/handoff)**: Transfer the user to a live agent. Handoffs have their own setup requirements, including logging reasons and configuring routing (e.g., SIP headers). See [call handoffs](/call-handoff/introduction) for details.
-
-    **Example:** A user asks about a refund, and the agent sends an SMS with a link to the refund portal.
-  </Accordion>
-  <Accordion title="Can I combine multiple actions?" icon="layer-group">
-    Yes. You can trigger multiple actions for a single topic — for example, sending an SMS and then initiating a handoff.
-  </Accordion>
-  <Accordion title="Can I use state or variables in actions?" icon="database">
-    Yes. You can use [variables](/tools/variables) and state from [functions](/tools/introduction) to conditionally control what happens. For example, you can show different content or trigger different actions depending on whether the user is authenticated or which location they're calling from.
-
-    This is set up through functions that run earlier in the conversation. The state they set can then be referenced in your topic content and actions.
-  </Accordion>
-  <Accordion title="What happens if an action fails?" icon="triangle-exclamation">
-    If an action does not work as expected:
-
-    1. Open the [conversation diagnosis](/analytics/conversations/diagnosis) tool for the affected conversation to see what happened.
-    2. Check that the action is correctly configured — correct function name, SMS template, or handoff destination.
-    3. For handoffs, verify that the target queue or SIP endpoint is reachable and correctly routed.
-    4. Reproduce the issue in [sandbox](/environments-and-versions/introduction) to test your fix before promoting.
-
-    <Tip>
-      Common causes: misconfigured function names, missing variables, and unreachable handoff endpoints.
-    </Tip>
-  </Accordion>
-</AccordionGroup>
-
-## Personality and role
-
-Full page: [**Agent**](/agent-settings/agent)
-
-<AccordionGroup>
-  <Accordion title="How do I set the agent's personality and tone?" icon="face-smile">
-    The agent's name, personality, and role are configured in the **Agent** section (**Build > Agent > Agent**). This is where you set the greeting, personality, and high-level role.
-
-    For detailed tone control, use [global rules](/agent-settings/rules) with **specific examples** of how the agent should respond. Single-sentence instructions like "Be professional" are less reliable than concrete examples:
-
-    **Instead of:** "Be friendly and helpful."
-
-    **Use a rule like:** "When greeting the customer, use their name if available. Example: 'Hi Sarah, thanks for calling \[Brand]. How can I help you today?'"
-
-    <Tip>
-      Test tone in [sandbox](/environments-and-versions/introduction) with adversarial inputs — try frustrated customers, repeated questions, and off-topic requests to make sure the agent responds well under pressure.
-    </Tip>
-  </Accordion>
-  <Accordion title="Is defining a role necessary?" icon="user-tag">
-    It helps the agent stay focused. Add this in the [Agent](/agent-settings/agent) section or as a global rule.
-
-    **Examples:**
-    - "You are a virtual agent for \[Brand], focused on customer support."
-    - "You are a helpful hotel concierge, focused on resolving customer problems and managing reservations."
-  </Accordion>
-</AccordionGroup>
-
-## Environments and testing
-
-<AccordionGroup>
-  <Accordion title="How do I test changes safely before going live?" icon="flask">
-    Use the [deployment pipeline](/environments-and-versions/introduction) to test in isolated environments:
-
-    1. **Draft** — make changes in the editor.
-    2. **Sandbox** — publish your draft and test using [agent chat](/get-started/agent-chat) or a sandbox phone number.
-    3. **Pre-release** — promote for user acceptance testing (UAT).
-    4. **Live** — promote to production when ready.
-
-    You can [compare versions](/environments-and-versions/diffs) across environments before promoting, and [rollback](/environments-and-versions/introduction#rolling-back-to-a-previous-version) if issues arise.
-  </Accordion>
-  <Accordion title="How do I manage multi-site or multi-location agents?" icon="location-dot">
-    Use [variant management](/variant-management/introduction) to manage location-specific content within a single agent. Each variant stores attributes like phone numbers, addresses, and hours.
-
-    Variants are useful for:
-    - Hotel chains, restaurant groups, or retail chains with multiple branches
-    - Agents that need to respond differently based on which number was called
-    - Dynamically populating responses with location-specific data using `${variant_attribute}` syntax
-
-    See the [variant management guide](/variant-management/introduction) and [CSV imports](/variant-management/csv-imports) for bulk configuration.
-  </Accordion>
-</AccordionGroup>
-
-## Technical considerations
-
-<AccordionGroup>
-  <Accordion title="Can prompting affect how the agent talks or understands speech?" icon="microphone">
-    No. Prompts do not influence automatic speech recognition (ASR) or text-to-speech (TTS). These systems are independent.
-
-    <Note>
-      To customize speech recognition, use [ASR biasing](/flows/asr-biasing) and [keyphrase boosting](/speech-recognition/introduction). To customize voice output, see [voice configuration](/voice/introduction).
-    </Note>
-  </Accordion>
-  <Accordion title="What are token and context limits?" icon="memory">
-    Your agent's context is made up of global rules, retrieved topics, conversation history, and system instructions. Keeping this focused helps the agent perform at its best.
-
-    **Tips for managing context:**
-    - Keep global rules concise and prioritized.
-    - Write shorter, focused topic content — this also retrieves better.
-    - If you have many topics, make sure they are clearly differentiated so the retriever returns only the most relevant ones.
-    - Use [conversation diagnosis](/analytics/conversations/diagnosis) to inspect what the agent actually received if behavior seems off.
-  </Accordion>
-</AccordionGroup>
+<CardGroup cols={2}>
+  <Card title="Managed topics" icon="book" href="/troubleshoot/faq-managed-topics">
+    Topic structure, retrieval, sizing, and organization.
+  </Card>
+  <Card title="Connected knowledge" icon="plug" href="/troubleshoot/faq-connected-knowledge">
+    Differences from Managed Topics, when to use, and troubleshooting retrieval.
+  </Card>
+  <Card title="Rules" icon="list-check" href="/troubleshoot/faq-rules">
+    Global rules, examples, channel filtering, and edge case handling.
+  </Card>
+  <Card title="Actions" icon="bolt" href="/troubleshoot/faq-actions">
+    Action types, combining actions, variables, and debugging failures.
+  </Card>
+  <Card title="Personality and role" icon="face-smile" href="/troubleshoot/faq-personality">
+    Setting tone, personality, and role configuration.
+  </Card>
+  <Card title="Environments and testing" icon="flask" href="/troubleshoot/faq-environments">
+    Safe testing, deployment pipeline, and multi-site agents.
+  </Card>
+  <Card title="Technical considerations" icon="microchip" href="/troubleshoot/faq-technical">
+    ASR/TTS independence, token limits, and context management.
+  </Card>
+</CardGroup>
 
 ---
 
