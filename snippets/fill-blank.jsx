@@ -19,11 +19,13 @@ export const FillBlank = ({ prompt, answer, hint, explanation }) => {
 
   const getResultClasses = (correct) =>
     correct
-      ? 'rounded-md border py-2.5 px-3.5 text-sm leading-normal bg-green-50 border-green-200 text-green-900'
-      : 'rounded-md border py-2.5 px-3.5 text-sm leading-normal bg-red-50 border-red-200 text-red-900';
+      ? 'rounded-md border py-2.5 px-3.5 text-sm leading-normal bg-green-50 border-green-200 text-green-900 dark:bg-green-950 dark:border-green-800 dark:text-green-200'
+      : 'rounded-md border py-2.5 px-3.5 text-sm leading-normal bg-red-50 border-red-200 text-red-900 dark:bg-red-950 dark:border-red-800 dark:text-red-200';
 
   return (
     <div className="my-5">
+      {/* Safelist: ensures Tailwind extracts dark-mode classes used in result states */}
+      <div className="hidden dark:bg-green-950 dark:border-green-800 dark:text-green-200 dark:bg-red-950 dark:border-red-800 dark:text-red-200" />
       <p className="mt-0 mb-3 text-sm font-semibold leading-normal text-gray-900 dark:text-gray-100">
         {prompt}
       </p>
