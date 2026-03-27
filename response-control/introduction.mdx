@@ -1,7 +1,7 @@
 ---
 title: "Response control"
 sidebarTitle: "Overview"
-description: "Block or monitor keywords in agent responses."
+description: "Block or monitor keywords in agent responses and control pronunciation."
 tag: "Advanced"
 ---
 
@@ -11,227 +11,18 @@ import AudienceAdvanced from '/snippets/audience-advanced.mdx';
 
 Use response control to prevent your agent from saying things it should not — offensive language, competitor names, filler phrasing, or mispronounced terms. Without these controls, the LLM can produce unexpected outputs that undermine trust or violate compliance requirements.
 
-This page covers two features:
-
-<Tabs>
-  <Tab title="Stop keywords">Block or log specific phrases in agent output (content moderation)</Tab>
-  <Tab title="Pronunciations">Control how your agent pronounces specific terms (voice tuning)</Tab>
-</Tabs>
-
 <Frame caption="Response controls in Agent Studio">
   ![Response controls interface](/images/response_control.png)
 </Frame>
 
----
-
-## Stop keywords
-
-When a response matches a stop keyword pattern, the system halts the response and logs the occurrence. Use stop keywords to catch sensitive content, remove unnecessary preambles, or enforce brand adherence.
-
-### Stop keyword fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| **Title** | String | Unique name for the stop keyword rule (max 100 characters) |
-| **Description** | String | Optional note clarifying the keyword's purpose |
-| **Regular Expression** | String | One or more regex patterns that identify phrases to control |
-| **Say Phrases** | Boolean | `TRUE` — the agent speaks the text up to the matched phrase, then stops. `FALSE` — the agent is interrupted before speaking the phrase. |
-| **Language** | String | Which language this rule applies to. Defaults to "All languages". Only visible for multilingual agents. |
-| **Function** | Reference | Optional — a [function](/tools/introduction) to call when the phrase is detected |
-
-<Warning>
-When a function is triggered by a stop keyword, **caller input and LLM parameters are not passed** to the function. The function runs without conversation context, so it should return a static response or handle the absence of context gracefully.
-</Warning>
-
-### Creating a stop keyword
-
-<Tabs>
-<Tab title="1. Create a function">
-<Frame caption="Creating a stop keyword function in Tools">
-  ![Creating a stop keyword function](/images/stop-keywords-function.png)
-</Frame>
-
-Go to **[Build > Tools](/tools/introduction)** to define a custom function for handling stop keywords.
-
-**Example setup**:
-- **Name**: restricted_phrase
-- **Description**: Respond when stop keywords are detected.
-- **Type**: String
-- **Function definition**:
-
-```python
-def restricted_phrase(conv: Conversation):
-    return "I can only help with questions about our products and services."
-```
-
-</Tab>
-
-<Tab title="2. Configure the keyword">
-<Frame caption="Configuring a stop keyword in Response Controls">
-  ![Stop keyword configuration](/images/stop-keywords-response-control.png)
-</Frame>
-
-Next, go to the **Response Controls** section and add a new stop keyword.
-
-**Setup details**:
-- **ID**: restricted_phrase
-- **Description**: Restrict responses containing specific phrases.
-- **Regular Expression**: `\brestricted_term\b`
-- **Say Phrases**: `TRUE` (to halt responses when detected).
-- **Action**: Link to the `restricted_phrase` function.
-
-</Tab>
-
-<Tab title="3. Test">
-<Frame caption="Testing the stop keyword in webchat">
-  ![Testing stop keyword](/images/stop-keywords-test.png)
-</Frame>
-
-Go to the **Webchat** testing panel to validate your setup.
-
-**Steps**:
-1. Type a message containing the word "Ashmolean."
-2. Observe the agent's response: "The detected phrase is restricted. Please adjust your input."
-3. Confirm that the agent halts any further response generation.
-
-**Expected result**:
-The agent successfully identifies the stop keyword, triggers the linked function, and stops further dialogue.
-
-</Tab>
-</Tabs>
-
-### Common use cases
-
-<AccordionGroup>
-  <Accordion title="Safety compliance" icon="shield-halved">
-    Prevent offensive or harmful language in user interactions.
-
-    | Field | Value |
-    |-------|-------|
-    | **ID** | `stop_inappropriate` |
-    | **Regex** | `\b(offensiveWord1\|offensiveWord2)\b` |
-    | **Say Phrases** | `TRUE` |
-  </Accordion>
-
-  <Accordion title="Remove LLM preambles" icon="scissors">
-    LLMs often add unnecessary meta-explanations before executing an action. Stop keywords cut these off instantly.
-
-    **Before:** "Let's start by gathering some information. Please hold on while I check your cancellation options. Here are your cancellation options."
-
-    **After:** "Here are your cancellation options."
-
-    <Steps>
-      <Step title="Add the stop keyword">
-        Go to **Channels > Voice > Response control** and click **Add Phrase**:
-
-        | Field | Value |
-        |-------|-------|
-        | **ID** | `flow_redundancy_cutoff` |
-        | **Regex** | `\b(let's start\|please hold on\|let me check)\b` |
-        | **Say Phrases** | `TRUE` |
-      </Step>
-      <Step title="Optional: redirect to a function">
-        Trigger a function to replace the blocked phrase with a cleaner response:
-
-        ```python
-        def flow_redundancy_cutoff(conv: Conversation):
-            return "Here are your options."
-        ```
-      </Step>
-      <Step title="Test">
-        Save and test the agent's responses in sandbox.
-      </Step>
-    </Steps>
-  </Accordion>
-
-  <Accordion title="Brand adherence" icon="badge-check">
-    Block responses with phrases outside approved messaging. Log matches for review in the [Analytics Dashboard](/analytics/dashboards/introduction).
-  </Accordion>
-</AccordionGroup>
-
-<Tip>
-  Use regex for complex patterns. See [regex101.com](https://regex101.com/) for a testing tool.
-</Tip>
-
----
-
-## Pronunciations
-
-<Info>
-This section covers voice-specific TTS tuning. If you are only working with webchat, you can skip this section.
-</Info>
-
-PolyAI uses [Text-to-Speech (TTS)](https://www.nvidia.com/en-gb/glossary/text-to-speech/) to convert text into spoken language. Occasionally, uncommon words, domain-specific terms, or proper nouns may be mispronounced. In these cases, the TTS **Pronunciations** tab is available to embed pronunciation guidelines for key phrases in the global rules.
-
-### Key points
-
-- **Enhanced pronunciation accuracy**: Correctly pronounce domain-specific terms and unique phrases using IPA.
-- **Streamlined workflow**: Manage rules directly in Agent Studio.
-- **Flexibility**: Adjust pauses and pronunciation for various needs.
-
-### How it works
-
-Pronunciations use the [International Phonetic Alphabet (IPA)](https://pronunciationstudio.com/english-ipa-chart/) to define pronunciation rules. You can also use SSML (Speech Synthesis Markup Language) such as `<break>`, `<prosody>`, and `<emphasis>` in the replacement string.
-
-You may define pronunciation rules using regular expressions and replacements, including support for **regex capture groups**.
-
-### Multilingual pronunciation rules
-
-For multilingual agents, pronunciation rules are organized by language. Each language has its own set of rules, displayed as separate collapsible cards. Rules within a language card only apply to responses in that language.
-
-To add a rule for a specific language:
-1. Expand the language card.
-2. Add the regex pattern and replacement.
-3. The rule automatically scopes to that language.
-
-Rules with no language specified apply globally across all languages.
-
-#### Rule evaluation order
-
-<Frame caption="Pronunciation rules are evaluated top to bottom">
-  ![Rule evaluation order](/images/response-order.png)
-</Frame>
-
-Pronunciation rules are evaluated **from top to bottom**. Each rule runs on the text produced by the rule above it.
-
-Because rules are applied sequentially, later rules can modify or override earlier transformations. If multiple rules affect the same text, their order determines the final spoken output.
-
-For example, if you have:
-
-1. A rule that formats a phone number with pauses or separators
-2. A rule that converts digits into words
-
-The formatting rule should appear **above** the digit-to-word rule.
-
-### Using capture groups in replacements
-
-If your regular expression uses capture groups (for example, `(\d{3})`), you can refer to these in the replacement string using `\1`, `\2`, etc. This allows you to reformat matched text dynamically.
-
-### Example: Formatting a phone number with pauses
-
-To transform a number like `(651) 359-2923` into:
-
-> "six five one [pause] three five nine [pause] two nine two three"
-
-Use the following pronunciation rule:
-
-- **Regex**: `$begin:math:text$?(\\d{3})$end:math:text$?[ -]?(\d{3})[ -]?(\d{4})`
-- **Replacement**: `\1 <break time="0.5s" /> \2 <break time="0.5s" /> \3`
-- **Case sensitive**: `FALSE`
-
-This uses [SSML breaks](https://cloud.google.com/text-to-speech/docs/ssml#break) between capture groups, allowing for natural read-back of phone numbers or similar patterns.
-
-### Example: IPA correction
-
-- **Regex**: `/\bLouvre\b/`
-- **Replacement**: `/ˈluːvrə/`
-- **Case sensitive**: `FALSE`
-
-This ensures "Louvre" is pronounced correctly.
-
-<Frame caption="Example pronunciation rules">
-  ![Example pronunciation rules](/images/tts-pronunciation.png)
-</Frame>
+<CardGroup cols={2}>
+  <Card title="Stop keywords" icon="ban" href="/response-control/stop-keywords">
+    Block or log specific phrases in agent output (content moderation).
+  </Card>
+  <Card title="Pronunciations" icon="volume-high" href="/response-control/pronunciations">
+    Control how your agent pronounces specific terms (voice tuning).
+  </Card>
+</CardGroup>
 
 ## Related pages
 

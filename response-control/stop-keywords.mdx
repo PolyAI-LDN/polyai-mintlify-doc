@@ -1,0 +1,136 @@
+---
+title: "Stop keywords"
+description: "Block or log specific phrases in agent responses."
+tag: "Advanced"
+---
+
+import AudienceAdvanced from '/snippets/audience-advanced.mdx';
+
+<AudienceAdvanced></AudienceAdvanced>
+
+When a response matches a stop keyword pattern, the system halts the response and logs the occurrence. Use stop keywords to catch sensitive content, remove unnecessary preambles, or enforce brand adherence.
+
+## Stop keyword fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| **Title** | String | Unique name for the stop keyword rule (max 100 characters) |
+| **Description** | String | Optional note clarifying the keyword's purpose |
+| **Regular Expression** | String | One or more regex patterns that identify phrases to control |
+| **Say Phrases** | Boolean | `TRUE` — the agent speaks the text up to the matched phrase, then stops. `FALSE` — the agent is interrupted before speaking the phrase. |
+| **Language** | String | Which language this rule applies to. Defaults to "All languages". Only visible for multilingual agents. |
+| **Function** | Reference | Optional — a [function](/tools/introduction) to call when the phrase is detected |
+
+<Warning>
+When a function is triggered by a stop keyword, **caller input and LLM parameters are not passed** to the function. The function runs without conversation context, so it should return a static response or handle the absence of context gracefully.
+</Warning>
+
+## Creating a stop keyword
+
+<Tabs>
+<Tab title="1. Create a function">
+<Frame caption="Creating a stop keyword function in Tools">
+  ![Creating a stop keyword function](/images/stop-keywords-function.png)
+</Frame>
+
+Go to **[Build > Tools](/tools/introduction)** to define a custom function for handling stop keywords.
+
+**Example setup**:
+- **Name**: restricted_phrase
+- **Description**: Respond when stop keywords are detected.
+- **Type**: String
+- **Function definition**:
+
+```python
+def restricted_phrase(conv: Conversation):
+    return "I can only help with questions about our products and services."
+```
+
+</Tab>
+
+<Tab title="2. Configure the keyword">
+<Frame caption="Configuring a stop keyword in Response Controls">
+  ![Stop keyword configuration](/images/stop-keywords-response-control.png)
+</Frame>
+
+Next, go to the **Response Controls** section and add a new stop keyword.
+
+**Setup details**:
+- **ID**: restricted_phrase
+- **Description**: Restrict responses containing specific phrases.
+- **Regular Expression**: `\brestricted_term\b`
+- **Say Phrases**: `TRUE` (to halt responses when detected).
+- **Action**: Link to the `restricted_phrase` function.
+
+</Tab>
+
+<Tab title="3. Test">
+<Frame caption="Testing the stop keyword in webchat">
+  ![Testing stop keyword](/images/stop-keywords-test.png)
+</Frame>
+
+Go to the **Webchat** testing panel to validate your setup.
+
+**Steps**:
+1. Type a message containing the word "Ashmolean."
+2. Observe the agent's response: "The detected phrase is restricted. Please adjust your input."
+3. Confirm that the agent halts any further response generation.
+
+**Expected result**:
+The agent successfully identifies the stop keyword, triggers the linked function, and stops further dialogue.
+
+</Tab>
+</Tabs>
+
+## Common use cases
+
+<AccordionGroup>
+  <Accordion title="Safety compliance" icon="shield-halved">
+    Prevent offensive or harmful language in user interactions.
+
+    | Field | Value |
+    |-------|-------|
+    | **ID** | `stop_inappropriate` |
+    | **Regex** | `\b(offensiveWord1\|offensiveWord2)\b` |
+    | **Say Phrases** | `TRUE` |
+  </Accordion>
+
+  <Accordion title="Remove LLM preambles" icon="scissors">
+    LLMs often add unnecessary meta-explanations before executing an action. Stop keywords cut these off instantly.
+
+    **Before:** "Let's start by gathering some information. Please hold on while I check your cancellation options. Here are your cancellation options."
+
+    **After:** "Here are your cancellation options."
+
+    <Steps>
+      <Step title="Add the stop keyword">
+        Go to **Channels > Voice > Response control** and click **Add Phrase**:
+
+        | Field | Value |
+        |-------|-------|
+        | **ID** | `flow_redundancy_cutoff` |
+        | **Regex** | `\b(let's start\|please hold on\|let me check)\b` |
+        | **Say Phrases** | `TRUE` |
+      </Step>
+      <Step title="Optional: redirect to a function">
+        Trigger a function to replace the blocked phrase with a cleaner response:
+
+        ```python
+        def flow_redundancy_cutoff(conv: Conversation):
+            return "Here are your options."
+        ```
+      </Step>
+      <Step title="Test">
+        Save and test the agent's responses in sandbox.
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="Brand adherence" icon="badge-check">
+    Block responses with phrases outside approved messaging. Log matches for review in the [Analytics Dashboard](/analytics/dashboards/introduction).
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+  Use regex for complex patterns. See [regex101.com](https://regex101.com/) for a testing tool.
+</Tip>

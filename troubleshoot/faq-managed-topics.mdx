@@ -1,0 +1,64 @@
+---
+title: Managed topics FAQ
+sidebarTitle: Managed topics
+---
+
+Common questions about structuring, retrieving, and managing Managed Topics. For full documentation, see [Managed Topics](/managed-topics/introduction).
+
+<AccordionGroup>
+  <Accordion title="How should I structure a topic?" icon="sitemap">
+    Each topic should have:
+
+    - **A clear name**: Use short, descriptive titles like "Refund policy" or "Store hours." The topic name is heavily weighted during [retrieval](/managed-topics/RAG/introduction), so make it specific.
+    - **Sample questions**: You can add up to **20** sample questions per topic. More sample questions help the retriever find the right topic.
+      - Example for *Refund policy*:
+        - "How do I get a refund?"
+        - "Can I return a product for a refund?"
+        - "What's the refund timeline?"
+    - **Content and actions**: Content defines what the agent says; actions define what it does (like triggering a handoff or sending an SMS). See the [actions overview](/managed-topics/how-to-setup-action/introduction) for setup details.
+
+    <Tip>
+      Topic names and sample questions matter more than content for retrieval. The [RAG system](/managed-topics/RAG/introduction) compares user input against all topics and returns the top matches — so well-written names and questions directly improve accuracy.
+    </Tip>
+  </Accordion>
+  <Accordion title="How does topic retrieval (RAG) work?" icon="magnifying-glass">
+    When a user sends a message, the agent does **not** see all topics at once. Instead, it uses [retrieval-augmented generation (RAG)](/managed-topics/RAG/introduction):
+
+    1. The retriever compares the user's message against every topic's **name**, **sample questions**, and **content** — with higher weighting on the name and sample questions.
+    2. The top matching topics are returned to the LLM.
+    3. The LLM selects the best match and generates a response (and may trigger an action, function, or flow).
+
+    This is why topic naming and sample questions are so important — they are the primary signals the retriever uses to find the right content.
+  </Accordion>
+  <Accordion title="Should I use smaller or larger topics?" icon="scale-balanced">
+    - **Larger topics**: Better for agents using newer LLM models (like Raven 3.5), because they can handle more context in a single turn.
+    - **Smaller topics**: Easier for reporting, analysis, and debugging. Also better for agents using older models with limited context windows.
+
+    Balance scope and specificity based on your use case. If you find the agent is confusing similar topics, consider splitting them.
+  </Accordion>
+  <Accordion title="How do I manage a large number of topics?" icon="folder-tree">
+    If you have hundreds of topics, keeping them organized is important for maintenance:
+
+    - **Use consistent naming conventions**: Prefix topics by category (e.g., "Billing - refund policy", "Billing - payment methods") so they sort together.
+    - **Review regularly**: Deactivate topics that are no longer relevant rather than deleting them — you can reactivate later if needed. See [activating and deactivating topics](/managed-topics/introduction#activating-and-deactivating-topics).
+    - **Use CSV import/export**: Managed Topics support CSV export and import for bulk updates — use the **Export CSV** button in the Managed Topics view to get started.
+
+    <Note>
+      There is currently no folder or grouping structure for topics in the UI. Naming conventions are the best way to keep large topic sets navigable.
+    </Note>
+  </Accordion>
+  <Accordion title="How do I manage out-of-scope queries?" icon="ban">
+    Create an "Out-of-scope" topic or add instructions in [global rules](/agent-settings/rules).
+
+    **Example response**: "I'm sorry, I can only help with questions about \[service]. For other inquiries, please contact our support team at \[number/email]."
+
+    Before UAT, clearly define what your agent handles and what it doesn't. This helps testers and customers set expectations, and reduces frustration when the agent declines a request.
+  </Accordion>
+  <Accordion title="How can I handle clarification questions?" icon="circle-question">
+    Add a disambiguation prompt in the content.
+
+    **Example:**
+    - **Topic**: "Booking issues"
+    - **Content**: "Can you confirm if the booking was made online or over the phone?"
+  </Accordion>
+</AccordionGroup>
