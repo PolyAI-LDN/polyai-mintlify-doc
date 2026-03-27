@@ -17,6 +17,11 @@ export const FillBlank = ({ prompt, answer, hint, explanation }) => {
     setSubmitted(false);
   };
 
+  const getResultClasses = (correct) =>
+    correct
+      ? 'rounded-md border py-2.5 px-3.5 text-sm leading-normal bg-green-50 border-green-200 text-green-700 dark:bg-green-900 dark:border-green-800 dark:text-green-100'
+      : 'rounded-md border py-2.5 px-3.5 text-sm leading-normal bg-red-50 border-red-200 text-red-700 dark:bg-red-900 dark:border-red-800 dark:text-red-100';
+
   return (
     <div className="my-5">
       <p className="mt-0 mb-3 text-sm font-semibold leading-normal text-gray-900 dark:text-gray-100">
@@ -29,40 +34,34 @@ export const FillBlank = ({ prompt, answer, hint, explanation }) => {
             value={value}
             onChange={(e) => { setValue(e.target.value); setSubmitted(false); }}
             placeholder={hint || "Type your answer…"}
-            className="flex-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-blue-500 dark:focus:ring-blue-500 font-mono"
+            className="flex-1 rounded-md border py-2 px-3 text-sm font-mono border-gray-200 bg-white text-gray-900 placeholder-gray-400 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-blue-500 dark:focus:ring-blue-500"
           />
           <button
             type="submit"
-            className="rounded-md border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            className="rounded-md border py-2 px-4 text-sm font-medium border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
           >
             Check
           </button>
         </div>
-        {submitted && (
-          <div
-            className={
-              isCorrect
-                ? 'rounded-md border border-green-200 bg-green-50 px-3.5 py-2.5 text-sm leading-normal text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-100'
-                : 'rounded-md border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm leading-normal text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-100'
-            }
-          >
+        {submitted ? (
+          <div className={getResultClasses(isCorrect)}>
             {isCorrect ? (
               <><strong>Correct.</strong> {explanation}</>
             ) : (
               <><strong>Not quite.</strong> The answer is <code>{answers[0]}</code>. {explanation}</>
             )}
           </div>
-        )}
+        ) : null}
       </form>
-      {submitted && (
+      {submitted ? (
         <button
           type="button"
           onClick={handleReset}
-          className="mt-2 rounded-md border border-gray-200 bg-gray-50 px-4 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800"
+          className="mt-2 py-1.5 px-4 rounded-md border text-xs font-medium border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
         >
           Try again
         </button>
-      )}
+      ) : null}
     </div>
   );
 };
