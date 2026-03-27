@@ -27,48 +27,48 @@ You can now answer without guessing:
 
 <Quiz questions={[
   {
-    q: "You have a utility function defined inside a utils file (not the main function). How do you use it in another file?",
+    q: "You need the same phone number validation in 5 different flow functions. What's the best approach?",
     options: [
-      "conv.functions.utilsFile.helperName()",
-      "from functions.utilsFile import helperName",
-      "flow.functions.helperName()",
-      "import utilsFile; utilsFile.helperName()",
+      "Copy the validation regex into each function",
+      "Define it once in a utility file and import it everywhere",
+      "Use conv.functions to share the validation",
+      "Add the validation to the Rules field",
     ],
     correct: 1,
-    explanation: "conv.functions only works for main functions. To access a helper defined above the main function in a utils file, use standard Python import syntax.",
+    explanation: "Define the validation in a utility file and import it with standard Python syntax. Update it in one place, fix it everywhere — this is the core benefit of modular code.",
   },
   {
-    q: "Why is the flow step prompt more persistent than content returned from a function?",
+    q: "A flow collects a phone number in step 1, but users sometimes give their name first. What should happen?",
     options: [
-      "It uses a special LLM mode",
-      "It is always re-injected as the last message in conversation history",
-      "It overrides all other prompting",
-      "It is stored in a separate memory system",
+      "Reject the name and repeat the phone number question",
+      "Accept the name, save it, and still ask for the phone number — handle information in any order",
+      "Skip the phone number step since the user volunteered different info",
+      "Exit the flow and start over",
     ],
     correct: 1,
-    explanation: "The step prompt is always appended as the last system message, keeping it relevant regardless of how many turns pass — unlike function content which moves further back in history.",
+    explanation: "Design principle 2 (listen robustly): handle information in any order. If the user gives their name unprompted, save it and continue collecting the phone number. Don't discard useful information.",
   },
   {
-    q: "A user gives a tracking number that's correctly formatted but doesn't exist in the system. Which pattern handles this?",
+    q: "A user fails identity verification three times. The flow should transfer to a live agent. How do you implement the transfer message?",
     options: [
-      "Collection — re-ask for the number",
-      "Validation — the format check failed",
-      "Verification — the value is valid but doesn't match known data",
-      "None — this is an API error",
+      "Hard-code a fixed phrase like 'Transferring you now'",
+      "Let the LLM generate the message freely",
+      "Pass the utterance as a function argument so the LLM generates context-appropriate phrasing with deterministic execution",
+      "Use a Response Control to replace the agent's message",
     ],
     correct: 2,
-    explanation: "Validation checks format. Verification checks against known data. A correctly formatted number that doesn't exist in the system is a verification failure.",
+    explanation: "Passing the utterance as a function argument gives you LLM-generated phrasing (context-aware) with deterministic execution (the handoff always happens). Best of both worlds.",
   },
   {
-    q: "The agent says 'I don't see any accounts under that phone number.' How could this be improved for voice?",
+    q: "The agent says 'In order to look up your account, I'll need your phone number. Could you please provide me with that?' — on every single turn. What are two things wrong?",
     options: [
-      "Add an apology before the statement",
-      "Use present progressive: 'I'm not seeing any accounts under that phone number...'",
-      "Add a system explanation of why the lookup failed",
-      "Ask if the user is sure about the number",
+      "The response is too short and needs more detail",
+      "The explanatory preamble is unnecessary, and the phrasing is too formal — simplify to 'What's your phone number?'",
+      "The agent should ask for email instead",
+      "The agent should use DTMF input for phone numbers",
     ],
     correct: 1,
-    explanation: "'I'm not seeing' sounds like actively looking and leaves the door open, while 'I don't see' sounds final and definitive.",
+    explanation: "Two issues: the explanatory statement ('In order to...') is filler the user can infer from context, and 'Could you please provide me with' is overly formal. Combine into a single natural question.",
   }
 ]} />
 
