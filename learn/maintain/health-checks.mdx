@@ -13,9 +13,9 @@ Regular health checks help you catch issues before they impact customers.
 
 | Routine | Frequency | Time required | What to check |
 |---------|-----------|---------------|---------------|
-| Daily check | Every day | 10-15 min | Dashboards, recent errors, handoff rate |
+| Daily check | Every day | 10-15 min | Dashboards, [PolyScore](/analytics/polyscore), recent errors, handoff rate |
 | Weekly review | Every week | 30-60 min | Trends, unhandled queries, sample calls, test sets |
-| Monthly deep dive | Every month | 2-4 hours | Month-over-month metrics, knowledge audit, function optimization |
+| Monthly deep dive | Every month | 2-4 hours | Month-over-month metrics, [CSAT](/analytics/csat/introduction), knowledge audit, function optimization |
 | Pre-deployment | Before each promotion | 20-30 min | Test sets, manual testing, integration checks |
 | Post-deployment | After each promotion | 30 min | Live calls, key metrics, function logs |
 
@@ -24,7 +24,7 @@ Regular health checks help you catch issues before they impact customers.
 Spend 10-15 minutes each morning:
 
 1. **Review the [Standard dashboard](/analytics/dashboards/standard)** — check call volume, handoff rate, and latency against your baseline
-2. **Scan recent errors** in **Analytics > Conversations** filtered to last 24 hours
+2. **Scan recent errors** in [Conversation Review](/analytics/conversations/review) filtered to last 24 hours
 3. **Spot-check handoff reasons** for new patterns — or ask [Smart Analyst](/smart-analyst/introduction): *"What are the top handoff reasons from the last 24 hours?"*
 4. **Verify integrations** — look for API errors in function logs
 
@@ -36,13 +36,16 @@ Stop and investigate if you see:
 - Average latency > 3 seconds
 - Error rate > 5%
 - Call volume drop > 30%
+- [PolyScore](/analytics/polyscore) average drops significantly
+
+<Tip>Automate red flag detection with the [Alerts API](/api-reference/alerts/introduction) — set thresholds for handoff rate, latency, and error rate to get notifications instead of manually checking each morning.</Tip>
 
 ## Weekly review
 
 Spend 30-60 minutes each week:
 
-1. Compare this week's metrics to last week (call volume, containment, duration, latency)
-2. Review **unhandled queries** in dashboards — prioritize knowledge gaps
+1. Compare this week's metrics to last week on the [Standard dashboard](/analytics/dashboards/standard) (call volume, containment, duration, latency)
+2. Review **unhandled queries** in [dashboards](/analytics/dashboards/custom) — prioritize knowledge gaps
 3. **Run a [Smart Analyst](/smart-analyst/introduction) deep sampling query** to surface trends across hundreds of conversations at once — for example: *"What are the top 5 reasons calls are handed off this week?"* or *"What knowledge gaps are causing containment failures?"*
 4. Listen to 5-10 calls flagged by Smart Analyst (mix of successful and unsuccessful)
 5. Check [test set](/analytics/test-suite/introduction) results for regressions
@@ -52,12 +55,15 @@ Spend 30-60 minutes each week:
 
 Spend 2-4 hours at month end:
 
-1. Compare all key metrics month-over-month
+1. Compare all key metrics month-over-month on the [Standard](/analytics/dashboards/standard) and [custom dashboards](/analytics/dashboards/custom)
 2. **Use [Smart Analyst](/smart-analyst/introduction) deep sampling** for a comprehensive analysis — sample up to 500 conversations to break down containment by handoff reason, identify recurring failure patterns, and surface sentiment trends. Try: *"Analyze the top transfer reasons and containment blockers over the last 30 days with percentage breakdowns."*
-3. Audit all [Managed Topics](/managed-topics/introduction) for outdated content — use Smart Analyst to identify knowledge gaps: *"What questions are we not handling well?"*
-4. Review function performance — optimize or refactor slow functions
-5. Maintain [test sets](/analytics/test-suite/introduction) — add new scenarios, remove obsolete ones
-6. Review [version history](/environments-and-versions/project-history) — document major changes
+3. Review [CSAT survey](/analytics/csat/introduction) trends — are satisfaction scores improving or declining?
+4. Audit all [Managed Topics](/managed-topics/introduction) for outdated content — use Smart Analyst to identify knowledge gaps: *"What questions are we not handling well?"*
+5. Review [Agent Analysis](/agent-analysis/introduction) batch trends for category shifts over time
+6. Audit [custom metrics](/settings/metrics) definitions — are they still accurate and producing useful data?
+7. Review function performance — optimize or refactor slow functions
+8. Maintain [test sets](/analytics/test-suite/introduction) — add new scenarios, remove obsolete ones
+9. Review [version history](/environments-and-versions/project-history) — document major changes
 
 ## Pre-deployment check
 
@@ -66,7 +72,7 @@ Before promoting any version to Pre-release or Live:
 1. Run all test sets — investigate any failures before promoting
 2. Manually test critical user journeys and edge cases
 3. Test all external API integrations
-4. Check voice quality and pronunciations
+4. Check [voice quality and pronunciations](/learn/maintain/voice-audio-updates)
 5. Compare to the current Live version using [diffs](/environments-and-versions/diffs)
 6. Have a rollback plan ready (identify last known good version)
 
@@ -80,8 +86,9 @@ After promoting to Pre-release or Live:
 **First 30 minutes:**
 - Watch [Conversation Review](/analytics/conversations/review) in real time
 - Monitor latency, error rate, and handoff rate
-- Verify function logs show no errors
-- Be ready to rollback
+- Check [PolyScore](/analytics/polyscore) on new calls — are scores comparable to pre-deployment?
+- Verify function logs show no errors in [Conversation Diagnosis](/analytics/conversations/diagnosis)
+- Be ready to [rollback](/learn/maintain/version-management)
 
 **First 24 hours:**
 - Check metrics every 2-4 hours against baseline
@@ -104,4 +111,5 @@ Rollback immediately if:
 - **Start small** — if you can't do everything, prioritize daily checks and pre-deployment checks (highest ROI)
 - **Let Smart Analyst do the heavy lifting** — instead of manually reviewing calls, use [Smart Analyst deep sampling](/smart-analyst/introduction) to analyze hundreds of conversations in minutes. It's especially effective for weekly and monthly reviews where you need to spot patterns across large volumes of data.
 - **Automate** — use [test sets](/analytics/test-suite/introduction) for regression testing and the [Alerts API](/api-reference/alerts/introduction) for anomaly notifications
+- **Track satisfaction alongside containment** — [CSAT](/analytics/csat/introduction) tells you if callers are happy, not just whether they were contained. A high containment rate with low CSAT may indicate forced containment rather than genuine resolution.
 - **Adjust frequency** — high-volume or mission-critical agents need tighter monitoring; stable agents can relax the schedule
