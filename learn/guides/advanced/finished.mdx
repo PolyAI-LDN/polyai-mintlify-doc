@@ -29,48 +29,48 @@ You can now answer without guessing:
 
 <Quiz questions={[
   {
-    q: "What do Response Controls regulate?",
+    q: "Your agent says 'Let me check that for you' before every response. You also notice the topic 'billing_help' triggers for unrelated questions. Which tools fix which problem?",
     options: [
-      "How the user's voice is transcribed",
-      "Which topics are available to the agent",
-      "The agent's own generated output",
-      "The agent's language detection logic",
-    ],
-    correct: 2,
-    explanation: "Response Controls run after the LLM generates a response, before it's spoken or sent — they regulate the agent's own output.",
-  },
-  {
-    q: "When should you use Transcript Corrections?",
-    options: [
-      "When a word is under-recognized but correctly transcribed",
-      "When ASR consistently mishears one specific thing as another",
-      "Whenever overall transcription quality is poor",
-      "As a first resort for any speech recognition issue",
+      "Response Control for both — it controls all agent output",
+      "Response Control for the filler phrase; fix the Managed Topic name and sample questions for retrieval",
+      "Keyphrase Boosting for the filler phrase; Response Control for retrieval",
+      "Fix the Rules field for both issues",
     ],
     correct: 1,
-    explanation: "Keyphrase Boosting is for under-recognized words. Transcript Corrections rewrite after transcription — for consistent mishear patterns like \"refund\" being transcribed as \"reef fund\".",
+    explanation: "Response Controls fix what the agent says (output). Managed Topic name and sample questions fix what the agent retrieves (input). Different layers, different tools.",
   },
   {
-    q: "At Level 2, the transcript is considered…",
+    q: "ASR transcribes 'cancel' as 'council' for some callers but not others. What is the best fix?",
     options: [
-      "The primary diagnostic tool",
-      "A reliable record of all conversation events",
-      "Only a symptom",
-      "The first thing to check in any investigation",
-    ],
-    correct: 2,
-    explanation: "The real diagnostic work happens in diagnosis layers, function traces, and variant attribution — not by reading the transcript alone.",
-  },
-  {
-    q: "You notice Variant A has a 40% handoff rate while Variant B has 15% for the same query types. What should you check first?",
-    options: [
-      "Whether the SMS integration is configured differently per variant",
-      "Function traces — compare whether transfer_call fires after different triggers in each variant",
-      "Whether the callers for Variant A are more frustrated",
-      "Whether the Live environment is running the correct version",
+      "Keyphrase Boosting on 'cancel' with maximum bias",
+      "Transcript Correction mapping 'council' to 'cancel'",
+      "Add 'council' as a sample question to the cancel topic",
+      "Change the topic name to match the misheard word",
     ],
     correct: 1,
-    explanation: "Function traces reveal what the agent committed to doing. Comparing transfer_call triggers between variants will show whether the handoff logic differs, which is the most direct way to explain the discrepancy.",
+    explanation: "This is a consistent substitution error — ASR hears the wrong word. Transcript Corrections rewrite after transcription and are the right tool. Adding 'council' as a sample question would work around the issue but doesn't fix the root cause.",
+  },
+  {
+    q: "A function trace shows the agent asked for SMS consent but never called start_sms_flow. The user said 'yes'. What should you investigate?",
+    options: [
+      "Whether the SMS service is down",
+      "Whether a Response Control halted the output before the function could fire",
+      "Whether the user's phone number is valid",
+      "Whether the topic has too many sample questions",
+    ],
+    correct: 1,
+    explanation: "When the agent says the right thing but doesn't execute the action, check for a Response Control interrupting output, a missing action branch, or a rules conflict. These are structural issues, not service outages.",
+  },
+  {
+    q: "You have 15 hotel properties. Each has different hours, addresses, and front desk numbers, but the same core agent behavior. What's the right approach?",
+    options: [
+      "Create 15 separate agent projects",
+      "Use variants — one per property, storing location-specific values",
+      "Put all 15 sets of info into one giant Rules field",
+      "Use Response Controls to switch between properties",
+    ],
+    correct: 1,
+    explanation: "Variants let you maintain one agent while tailoring context-specific values. Creating 15 projects would duplicate all shared logic and make maintenance much harder.",
   }
 ]} />
 
