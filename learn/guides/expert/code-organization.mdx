@@ -180,6 +180,31 @@ def save_tracking_number(conv, flow, tracking_number: str) -> str:
     return f"Order found: {order}"
 ```
 
+## Function types and their roles
+
+As your project grows, distinguishing between different function types becomes critical. Here's a reference for how to think about each type:
+
+| Function type | LLM-callable? | Description |
+|---|---|---|
+| **Flow functions** | Yes | Local to a single flow. Keep them thin — they orchestrate step logic and delegate complex work to global functions. |
+| **Global functions (KB / general-purpose)** | Yes | Reusable across flows and KB topics. Includes flow start functions, transfer calls, and other shared callable functions. |
+| **API handlers** | No | Handle outbound calls to external services. Never call directly from prompts. |
+| **Services** | No | Business rules and orchestration between APIs, models, and utilities. |
+| **Utility files** | No | Simple, deterministic helpers (string formatting, date conversion). No side effects. |
+| **Constants** | No | Shared constants, enums, and configuration values. No logic. |
+
+<Warning>
+  Never import flow functions into other flow functions or global functions. This creates "invisible dependencies" that are extremely difficult to debug — if a flow function is no longer referenced in any prompt, it disappears from the UI but may still be imported elsewhere.
+</Warning>
+
+## Separation of concerns
+
+Follow a **"thin flows, fat services"** approach:
+
+- Keep LLM-facing flow functions focused on: collecting user input, writing state, and transitioning steps
+- Put deterministic logic (validation, comparisons, branching rules, API formatting) in helper modules
+- Do not import LLM-facing functions into unrelated helpers as a way to reuse business logic — reuse helper functions instead
+
 ## Best practices
 
 <CardGroup cols={2}>
@@ -196,6 +221,16 @@ def save_tracking_number(conv, flow, tracking_number: str) -> str:
     Each main function should do one thing. Complex logic should be broken into helpers that are composed together.
   </Card>
 </CardGroup>
+
+## Common pitfalls
+
+| Pitfall | Solution |
+|---|---|
+| Business logic embedded in flow functions | Move to global services or utils. Keep flow functions focused on orchestration. |
+| "Invisible functions" that can't be found | Use clear naming. Centralise reusable logic in global functions. Never import logic from flow functions into others. |
+| Duplicated logic across functions | Centralise repeated patterns into a single global function or util. Update in one place. |
+| Bloated global function files | Simulate folders by namespacing files by concern (e.g., `tracking_utils`, `tracking_api`, `tracking_service`). |
+| Circular dependencies | Follow the function hierarchy: flow functions → global functions → services → utils. Never import upward. |
 
 ## Try it yourself
 
