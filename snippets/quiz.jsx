@@ -27,17 +27,17 @@ export const Quiz = ({ questions = [] }) => {
 
     if (isThisCorrect) {
       return {
-        btn: 'flex w-full items-start gap-2.5 py-2 px-3.5 rounded-md text-sm leading-normal transition-all text-left box-border border cursor-default border-green-600 bg-green-50 text-green-900 font-semibold dark:border-green-500 dark:bg-green-950 dark:text-green-200',
+        btn: 'flex w-full items-start gap-2.5 py-2 px-3.5 rounded-md text-sm leading-normal transition-all text-left box-border border cursor-default border-green-600 bg-green-50 text-black font-semibold',
         letter:
-          'min-w-5 h-5 rounded text-xs font-bold flex items-center justify-center shrink-0 mt-px transition-all bg-green-600 text-white dark:bg-green-500',
+          'min-w-5 h-5 rounded text-xs font-bold flex items-center justify-center shrink-0 mt-px transition-all bg-green-600 text-white',
       };
     }
 
     if (isThisSelected) {
       return {
-        btn: 'flex w-full items-start gap-2.5 py-2 px-3.5 rounded-md text-sm leading-normal transition-all text-left box-border border cursor-default border-red-600 bg-red-50 text-red-900 dark:border-red-500 dark:bg-red-950 dark:text-red-200',
+        btn: 'flex w-full items-start gap-2.5 py-2 px-3.5 rounded-md text-sm leading-normal transition-all text-left box-border border cursor-default border-red-600 bg-red-50 text-black',
         letter:
-          'min-w-5 h-5 rounded text-xs font-bold flex items-center justify-center shrink-0 mt-px transition-all bg-red-600 text-white dark:bg-red-500',
+          'min-w-5 h-5 rounded text-xs font-bold flex items-center justify-center shrink-0 mt-px transition-all bg-red-600 text-white',
       };
     }
 
@@ -50,13 +50,11 @@ export const Quiz = ({ questions = [] }) => {
 
   const getExplanationClasses = (isCorrect) =>
     isCorrect
-      ? 'mt-3 py-2.5 px-3.5 rounded-md text-sm leading-normal border bg-green-50 border-green-200 text-green-900 dark:bg-green-950 dark:border-green-800 dark:text-green-200'
-      : 'mt-3 py-2.5 px-3.5 rounded-md text-sm leading-normal border bg-red-50 border-red-200 text-red-900 dark:bg-red-950 dark:border-red-800 dark:text-red-200';
+      ? 'mt-3 py-2.5 px-3.5 rounded-md text-sm leading-normal border bg-green-50 border-green-200 text-black'
+      : 'mt-3 py-2.5 px-3.5 rounded-md text-sm leading-normal border bg-red-50 border-red-200 text-black';
 
   return (
     <div key={resetCount} className="my-5">
-      {/* Safelist: ensures Tailwind extracts dark-mode classes used in answered states */}
-      <div className="hidden dark:border-green-500 dark:bg-green-950 dark:text-green-200 dark:bg-green-500 dark:border-red-500 dark:bg-red-950 dark:text-red-200 dark:bg-red-500 dark:border-green-800 dark:border-red-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-500 dark:bg-gray-700" />
       {questions.map((q, qIdx) => {
         const answer = selected[qIdx];
         const hasAnswered = answer !== undefined;
