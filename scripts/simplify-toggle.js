@@ -17,8 +17,7 @@
     'APIs', 'API and export',
     'PolyAcademy level 2', 'PolyAcademy level 3',
     // Managed-service integrations (hidden in simplified mode)
-    'Reservations & hospitality', 'Healthcare', 'Payments', 'Data & utilities',
-    'Amazon Connect', 'SIP'
+    'Managed services'
   ];
 
   // Top-nav tab labels to hide in simplified mode.
@@ -33,19 +32,16 @@
     '/flows/',
     '/call-data/conversations-api/',
     '/analytics/test-suite/',
-    '/api-reference/', '/api/',
-    // Managed-service integrations
-    '/integrations/voice/amazon-connect/', '/integrations/voice/sip/',
-    '/integrations/voice/dnis-pool'
+    '/api-reference/', '/api/'
   ];
   var COMPLEX_EXACT = [
     '/call-data/s3-to-s3',
-    // Managed-service integration pages
-    '/integrations/opentable', '/integrations/design-my-night',
-    '/integrations/liveres', '/integrations/hotSOS',
-    '/integrations/salesforce', '/integrations/zendesk',
-    '/integrations/zendesk-ticketing-solutions', '/integrations/gladly',
-    '/integrations/epic',
+    // Managed-service integration pages (not in Studio UI)
+    '/integrations/managed-services',
+    '/integrations/voice/sip/custom-sip', '/integrations/voice/dnis-pool',
+    '/integrations/zoom',
+    '/integrations/design-my-night', '/integrations/liveres',
+    '/integrations/zendesk-ticketing-solutions',
     '/integrations/pci-pal', '/integrations/stripe',
     '/integrations/google-sheets', '/integrations/ideal-postcode',
     '/integrations/deepl'
