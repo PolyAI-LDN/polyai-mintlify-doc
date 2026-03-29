@@ -15,7 +15,10 @@
     'Variant management',
     'Flows', 'Test suite',
     'APIs', 'API and export',
-    'PolyAcademy level 2', 'PolyAcademy level 3'
+    'PolyAcademy level 2', 'PolyAcademy level 3',
+    // Managed-service integrations (hidden in simplified mode)
+    'Reservations & hospitality', 'Healthcare', 'Payments', 'Data & utilities',
+    'Amazon Connect', 'SIP'
   ];
 
   // Top-nav tab labels to hide in simplified mode.
@@ -30,9 +33,23 @@
     '/flows/',
     '/call-data/conversations-api/',
     '/analytics/test-suite/',
-    '/api-reference/', '/api/'
+    '/api-reference/', '/api/',
+    // Managed-service integrations
+    '/integrations/voice/amazon-connect/', '/integrations/voice/sip/',
+    '/integrations/voice/dnis-pool'
   ];
-  var COMPLEX_EXACT = ['/call-data/s3-to-s3'];
+  var COMPLEX_EXACT = [
+    '/call-data/s3-to-s3',
+    // Managed-service integration pages
+    '/integrations/opentable', '/integrations/design-my-night',
+    '/integrations/liveres', '/integrations/hotSOS',
+    '/integrations/salesforce', '/integrations/zendesk',
+    '/integrations/zendesk-ticketing-solutions', '/integrations/gladly',
+    '/integrations/epic',
+    '/integrations/pci-pal', '/integrations/stripe',
+    '/integrations/google-sheets', '/integrations/ideal-postcode',
+    '/integrations/deepl'
+  ];
 
   // These intro pages are "mixed" — they appear in simplified mode with developer
   // content tucked behind an accordion. They must not trigger exit from simplified mode.
