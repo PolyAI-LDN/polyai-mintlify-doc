@@ -15,7 +15,7 @@ import { Quiz } from '/snippets/quiz.jsx'
 Every design decision should be evaluated against these priorities, **in order**:
 
 <Steps>
-  <Step title="1. Do the thing">
+  <Step title="1. Complete the task">
     The user must be able to complete their goal. Right integrations, edge-case fallbacks, no dead ends. If the task is impossible, nothing else matters.
   </Step>
   <Step title="2. Make it easy">
@@ -38,7 +38,7 @@ Collecting a long reference number by voice has a high transcription error rate.
   {
     q: "A user can complete their task, but the flow asks for information in a confusing order and takes 5 minutes when it should take 2. Which priority is violated?",
     options: [
-      "Do the thing",
+      "Complete the task",
       "Make it easy",
       "Add delight",
       "None — the task gets done",
@@ -107,7 +107,7 @@ This means:
 - **Switch workflows** — if a user starts booking a table and then says "wait, I actually want to cancel a reservation", the agent should pivot cleanly.
 - **Undo an action** — if possible, let the user reverse what just happened. If not possible (e.g., an API call already fired), say so clearly.
 
-The worst version of this: the agent says "I'm sorry, let's start over" and drops all collected information. That's a design failure.
+A common anti-pattern: the agent says "I'm sorry, let's start over" and drops all collected information. This is a design failure — the agent should update only the corrected value and retain everything else.
 
 ### 5. Prevent errors
 
@@ -115,7 +115,7 @@ Two parts: confirm before irreversible actions, and plan for things going wrong.
 
 **Before irreversible actions:**
 - Booking submissions, payments, cancellations, account changes — always read back the details and get a "yes" before executing.
-- This adds one turn to the call. That's worth it. Undoing a wrong booking costs far more.
+- This adds one turn to the call, but the cost of undoing an incorrect booking is far higher.
 
 **Plan for failure:**
 - APIs time out. Build a fallback ("I wasn't able to process that — let me connect you with someone who can").
@@ -142,20 +142,20 @@ Two parts: confirm before irreversible actions, and plan for things going wrong.
 
 ### 6. Act efficiently
 
-Every unnecessary turn costs time, patience, and containment rate. Cut aggressively:
+Every unnecessary turn costs time, patience, and containment rate. Remove unnecessary steps wherever possible:
 
 - If the user already gave information, don't ask for it again.
-- If only one option makes sense, don't present it as a choice — just do it.
+- If only one option makes sense, don't present it as a choice — proceed directly.
 - If an explanation isn't needed for the user to make a decision, skip it.
 - Shorten utterances. "What's your phone number?" not "Could you please provide me with the phone number associated with your account?"
 
-The most common efficiency failure: the agent explains *why* before doing the thing. "In order to look up your booking, I'll need your reference number. Could you please provide that?" Just ask: "What's your booking reference?"
+The most common efficiency failure: the agent explains *why* before acting. "In order to look up your booking, I'll need your reference number. Could you please provide that?" Ask directly: "What's your booking reference?"
 
 This is revisited in detail in [Level 3: Writing agent speech](/learn/guides/expert/utterance-design).
 
 ### 7. Speak clearly and naturally
 
-Err on the side of informality. Voice agents that sound like legal documents or corporate emails feel wrong to talk to.
+Err on the side of informality. Voice agents that sound like legal documents or corporate emails create an unnatural conversational experience and increase user disengagement.
 
 Practical rules:
 - Use contractions: "I'll", "we're", "that's"
@@ -195,7 +195,7 @@ Not every user fits the happy path. Design for the edges:
 - **Doesn't have the expected information** — "I don't have my booking reference" should not dead-end the conversation. Offer lookup by name, date, or phone number.
 - **Accessibility** — some users need more time, repeat information, or have speech patterns that challenge ASR. The agent should be patient.
 
-The test: can *every* user who has a legitimate reason to call actually complete their task? If any common user profile is locked out, the design fails guideline 1 (do the thing) as well.
+The test: can *every* user who has a legitimate reason to call actually complete their task? If any common user profile is locked out, the design fails guideline 1 (complete the task) as well.
 
 ### 10. Adapt to the user
 
@@ -207,7 +207,7 @@ Examples:
 - Caller is on a mobile number you recognize → "Is this about the account ending in 4821?"
 - Return caller within 24 hours → "Are you calling back about the same issue?"
 
-This saves time and signals competence. But don't be creepy — if you surface information the user didn't expect you to have, briefly explain how you know ("I can see from your account that...").
+This saves time and signals competence. However, avoid surfacing information in a way that feels intrusive — if you reference data the user didn't expect you to have, briefly explain the source ("I can see from your account that...").
 
 The risk of *not* adapting: the agent asks for information it already has, which wastes time and makes the user feel like they're talking to a system, not a service.
 
