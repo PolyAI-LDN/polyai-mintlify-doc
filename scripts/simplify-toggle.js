@@ -16,8 +16,14 @@
     'Flows', 'Test suite',
     'APIs', 'API and export',
     'PolyAcademy level 2', 'PolyAcademy level 3',
-    // Managed-service integrations (hidden in simplified mode)
-    'Managed services'
+    // Managed-service integration groups (hidden in simplified mode)
+    'Managed services',
+    // Non-UI integration sidebar groups
+    'Amazon Connect',
+    'CRM',
+    'Hospitality',
+    'Healthcare',
+    'Knowledge base'
   ];
 
   // Top-nav tab labels to hide in simplified mode.
@@ -44,7 +50,19 @@
     '/integrations/zendesk-ticketing-solutions',
     '/integrations/pci-pal', '/integrations/stripe',
     '/integrations/google-sheets', '/integrations/ideal-postcode',
-    '/integrations/deepl'
+    '/integrations/deepl',
+    // Non-UI integrations — only Five9, Twilio, Dialpad are click-and-go
+    '/integrations/voice/introduction',
+    '/integrations/voice/sip/NICECXone',
+    '/integrations/voice/amazon-connect/amazon-connect',
+    '/integrations/voice/sip/genesys',
+    '/integrations/zendesk',
+    '/integrations/salesforce',
+    '/integrations/opentable',
+    '/integrations/hotSOS',
+    '/integrations/epic',
+    '/integrations/gladly',
+    '/integrations/snapcall'
   ];
 
   // These intro pages are "mixed" — they appear in simplified mode with developer
