@@ -17,38 +17,39 @@ export const FillBlank = ({ prompt, answer, hint, explanation }) => {
     setSubmitted(false);
   };
 
-  const getResultClasses = (correct) =>
-    correct
-      ? 'rounded-md border py-2.5 px-3.5 text-sm leading-normal bg-green-50 border-green-200 text-black'
-      : 'rounded-md border py-2.5 px-3.5 text-sm leading-normal bg-red-50 border-red-200 text-black';
-
   return (
-    <div className="my-5">
-      <p className="mt-0 mb-3 text-sm font-semibold leading-normal text-gray-900 dark:text-gray-100">
+    <div className="my-6">
+      <p className="mt-0 mb-3 text-sm font-semibold leading-relaxed text-gray-900 dark:text-gray-100">
         {prompt}
       </p>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
         <div className="flex gap-2">
           <input
             type="text"
             value={value}
             onChange={(e) => { setValue(e.target.value); setSubmitted(false); }}
             placeholder={hint || "Type your answer…"}
-            className="flex-1 rounded-md border py-2 px-3 text-sm font-mono border-gray-200 bg-white text-gray-900 placeholder-gray-400 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-blue-500 dark:focus:ring-blue-500"
+            className="flex-1 rounded-xl border py-2.5 px-4 text-sm font-mono border-gray-200 bg-white text-gray-900 placeholder-gray-400 outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-200 transition-all duration-150 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-600 dark:focus:border-gray-500 dark:focus:ring-gray-700"
           />
           <button
             type="submit"
-            className="rounded-md border py-2 px-4 text-sm font-medium border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            className="rounded-xl border py-2.5 px-5 text-sm font-medium transition-all duration-150 border-gray-800 bg-gray-800 text-white hover:bg-gray-700 hover:border-gray-700 dark:border-gray-200 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-white"
           >
             Check
           </button>
         </div>
         {submitted ? (
-          <div className={getResultClasses(isCorrect)}>
+          <div className={`py-3 pl-4 pr-3.5 rounded-r-xl text-sm leading-relaxed border-l-4 ${isCorrect ? 'border-green-500 bg-green-50 dark:bg-green-900 dark:border-green-500' : 'border-red-500 bg-red-50 dark:bg-red-900 dark:border-red-500'}`}>
             {isCorrect ? (
-              <><span className="font-semibold !text-black">Correct.</span>{' '}<span className="!text-black">{explanation}</span></>
+              <>
+                <span className={`font-semibold !text-green-800 dark:!text-green-200`}>Correct.</span>{' '}
+                <span className="!text-gray-700 dark:!text-gray-300">{explanation}</span>
+              </>
             ) : (
-              <><span className="font-semibold !text-black">Not quite.</span>{' '}<span className="!text-black">The answer is <code className="!text-black">{answers[0]}</code>. {explanation}</span></>
+              <>
+                <span className="font-semibold !text-red-800 dark:!text-red-200">Not quite.</span>{' '}
+                <span className="!text-gray-700 dark:!text-gray-300">The answer is <code className="!text-gray-800 dark:!text-gray-200">{answers[0]}</code>. {explanation}</span>
+              </>
             )}
           </div>
         ) : null}
@@ -57,7 +58,7 @@ export const FillBlank = ({ prompt, answer, hint, explanation }) => {
         <button
           type="button"
           onClick={handleReset}
-          className="mt-2 py-1.5 px-4 rounded-md border text-xs font-medium border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+          className="mt-2 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 underline underline-offset-2 cursor-pointer transition-colors duration-150"
         >
           Try again
         </button>
