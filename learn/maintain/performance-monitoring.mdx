@@ -1,6 +1,7 @@
 ---
 title: 'Performance monitoring'
 description: 'Track metrics, diagnose issues, and optimize your agent.'
+icon: 'chart-line'
 ---
 
 Monitor your agent's performance to identify issues before they impact customers.
@@ -22,82 +23,94 @@ Use [Smart Analyst](/smart-analyst/introduction) to investigate performance issu
 
 ## Key metrics
 
-### Response latency
+<CardGroup cols={3}>
+  <Card title="Response latency" icon="gauge-high">
+    Time from when the user stops speaking to when the agent starts responding.
 
-Time from when the user stops speaking to when the agent starts responding. Target: under 2 seconds.
+    **Target:** under 2 seconds
 
-**Common causes of high latency:** slow function execution, external API delays, complex knowledge retrieval, overly complex prompts.
+    **Common causes of high latency:** slow function execution, external API delays, complex knowledge retrieval, overly complex prompts.
+  </Card>
+  <Card title="Containment rate" icon="arrows-to-circle">
+    Percentage of calls handled without human handoff.
 
-### Containment rate
+    **Target:** varies by use case (typically 60-90%)
 
-Percentage of calls handled without human handoff. Target varies by use case (typically 60-90%).
+    **Common causes of low containment:** knowledge gaps, complex queries, caller preference for humans, technical errors.
+  </Card>
+  <Card title="ASR accuracy" icon="ear-listen">
+    How accurately the agent transcribes what the caller says.
 
-**Common causes of low containment:** knowledge gaps, complex queries, caller preference for humans, technical errors.
+    **Target:** above 95% word accuracy
 
-### ASR accuracy
-
-How accurately the agent transcribes what the caller says. Target: above 95% word accuracy.
-
-**Common causes of low accuracy:** background noise, strong accents, uncommon words or jargon, poor phone connection.
+    **Common causes of low accuracy:** background noise, strong accents, uncommon words or jargon, poor phone connection.
+  </Card>
+</CardGroup>
 
 ## Monitoring tools
 
-### Dashboards
-
-Go to **Configure > Dashboards** for high-level metrics: call volume, average duration, handoff rate, top intents, and performance trends. Filter by date range, environment, variant, or version.
-
-### Conversation Review
-
-Go to **Analytics > Conversations** to drill into individual calls. Search, filter, listen to recordings, review transcriptions, and check the Diagnosis panel for technical details (function logs, knowledge retrieval, LLM prompts, timing breakdown).
-
-### Smart Analyst
-
-Use [Smart Analyst](/smart-analyst/introduction) for deeper investigation. Its **deep sampling** capability analyzes up to 500 conversations per query, surfacing patterns across your data that would take hours to find manually. Launch it directly from dashboard charts using the **Generate insights** button, or go to **Analytics > Smart Analyst** and ask questions like *"Why are calls failing containment this week?"* or *"What do low-PolyScore calls have in common?"*
-
-### Test sets
-
-Use [test sets](/analytics/test-suite/introduction) for automated regression testing and version comparison. Run them before promoting versions.
+<CardGroup cols={2}>
+  <Card title="Dashboards" icon="chart-bar" href="/analytics/dashboards/introduction">
+    High-level metrics: call volume, average duration, handoff rate, top intents, and performance trends. Filter by date range, environment, variant, or version.
+  </Card>
+  <Card title="Conversation review" icon="comments" href="/analytics/conversations/review">
+    Drill into individual calls — search, filter, listen to recordings, review transcriptions, and check the Diagnosis panel for technical details.
+  </Card>
+  <Card title="Smart Analyst" icon="magnifying-glass-chart" href="/smart-analyst/introduction">
+    Deep sampling analyzes up to 500 conversations per query. Launch from dashboard charts using **Generate insights**, or go to **Analytics > Smart Analyst**.
+  </Card>
+  <Card title="Test sets" icon="vial" href="/analytics/test-suite/introduction">
+    Automated regression testing and version comparison. Run before promoting versions.
+  </Card>
+</CardGroup>
 
 ## Diagnosing common issues
 
-### High latency
+<AccordionGroup>
+  <Accordion title="High latency" icon="gauge-high">
+    <Steps>
+      <Step title="Filter conversations">Filter **Analytics > Conversations** by high latency.</Step>
+      <Step title="Check timing breakdown">Open **Diagnosis** and check the timing breakdown.</Step>
+      <Step title="Identify the bottleneck">Determine whether it's function execution, knowledge retrieval, LLM generation, or TTS.</Step>
+    </Steps>
 
-1. Filter **Analytics > Conversations** by high latency
-2. Open **Diagnosis** → check the timing breakdown
-3. Identify the bottleneck: function execution, knowledge retrieval, LLM generation, or TTS
+    **Fixes:** optimize slow functions, cache common audio phrases, switch to a faster TTS provider, simplify knowledge sources, add [delay controls](/tools/delay-control).
+  </Accordion>
+  <Accordion title="Low ASR accuracy" icon="ear-listen">
+    <Steps>
+      <Step title="Review transcriptions">Compare transcriptions to audio recordings in Conversation Review.</Step>
+      <Step title="Look for patterns">Check for specific words, accents, or noise environments that cause errors.</Step>
+    </Steps>
 
-**Fixes:** optimize slow functions, cache common audio phrases, switch to a faster TTS provider, simplify knowledge sources, add [delay controls](/tools/delay-control).
+    **Fixes:** add custom vocabulary, adjust ASR sensitivity, add clarification prompts for ambiguous input.
+  </Accordion>
+  <Accordion title="Knowledge gaps" icon="book-open">
+    <Steps>
+      <Step title="Check unhandled queries">Go to **Configure > Dashboards** → unhandled queries.</Step>
+      <Step title="Review unanswered questions">Find common questions without answers in Conversation Review.</Step>
+      <Step title="Use Smart Analyst">Ask [Smart Analyst](/smart-analyst/introduction): *"What questions are we not handling well?"*</Step>
+    </Steps>
 
-### Low ASR accuracy
+    **Fixes:** add missing topics to [Managed Topics](/managed-topics/introduction), add [Connected Knowledge](/connected-knowledge/introduction) sources, improve topic descriptions for better retrieval.
+  </Accordion>
+  <Accordion title="Function errors" icon="code">
+    <Steps>
+      <Step title="Filter by errors">Filter **Analytics > Conversations** by errors.</Step>
+      <Step title="Review function logs">Check **Diagnosis** → function logs for error details.</Step>
+    </Steps>
 
-1. Review transcriptions in Conversation Review
-2. Compare to audio recordings
-3. Look for patterns (specific words, accents, noise)
+    **Fixes:** fix code, update API credentials, add error handling and retries, add logging with `conv.log` for better debugging.
+  </Accordion>
+  <Accordion title="High handoff rate" icon="phone-arrow-right">
+    <Steps>
+      <Step title="Check handoff metrics">Go to **Configure > Dashboards** → handoff metrics.</Step>
+      <Step title="Review handoff reasons">Look for patterns in handoff reasons.</Step>
+      <Step title="Use Smart Analyst">Ask [Smart Analyst](/smart-analyst/introduction): *"What are the top 5 reasons conversations are transferred to a human agent?"*</Step>
+    </Steps>
 
-**Fixes:** add custom vocabulary, adjust ASR sensitivity, add clarification prompts for ambiguous input.
-
-### Knowledge gaps
-
-1. Check **Configure > Dashboards** → unhandled queries
-2. Review common questions without answers in Conversation Review
-3. Use [Smart Analyst](/smart-analyst/introduction) deep sampling to identify gaps at scale — try: *"What questions are we not handling well?"* or *"Where does the agent give incorrect or incomplete answers?"*
-
-**Fixes:** add missing topics to [Managed Topics](/managed-topics/introduction), add [Connected Knowledge](/connected-knowledge/introduction) sources, improve topic descriptions for better retrieval.
-
-### Function errors
-
-1. Filter **Analytics > Conversations** by errors
-2. Review **Diagnosis** → function logs
-
-**Fixes:** fix code, update API credentials, add error handling and retries, add logging with `conv.log` for better debugging.
-
-### High handoff rate
-
-1. Check **Configure > Dashboards** → handoff metrics
-2. Review handoff reasons for patterns
-3. Ask [Smart Analyst](/smart-analyst/introduction): *"What are the top 5 reasons conversations are transferred to a human agent?"* — deep sampling gives you a percentage breakdown across hundreds of calls
-
-**Fixes:** add knowledge for common handoff reasons, adjust handoff rules, add self-service options before handoff.
+    **Fixes:** add knowledge for common handoff reasons, adjust handoff rules, add self-service options before handoff.
+  </Accordion>
+</AccordionGroup>
 
 ## Optimization quick wins
 
@@ -109,8 +122,6 @@ Use [test sets](/analytics/test-suite/introduction) for automated regression tes
 | **Quality** | Fix pronunciations, improve response clarity, test with real users |
 
 ## Debugging toolkit
-
-All debugging tools available in Agent Studio:
 
 | Tool | Purpose | Where to find it |
 |------|---------|-----------------|
@@ -124,8 +135,17 @@ All debugging tools available in Agent Studio:
 
 ## Related pages
 
-- [Smart Analyst](/smart-analyst/introduction) — AI-powered conversation analysis with deep sampling
-- [Health checks](/learn/maintain/health-checks) — proactive monitoring routines
-- [QA and analytics](/learn/maintain/qa-analytics) — daily dashboard and conversation review workflows
-- [Function maintenance](/learn/maintain/function-maintenance) — debugging and optimizing functions
-- [Alerts API](/api-reference/alerts/introduction) — automated alerts for latency, errors, and call volume
+<CardGroup cols={2}>
+  <Card title="Smart Analyst" href="/smart-analyst/introduction" icon="magnifying-glass-chart">
+    AI-powered conversation analysis with deep sampling
+  </Card>
+  <Card title="Health checks" href="/learn/maintain/health-checks" icon="heart-pulse">
+    Proactive monitoring routines
+  </Card>
+  <Card title="QA and analytics" href="/learn/maintain/qa-analytics" icon="chart-pie">
+    Daily dashboard and conversation review workflows
+  </Card>
+  <Card title="Function maintenance" href="/learn/maintain/function-maintenance" icon="code">
+    Debugging and optimizing functions
+  </Card>
+</CardGroup>

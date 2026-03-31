@@ -1,6 +1,7 @@
 ---
 title: 'Function maintenance'
 description: 'Update, debug, and optimize your agent functions.'
+icon: 'code'
 tag: "Code"
 ---
 
@@ -19,11 +20,23 @@ Update function code, debug errors, rotate credentials, and optimize performance
 
 ## Updating function code
 
-1. Go to **Build > Tools** and select the function
-2. Edit the Python code in the Function Editor
-3. **Save**, then test in Agent Chat
-4. Review logs in **Conversation Review → Diagnosis**
-5. Publish when satisfied
+<Steps>
+  <Step title="Open the function">
+    Go to **Build > Tools** and select the function.
+  </Step>
+  <Step title="Edit the code">
+    Edit the Python code in the Function Editor.
+  </Step>
+  <Step title="Save and test">
+    **Save**, then test in Agent Chat.
+  </Step>
+  <Step title="Review logs">
+    Review logs in **Conversation Review → Diagnosis**.
+  </Step>
+  <Step title="Publish">
+    Publish when satisfied.
+  </Step>
+</Steps>
 
 <Tip>Always test function changes in Sandbox before promoting to Live.</Tip>
 
@@ -63,77 +76,156 @@ Logs appear in **Conversation Review → Diagnosis**, **Agent Chat** (during tes
 
 ### Common debugging steps
 
-1. Review **Diagnosis** logs for the failing function
-2. Reproduce the issue in Agent Chat
-3. Check function inputs — are parameters being passed correctly?
-4. Validate external APIs directly (Postman, curl)
-5. Review the function description — is it clear when the function should trigger?
+<Steps>
+  <Step title="Review Diagnosis logs">
+    Check the logs for the failing function in **Conversation Review → Diagnosis**.
+  </Step>
+  <Step title="Reproduce in Agent Chat">
+    Trigger the same scenario in Agent Chat.
+  </Step>
+  <Step title="Check function inputs">
+    Are parameters being passed correctly by the LLM?
+  </Step>
+  <Step title="Validate external APIs">
+    Test APIs directly (Postman, curl) to isolate the issue.
+  </Step>
+  <Step title="Review the description">
+    Is the function description clear about when it should trigger?
+  </Step>
+</Steps>
 
 ### Common errors
 
-| Error | Likely cause | Fix |
-|---|---|---|
-| Function not triggering | Unclear description or KB action | Simplify description; clarify when to call it |
-| Wrong parameters | LLM misunderstanding | Improve parameter names and descriptions |
-| Timeout | Slow API or complex logic | Add [delay controls](/tools/delay-control); optimize code |
-| Auth failures | Expired credentials | Update [secrets](/secrets/introduction) |
-| Import errors | Missing library | Check [available libraries](/tools/import-library) |
+<AccordionGroup>
+  <Accordion title="Function not triggering" icon="circle-xmark">
+    **Likely cause:** Unclear description or KB action.
+
+    **Fix:** Simplify description; clarify when to call it.
+  </Accordion>
+  <Accordion title="Wrong parameters" icon="circle-question">
+    **Likely cause:** LLM misunderstanding.
+
+    **Fix:** Improve parameter names and descriptions.
+  </Accordion>
+  <Accordion title="Timeout" icon="hourglass-half">
+    **Likely cause:** Slow API or complex logic.
+
+    **Fix:** Add [delay controls](/tools/delay-control); optimize code.
+  </Accordion>
+  <Accordion title="Auth failures" icon="lock">
+    **Likely cause:** Expired credentials.
+
+    **Fix:** Update [secrets](/secrets/introduction).
+  </Accordion>
+  <Accordion title="Import errors" icon="box-open">
+    **Likely cause:** Missing library.
+
+    **Fix:** Check [available libraries](/tools/import-library).
+  </Accordion>
+</AccordionGroup>
 
 ## Managing secrets
 
 When API keys or credentials change:
 
-1. Go to the **Secrets** tab on the workspace homepage
-2. Find and edit the secret
-3. Save, then test all functions using it
+<Steps>
+  <Step title="Open Secrets">
+    Go to the **Secrets** tab on the workspace homepage.
+  </Step>
+  <Step title="Edit the secret">
+    Find and edit the secret value.
+  </Step>
+  <Step title="Test dependent functions">
+    Save, then test all functions using this secret.
+  </Step>
+</Steps>
 
 ```python
 api_key = conv.utils.get_secret("my_api_key")
 headers = {"Authorization": f"Bearer {api_key}"}
 ```
 
-- Rotate credentials every 90 days
-- Use descriptive names (`stripe_live_api_key`, not `key1`)
-- Test all dependent functions after rotation
+<Info>
+  - Rotate credentials every 90 days
+  - Use descriptive names (`stripe_live_api_key`, not `key1`)
+  - Test all dependent functions after rotation
+</Info>
 
 ## Managing API integrations
 
 Configure per-environment endpoints in **Configure > APIs**:
 
-- **Sandbox** — test/staging endpoints
-- **Pre-release** — UAT endpoints
-- **Live** — production endpoints
+<CardGroup cols={3}>
+  <Card title="Sandbox" icon="flask">
+    Test/staging endpoints
+  </Card>
+  <Card title="Pre-release" icon="clipboard-check">
+    UAT endpoints
+  </Card>
+  <Card title="Live" icon="rocket">
+    Production endpoints
+  </Card>
+</CardGroup>
 
 This ensures you don't call production APIs during testing.
 
 ## Optimizing performance
 
-If functions are slow:
+<AccordionGroup>
+  <Accordion title="Add delay controls" icon="hourglass-half" defaultOpen={true}>
+    Use [delay controls](/tools/delay-control) with filler phrases to keep the caller engaged while processing.
 
-1. Add [delay controls](/tools/delay-control) with filler phrases ("Let me check that for you.")
-2. Cache frequently-accessed data
-3. Reduce unnecessary API calls
-4. Simplify logic and remove unnecessary processing
-
-<Tip>You can reference state variables in delay responses using `$`. For example: `Still checking availability at $branch_name...`</Tip>
+    <Tip>Reference state variables in delay responses using `$`. For example: `Still checking availability at $branch_name...`</Tip>
+  </Accordion>
+  <Accordion title="Cache frequently-accessed data" icon="database">
+    Store common lookups to avoid repeated API calls.
+  </Accordion>
+  <Accordion title="Reduce unnecessary API calls" icon="bolt">
+    Batch operations where possible and skip redundant requests.
+  </Accordion>
+  <Accordion title="Simplify logic" icon="broom">
+    Remove unnecessary processing and streamline code paths.
+  </Accordion>
+</AccordionGroup>
 
 ## Improving function triggering
 
 If the agent isn't calling your function when expected:
 
-1. **Simplify the description** — make it clear when to call the function
-2. **Update KB actions** — ensure topics reference the function correctly
-3. **Check for conflicts** — ensure other functions aren't being called instead
+<Steps>
+  <Step title="Simplify the description">
+    Make it clear when to call the function.
+  </Step>
+  <Step title="Update KB actions">
+    Ensure topics reference the function correctly.
+  </Step>
+  <Step title="Check for conflicts">
+    Ensure other functions aren't being called instead.
+  </Step>
+</Steps>
 
-**Bad description:** "Handles reservations"
-
-**Good description:** "Call this function when the user wants to book a table. Required: date, time, party_size. Only call after confirming all three with the user."
+<Tabs>
+  <Tab title="Bad description" icon="xmark">
+    "Handles reservations"
+  </Tab>
+  <Tab title="Good description" icon="check">
+    "Call this function when the user wants to book a table. Required: date, time, party_size. Only call after confirming all three with the user."
+  </Tab>
+</Tabs>
 
 ## Related pages
 
-- [Functions overview](/tools/introduction) — function capabilities
-- [Secrets](/secrets/introduction) — credential management
-- [conv.log reference](/tools/classes/conv-log) — structured logging
-- [Delay controls](/tools/delay-control) — managing latency
-- [Test sets](/analytics/test-suite/introduction) — automated regression testing to verify function changes
-- [Alerts API](/api-reference/alerts/introduction) — automated alerts for function errors, latency, and API failures
+<CardGroup cols={2}>
+  <Card title="Functions overview" href="/tools/introduction" icon="code">
+    Function capabilities
+  </Card>
+  <Card title="Secrets" href="/secrets/introduction" icon="key">
+    Credential management
+  </Card>
+  <Card title="conv.log reference" href="/tools/classes/conv-log" icon="file-lines">
+    Structured logging
+  </Card>
+  <Card title="Delay controls" href="/tools/delay-control" icon="hourglass-half">
+    Managing latency
+  </Card>
+</CardGroup>
