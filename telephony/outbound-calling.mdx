@@ -97,6 +97,38 @@ For detailed SIP configuration, see the [Custom SIP integration guide](/integrat
 
 If you're integrated with Twilio, outbound calls can be routed through your Twilio account. This leverages your existing Twilio infrastructure and phone numbers.
 
+## Voicemail and recipient detection
+
+Outbound calls need to determine who — or what — answered before the conversation begins. PolyAI supports a project-level detection flow on the first turn that classifies the recipient so the agent can route accordingly. Common classifications include:
+
+- **Human** — a live person answered; proceed to the greeting and main conversation
+- **IVR** — an automated phone system answered; navigate menus via DTMF or hold
+- **Voicemail** — a voicemail system answered; leave a message or hang up
+- **Number not in service** — the number is disconnected; end the call
+
+The exact categories depend on how the project is configured.
+
+### How it works
+
+Detection runs on the first step of the outbound flow with:
+
+- **Barge-in enabled** on the detection step, since voicemail greetings and IVR prompts do not wait for the agent to finish speaking
+- A **classification step** that evaluates what the agent hears to determine whether the response is from a human, an IVR, or a voicemail system
+
+Once the recipient is classified, the agent routes to the appropriate path.
+
+### Voicemail actions
+
+Depending on project requirements, the agent can:
+
+- **Leave a voicemail** — deliver a scripted or dynamic message after the beep
+- **Hang up** — end the call immediately if voicemail is not in scope
+- **Retry later** — exit with a status code so the calling system can schedule a retry
+
+<Note>
+Voicemail detection is a project-level configuration. Contact your PolyAI representative to enable it for your outbound calls. See [Call handoffs](/call-handoff/introduction#voicemail-detection) for how voicemail detection differs in inbound scenarios.
+</Note>
+
 ## Best practices
 
 - **Validate phone numbers** - Use E.164 format (e.g., `+14155551234`)
