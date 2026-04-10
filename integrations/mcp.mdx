@@ -7,6 +7,19 @@ Connect external tools to your agent through the [Model Context Protocol](https:
 
 <Note>This feature is available from **Configure > Integrations** in Agent Studio under the **MCP** tab.</Note>
 
+## How it works
+
+When you add an MCP server, Agent Studio connects to the server endpoint and automatically discovers the tools it exposes. Each tool has a name, description, and input schema defined by the server — you don't need to configure these manually.
+
+During a conversation, your agent can call any enabled MCP tool. The flow is:
+
+1. **Discovery** — Agent Studio sends a discovery request to the MCP server URL and receives a list of available tools with their schemas.
+2. **Configuration** — You review the discovered tools and toggle on the ones your agent should have access to.
+3. **Execution** — When the agent decides to use a tool during a conversation, Agent Studio sends the tool call to the MCP server with the appropriate authentication and waits for a response (up to the configured timeout).
+4. **Response** — The MCP server executes the tool and returns the result. The agent uses the response to continue the conversation.
+
+This means the MCP server controls *what* tools are available, and you control *which* of those tools the agent can actually use. Toggling tools off keeps them out of the agent's context window, which helps keep prompts focused and efficient.
+
 ## When to use MCP
 
 Use MCP integrations when you want to connect your agent to an external tool that exposes an MCP server. Instead of writing custom [functions](/tools/introduction) and [API configurations](/api/introduction), you point Agent Studio at the MCP server URL and the platform discovers available tools automatically.
@@ -82,6 +95,51 @@ Common use cases include:
   </Step>
 </Steps>
 
+## Use MCP tools in prompts
+
+Once an MCP server is connected, the discovered tools are available to the LLM inside step prompts. There are two approaches.
+
+### Basic usage
+
+Name the tool and give a brief description of what it does. The LLM reads the tool's input schema directly from the MCP server, so you don't need to specify parameters.
+
+```
+### Available tools
+
+1. join_session
+- Initiates a screen sharing session using a six-digit code provided by the user.
+```
+
+This is the simplest approach — minimal prompt maintenance, and the LLM figures out the inputs from the schema.
+
+### Advanced usage
+
+For complex tools where the LLM may struggle with correct inputs, you can specify the expected parameters explicitly in the prompt:
+
+```
+CALL: highlight_element_and_wait({
+  cbid: "uXX-123",
+  session_id: "...",
+  user_message: "Click the Billing tab"
+})
+```
+
+You can also wrap MCP tool calls with [platform functions](/tools/introduction) for additional logic like metric logging or state updates. For example, call a function after an MCP tool succeeds to log the result or trigger a step transition.
+
+<Warning>
+  Explicit input specification creates a maintenance burden. If the MCP server changes its tool schema, your prompts need updating too. Use this only when the basic approach produces unreliable results.
+</Warning>
+
+### Whitelisting tools via URL
+
+You can restrict which tools are exposed by the MCP server using the `tools` query parameter in the server URL:
+
+```
+https://mcp.example.com?tools=join_session,get_html
+```
+
+This limits tool discovery to only the listed tools, which is useful when the server exposes more tools than your agent needs.
+
 ## Manage MCP integrations
 
 After connecting, you can:
@@ -102,5 +160,8 @@ After connecting, you can:
   </Accordion>
   <Accordion title="Functions not available to the agent">
     Confirm that the functions are toggled on in the configuration panel. Only enabled functions are accessible during conversations.
+  </Accordion>
+  <Accordion title="Migrating from experimental config">
+    Projects that previously configured MCP through experimental config will continue to work — existing servers keep running in the background. The old config is only replaced when you add a new MCP server through the Integrations UI. Once migrated, manage all MCP servers from the UI.
   </Accordion>
 </AccordionGroup>
