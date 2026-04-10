@@ -65,6 +65,18 @@ The Conversations API uses API key authentication.
 v3 keys are project- and region-scoped and are issued by PolyAI.
 Your PolyAI representative will confirm the appropriate scope and provision access.
 
+## Retrieval modes
+
+The v3 endpoint supports three optional retrieval modes powered by Smart Analyst tooling: **transcript search**, **semantic search**, and **random sampling**. When no retrieval mode is specified, the endpoint returns all conversations matching the given filters (default behavior). Only one mode may be used per request.
+
+| Mode | Parameter | Requires `query` | Description |
+|------|-----------|:-----------------:|-------------|
+| Transcript search | `query_type=transcript` | Yes | Full-text search over conversation transcripts. Optionally scoped to user or agent turns via `turn_type`. |
+| Semantic search | `query_type=semantic` | Yes | Vector similarity search. Returns conversations semantically similar to the query text. |
+| Random sampling | `sample=random` | No | Returns a random sample of conversations within the time range. |
+
+<Warning>`query_type` and `sample` are mutually exclusive — you must specify at most one per request.</Warning>
+
 ## Query parameters
 
 The Conversations API supports several query parameters for filtering and controlling the response:
@@ -76,11 +88,21 @@ The Conversations API supports several query parameters for filtering and contro
 | `start_time` | Start of time range (ISO8601) |
 | `end_time` | End of time range (ISO8601) |
 
+### Retrieval mode parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `query_type` | string | Search mode: `transcript` or `semantic`. Requires `query`. Mutually exclusive with `sample`. |
+| `sample` | string | Sampling mode: `random`. Mutually exclusive with `query_type`. |
+| `query` | string | The search text used for transcript or semantic search. Required when `query_type` is set. |
+| `turn_type` | string | Transcript search only. Filter by `user` or `agent` turns. Defaults to both. |
+
 ### Optional filters
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `client_env` | Environment: `sandbox`, `pre-release`, or `live` | `live` |
+| `channel` | One or more channels to filter by (e.g. `voice`, `chat`) | — |
 | `variant_id` | Filter by variant ID | — |
 | `variant_name` | Filter by variant name (URL-encode spaces with `%20`) | — |
 | `in_progress` | Filter by conversation status: `true` for in-progress, `false` for finished | all |

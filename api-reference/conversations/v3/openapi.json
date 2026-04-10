@@ -30,7 +30,7 @@
   "paths": {
     "/v3/{account_id}/{project_id}/conversations": {
       "get": {
-        "description": "Returns all conversations matching filters.",
+        "description": "Retrieves conversations for a given account and project. Supports three retrieval modes: transcript search, semantic search, and random sampling. When no retrieval mode is specified, the endpoint returns all conversations matching the given filters (default behavior). Only one retrieval mode may be specified per request.",
         "parameters": [
           {
             "name": "account_id",
@@ -48,6 +48,65 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "query_type",
+            "in": "query",
+            "description": "Search mode. Use `transcript` for full-text search over conversation transcripts, or `semantic` for vector similarity search. Requires `query` to be set. Mutually exclusive with `sample`.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "transcript",
+                "semantic"
+              ]
+            }
+          },
+          {
+            "name": "sample",
+            "in": "query",
+            "description": "Sampling mode. Use `random` to return a random sample of conversations within the time range. No `query` required. Mutually exclusive with `query_type`.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "random"
+              ]
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "description": "The search text used for transcript or semantic search. Required when `query_type` is set.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "turn_type",
+            "in": "query",
+            "description": "Transcript search only. Filter by `user` or `agent` turns. Defaults to both.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "user",
+                "agent"
+              ]
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "description": "One or more channels to filter by (e.g. voice, chat). Can be specified multiple times.",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           {
