@@ -258,27 +258,40 @@ PolyAI can detect voicemail in certain scenarios, but the behavior depends on th
 
 ### Outbound calls
 
-For outbound calls, PolyAI has built-in voicemail detection. Using an `outbound_check_recipient` flow, the system classifies what it hears at the start of a call — human, IVR, or voicemail — before the conversation begins. This allows the agent to take different actions depending on whether a live person or a voicemail system answered.
+For outbound calls, PolyAI has project-level voicemail detection. An entity detection flow at the start of the call classifies what the agent hears into one of several categories — typically `human`, `ivr`, `voicemail`, or `number_not_in_service` — before the conversation begins. Based on the classification, the agent routes into the appropriate path:
+
+- **Human detected** — proceed to the greeting/disclaimer and main conversation flow
+- **IVR detected** — enter an IVR traversal flow (DTMF navigation, hold loops)
+- **Voicemail detected** — leave a message or hang up, depending on project configuration
+- **Number not in service** — end the call with an appropriate exit code
+
+This detection uses a dedicated ASR model (`voicemail`) with barge-in enabled on the first turn, since voicemail systems and IVRs do not wait for the agent to finish speaking. The flow is configured per-project — contact your PolyAI representative to enable it.
 
 See [Outbound calling](/telephony/outbound-calling) for more on outbound call configuration.
 
 ### Inbound SIP handoffs
 
-When PolyAI transfers an inbound call to an agent (via SIP REFER, SIP INVITE, or SIP BYE), voicemail detection is **not available by default**. The behavior depends on the handoff method:
+When PolyAI transfers an inbound call to an agent (via SIP REFER, SIP INVITE, or SIP BYE), voicemail detection on the *destination side* is **not available by default**. The behavior depends on the handoff method:
 
 - **SIP REFER / SIP BYE** — PolyAI drops from the call after initiating the transfer, so it has no visibility into whether the destination answers or goes to voicemail.
 - **SIP INVITE** — PolyAI bridges both call legs, which provides more visibility during the transfer. However, automated voicemail detection on the destination side is not a standard feature.
 
 ### Custom voicemail flagging
 
-If your project includes custom flow logic that detects suspected voicemail *during* a call (before transfer), you can flag the handoff reason using [SIP headers](#configuring-sip-headers):
+If your project includes custom flow logic that detects suspected voicemail *during* a call (before a handoff is initiated), you can flag the handoff reason using [SIP headers](#configuring-sip-headers):
 
 ```
 X-RouteReason: SuspectedVoicemail
 X-RouteValue: SUSPECTED_VOICEMAIL
 ```
 
-This passes voicemail context to your downstream system (e.g., your contact center or CRM) as part of the transfer. This requires custom implementation — contact your PolyAI representative to discuss your specific use case.
+This passes voicemail context to your downstream system (e.g., your contact center or CRM) as part of the transfer. This approach requires:
+
+1. A custom flow step that uses the LLM to classify the caller's response (human vs. voicemail) — typically by prompting a `check_is_voicemail` function with a boolean parameter
+2. ASR configuration tuned for voicemail detection on the relevant step
+3. SIP header injection to pass the classification result downstream
+
+Contact your PolyAI representative to discuss implementation for your specific use case.
 
 <Note>
 PolyAI can also retrospectively classify a call as voicemail *after* it ends (visible in analytics), but the downstream system does not receive a real-time notification in this case.

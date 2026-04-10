@@ -97,18 +97,37 @@ For detailed SIP configuration, see the [Custom SIP integration guide](/integrat
 
 If you're integrated with Twilio, outbound calls can be routed through your Twilio account. This leverages your existing Twilio infrastructure and phone numbers.
 
-## Voicemail detection
+## Voicemail and recipient detection
 
-For outbound calls, PolyAI can detect whether a human, IVR, or voicemail system answered the call. Using an `outbound_check_recipient` flow, the agent classifies what it hears at the start of the call — before the conversation begins — and can take different actions depending on the result.
+Outbound calls need to determine who — or what — answered before the conversation begins. PolyAI uses an entity detection flow on the first turn to classify the recipient into categories such as:
 
-This is useful for:
+| Classification | Description | Typical action |
+| --- | --- | --- |
+| `human` | A live person answered | Proceed to greeting and main conversation |
+| `ivr` | An automated phone system answered | Enter IVR traversal (DTMF, hold loops) |
+| `voicemail` | A voicemail system answered | Leave a message or hang up |
+| `number_not_in_service` | The number is disconnected | End the call with an exit code |
 
-- **Skipping voicemail** — End the call if a voicemail system picks up
-- **Leaving a message** — Deliver a pre-configured message to voicemail
-- **Navigating IVR menus** — Handle automated systems before reaching a live person
+### How it works
+
+Detection runs on the first step of the outbound flow with:
+
+- A dedicated **ASR model** (`voicemail`) configured via experimental JSON to optimize transcription for machine-generated speech
+- **Barge-in enabled** on the detection step, since voicemail greetings and IVR prompts do not wait for the agent to finish speaking
+- An **LLM-based classification** function that evaluates the transcript to determine whether the response is from a human or a machine
+
+The agent uses both the ASR transcript and common voicemail keywords (e.g., "forwarded", "voicemail", "leave a message") to make the classification. Once detected, the agent routes to the appropriate path — human greeting, IVR navigation, voicemail message, or call termination.
+
+### Voicemail actions
+
+Depending on project requirements, the agent can:
+
+- **Leave a voicemail** — deliver a scripted or dynamic message after the beep
+- **Hang up** — end the call immediately if voicemail is not in scope
+- **Retry later** — exit with a status code so the calling system can schedule a retry
 
 <Note>
-Voicemail detection is a project-level configuration. Contact your PolyAI representative to enable it for your outbound calls.
+Voicemail detection is a project-level configuration. Contact your PolyAI representative to enable it for your outbound calls. See [Call handoffs](/call-handoff/introduction#voicemail-detection) for how voicemail detection differs in inbound scenarios.
 </Note>
 
 ## Best practices
