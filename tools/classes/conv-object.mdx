@@ -88,16 +88,19 @@ The Conversation object (conv) provides access to conversation data and tools fo
     **Description**: List of file attachments received or queued for sending (list[Attachment]).
     
     **Attachment object structure**:
-    - `content_url` (str) – URL where the file content is hosted
-    - `title` (str) – Title or name of the attachment
-    - `preview_image_url` (str, optional) – URL for a preview image of the attachment
-    - `call_to_action` (str, optional) – Action label associated with the attachment (e.g., "View document")
+    - `content_url` (str) – URL to the main content of the attachment
+    - `content_type` (str) – The type of the attachment (`"image"` or `"weblink"`)
+    - `title` (str, optional) – Title of the attachment
+    - `preview_image_url` (str, optional) – URL to a preview image for the attachment
+    - `call_to_action` (str, optional) – Text for the call-to-action button or link
     
     **Example**:
     ```python
     for file in conv.attachments:
-      print(f"Title: {file.title}")
+      print(f"Type: {file.content_type}")
       print(f"URL: {file.content_url}")
+      if file.title:
+        print(f"Title: {file.title}")
       if file.preview_image_url:
         print(f"Preview: {file.preview_image_url}")
     ```
@@ -429,11 +432,34 @@ The Conversation object (conv) provides access to conversation data and tools fo
   </Accordion>
 
   <Accordion title="add_attachments">
-    **Description**: Attach one or more files to the current conversation record.
+    **Description**: Attach one or more visual tiles (images or web links) to the conversation. Only supported on webchat channels.
+    
+    **Parameters**: attachments (list[Attachment]) – list of Attachment objects.
+
+    **Attachment fields**:
+    - `content_url` (str) – URL to the main content of the attachment
+    - `content_type` (str) – The type of the attachment (`"image"` or `"weblink"`)
+    - `title` (str, optional) – Title of the attachment
+    - `preview_image_url` (str, optional) – URL to a preview image for the attachment
+    - `call_to_action` (str, optional) – Text for the call-to-action button or link
     
     **Example**:
     ```python
-    conv.add_attachments([{"url": "https://example.com/invoice.pdf", "filename": "invoice.pdf"}])
+    from polyai.attachments import Attachment
+
+    conv.add_attachments([
+      Attachment(
+        content_url="https://example.com/menu",
+        content_type="weblink",
+        title="View our menu",
+        preview_image_url="https://example.com/menu-preview.jpg",
+        call_to_action="Open menu"
+      ),
+      Attachment(
+        content_url="https://example.com/logo.png",
+        content_type="image"
+      )
+    ])
     ```
   </Accordion>
 
