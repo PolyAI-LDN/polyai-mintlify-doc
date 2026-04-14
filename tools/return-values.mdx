@@ -42,24 +42,52 @@ return {
 }
 ```
 
-##### Locale-specific utterances
+##### Multilingual utterances
 
-For [multilingual agents](/agent-settings/multilingual), you can return a dictionary of locale-keyed strings instead of a single string. The agent selects the utterance matching the caller's current language:
+For [multilingual agents](/agent-settings/multilingual), you can manage locale-specific utterances using one of two approaches:
+
+**Using `conv.translations` (recommended):** Define translations in the Translation page, then reference them in functions:
 
 ```python
 return {
-  "utterance": {
-    "en-US": "We're calling you now. Please answer your phone when it rings.",
-    "es-US": "Te llamamos ahora. Por favor contesta cuando suene el teléfono.",
-  }
+  "utterance": conv.translations.calling_you_now
 }
 ```
 
-Use [BCP 47 language tags](https://en.wikipedia.org/wiki/IETF_language_tag) as keys (e.g., `"en-US"`, `"es-US"`, `"fr-FR"`). This approach is useful when you need deterministic, pre-translated responses without branching on `conv.language` manually.
+The translation resolves automatically to the caller's current language. See [multi-language configuration](/agent-settings/multilingual) for setup details.
 
-<Tip>
-Locale-keyed utterances work anywhere `utterance` is accepted — including in combination with `handoff`, `hangup`, `listen`, and `variant`.
-</Tip>
+**Using a custom `Utterances` helper:** For projects that need centralized utterance management in code, create an enum mapping locale codes to strings:
+
+```python
+from enum import Enum
+import re
+
+class Utterances(Enum):
+    CALLING_YOU_NOW = {
+        "en-US": "We're calling you now. Please answer your phone when it rings.",
+        "es-US": "Te llamamos ahora. Por favor contesta cuando suene el teléfono.",
+    }
+
+    def __call__(self, conv):
+        return (
+            self.value.get(conv.language)
+            or self.value.get(conv.language.split("-", 1)[0])
+            or self.value.get("en-US")
+            or next(iter(self.value.values()), "")
+        )
+```
+
+Then resolve the utterance before returning it:
+
+```python
+return {
+  "utterance": Utterances.CALLING_YOU_NOW(conv)
+}
+```
+
+<Note>
+The `utterance` return field expects a string. Always resolve locale-specific dictionaries to a single string before returning — don't pass the dictionary directly.
+</Note>
 
 **Note**: If both `content` and `utterance` are returned:
 - The agent will stream the `utterance` to the user and end the turn.
