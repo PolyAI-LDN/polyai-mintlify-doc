@@ -1,0 +1,94 @@
+---
+title: Route management
+description: Configure production telephony routes, extensions, and fallback settings directly in Agent Studio.
+---
+
+<Info>
+Route management is available under **Configure > Numbers** once a telephony integration has been established between your telephony provider and PolyAI.
+</Info>
+
+Use route management to control how inbound calls reach your agent in production. You can add, edit, and delete routes, and configure system-wide fallback behavior — all without contacting PolyAI engineering.
+
+## Prerequisites
+
+Before you can manage routes in Agent Studio:
+
+- A telephony integration must be configured between your provider and PolyAI infrastructure (SIP peering, Twilio, etc.)
+- Your account must have the appropriate [access permissions](/user-management/access-control-scope)
+
+If no integration exists yet, the route management UI will display a message asking you to contact the PolyAI team.
+
+## Viewing routes
+
+Navigate to **Configure > Numbers** to see all telephony routes for your project. The table displays:
+
+- **Extension** — the inbound number or SIP extension
+- **Environment** — which environment the route targets (sandbox, pre-release, or live)
+- **Language** — the language setting for the route
+- **Fallback route** — where calls go if the agent is unavailable
+- **Variant** — which variant handles the call (if variants are configured)
+
+Use the filter options to narrow the view by extension, environment, variant, language, or fallback route.
+
+## Adding a route
+
+1. Select **Add route** from the route management page
+2. Fill in the required fields:
+   - **Extension** — for custom integrations this is a free-text field; for Twilio/Telnyx integrations, it must be in [E.164 format](https://www.twilio.com/docs/glossary/what-e164) (e.g., `+442071234567`)
+   - **Environment** — sandbox, pre-release, or live
+   - **Language** — the language your agent should use for this route
+3. Optionally configure:
+   - **Variant** — if your project uses [variants](/variant-management/introduction), select which variant handles calls on this route
+   - **Fallback route** — a phone number to forward calls to if the agent cannot handle them
+   - **Public-facing number** — the number your callers see
+   - **Call notes** — internal notes about this route
+4. Select **Add** to create the route
+
+## Editing a route
+
+1. Select the settings icon on a route row
+2. Choose **Edit**
+3. Modify any field except the extension (extensions cannot be changed after creation)
+4. Check the acknowledgment box confirming that changes may affect production traffic
+5. Select **Save**
+
+<Warning>
+Changes to live routes take effect immediately. Test route changes in sandbox or pre-release environments first.
+</Warning>
+
+## Deleting a route
+
+1. Select the settings icon on a route row
+2. Choose **Delete**
+3. Confirm the deletion
+
+## Configuring the system fallback
+
+The system fallback determines what happens when a call cannot be handled by the agent and no route-specific fallback is configured.
+
+1. Select **Configure system fallback** from the route management page
+2. Choose a handoff type:
+   - **REFER** — transfers the call via SIP REFER
+   - **INVITE** — transfers via SIP INVITE
+3. Enter the system fallback number
+4. Optionally set a **refer domain** if your telephony setup requires one
+5. Select **Save**
+
+All routes without a route-specific fallback will use this system fallback by default.
+
+<Note>
+Each project supports one system fallback configuration. If your project has complex fallback requirements, contact your PolyAI account manager.
+</Note>
+
+## How fallbacks work
+
+Fallback routing follows this priority:
+
+1. **Route-specific fallback** — if a fallback number is set on the individual route, it takes priority
+2. **System fallback** — if no route-specific fallback exists, the system fallback is used
+3. **No fallback** — if neither is configured, the call ends without transfer
+
+## Limitations
+
+- Switching a project between variant and non-variant configurations requires manually updating existing routes
+- Deleting a variant does not automatically update routes that reference it — you must adjust these manually
