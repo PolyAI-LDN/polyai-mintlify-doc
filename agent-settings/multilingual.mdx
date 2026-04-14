@@ -1,21 +1,36 @@
 ---
 title: 'Multi-language'
-description: 'Configure your agent to handle conversations in multiple languages.'
+description: 'Configure your agent to handle conversations in multiple languages from a single project.'
 ---
 
-Use multi-language support when your agent serves callers who speak different languages. A properly configured multilingual agent detects the caller's language, switches mid-conversation if needed, and uses language-appropriate voices and content — all within a single project. Without this, non-primary-language callers get poor transcription, wrong-language responses, or immediate escalation.
+Use multi-language support when your agent serves callers who speak different languages. A multilingual agent detects the caller's language, switches mid-conversation if needed, and uses language-appropriate voices and content — all within a single project.
+
+<Note>
+The new multilingual UI replaces the previous approach of defining languages in the `start_function` or maintaining one project per language. You can now add and manage languages directly in Agent Studio.
+</Note>
 
 ## Setting up multi-language support
 
-To add language support to your agent, add voices for each target language from the Voice Library:
+<Frame><img src="/images/agent-settings/multilingual-settings.png" alt="Multi-language settings in Configure > General showing Response language and Additional languages fields" /></Frame>
 
-1. Go to **Channels > Voice > Agent Voice**
-2. Click **Change** to open the [Voice Library](/voice/voice-library)
-3. Use the **Language** filter to find voices in your target language
-4. Select a voice and click **Select** to add it
-5. Update [Agent Behavior rules](/agent-settings/rules) to instruct the agent on when to use each language
+<Steps>
+  <Step title="Add languages">
+    Go to **Configure > General** and find the **Additional languages** field. Select up to 10 additional languages from the dropdown. The **Response language** set during project creation becomes the **main language**.
+  </Step>
+  <Step title="Configure voices per language">
+    Each language has its own voice configuration. Go to **Channels > Voice > Agent Voice** where you'll see a voice card for each configured language. The main language card is tagged as "Main language".
 
-<Tip>When creating a new project, set the **Response language** to your primary language. You can then add additional language voices from the Voice Library.</Tip>
+    - Select a voice for each language from the [Voice Library](/voice/voice-library)
+    - You can configure separate voices for **Agent voice** and **Disclaimer** per language
+    - Multi-voice is supported per language — assign multiple voices to a single language for A/B testing or persona variation
+  </Step>
+  <Step title="Add translations (optional)">
+    If you need manual translation overrides for specific content, use the [Translations](/response-control/translations) page under **Channels > Response Control**.
+  </Step>
+  <Step title="Test in Agent Chat">
+    Use the **language dropdown** in Agent Chat to select a language and test your agent's behavior in each configured language.
+  </Step>
+</Steps>
 
 ### Supported languages
 
@@ -26,67 +41,74 @@ PolyAI supports over 40 spoken languages and 140 text languages. Spoken language
 Multilingual agents can:
 
 - **Detect the caller's language** automatically via ASR
-- **Switch languages mid-conversation** if the caller changes
-- **Maintain language-specific knowledge** for each supported language
-- **Use appropriate voices** per language
+- **Switch languages mid-conversation** if the caller changes language
+- **Automatically switch voices** when the language changes, if a voice is configured for that language
+- **Maintain language-specific knowledge** using language variants on Managed Topics
+- **Filter content by language** using `<language:xx>` tags in prompts
 - **Handle mixed-language queries** (code-switching)
+
+<Info>
+Auto voice switching only works for the main language and configured additional languages. If the conversation changes to an unsupported language, the voice stays the same.
+</Info>
 
 ## Configuring voices per language
 
-Add a language-appropriate voice for each supported language from the [Voice Library](/voice/voice-library):
+When multilingual support is enabled, the **Agent Voice** page shows separate voice sections organized by language.
 
 1. Go to **Channels > Voice > Agent Voice**
-2. Click **Change** to open the Voice Library
-3. Filter by **Language** and **Region** to find voices that match your target audience
-4. Preview voices with custom text before selecting
-5. Click **Select** to apply
+2. You'll see an **Agent** tab and a **Disclaimer** tab
+3. On the **Agent** tab, each language has its own voice card
+4. Click into a language card to select or change the voice
+5. To assign multiple voices to a language, add them from the voice card — multi-voice is supported per language
 
 **Voice quality tips:**
 
 - Use native voices — don't use an English voice for Spanish
 - Match regional accents — use Mexican Spanish for Mexico, Castilian for Spain
 - Test pronunciation for language-specific characters
+- Multilingual TTS models are convenient but may have slightly lower quality than language-specific models
 
-You can also configure voices programmatically using provider-specific classes. PolyAI supports multiple TTS providers including ElevenLabs, Cartesia, Hume, Rime, Minimax, PlayHT, and Google TTS.
+You can also configure voices programmatically. See [Voice classes](/tools/classes/voice) for available providers including ElevenLabs, Cartesia, Hume, Rime, Minimax, PlayHT, and Google TTS.
 
-```python
-from polyai.voice import ElevenLabsVoice
+## Conditional content filtering
 
-conv.set_voice(
-    ElevenLabsVoice(
-        provider_voice_id="multilingual_voice_id",
-        model_id="eleven_multilingual_v2"
-    )
-)
+Use `<language:xx>` tags to serve language-specific content within a single prompt, without needing separate variants:
+
+```
+<language:en>
+Please hold while I check your account.
+</language:en>
+<language:es>
+Por favor espere mientras reviso su cuenta.
+</language:es>
 ```
 
-```python
-from polyai.voice import CartesiaVoice
+This works in:
+- [Behavior rules](/agent-settings/rules)
+- [Managed Topics](/managed-topics/introduction) content
+- [Flow steps](/flows/introduction)
+- [Function](/tools/introduction) descriptions
 
-conv.set_voice(
-    CartesiaVoice(
-        provider_voice_id="a1b2c3d4",
-        model_id="sonic"
-    )
-)
-```
+## Language variants on Managed Topics
 
-```python
-from polyai.voice import HumeVoice
+Managed Topics support **language variants** so you can manage multilingual knowledge base content within a single agent. Each topic can have language-specific versions of its content and sample questions.
 
-conv.set_voice(
-    HumeVoice(
-        provider_voice_id="voice_uuid_or_name",
-        version="2"
-    )
-)
-```
+1. Go to **Build > Knowledge > Managed Topics**
+2. Create or edit a topic
+3. Add **language variants** for each supported language
+4. Translate sample questions and content for each variant
 
-See [Voice classes](/tools/classes/voice) for the full list of providers and configuration options.
+<Tip>
+Sample questions must be in the same language as caller inputs — they are compared with user inputs during the retrieval process.
+</Tip>
+
+## Language-specific pronunciation rules
+
+Pronunciation rules in [Response Control](/response-control/pronunciations) are organized by language. Each language has its own set of rules, displayed as separate collapsible cards. Rules within a language card only apply to responses in that language. Rules with no language specified apply globally.
 
 ## What to translate
 
-Some project content needs to be translated, and some does not:
+Some project content needs translation, and some does not:
 
 | Area               | Element                                          | Translate? | Notes                                                            |
 | ------------------| ------------------------------------------------ | :--------: | ---------------------------------------------------------------- |
@@ -133,43 +155,48 @@ You can access the caller's detected language in functions:
 ```python
 def dynamic_response():
     current_language = conv.language
-    
+
     if current_language == "es":
         return {"utterance": "Respuesta en español"}
     else:
         return {"utterance": "Response in English"}
 ```
 
-## Translating prompts
+### Accessing translations in functions
 
-Prompts are found in:
+For hard-coded utterances that need language-specific versions, use the translations object:
 
-* The [Managed Topics actions field](/managed-topics/how-to-setup-action/function-call)
-* [Flow steps](/flows/introduction)
-* The [agent behavior rules](/agent-settings/rules)
-* [Function](/tools/introduction) descriptions
-
-### Sample excerpt (Spanish)
-
+```python
+conv.translations.tn_name
 ```
-If the user's query is unclear, ask for clarification. For example, if the user says ''factura,'' ask ''¿Cómo puedo ayudarle con su factura?'' Or if the user says ''problema con la factura,'' ask ''¿Me puede dar más detalles sobre el problema con su factura?''
 
-If the user offers you their 10- or 11-digit account number, say ''Gracias, pero tal vez no necesite su número de cuenta. ¿Cómo puedo ayudarle hoy?''
+Or for translation keys with special characters:
 
-When discussing making payments (online, by phone, payment methods, etc.):
-
-- Always make sure to include ALL information about **transaction fees** (cargos por transacción), including both residential and commercial fees (don't forget to mention the 1.95% surcharge for commercial card payments)
-- Do not use the word **"fee"** or **"cargo"** in isolation. Use the company-approved phrase **'cargo por transacción'**
-
-**Your responses must adhere to the following STYLE guidelines:**
-
-- Only answer in **Spanish**, in a register that would feel **conversational and appropriate for a customer service context in North America** (you will be working mostly with Latinos in the USA). Even if the instructions you receive and example utterances you are given are in English, you should **only ever respond to the user in Spanish**.
-- Your responses should be **casual and concise**, appropriate for a **customer service agent in a phone conversation**
+```python
+getattr(conv.translations, "name with special chars!!!!")
 ```
+
+## Testing multilingual agents
+
+The Agent Chat panel includes a **language dropdown** that lets you select a language to test with — similar to how you select variants.
+
+1. Open Agent Chat
+2. Select a language from the dropdown (defaults to the main language on the first turn)
+3. Interact with your agent and verify it responds correctly
+4. Switch languages mid-conversation to test detection and voice switching
+
+## Reviewing multilingual conversations
+
+Language information is visible across Agent Studio:
+
+- **Conversation review list** — a language column shows which language was used in each conversation
+- **Conversation review detail** — per-turn language information appears alongside the transcript
+- **Audio management** — cached audio files include language metadata so you can identify and manage TTS audio per language
 
 ## Next steps
 
+- [Translations](/response-control/translations) — Manually override auto-translations for specific content
 - [Multi-language updates](/learn/maintain/multi-language-updates) — Maintain and optimize your multilingual agent over time
 - [Voice Library](/voice/voice-library) — Browse and select voices per language
-- [Add a voice](/voice/add-a-new-voice) — Configure voices programmatically
+- [Pronunciations](/response-control/pronunciations) — Configure language-specific pronunciation rules
 - [Managed Topics](/managed-topics/introduction) — Add language-specific knowledge variants

@@ -1,0 +1,167 @@
+---
+title: MCP integrations
+description: Connect external tools to your agent using the Model Context Protocol (MCP).
+---
+
+Connect external tools to your agent through the [Model Context Protocol](https://modelcontextprotocol.io/) (MCP). MCP servers expose functions that your agent can call during conversations — look up data, trigger actions, or interact with third-party systems without writing custom code.
+
+<Note>This feature is available from **Configure > Integrations** in Agent Studio under the **MCP** tab.</Note>
+
+## How it works
+
+When you add an MCP server, Agent Studio connects to the server endpoint and automatically discovers the tools it exposes. Each tool has a name, description, and input schema defined by the server — you don't need to configure these manually.
+
+During a conversation, your agent can call any enabled MCP tool. The flow is:
+
+1. **Discovery** — Agent Studio sends a discovery request to the MCP server URL and receives a list of available tools with their schemas.
+2. **Configuration** — You review the discovered tools and toggle on the ones your agent should have access to.
+3. **Execution** — When the agent decides to use a tool during a conversation, Agent Studio sends the tool call to the MCP server with the appropriate authentication and waits for a response (up to the configured timeout).
+4. **Response** — The MCP server executes the tool and returns the result. The agent uses the response to continue the conversation.
+
+This means the MCP server controls *what* tools are available, and you control *which* of those tools the agent can actually use. Toggling tools off keeps them out of the agent's context window, which helps keep prompts focused and efficient.
+
+## When to use MCP
+
+Use MCP integrations when you want to connect your agent to an external tool that exposes an MCP server. Instead of writing custom [functions](/tools/introduction) and [API configurations](/api/introduction), you point Agent Studio at the MCP server URL and the platform discovers available tools automatically.
+
+Common use cases include:
+
+- Connecting to internal business systems that expose MCP endpoints
+- Adding third-party tool capabilities to your agent
+- Reusing tools across multiple agents without duplicating code
+
+## Prerequisites
+
+- The MCP server must be accessible over HTTPS
+- If the server requires authentication, you need the credentials and a [secret](/secrets/introduction) stored in the Secrets Vault with access granted to your project
+
+## Add an MCP integration
+
+<Steps>
+  <Step title="Open the integrations page">
+    Go to **Configure > Integrations** and select the **MCP** tab.
+  </Step>
+  <Step title="Add a new MCP server">
+    Click **Add MCP integration**. In the modal, configure:
+
+    | Field | Description |
+    |-------|-------------|
+    | **MCP server URL** | The HTTPS endpoint of the MCP server (e.g., `https://mcp.example.com`) |
+    | **Timeout** | How long to wait for the server to respond, in seconds (1–30, default 15) |
+    | **Authentication type** | Optional. Choose **Header**, **Query parameter**, or **OAuth** depending on how the server authenticates requests |
+  </Step>
+  <Step title="Configure authentication (if required)">
+    Select an authentication type and fill in the required fields:
+
+    <Tabs>
+      <Tab title="Header">
+        Send a secret value in an HTTP header.
+
+        | Field | Description |
+        |-------|-------------|
+        | **Header name** | The header the server expects (e.g., `X-API-Key`) |
+        | **Secret name** | A [secret](/secrets/how-to-setup) from the Secrets Vault that contains the credential |
+      </Tab>
+      <Tab title="Query parameter">
+        Append a secret value as a URL query parameter.
+
+        | Field | Description |
+        |-------|-------------|
+        | **Query parameter name** | The parameter the server expects (e.g., `api_key`) |
+        | **Secret name** | A [secret](/secrets/how-to-setup) from the Secrets Vault that contains the credential |
+      </Tab>
+      <Tab title="OAuth">
+        Authenticate using OAuth 2.0 client credentials.
+
+        | Field | Description |
+        |-------|-------------|
+        | **Client ID** | The OAuth client identifier |
+        | **Client secret name** | A [secret](/secrets/how-to-setup) from the Secrets Vault that contains the client secret |
+        | **Token URL** | The OAuth token endpoint (e.g., `https://auth.example.com/oauth/token`) |
+        | **Audience** | Optional. The intended audience for the token |
+        | **Scope** | Optional. Select **Read**, **Write**, or both |
+      </Tab>
+    </Tabs>
+
+    <Tip>
+      Add secrets in the **Secrets** page before configuring MCP authentication. Each secret must have access granted to your project. See [Secrets](/secrets/introduction) for setup instructions.
+    </Tip>
+  </Step>
+  <Step title="Connect">
+    Click **Connect**. Agent Studio discovers the functions available on the MCP server and displays them in the configuration panel.
+  </Step>
+  <Step title="Enable functions">
+    Toggle individual functions on or off in the configuration panel. Only enabled functions are available to your agent during conversations.
+  </Step>
+</Steps>
+
+## Use MCP tools in prompts
+
+Once an MCP server is connected, the discovered tools are available to the LLM inside step prompts. There are two approaches.
+
+### Basic usage
+
+Name the tool and give a brief description of what it does. The LLM reads the tool's input schema directly from the MCP server, so you don't need to specify parameters.
+
+```
+### Available tools
+
+1. join_session
+- Initiates a screen sharing session using a six-digit code provided by the user.
+```
+
+This is the simplest approach — minimal prompt maintenance, and the LLM figures out the inputs from the schema.
+
+### Advanced usage
+
+For complex tools where the LLM may struggle with correct inputs, you can specify the expected parameters explicitly in the prompt:
+
+```
+CALL: highlight_element_and_wait({
+  cbid: "uXX-123",
+  session_id: "...",
+  user_message: "Click the Billing tab"
+})
+```
+
+You can also wrap MCP tool calls with [platform functions](/tools/introduction) for additional logic like metric logging or state updates. For example, call a function after an MCP tool succeeds to log the result or trigger a step transition.
+
+<Warning>
+  Explicit input specification creates a maintenance burden. If the MCP server changes its tool schema, your prompts need updating too. Use this only when the basic approach produces unreliable results.
+</Warning>
+
+### Whitelisting tools via URL
+
+You can restrict which tools are exposed by the MCP server using the `tools` query parameter in the server URL:
+
+```
+https://mcp.example.com?tools=join_session,get_html
+```
+
+This limits tool discovery to only the listed tools, which is useful when the server exposes more tools than your agent needs.
+
+## Manage MCP integrations
+
+After connecting, you can:
+
+- **Edit settings** — Click an MCP integration card to open the configuration panel and update the server URL, timeout, or authentication
+- **Refresh functions** — Click **Refresh** in the configuration panel to re-discover available functions from the server
+- **Toggle functions** — Enable or disable individual functions without disconnecting the server
+- **Disconnect** — Remove an MCP integration entirely. Your agent will no longer have access to its functions
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection fails">
+    Verify that the MCP server URL is correct and accessible over HTTPS. Check that any required authentication credentials are configured and that the associated secret has access to your project.
+  </Accordion>
+  <Accordion title="No functions discovered">
+    The MCP server may not expose any tools, or the discovery request may have timed out. Try increasing the timeout value and clicking **Refresh**.
+  </Accordion>
+  <Accordion title="Functions not available to the agent">
+    Confirm that the functions are toggled on in the configuration panel. Only enabled functions are accessible during conversations.
+  </Accordion>
+  <Accordion title="Migrating from experimental config">
+    Projects that previously configured MCP through experimental config will continue to work — existing servers keep running in the background. The old config is only replaced when you add a new MCP server through the Integrations UI. Once migrated, manage all MCP servers from the UI.
+  </Accordion>
+</AccordionGroup>
