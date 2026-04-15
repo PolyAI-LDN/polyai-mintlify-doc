@@ -3,16 +3,17 @@ title: 'Multi-language updates'
 description: 'Maintain and optimize multilingual agent configurations.'
 ---
 
-Multilingual agents detect the caller's language, switch languages mid-conversation, and use language-appropriate voices and knowledge. This page covers how to maintain these capabilities.
+Multilingual agents detect the caller's language, switch languages mid-conversation, and use language-appropriate voices and knowledge. This page covers how to maintain these capabilities. For initial setup, see [Multi-language setup](/agent-settings/multilingual).
 
 ## Quick reference
 
 | I need to... | Action |
 |---|---|
 | Add a new language | **Configure > General** → Additional languages |
-| Update language-specific knowledge | Edit topics with language variants |
+| Update language-specific knowledge | Edit topics with language variants or use `<language:xx>` tags |
 | Change voice for a language | **Channels > Voice > Agent Voice** → select language card |
 | Fix a translation issue | **Channels > Response Control > [Translations](/response-control/translations)** → edit the card |
+| Add language-specific pronunciations | **Channels > Response Control > [Pronunciations](/response-control/pronunciations)** → add rules per language |
 | Test language switching | Agent Chat → select language from dropdown |
 
 ## Adding or removing languages
@@ -23,14 +24,15 @@ Multilingual agents detect the caller's language, switch languages mid-conversat
 2. Configure a voice for the new language in **Channels > Voice > Agent Voice**
 3. Add language-specific knowledge (see below)
 4. Add any necessary [translation overrides](/response-control/translations)
-5. Update [behavior rules](/agent-settings/rules) for the new language
-6. Test in Agent Chat using the language dropdown, then publish
+5. Update [behavior rules](/agent-settings/rules) for the new language — use `<language:xx>` tags to scope rules to specific languages
+6. Add [pronunciation rules](/response-control/pronunciations) for the new language
+7. Test in Agent Chat using the language dropdown, then publish
 
-<Tip>Use a multilingual voice model (such as ElevenLabs multilingual or Cartesia sonic) for proper pronunciation across languages. See [voice classes](/tools/classes/voice) for available providers.</Tip>
+<Tip>Use a multilingual voice model (such as ElevenLabs multilingual or Cartesia sonic) for proper pronunciation across languages. See [Voice](/tools/classes/voice) for available providers including ElevenLabs, Cartesia, Hume, Rime, Minimax, PlayHT, and Google TTS.</Tip>
 
 ### Removing a language
 
-Remove the language from **Configure > General** under **Additional languages**, then update any language-specific knowledge, translations, and functions. The agent will fall back to the default language for callers speaking the removed language.
+Remove the language from **Configure > General** under **Additional languages**, then update any language-specific knowledge, translations, pronunciation rules, and functions. The agent will fall back to the main language for callers speaking the removed language.
 
 ## Language-specific knowledge
 
@@ -39,14 +41,34 @@ Remove the language from **Configure > General** under **Additional languages**,
 1. Go to **Build > Knowledge > Managed Topics**
 2. Create or edit a topic
 3. Add **language variants** for each supported language with translated or culturally-appropriate content
-4. Save and test
+4. Translate both sample questions and content for each variant
+5. Save and test
+
+<Tip>
+Sample questions must be in the same language as caller inputs — they are compared with user inputs during the retrieval process.
+</Tip>
+
+### Conditional content with `<language:xx>` tags
+
+For content where you don't need full language variants, use `<language:xx>` tags to serve language-specific content within a single prompt:
+
+```text
+<language:en>
+Please hold while I check your account.
+</language:en>
+<language:es>
+Por favor espere mientras reviso su cuenta.
+</language:es>
+```
+
+This works in [behavior rules](/agent-settings/rules), [Managed Topics](/managed-topics/introduction) content, [flow steps](/flows/introduction), and [function](/tools/introduction) descriptions.
 
 ### Connected Knowledge per language
 
 Add separate sources per language:
 - **URL sources** — add the language-specific version of your website
 - **File sources** — upload language-specific documents
-- **Integration sources** — configure APIs to return language-specific data
+- **Integration sources** — configure integrations (such as [Zendesk](/integrations/zendesk) or [Gladly](/integrations/gladly)) to return language-specific content
 
 ### Shared vs. language-specific knowledge
 
@@ -79,14 +101,42 @@ def set_language(language_code):
 
 ## Language-specific functions
 
+### Accessing the current language
+
 Access the current language in functions with `conv.language`:
 
 ```python
 def dynamic_response():
-    if conv.language == "es":
+    current_language = conv.language
+
+    if current_language == "es":
         return {"utterance": "Respuesta en español"}
-    return {"utterance": "Response in English"}
+    else:
+        return {"utterance": "Response in English"}
 ```
+
+### Using translation cards in functions
+
+For hard-coded utterances that need language-specific versions, use the `conv.translations` object instead of if/else branching. Create a [translation card](/response-control/translations), then reference it by key:
+
+```python
+conv.translations.tn_greeting
+```
+
+For translation keys with special characters:
+
+```python
+getattr(conv.translations, "key with special chars")
+```
+
+## What to translate
+
+Not all project content needs translation. See the full reference table in [Multi-language setup](/agent-settings/multilingual#what-to-translate). Key rules:
+
+- Keep **instructions** in English (e.g., "Ask for the user's phone number")
+- Translate **example utterances** and scripted responses
+- If content is directed at the **agent**, keep it in English. If it will be spoken aloud to the customer, translate it.
+- Topic names, actions, function names, and Python code should stay in English.
 
 ## Fixing translation issues
 
@@ -96,8 +146,9 @@ def dynamic_response():
 | Cultural mismatches | Use culturally-appropriate equivalents for idioms |
 | Incorrect terminology | Use domain-specific terms with a glossary |
 | Formatting issues | Localize date/time/number formats per language |
+| Pronunciation issues | Add language-specific rules on the [Pronunciations](/response-control/pronunciations) page |
 
-For content where auto-translation isn't sufficient, use the [Translations](/response-control/translations) page to create manual overrides. For bulk updates to Managed Topics, export as CSV, send to professional translators with context and a domain glossary, then import the translated CSV.
+For content where auto-translation isn't sufficient, use the [Translations](/response-control/translations) page to create manual overrides. For bulk updates to Managed Topics, export as CSV, translate the content, then re-import.
 
 ## Testing
 
@@ -114,7 +165,9 @@ For content where auto-translation isn't sufficient, use the [Translations](/res
 
 ## Related pages
 
-- [Multi-language setup](/agent-settings/multilingual) — configure language support
+- [Multi-language setup](/agent-settings/multilingual) — configure language support and see the full "what to translate" reference
 - [Translations](/response-control/translations) — manage manual translation overrides
+- [Pronunciations](/response-control/pronunciations) — configure language-specific pronunciation rules
 - [Voice Library](/voice/voice-library) — browse and select voices per language
 - [Managed Topics](/managed-topics/introduction) — add language variants
+- [Voice](/tools/classes/voice) — programmatic voice configuration with provider classes
