@@ -1,0 +1,179 @@
+---
+title: 'Tripleseat'
+description: 'Capture event and large party leads automatically with PolyAI and Tripleseat.'
+---
+
+Connect PolyAI to [Tripleseat](https://tripleseat.com/) to automatically capture event and private dining leads from voice and webchat conversations. PolyAI collects guest details and creates leads directly in Tripleseat, so your team can respond faster and never miss an inquiry.
+
+<Info>Before getting started, you need both a Tripleseat account and a PolyAI account.</Info>
+
+## How it works
+
+PolyAI acts as a conversational front end for your Tripleseat-powered venues. When a caller or chat user asks about private dining, events, or large party bookings, the PolyAI agent:
+
+1. Collects event details from the guest (name, date, party size, etc.)
+2. Creates a lead in Tripleseat via the Leads API
+3. Your events team picks up the lead in Tripleseat to follow up, send proposals, and confirm bookings
+
+This works across multiple channels:
+
+- **Voice** - Callers speak their event details and PolyAI captures them automatically
+- **Webchat** - Chat users provide details through a guided conversation
+- **SMS** - For collecting information like email addresses that are difficult to capture over voice
+
+## Prerequisites
+
+To set up the Tripleseat integration, you need:
+
+- A **Tripleseat account** with API access
+- A **PolyAI account** with access to Agent Studio
+
+## Setup
+
+There are two ways to connect Tripleseat to PolyAI, depending on your project type.
+
+### Connect via Agent Studio
+
+Projects using the PLG restaurant template can connect Tripleseat directly from Agent Studio using OAuth 2.0.
+
+<Steps>
+  <Step title="Open the integrations page">
+    In Agent Studio, go to the **Integrations** page and find **Tripleseat**.
+  </Step>
+  <Step title="Connect your Tripleseat account">
+    Click **Connect** and sign in with your Tripleseat credentials. This authorizes PolyAI to create leads on your behalf.
+  </Step>
+  <Step title="Configure large party handling">
+    Navigate to your site settings and find the **Large party handling** section. Set the **max party number** — when a caller requests a party larger than this, your agent will capture their details for Tripleseat instead of making a standard reservation.
+
+    Select **Send details to Tripleseat** as the handoff method, then choose the **Tripleseat location** from the dropdown.
+  </Step>
+  <Step title="Set a fallback number">
+    Choose a fallback phone number in case the Tripleseat connection fails. You can use your default transfer number or set a custom large party transfer number.
+  </Step>
+</Steps>
+
+### Connect via public API key
+
+For projects not using the self-service flow, your PolyAI representative can set up the integration using a public API key.
+
+<Steps>
+  <Step title="Contact your PolyAI representative">
+    Reach out to your PolyAI account manager to start the integration process. You will need to decide which sites, locations, and lead sources to use.
+  </Step>
+  <Step title="Share your Tripleseat API key">
+    In your Tripleseat dashboard, go to **Settings > API & Webhook details** and copy your **Public API Key**. Share this with your PolyAI representative.
+  </Step>
+  <Step title="Provide location and lead source details">
+    Share the following with PolyAI:
+
+    - **Site ID** and **location ID** for each venue
+    - The **lead source** you want used for PolyAI-created leads (e.g., "Phone" or a custom source)
+
+    <Note>If you have multiple locations, each venue requires its own location ID mapping.</Note>
+  </Step>
+  <Step title="PolyAI builds the integration">
+    PolyAI configures the integration for your venues. Once complete, your agent begins capturing leads automatically.
+  </Step>
+</Steps>
+
+## Tripleseat hierarchy
+
+Tripleseat organizes data in a hierarchy that maps to how PolyAI routes leads:
+
+- **Customer** - Your organization in Tripleseat
+- **Site** - A grouping such as a brand or business unit that contains locations
+- **Location** - An individual venue where leads are recorded
+- **Lead** - A booking inquiry created by PolyAI
+
+If you are setting up Tripleseat from scratch, we recommend one site with one location per venue. Only use multiple sites if you need completely separate dashboards or permissions per brand.
+
+## Data collected
+
+PolyAI collects the following event details during a conversation and submits them as a Tripleseat lead.
+
+### Standard fields
+
+| Field | Description |
+|---|---|
+| Full name | Guest's first and last name |
+| Phone number | Guest's contact number |
+| Event date | Requested date for the event |
+| Start time | Requested start time |
+| Party size | Number of guests expected |
+| Event type | Type of event (e.g., birthday, corporate) |
+| Additional notes | Any extra details provided by the guest |
+
+### Enterprise fields
+
+These additional fields are available for enterprise-tier projects:
+
+| Field | Description |
+|---|---|
+| Email address | Collected via SMS (not over the phone) |
+| Company name | Guest's company or organization |
+| Contact preference | Phone, email, or text |
+| Event style | On-premise, full-service catering, pick-up, or drop-off |
+| End time | Requested end time |
+| Marketing opt-in | Whether the guest opts in to marketing emails |
+
+<Note>Email addresses are collected via SMS rather than voice because alphanumeric characters are unreliable over speech recognition.</Note>
+
+## API reference
+
+PolyAI creates leads using the Tripleseat Leads API.
+
+**Endpoint:**
+
+```
+POST https://api.tripleseat.com/v1/leads/create.json?public_key={Public_Key}
+```
+
+**Request body:**
+
+```json
+{
+  "lead": {
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "phone_number": "+15551234567",
+    "email_address": "jane@example.com",
+    "guest_count": 25,
+    "event_date": "06-15-2026",
+    "start_time": "6:00 PM",
+    "event_description": "Birthday dinner",
+    "additional_information": "Prefer private room",
+    "lead_sources": [
+      {
+        "id": 18,
+        "name": "Phone"
+      }
+    ],
+    "location": {
+      "id": 12345,
+      "name": "Downtown",
+      "site_id": 6789
+    }
+  }
+}
+```
+
+<Note>If a site has more than one location, the `location.id` field is required.</Note>
+
+For full API documentation, see the [Tripleseat API overview](https://support.tripleseat.com/hc/en-us/articles/205162108-API-Overview) and [Leads endpoint reference](https://support.tripleseat.com/hc/en-us/articles/212528787-API-Leads-Endpoint).
+
+## TripleseatDirect
+
+[TripleseatDirect](https://tripleseat.com/tripleseatdirect/) is a separate, guest-facing self-serve booking layer. Instead of creating a lead via API, PolyAI sends the guest an SMS link to the TripleseatDirect booking page where they can complete their reservation directly.
+
+<Info>TripleseatDirect is handled as an SMS action rather than an API integration. Contact your PolyAI representative to set this up.</Info>
+
+## Disconnecting
+
+If you disconnect Tripleseat from the integrations page, large party handling will fall back to your default transfer number. Callers requesting large parties will be transferred to the restaurant directly instead of having their details sent to Tripleseat.
+
+## Next steps
+
+- Connect Tripleseat from the **Integrations** page in Agent Studio, or contact your PolyAI account manager
+- Configure **large party handling** in your site settings to set the party size threshold and Tripleseat location
+- Review the [Tripleseat API documentation](https://support.tripleseat.com/hc/en-us/articles/19394408627479-API-Authentication) for authentication details
