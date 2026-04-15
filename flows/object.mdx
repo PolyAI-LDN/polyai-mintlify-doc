@@ -26,9 +26,6 @@ goto_step(step_name: str, condition_label: str = None) -> None
 | `step_name` | `str` | Yes | The exact name of the target step as it appears in the Flow Editor. **Case-sensitive.** |
 | `condition_label` | `str` | No | A label for the transition edge. This is **purely decorative** — it appears on the edge in the Flow Editor for readability but does not affect runtime behavior. |
 
-- **`step_name`** (required) — the name of the target step, exactly as it appears in the Flow Editor.
-- **`condition_label`** (optional) — a label for the transition edge. In [Function steps](/flows/no-code/introduction), this label appears on the edge in the visual editor for readability.
-
 ```python
 # Basic transition
 flow.goto_step("Confirm Name")
@@ -45,12 +42,7 @@ return
 The runtime executes your function to completion before honoring the transition. If you call `goto_step()` more than once without returning, each call overwrites the previous transition state — only the final one takes effect. Using `return` after each call prevents accidental overwrites and makes control flow explicit.
 </Warning>
 
-If `step_name` doesn't match any step in the flow — due to a typo, trailing space, or case mismatch — the transition **fails silently** with no error message. To debug:
-- Open the **Flow Functions** modal and verify the exact step name.
-- Use `flow.current_step` to log which step the agent is currently in.
-- Remember that step names are **case-sensitive**: `"CollectName"` and `"collectname"` are different targets.
-
-When you rename a step in the Flow Editor, Agent Studio automatically updates `flow.goto_step()` references across the project. However, verify after renaming — auto-rename may not catch step names stored in variables or constructed dynamically.
+If `step_name` doesn't match any step in the flow, the transition **fails silently**. Step names are **case-sensitive**. See [transition functions — debugging](/flows/transition-functions#debugging-tips) for troubleshooting guidance.
 
 ### Execution context matters
 
@@ -103,14 +95,14 @@ These methods live on the [`Conversation` object](/tools/classes/conv-object), n
 
 ### `conv.goto_flow(flow_name)`
 
-Transitions to a different flow at the end of the current turn. Use this when the conversation needs to leave the current flow entirely — for example, to start an identity verification or escalation flow.
+Transitions to a different flow at the end of the current turn. Can be called from **any function** — flow-scoped or global.
 
 ```python
 conv.goto_flow("Identity Verification")
 return
 ```
 
-Unlike `flow.goto_step()`, `conv.goto_flow()` can be called from **any function** — flow-scoped or global. See [triggering flows](/flows/triggering-flows) for all the ways to start a flow.
+See [triggering flows](/flows/triggering-flows) for all the ways to start a flow.
 
 ### `conv.exit_flow()`
 
