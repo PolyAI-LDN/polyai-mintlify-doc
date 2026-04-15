@@ -48,11 +48,75 @@ For example, if you have:
 
 The formatting rule should appear **above** the digit-to-word rule.
 
-## Using capture groups in replacements
+## Regex fundamentals for pronunciation rules
 
-If your regular expression uses capture groups (for example, `(\d{3})`), you can refer to these in the replacement string using `\1`, `\2`, etc. This allows you to reformat matched text dynamically.
+Pronunciation rules use [regular expressions (regex)](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_expressions) to match text patterns and replace them with TTS-friendly output. Below are the key concepts you'll use most often.
 
-## Example: Formatting a phone number with pauses
+### Escaping special characters
+
+In regex, certain characters have special meaning. To match them literally, prefix them with a backslash (`\`).
+
+| Character | Regex meaning | To match literally |
+|-----------|--------------|-------------------|
+| `.` | Any single character | `\.` |
+| `-` | Range (inside `[]`) | `\-` |
+| `(` `)` | Capture group | `\(` `\)` |
+| `*` | Zero or more | `\*` |
+| `+` | One or more | `\+` |
+
+**Example:** To replace `3-5` with "three to five", use `3\-5` as the regex. The `\-` ensures the hyphen is matched literally.
+
+### Word boundaries
+
+The `\b` marker matches the boundary between a word character and a non-word character. This prevents your pattern from matching inside larger strings.
+
+For example, the regex `\b(\d{5})\b` matches the zip code `90210` on its own but does **not** match the first five digits of a longer number like `9021043210`.
+
+### Capture groups
+
+Parentheses `()` create capture groups that you can reference in the replacement string as `\1`, `\2`, `\3`, and so on, based on their position.
+
+You can capture groups of digits — like `(\d{3})` for three digits at once — or capture digits individually with `(\d)` repeated for each position. Capturing digits individually gives you full control over spacing and punctuation in the replacement, which is useful when TTS needs to read each digit separately.
+
+### Digit patterns
+
+| Pattern | Matches |
+|---------|---------|
+| `\d` | A single digit (0–9) |
+| `(\d)` | A single digit, captured for replacement |
+| `(\d{3})` | Exactly three digits, captured as a group |
+
+## Common pronunciation rule patterns
+
+### Read a phone number digit by digit
+
+To transform a phone number like `651-359-2923` so TTS reads each digit individually:
+
+- **Regex:** `\b(\d)(\d)(\d)-(\d)(\d)(\d)-(\d)(\d)(\d)(\d)\b`
+- **Replacement:** `\1 \2 \3, \4 \5 \6, \7 \8 \9 \10`
+
+Each `(\d)` captures one digit. The replacement inserts spaces and commas so TTS pauses between groups — producing "six five one, three five nine, two nine two three". The `\b` word boundaries prevent the pattern from matching inside longer strings.
+
+To match the same format without hyphens (raw digits like `6513592923`):
+
+- **Regex:** `\b(\d)(\d)(\d)(\d)(\d)(\d)(\d)(\d)(\d)(\d)\b`
+- **Replacement:** `\1 \2 \3, \4 \5 \6, \7 \8 \9 \10`
+
+### Read a zip code digit by digit
+
+- **Regex:** `\b(\d)(\d)(\d)(\d)(\d)\b`
+- **Replacement:** `\1, \2, \3, \4, \5`
+
+Commas between each digit cause TTS to pause slightly between numbers — "nine, zero, two, one, zero" instead of "ninety thousand two hundred ten".
+
+### Make a URL speakable
+
+- **Regex:** `www\.`
+- **Replacement:** `W, W, W, dot`
+
+The `\.` escapes the dot so it only matches a literal period. Without escaping, `.` in regex means "any character" and could match unintended text.
+
+### Formatting a phone number with SSML pauses
 
 To transform a number like `(651) 359-2923` into:
 
@@ -60,9 +124,9 @@ To transform a number like `(651) 359-2923` into:
 
 Use the following pronunciation rule:
 
-- **Regex**: `$begin:math:text$?(\\d{3})$end:math:text$?[ -]?(\d{3})[ -]?(\d{4})`
-- **Replacement**: `\1 <break time="0.5s" /> \2 <break time="0.5s" /> \3`
-- **Case sensitive**: `FALSE`
+- **Regex:** `$begin:math:text$?(\\d{3})$end:math:text$?[ -]?(\d{3})[ -]?(\d{4})`
+- **Replacement:** `\1 <break time="0.5s" /> \2 <break time="0.5s" /> \3`
+- **Case sensitive:** `FALSE`
 
 This uses [SSML breaks](https://cloud.google.com/text-to-speech/docs/ssml#break) between capture groups, allowing for natural read-back of phone numbers or similar patterns.
 
