@@ -58,10 +58,14 @@ Most pronunciation rules follow a small set of patterns. You can copy these dire
 
 ### Simple text replacement
 
-To replace a specific string with a spoken equivalent, enter the text in the **Expression** field and the replacement in **Replace with**. Use a backslash before characters like `-` or `.` so they are matched literally.
+To replace a specific string with a spoken equivalent, enter the text in the **Expression** field and the replacement in **Replace with**.
 
 - **Regex:** `3\-5`
 - **Replacement:** `three to five`
+
+<Note>
+Characters like `.` have special meaning in regex and must be escaped with a backslash (`\.`) to match literally. The hyphen (`-`) only needs escaping inside character classes like `[a-z]` — outside of brackets, `3-5` and `3\-5` both match the literal string "3-5".
+</Note>
 
 ### Read a phone number digit by digit
 
@@ -92,7 +96,7 @@ Reads "nine, zero, two, one, zero" instead of "ninety thousand two hundred ten".
 
 For more control over pause timing, you can use SSML `<break>` tags in the replacement:
 
-- **Regex:** `$begin:math:text$?(\\d{3})$end:math:text$?[ -]?(\d{3})[ -]?(\d{4})`
+- **Regex:** `\(?(\d{3})\)?[ -]?(\d{3})[ -]?(\d{4})`
 - **Replacement:** `\1 <break time="0.5s" /> \2 <break time="0.5s" /> \3`
 - **Case sensitive:** `FALSE`
 
@@ -109,7 +113,7 @@ If you need to customize the patterns above or write your own, here are the buil
     | Character | Regex meaning | To match literally |
     |-----------|--------------|-------------------|
     | `.` | Any single character | `\.` |
-    | `-` | Range (inside `[]`) | `\-` |
+    | `-` | Range (only inside `[]`) | `\-` (not needed outside brackets) |
     | `(` `)` | Capture group | `\(` `\)` |
     | `*` | Zero or more | `\*` |
     | `+` | One or more | `\+` |
@@ -134,7 +138,7 @@ If you need to customize the patterns above or write your own, here are the buil
 
 ## Example: IPA correction
 
-- **Regex**: `/\bLouvre\b/`
+- **Regex**: `\bLouvre\b`
 - **Replacement**: `/ˈluːvrə/`
 - **Case sensitive**: `FALSE`
 
