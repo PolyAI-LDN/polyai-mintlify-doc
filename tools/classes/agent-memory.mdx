@@ -12,106 +12,190 @@ Use Agent Memory when your agent needs to remember information about returning c
 
 <Note>This feature is in early access. Functionality may evolve. Contact your PolyAI representative for guidance on production use.</Note>
 
-It uses a key-value store attached to a user identifier (like phone number). Memory is read at the start of each turn and written after the conversation ends.
+## How it works
+
+Agent Memory is a key-value store attached to a user identifier (such as a phone number). It lets you persist small, structured data between conversations so your agent can:
+
+- Skip repeated questions for returning callers
+- Greet callers by name or reference past interactions
+- Resume interrupted conversations where the caller left off
+- Track handoff history and resolution status
+
+Memory is read **at the start of each turn** and cached for that turn. It is written **at the end of a conversation** — not on every turn.
 
 You can:
 
 - **Read memory** using `conv.memory.get("key")`
-- **Write memory** by setting `conv.state["key"] = value` (if configured with `state_keys`)
+- **Write memory** by setting `conv.state["key"] = value` (if the key is listed in `state_keys`)
 
 ## Configuration
 
-### JSON config (Agent Studio)
+### Enable Agent Memory
 
-To enable Agent Memory:
+Navigate to **Project > Settings > Experimental Config** in Agent Studio and add the memory configuration:
 
 ```json
 {
   "memory": {
     "repeat_caller": {
       "analytics_enabled": true,
-      "state_keys": ["booking_day", "cheese_type"],
+      "state_keys": ["booking_day", "preferred_language"],
       "identifier_blacklist": ["+440000000000"]
     }
   }
 }
 ```
 
-- `analytics_enabled`: Adds repeat caller metrics to Studio analytics
-- `state_keys`: Keys to save from `conv.state` to memory
-- `identifier_blacklist`: Optional list of excluded IDs (e.g. test numbers)
+| Field | Description |
+|-------|-------------|
+| `analytics_enabled` | Adds repeat caller metrics to Studio analytics dashboards |
+| `state_keys` | Keys from `conv.state` that should be saved to memory at the end of the conversation |
+| `identifier_blacklist` | Optional list of identifiers to exclude (e.g., test phone numbers) |
+
+<Tip>Only include keys you explicitly need in `state_keys`. Memory is persisted at the end of the conversation, so only values set during the call are saved.</Tip>
 
 ## Using memory in functions
 
-### Read memory
+### Reading memory
+
+Use `conv.memory.get("key")` in any function to retrieve a previously stored value:
 
 ```python
 def start_function(conv: Conversation):
-    cheese = conv.memory.get("cheese_type")
-    if cheese:
-        conv.say(f"You previously picked {cheese}.")
+    name = conv.memory.get("caller_name")
+    if name:
+        return {"utterance": f"Welcome back, {name}. How can I help you today?"}
 ```
 
-### Write memory (using conv.state)
+### Writing memory
+
+Set values in `conv.state` — they are persisted to memory at the end of the conversation if the key is listed in `state_keys`:
 
 ```python
-def book(conv: Conversation):
-  conv.state["cheese_type"] = "brie"
+def collect_name(conv: Conversation, caller_name: str):
+    conv.state["caller_name"] = caller_name
+    return {"content": f"Thanks, {caller_name}. I'll remember you next time."}
 ```
 
-<Tip>These fields will only be persisted if they are listed under `state_keys` in your config.</Tip>
+<Warning>
+Only keys listed in `state_keys` in your config are persisted. Setting `conv.state["key"] = value` for a key not in `state_keys` will not save it to memory.
+</Warning>
 
-### Example: conditional reuse
+### Full example: returning caller
 
 ```python
 def start_function(conv: Conversation):
-  booking_day = conv.memory.get("booking_day")
-  cheese_type = conv.memory.get("cheese_type")
-  if booking_day and cheese_type:
-    conv.say(f"You booked {cheese_type} for {booking_day}. Rebook?")
+    booking_day = conv.memory.get("booking_day")
+    cheese_type = conv.memory.get("cheese_type")
+
+    if booking_day and cheese_type:
+        return {
+            "utterance": f"I see you previously booked {cheese_type} for {booking_day}. Would you like to book again?"
+        }
 ```
+
+```python
+def book_delivery(conv: Conversation, cheese_type: str, booking_day: str):
+    conv.state["booking_day"] = booking_day
+    conv.state["cheese_type"] = cheese_type
+    return {"content": f"Booked {cheese_type} for {booking_day}."}
+```
+
+## Repeat caller analytics
+
+When `analytics_enabled` is set to `true`, Agent Memory automatically tracks five metrics for each returning caller:
+
+| Metric | Description |
+|--------|-------------|
+| `REPEAT_CALLER_CONV_ID` | Conversation ID of the caller's first interaction |
+| `REPEAT_CALLER_DATETIME` | Timestamp of the first interaction |
+| `REPEAT_CALLER_QA` | QA outcome from the first interaction |
+| `REPEAT_CALLER_HANDOFF_REASON` | Reason for handoff in the first interaction |
+| `REPEAT_CALLER_HANDOFF_TO` | Handoff destination from the first interaction |
+
+These metrics appear in your [dashboards](/analytics/dashboards/introduction) and can be used to track repeat caller patterns and resolution rates.
+
+<Note>
+Repeat caller metrics always reference the **first** interaction in the retention window, not the most recent one. This is by design for data privacy compliance — linking calls in a chain could allow identification beyond the retention period.
+</Note>
 
 ## Memory behavior
 
-- Memory is read **once per turn** and cached.
-- Memory is persisted **at the end of a conversation**.
-- Only supported identifier today: **phone number**.
+### Timing
+
+- Memory is **fetched once per turn** from the memory service and cached. Multiple `conv.memory.get()` calls in the same turn do not trigger additional lookups.
+- Memory is **written at the end of the conversation** (after the end function executes). Values set in `conv.state` during a function on turn 1 are not available via `conv.memory` on turn 2 of the same call.
+
+### Persistence
+
+Each write acts as a **patch** — it updates or adds specific keys without removing existing ones. If conversation 1 writes `{"cheese_type": "gouda"}` and conversation 2 writes `{"booking_day": "Friday"}`, the next lookup returns both fields.
+
+### Expiry
+
+All memory identifiers and fields expire after **90 days** (maximum, for GDPR compliance). Once expired, data is automatically deleted and no longer accessible.
+
+### Identifiers
+
+The current supported identifier is the **caller's phone number**. This is set automatically — you do not need to configure it.
+
+<Note>
+Support for additional identifiers (email, account ID) and identifier linking across channels is planned for future releases.
+</Note>
+
+## Compliance
+
+<Warning>
+Before using Agent Memory in production, you must inform your clients. They need to ensure their use complies with applicable data protection laws, which may include updating privacy notices to reflect the new data processing.
+</Warning>
+
+Key compliance considerations:
+
+- Agent Memory is **not intended for automated decision-making** that significantly impacts end users
+- Do not store sensitive PII in a single field — separate fields allow independent expiry
+- Custom memory fields **cannot** be used to build caller profiles
+- Timestamps stored in memory should be rounded to the hour to prevent linking calls across the retention window
+- All data expires within 90 days
+
+If your use case goes beyond analytics, call recovery, or personalisation, raise a request with your legal team before proceeding.
 
 ## FAQ
 
-### Can I store nested JSON?
+<AccordionGroup>
+<Accordion title="Can I store nested JSON?">
+Values are stored as JSON-encoded strings. You can store structured data in a single field, but it is recommended to keep fields flat so they can expire independently — especially for anything containing PII.
+</Accordion>
 
-No. Each value must be a string, number, or flat serializable object. Always avoid packing PII into a single field.
-
-### Can I check if memory exists?
-
-Yes:
+<Accordion title="Can I check if any memory exists?">
+Yes. Use Python's `in` operator:
 
 ```python
 if "booking_day" in conv.memory:
+    # Memory exists for this key
 ```
+</Accordion>
 
-### Can I prevent overwrites?
-
-Not directly, but you can check before writing:
+<Accordion title="Can I prevent accidental overwrites?">
+Not natively — the latest write always wins. Guard against overwrites in your code:
 
 ```python
 if "cheese_type" not in conv.memory:
-  conv.state["cheese_type"] = value
+    conv.state["cheese_type"] = value
 ```
+</Accordion>
 
-### How do I get all memory fields?
+<Accordion title="When are memory writes committed?">
+Memory is persisted at the end of the conversation, after the [end function](/tools/end-function) executes. Values set in `conv.state` during a function are not available in `conv.memory` until the next call.
+</Accordion>
 
+<Accordion title="Does memory work across channels?">
+Currently, memory is scoped by phone number. Support for linking identifiers across channels (voice, SMS, webchat) is planned for future releases.
+</Accordion>
+
+<Accordion title="How do I get all stored memory fields?">
 Use the `fields()` method:
 
 ```python
-all_memory = conv.memory.fields()  # Returns a dict copy of all fields
+all_memory = conv.memory.fields()  # Returns a dict of all fields
 ```
-
-### How do I check how many fields are stored?
-
-Use Python's `len()`:
-
-```python
-field_count = len(conv.memory)
-```
+</Accordion>
+</AccordionGroup>
