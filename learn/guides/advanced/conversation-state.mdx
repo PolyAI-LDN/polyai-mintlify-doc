@@ -78,15 +78,15 @@ The LLM receives the current cart state as function output on every call. It nev
 
 <Quiz questions={[
   {
-    q: "Why use conv.state.cart instead of a local variable inside the function?",
+    q: "A user adds 'banana' to their cart in turn 1. In turn 2, they add 'kiwi'. But the cart only contains 'kiwi'. You used a local variable `cart = {}` inside the function. What happened?",
     options: [
-      "conv.state is faster than local variables",
-      "Local variables are discarded when the function returns; conv.state persists across the entire conversation",
-      "Agent Studio requires all variables to be in conv.state",
-      "conv.state automatically validates the data types",
+      "The function has a bug in the dictionary update logic",
+      "Local variables are discarded when the function returns — the cart reset to empty on turn 2, so 'banana' was lost",
+      "The LLM forgot the first item because the conversation history was too long",
+      "conv.state overwrote the local variable between turns",
     ],
     correct: 1,
-    explanation: "Local variables only exist while the function is running. conv.state persists across all turns and all function calls for the lifetime of the conversation.",
+    explanation: "Local variables only exist while the function is running. When the function returned after turn 1, the local `cart` was discarded. Turn 2 started fresh with `cart = {}`. Use conv.state.cart instead — it persists across all turns for the lifetime of the conversation.",
   }
 ]} />
 
@@ -154,7 +154,7 @@ Before `finalize_order` runs, `$order_status_prompt` is an empty string (invisib
       "The agent needs to restart the conversation before state variables take effect",
     ],
     correct: 1,
-    explanation: "If a state variable is None (not yet set), the placeholder renders literally. Initialize variables to empty strings in the start function to ensure they are always replaced before the first LLM request.",
+    explanation: "If a state variable is None (not yet set), the placeholder renders literally. Fix this by initializing conv.state.user_name = '' in your start function — an empty string is invisible to the LLM, so the prompt reads cleanly even before the name is collected.",
   }
 ]} />
 
