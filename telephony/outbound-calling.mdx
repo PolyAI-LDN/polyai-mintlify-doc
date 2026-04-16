@@ -104,37 +104,37 @@ If you're integrated with Twilio, outbound calls can be routed through your Twil
 
 ## Recipient detection
 
-Outbound calls need to determine who — or what — answered before the conversation begins. This is handled by a **custom detection flow** that you build as the first step of your outbound project. It is not an out-of-the-box feature — it requires flow logic designed by your project team.
+Outbound calls need to determine who – or what – answered before the conversation begins. This is handled by a **custom detection flow** that you build as the first step of your outbound project. It is not an out-of-the-box feature – it requires flow logic designed by your project team.
 
 On the first turn, the agent classifies the recipient into one of several categories. Typical classifications include:
 
-- **Human** — a live person answered; proceed to the greeting and main conversation
-- **IVR** — an automated phone system answered; navigate menus via DTMF or hold
-- **Voicemail** — a voicemail system answered; leave a message or hang up
-- **Number not in service** — the number is disconnected; end the call
-- **Operator** — a switchboard operator answered
+- **Human** – a live person answered; proceed to the greeting and main conversation
+- **IVR** – an automated phone system answered; navigate menus via DTMF or hold
+- **Voicemail** – a voicemail system answered; leave a message or hang up
+- **Number not in service** – the number is disconnected; end the call
+- **Operator** – a switchboard operator answered
 
-The exact categories and how the agent decides between them are defined in the detection step's prompt and classification function — they are fully customizable per project.
+The exact categories and how the agent decides between them are defined in the detection step's prompt and classification function – they are fully customizable per project.
 
 ### How recipient detection works
 
 Detection runs on the first step of the outbound flow. A typical implementation involves:
 
-1. **A classification function** — the step prompt instructs the agent to evaluate what the recipient says on the first turn and classify it (e.g. human greeting, IVR menu, voicemail recording, or out-of-service message). The agent calls a function with the detected category, which routes to the appropriate path.
+1. **A classification function** – the step prompt instructs the agent to evaluate what the recipient says on the first turn and classify it (e.g. human greeting, IVR menu, voicemail recording, or out-of-service message). The agent calls a function with the detected category, which routes to the appropriate path.
 
-2. **Barge-in enabled** on the detection step — voicemail greetings and IVR prompts do not wait for the agent to finish speaking, so barge-in prevents the agent from talking over them.
+2. **Barge-in enabled** on the detection step – voicemail greetings and IVR prompts do not wait for the agent to finish speaking, so barge-in prevents the agent from talking over them.
 
-3. **Speech recognition tuning** — detection steps often use specialized ASR settings to improve transcription accuracy for pre-recorded messages and low-quality automated voices. Your PolyAI team can configure these settings for your project.
+3. **Speech recognition tuning** – detection steps often use specialized ASR settings to improve transcription accuracy for pre-recorded messages and low-quality automated voices. Your PolyAI team can configure these settings for your project.
 
-Once the recipient is classified, the agent routes to the appropriate path — for example, entering an IVR traversal flow, leaving a voicemail, or starting the main conversation.
+Once the recipient is classified, the agent routes to the appropriate path – for example, entering an IVR traversal flow, leaving a voicemail, or starting the main conversation.
 
 ### Voicemail actions
 
 Depending on project requirements, the agent can:
 
-- **Leave a voicemail** — deliver a scripted or dynamic message after the beep
-- **Hang up** — end the call immediately if voicemail is not in scope
-- **Retry later** — exit with a status code so the calling system can schedule a retry
+- **Leave a voicemail** – deliver a scripted or dynamic message after the beep
+- **Hang up** – end the call immediately if voicemail is not in scope
+- **Retry later** – exit with a status code so the calling system can schedule a retry
 
 <Note>
 Recipient detection is a project-level flow pattern, not a toggle you can enable in settings. Work with your project team to design the detection step, classification function, and routing logic. See [Call handoffs](/call-handoff/introduction#voicemail-detection) for how voicemail detection differs in inbound scenarios.
@@ -152,18 +152,18 @@ IVR traversal is not a built-in platform feature. It requires custom flow design
 
 A typical IVR traversal flow uses three capabilities:
 
-- **DTMF output** — the agent sends keypad tones to select IVR menu options (e.g. "Press 1 for sales"). See [DTMF](/flows/dtmf) for configuration details.
-- **Wait on hold** — after selecting an option, the agent waits for a human to answer. The flow includes a dedicated hold step where the agent stays silent until someone picks up.
-- **Escape hatch** — if the agent gets stuck in the wrong branch of the IVR, it ends the call gracefully so the system can retry later.
+- **DTMF output** – the agent sends keypad tones to select IVR menu options (e.g. "Press 1 for sales"). See [DTMF](/flows/dtmf) for configuration details.
+- **Wait on hold** – after selecting an option, the agent waits for a human to answer. The flow includes a dedicated hold step where the agent stays silent until someone picks up.
+- **Escape hatch** – if the agent gets stuck in the wrong branch of the IVR, it ends the call gracefully so the system can retry later.
 
 The agent transcribes the IVR menu, determines which option to select, and sends the appropriate DTMF tone or spoken response. If the IVR transfers to a hold queue, the agent waits silently until a human answers.
 
 ### Design considerations
 
-- **Looping IVRs** — some phone trees loop back to the main menu. Always include an escape path so the agent can end the call and retry rather than getting stuck in a loop.
-- **Speech vs. DTMF** — some IVRs accept spoken commands ("say 'agent'") while others only accept keypresses. Your flow may need to handle both output channels depending on the menu instructions.
-- **Long hold times** — the agent must stay silent while on hold and respond quickly when a human picks up. Your PolyAI team can tune speech recognition and silence settings for hold scenarios.
-- **Low-quality audio** — IVRs often use automated voices that are harder to transcribe. Specialized speech recognition settings can improve accuracy on these steps.
+- **Looping IVRs** – some phone trees loop back to the main menu. Always include an escape path so the agent can end the call and retry rather than getting stuck in a loop.
+- **Speech vs. DTMF** – some IVRs accept spoken commands ("say 'agent'") while others only accept keypresses. Your flow may need to handle both output channels depending on the menu instructions.
+- **Long hold times** – the agent must stay silent while on hold and respond quickly when a human picks up. Your PolyAI team can tune speech recognition and silence settings for hold scenarios.
+- **Low-quality audio** – IVRs often use automated voices that are harder to transcribe. Specialized speech recognition settings can improve accuracy on these steps.
 
 ## Best practices
 

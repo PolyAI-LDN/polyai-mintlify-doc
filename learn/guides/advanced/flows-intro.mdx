@@ -7,12 +7,12 @@ icon: "diagram-project"
 import { Quiz } from '/snippets/quiz.jsx'
 
 <Info>
-  Flows give you fine-grained control over long interactions — ensuring the agent collects information in the right order and never goes off-track, even over 10–20 turns.
+  Flows give you fine-grained control over long interactions – ensuring the agent collects information in the right order and never goes off-track, even over 10–20 turns.
 </Info>
 
 ## What flows are for
 
-Topics and global rules work well for open-ended conversations. But some interactions need guaranteed sequencing — a registration form, an appointment booking, a multi-step verification. For these, flows let you:
+Topics and global rules work well for open-ended conversations. But some interactions need guaranteed sequencing – a registration form, an appointment booking, a multi-step verification. For these, flows let you:
 
 - define each collection step explicitly
 - ensure the LLM follows the steps in order and cannot skip ahead
@@ -30,7 +30,7 @@ flow: user_registration
   step: (exit flow)
 ```
 
-Each step's prompt appears in the conversation history as a `system` role message, **always appended at the end**. This is what makes flows sticky — the prompt is always the most recent thing the LLM sees, so it cannot be forgotten.
+Each step's prompt appears in the conversation history as a `system` role message, **always appended at the end**. This is what makes flows sticky – the prompt is always the most recent thing the LLM sees, so it cannot be forgotten.
 
 ## Creating a flow
 
@@ -55,7 +55,7 @@ Without an entry point, the flow exists but the agent can never enter it.
     q: "You create a flow but the agent never enters it during testing. What is the most likely cause?",
     options: [
       "The flow has too many steps",
-      "The flow has no entry point — no topic or function calls conv.go_to_flow()",
+      "The flow has no entry point – no topic or function calls conv.go_to_flow()",
       "The start step has not been designated",
       "The flow functions have no descriptions",
     ],
@@ -80,7 +80,7 @@ system: "Ask the user for the phone number we can contact them on."   ← always
 
 No matter how many turns pass, this system message is always the most recent thing the LLM sees. The LLM cannot lose track of the step's instruction.
 
-When the flow transitions to a new step, the **previous step's prompt is removed** from conversation history and replaced with the new step's prompt. The LLM only ever sees the current step — it cannot look ahead or skip.
+When the flow transitions to a new step, the **previous step's prompt is removed** from conversation history and replaced with the new step's prompt. The LLM only ever sees the current step – it cannot look ahead or skip.
 
 ### Step prompt structure
 
@@ -115,15 +115,15 @@ def save_phone_number(conv, flow, phone_number: str) -> str:
     """Save the user's phone number and move to the next step."""
     conv.state.phone_number = phone_number
     flow.go_to_step("ask_full_name")
-    return None  # no utterance needed — the next step's prompt takes over
+    return None  # no utterance needed – the next step's prompt takes over
 ```
 
 Flow functions are not listed on the global Functions page. They are scoped to their flow and visible on the flow's **Transitions** panel.
 
 **Key distinction:**
-- `conv.go_to_flow(flow_name)` — enters a flow from outside (triggers the start step)
-- `flow.go_to_step(step_name)` — moves between steps within the current flow
-- `conv.exit_flow()` — exits the flow and returns control to the general agent
+- `conv.go_to_flow(flow_name)` – enters a flow from outside (triggers the start step)
+- `flow.go_to_step(step_name)` – moves between steps within the current flow
+- `conv.exit_flow()` – exits the flow and returns control to the general agent
 
 ## Exiting a flow
 
@@ -169,7 +169,7 @@ This means a well-designed flow is also a security and reliability mechanism: th
 
 ## What happens when the LLM runs out of instructions
 
-If a step's prompt asks for information but provides no function to call when the information is given, the LLM will improvise. It will draw on its training data to guess what comes next — and this is almost always a hallucination.
+If a step's prompt asks for information but provides no function to call when the information is given, the LLM will improvise. It will draw on its training data to guess what comes next – and this is almost always a hallucination.
 
 **Always give the LLM a way to advance.** Every step should:
 1. Tell the LLM what information to collect
@@ -183,12 +183,12 @@ If the LLM has no function to call, it will continue the conversation without co
   {
     q: "Your flow's step 1 prompt only references `save_phone_number`. The user gives their name instead of their phone number. Which function can the LLM call?",
     options: [
-      "`save_name` — the LLM can call any function in the project from inside a flow",
-      "`save_phone_number` only — scoped steps limit the LLM to functions referenced in the step's prompt",
-      "Neither — the LLM cannot make function calls inside a flow step",
+      "`save_name` – the LLM can call any function in the project from inside a flow",
+      "`save_phone_number` only – scoped steps limit the LLM to functions referenced in the step's prompt",
+      "Neither – the LLM cannot make function calls inside a flow step",
       "Any function in the same file as `save_phone_number`",
     ],
     correct: 1,
-    explanation: "Flow steps are scoped: the LLM can only call functions explicitly referenced in that step's prompt. This is intentional — it prevents the LLM from skipping steps or calling functions out of sequence. Handle unexpected input (like a name instead of a phone number) by writing the step prompt to accept either and still call save_phone_number.",
+    explanation: "Flow steps are scoped: the LLM can only call functions explicitly referenced in that step's prompt. This is intentional – it prevents the LLM from skipping steps or calling functions out of sequence. Handle unexpected input (like a name instead of a phone number) by writing the step prompt to accept either and still call save_phone_number.",
   }
 ]} />

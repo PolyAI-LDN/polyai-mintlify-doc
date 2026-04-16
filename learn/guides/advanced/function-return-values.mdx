@@ -1,7 +1,7 @@
 ---
 title: "Tutorial: Function return values"
 sidebarTitle: "Function return values"
-description: "PolyAcademy Level 2 — What your functions can return and how each return type affects agent behavior."
+description: "PolyAcademy Level 2 – What your functions can return and how each return type affects agent behavior."
 icon: "arrow-turn-down-left"
 noindex: true
 ---
@@ -11,12 +11,12 @@ import { FillBlank } from '/snippets/fill-blank.jsx'
 import { ProgressTracker } from '/snippets/progress-tracker.jsx'
 
 <Info>
-  **Level 2 — Lesson 3 of 8** — This lesson covers the different values a function can return and when to use each one. Understanding [return values](/tools/return-values) gives you precise control over what the agent says and when.
+  **Level 2 – Lesson 3 of 8** – This lesson covers the different values a function can return and when to use each one. Understanding [return values](/tools/return-values) gives you precise control over what the agent says and when.
 </Info>
 
 ## The two valid return types
 
-Functions called by the LLM can only return a **string** or a **dictionary**. Any other type — integer, list, boolean — will cause an error. The LLM will retry up to three times before giving up and producing an error response.
+Functions called by the LLM can only return a **string** or a **dictionary**. Any other type – integer, list, boolean – will cause an error. The LLM will retry up to three times before giving up and producing an error response.
 
 <Warning>
   Always return a string or dictionary from functions called by the LLM. If your value is a number, wrap it: `return str(count)` or `return f"There are {count} items."`.
@@ -33,7 +33,7 @@ def check_banana_stock(conv) -> str:
 
 The string is inserted into conversation history under the `function` role. The LLM then produces a natural response based on it.
 
-**Trade-off:** The LLM has flexibility to express the result conversationally — but you do not control the exact phrasing.
+**Trade-off:** The LLM has flexibility to express the result conversationally – but you do not control the exact phrasing.
 
 ## Returning a dictionary
 
@@ -55,7 +55,7 @@ A hard-coded response that **bypasses the LLM entirely**. The text is spoken dir
 return {"utterance": "There are 3 bananas left. Would you like to buy some?"}
 ```
 
-**Trade-off:** You get full control over phrasing and only one LLM request (lower latency). But you must manually handle all variations — zero stock, one item, multiple items, and so on.
+**Trade-off:** You get full control over phrasing and only one LLM request (lower latency). But you must manually handle all variations – zero stock, one item, multiple items, and so on.
 
 <Tabs>
   <Tab title="Return string (LLM generates response)">
@@ -77,16 +77,16 @@ return {"utterance": "There are 3 bananas left. Would you like to buy some?"}
     # User hears exactly:
     # "There are 0 bananas left."
     ```
-    Grammatically correct but blunt — no conversational framing.
+    Grammatically correct but blunt – no conversational framing.
 
     To improve it, you must write the logic yourself:
     ```python
     if bananas == 0:
         return {"utterance": "I'm sorry, we're out of bananas right now."}
     elif bananas == 1:
-        return {"utterance": "Good news — we have one banana left. Would you like it?"}
+        return {"utterance": "Good news – we have one banana left. Would you like it?"}
     else:
-        return {"utterance": f"Good news — we have {bananas} bananas left."}
+        return {"utterance": f"Good news – we have {bananas} bananas left."}
     ```
   </Tab>
 </Tabs>
@@ -101,7 +101,7 @@ return {"utterance": "There are 3 bananas left. Would you like to buy some?"}
       "When the user asks a yes/no question",
     ],
     correct: 1,
-    explanation: "Use `utterance` when you need to control exactly what the agent says — for example, legal disclaimers, hard-coded confirmations, or latency-critical responses where skipping the second LLM request matters.",
+    explanation: "Use `utterance` when you need to control exactly what the agent says – for example, legal disclaimers, hard-coded confirmations, or latency-critical responses where skipping the second LLM request matters.",
   }
 ]} />
 
@@ -111,7 +111,7 @@ When both keys are returned, the `utterance` is played immediately to the user, 
 
 ```python
 return {
-    "utterance": "Let me check that for you — just one moment.",
+    "utterance": "Let me check that for you – just one moment.",
     "content": "The user asked about banana stock. There are 3 available."
 }
 ```
@@ -131,7 +131,7 @@ return {
 }
 ```
 
-This is useful for latency optimization — play a filler phrase while the LLM decides on its next action (such as calling another function). It is a power-user pattern and not needed in most flows.
+This is useful for latency optimization – play a filler phrase while the LLM decides on its next action (such as calling another function). It is a power-user pattern and not needed in most flows.
 
 ### `hangup: True`
 
@@ -144,7 +144,7 @@ return {
 }
 ```
 
-Always include an `utterance` when hanging up — otherwise the call ends silently, which feels like a dropped call to the user.
+Always include an `utterance` when hanging up – otherwise the call ends silently, which feels like a dropped call to the user.
 
 ### `handoff: True`
 
@@ -190,7 +190,7 @@ An empty dictionary `{}` means the function returns no output. The LLM calls the
 
 ## Passing the utterance as a function argument
 
-When using Raven (PolyAI's in-house LLM), the model returns either a function call **or** text — not both in the same response. This means you cannot rely on the LLM to generate a goodbye message at the same time as calling a hangup function.
+When using Raven (PolyAI's in-house LLM), the model returns either a function call **or** text – not both in the same response. This means you cannot rely on the LLM to generate a goodbye message at the same time as calling a hangup function.
 
 A useful pattern for this situation: pass the utterance as a **parameter** of the function.
 
@@ -200,7 +200,7 @@ def hang_up(conv, utterance: str) -> dict:
     return {"utterance": utterance, "hangup": True}
 ```
 
-Parameter: `utterance` — *The goodbye message to say to the user before ending the call*
+Parameter: `utterance` – *The goodbye message to say to the user before ending the call*
 
 The LLM generates the utterance value and passes it as an argument, so the response is contextually appropriate. The function then plays it as a hard-coded utterance.
 
@@ -214,14 +214,14 @@ This gives you the best of both worlds: LLM-generated phrasing with deterministi
 
 | Return value | LLM reads it? | User hears it directly? | LLM requests |
 |---|---|---|---|
-| `"string"` | Yes | No — LLM generates response | 2 |
-| `{"content": "..."}` | Yes | No — LLM generates response | 2 |
+| `"string"` | Yes | No – LLM generates response | 2 |
+| `{"content": "..."}` | Yes | No – LLM generates response | 2 |
 | `{"utterance": "..."}` | No | Yes | 1 |
 | `{"content": "...", "utterance": "..."}` | Yes (on next turn) | Yes (immediately) | 1 + next turn |
 | `{"utterance": "...", "end_turn": False}` | No | Yes, then LLM continues | 1 + immediate follow-up |
 | `{"utterance": "...", "hangup": True}` | No | Yes, then call ends | 1 |
 | `{"utterance": "...", "handoff": True}` | No | Yes, then call transfers | 1 |
-| `{}` | No | No | — (LLM gets no feedback) |
+| `{}` | No | No | – (LLM gets no feedback) |
 
 ## Check your understanding
 
