@@ -67,9 +67,46 @@ Each response mode is designed for specific performance needs:
 
 ## Barge-in
 
-Allow callers to interrupt the agent. This shortens [VAD](https://en.wikipedia.org/wiki/Voice_activity_detection) time and reduces response latency. Experiment with barge-in and latency modes to find the right balance.
+Allow callers to interrupt the agent mid-utterance. When enabled, the agent stops speaking as soon as it detects caller speech, shortening [VAD](https://en.wikipedia.org/wiki/Voice_activity_detection) time and reducing response latency.
 
 To enable this feature, go to **Channels > Voice > Audio Management** and toggle **Enable barge-in**.
+
+### How barge-in works
+
+When barge-in is enabled:
+1. The agent begins speaking its response.
+2. If the caller starts talking, the agent stops its current utterance and begins listening.
+3. The agent processes the caller's input and responds as a new turn.
+
+This also applies to [delay control](/tools/delay-control) responses — if the caller speaks during a filler phrase, the delay sequence is interrupted.
+
+### When to use barge-in
+
+Barge-in works well for:
+- FAQ-heavy agents where callers may already know what they need
+- Long agent responses where the caller wants to redirect the conversation
+- Turbo interaction style, where fast responsiveness is a priority
+
+### When to disable barge-in
+
+Consider disabling barge-in (globally or per flow/step) when:
+- The agent is executing a function with **external side effects** (bookings, payments, form submissions) — the caller may interrupt after the action completes but before hearing the confirmation
+- The agent must deliver a **mandatory disclosure or disclaimer** that cannot be skipped
+- The environment is **noisy**, causing false barge-in triggers from background sounds
+
+### Per-flow and per-step overrides
+
+You can configure barge-in at a granular level using the experimental JSON config. This lets you enable barge-in globally while disabling it for specific flows or steps where interruption would be problematic.
+
+Overrides follow a precedence order: **step > flow > global**. For example, you can have barge-in off globally, enabled for a specific flow, and disabled again for a sensitive step within that flow.
+
+<Note>
+Barge-in behavior cannot be fully tested in the chat panel. Always verify with a real phone call.
+</Note>
+
+### Relationship with Smart Turn detection
+
+Smart Turn (Smart VAD) is a subset of barge-in. If barge-in is enabled, Smart Turn is automatically active. You can have Smart Turn enabled with barge-in disabled, but the reverse is not recommended.
 
 ## Smart Turn detection
 
