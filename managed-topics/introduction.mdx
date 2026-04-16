@@ -126,12 +126,13 @@ Managed Topics do not support entity extraction. If you need to collect structur
 
 ### Writing good sample questions
 
-Include at least **3 sample questions** per topic. This baseline helps the AI generalize intent across typical phrasings. For broad topics, add more to ensure better coverage.
+Include at least **3 sample questions** per topic (maximum 20). This baseline helps the AI generalize intent across typical phrasings. For broad topics, add more to ensure better coverage.
 
-- Focus on variety in language and structure
+- Focus on variety in **language and structure** — don't just make minor rewrites of the same sentence
 - Think about how real users might describe the same issue — confused, specific, vague, or using non-standard terminology
 - Additional examples should reflect **distinct phrasings**, not slight rewordings
 - Vary sentence lengths alongside phrasing variety
+- Consider including short queries ("billing help") alongside full questions ("Why was I charged twice this month?")
 
 <Info>
 If migrating from an intent-based project, you might have more than 10 sample questions. Focus on keeping the most diverse items that preserve the full semantic scope of the original list.
@@ -139,28 +140,48 @@ If migrating from an intent-based project, you might have more than 10 sample qu
 
 ### Topic naming
 
-Because the topic **Name** is shown to the retriever, it should be semantically close to the topic content. For instance, a topic about payment disputes named "general_behavior-payment" will likely trigger on payment queries in general rather than only on disputes. Make topic names semantically descriptive.
+Because the topic **Name** is shown to the retriever, it should be semantically close to the topic content. For instance, a topic about payment disputes named "general_behavior-payment" will likely trigger on payment queries in general rather than only on disputes.
+
+- Make topic names **semantically descriptive** — the name should clearly reflect what the topic is about
+- Avoid generic names like `Misc`, `Help`, `Info`, or `General`
+- Use natural language: `Payment dispute resolution` is better than `payment_dispute_v2`
+
+### Writing topic content
+
+- Keep replies **brief, helpful, and consistent** with your brand style
+- Give the agent **one task per turn** — do not mix text responses and function calls in the same round
+- Break down multi-step processes into **multiple turns or topics** rather than cramming everything into a single entry
+- For multi-turn topics, structure the conversation so each turn has a clear purpose (ask a question, provide information, or trigger an action)
+- After answering a simple FAQ, ensure the agent asks if the user needs more help — either in the topic content or via a global [rule](/agent-settings/rules)
+
+### Using actions effectively
+
+- Use `actions` **only when necessary** — if the agent just needs to answer a question, leave actions empty
+- Limit to **one action per turn** for reliability
+- When an action requires a handoff, include the handoff utterance as a parameter to `transfer_call` rather than mixing a `content` response with the action
+- For conditional actions (transfer to different destinations based on caller response), use the disambiguating question in `content` and map each answer to its destination in `actions`
 
 ### General guidelines
 
 **Do this:**
 
 - Use specific topic names.
-- Add up to **20** realistic sample phrasings per topic.
+- Add **3–20** realistic sample phrasings per topic.
 - Keep replies short, helpful, and on-brand.
 - Use `actions` only when necessary.
 - Split multi-part flows into separate turns or topics.
-- After simple FAQs, ensure the agent asks if the user needs more help — either in the topic content or via a global [rule](/agent-settings/rules).
+- Give the agent one task per turn — either speak or act, not both.
 
 **Avoid this:**
 
 - Bundling multiple intents into one topic.
-- Running too many actions in a single turn (keep it simple — one or two is usually enough).
+- Running more than one action in a single turn.
 - Using vague topic names like `Misc`, `Help`, or `Info`.
+- Mixing text and function calls in the same turn.
 
 ### Common anti-patterns
 
-**Mixing text and function calls in one turn:** For best results, split utterances and function calls into separate turns — give the agent one task per turn.
+**Mixing text and function calls in one turn:** For best results, split utterances and function calls into separate turns — give the agent one task per turn. When a topic requires both a spoken response and an action, structure it so the response happens in one turn and the action in the next.
 
 <Tabs>
 <Tab title="Good">
@@ -172,6 +193,10 @@ Turn 2: If the user says yes, call `transfer_call` with a handoff utterance.
 Single turn: Answer the question, then immediately call `transfer_call` with utterance — the agent may skip one of these tasks.
 </Tab>
 </Tabs>
+
+**Overloading a topic with multiple intents:** If a topic covers "billing questions" but includes return policies, refund processes, and payment methods, it becomes too broad. Split each into its own topic with specific sample questions.
+
+**Missing follow-up prompt:** Without a follow-up question like "Is there anything else I can help with?", the agent may hallucinate a next step. Add this to each simple FAQ's content or configure it as a global [rule](/agent-settings/rules).
 
 ## Live collaboration
 
