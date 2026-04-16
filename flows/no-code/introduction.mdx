@@ -101,20 +101,17 @@ There are two execution models inside flows. Understanding this prevents most co
 
 ### Default steps (LLM-driven) -- no code required
 
-In a Default step, entity processing and routing happen **sequentially** on each turn:
+In a Default step:
 
-1. **Entity extraction and validation** — the agent extracts entity values from the caller's message and validates them against type rules. Invalid values are rejected and the caller is asked to try again.
-2. **Condition evaluation** — once entities are validated, the agent evaluates which condition is best met. Conditions with **required entities** only match if those entities have already passed validation.
+- The agent collects entities from what the caller says and checks them against the type rules you configured.
+- Once an entity passes validation, the agent considers which condition to take. Conditions with **required entities** only activate when those entities have valid values.
+- If the caller gives an invalid value (wrong format, out of range, etc.), the agent asks them to try again.
 
-Validation always completes before condition evaluation begins. An entity that fails validation will not satisfy a "required entities" check — even if the caller provided a value.
-
-If you reference collected entities inside the prompt, you can use rich text `/entities`. This inserts a template tag in the format `{{entity:entity_name}}` that the system resolves at runtime. Entities extracted in a step are immediately available within that same step — both for prompt references and for condition evaluation.
+To reference a collected entity inside the step prompt, use rich text `/entities`. This inserts `{{entity:entity_name}}`, which resolves to the entity's value at runtime. Entities are available in the same step they are collected — you do not need a separate step.
 
 <Note>
 Default step prompts support entity and variant attribute references, but do not support function references. To call transition functions or global functions from a prompt, use an [Advanced step](/flows/no-code/advanced-steps).
 </Note>
-
-In [Conversation Review](/analytics/conversations/review), you will see system-generated events for entity validation and condition evaluation. These are useful for debugging entity collection and routing issues.
 
 You do not need to write code for this.
 

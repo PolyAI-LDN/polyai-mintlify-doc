@@ -70,22 +70,14 @@ Extraction and evaluation happen within the same step execution — you do not n
 Entity extraction is a flow-only feature. [Managed Topics](/managed-topics/introduction) do not support entity extraction directly. If you need to collect structured data when a topic is matched, use the topic's action to [trigger a flow](/flows/triggering-flows) and configure entity extraction in that flow's steps.
 </Note>
 
-## How entity processing works
+## When entities count as "collected"
 
-When a Default step contains entities, the system processes them in two sequential phases on each turn:
+An entity only counts as collected once it passes validation. If a caller provides a value in the wrong format or outside the allowed range, the agent asks them to try again — and any condition that requires that entity will not activate until a valid value is provided.
 
-1. **Extraction and validation** — the agent extracts entity values from the caller's message and validates each one against the entity's type rules (format, range, regex, etc.). Invalid values are rejected and the caller is asked to try again.
-
-2. **Condition evaluation** — once entities are validated and saved, the agent evaluates which condition is best met. Conditions that have **required entities** will only match if those entities have already passed validation.
-
-These phases are **sequential** — validation always completes before condition evaluation begins.
-
-<Warning>
-An entity that fails validation will **not** satisfy a "required entities" check on any condition — even if the caller provided a value. The entity must pass both extraction and validation before it counts as collected.
-</Warning>
+This means a condition with **required entities** will only trigger after every required entity has a valid value. If you are debugging why a condition is not firing, check whether the entity passed validation — not just whether the caller said something.
 
 <Tip>
-In [Conversation Review](/analytics/conversations/review), you will see system-generated events for entity validation and condition evaluation. These are useful for debugging when entities are not being collected or conditions are not triggering as expected.
+In [Conversation Review](/analytics/conversations/review), you can see system-generated events for entity validation and condition evaluation. These help you identify whether an entity was rejected or a condition was skipped.
 </Tip>
 
 ## Validation and retries
