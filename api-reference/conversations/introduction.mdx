@@ -243,24 +243,28 @@ These three fields are often confused. Here's how they relate:
 
 ## Transcript visibility
 
-The `turns` array in the API response is controlled by the **transcript visibility** setting in your project's API configuration. When transcript access is disabled, the API returns an empty `turns` array even though `num_turns` still reports the actual count.
+The `turns` array in the API response is controlled by the **Conversation transcript** toggle in your project's API key configuration. When transcript access is disabled, the API returns an empty `turns` array even though `num_turns` still reports the actual count.
 
 This is the most common reason for missing turn data. To check or update this setting:
 
 <Steps>
-  <Step title="Open Data Access in Agent Studio">
-    Navigate to **Agent Studio → Data Access** for your project.
+  <Step title="Open the API Keys page">
+    Navigate to **Configure > API Keys** in Agent Studio.
+
+    ![API Keys page with Configuration button](/images/api-reference/conversations/api-keys-configuration-button.png)
   </Step>
   <Step title="Open Configuration">
-    Click the **Configuration** button at the top right of the Data Access page.
+    Click the **Configuration** button at the top right of the API Keys page.
   </Step>
-  <Step title="Enable transcript access">
-    Inside the configuration panel, ensure **Conversation transcript access** is enabled for the relevant agents. This is a project-level setting — it applies to all API keys for the project.
+  <Step title="Enable the Conversation transcript toggle">
+    Inside the configuration panel, find your project and enable the **Conversation transcript** toggle. You can also select which **Response metrics** to include in API responses (e.g. `CALL_IN_PROGRESS`, `CALL_COMPLETED`, `HANDOFF_TO`, `HANDOFF_REASON`).
+
+    ![Configuration panel showing transcript toggle and response metrics](/images/api-reference/conversations/api-keys-configuration-panel.png)
   </Step>
 </Steps>
 
 <Warning>
-Transcript visibility is a **project-level configuration**, not a per-request parameter. If transcript access is disabled, no query parameter (including `include_turn_metadata` or `include_latency`) will populate the `turns` array. Contact your PolyAI representative if you cannot access the Data Access configuration.
+These settings apply at the **project level**, not per key. For data to appear in API responses, both conditions must be met: the API key must have **Conversations data** permission enabled, and the project must have the relevant metrics and transcript access enabled in the Configuration panel. See [API keys](/secrets/api-keys) for key setup details.
 </Warning>
 
 ## Troubleshooting
@@ -273,8 +277,8 @@ This is the most common issue reported by API users. Use this decision tree to d
 Empty turns array?
 ├── Is num_turns > 0?
 │   ├── YES → Transcript visibility is disabled (most common cause).
-│   │         Go to Agent Studio → Data Access → Configuration
-│   │         and enable "Conversation transcript access".
+│   │         Go to Configure > API Keys > Configuration
+│   │         and enable the "Conversation transcript" toggle.
 │   └── NO  → No turns were recorded. Check your filters
 │             (start_time, end_time, client_env).
 └── Are you using the v1 endpoint?
@@ -284,7 +288,7 @@ Empty turns array?
 
 <Steps>
   <Step title="Check transcript visibility (most likely fix)">
-    Go to **Agent Studio → Data Access → Configuration** and verify that **Conversation transcript access** is enabled. This is a project-level setting. See [transcript visibility](#transcript-visibility) for details.
+    Go to **Configure > API Keys > Configuration** and verify that the **Conversation transcript** toggle is enabled for your project. This is a project-level setting. See [transcript visibility](#transcript-visibility) for details.
   </Step>
   <Step title="Confirm you are using v3">
     Verify your endpoint URL contains `/v3/`. The v1 API is [deprecated](/api-reference/conversations/migrate-v1-to-v3) and may not return full conversation data. v1 moved to best-effort support on **2 March 2026** and will be unsupported from **31 August 2026**.
@@ -302,8 +306,8 @@ Empty turns array?
 If the response only contains a subset of expected fields:
 
 1. **Confirm you are on v3.** The full response schema (including `latency`, `translated_user_input`, `english_agent_response`, etc.) is only available on v3. Check that your base URL uses `/v3/`, not `/v1/`. See the [migration guide](/api-reference/conversations/migrate-v1-to-v3).
-2. **Check your API key permissions.** In **Agent Studio → Data Access**, verify the API key has **Conversations data** permission enabled. The key must have the correct permission *and* the project must have the relevant metrics enabled.
-3. **Check metric configuration.** In **Agent Studio → Data Access → Configuration**, verify the response metrics you expect are enabled. If no metrics are selected, the `metrics` object in the response will be empty.
+2. **Check your API key permissions.** In **Configure > API Keys**, verify the API key has **Conversations data** permission enabled. The key must have the correct permission *and* the project must have the relevant metrics enabled.
+3. **Check metric configuration.** In **Configure > API Keys > Configuration**, verify the response metrics you expect are enabled (e.g. `CALL_IN_PROGRESS`, `CALL_COMPLETED`, `HANDOFF_TO`). If no metrics are selected, the `metrics` object in the response will be empty.
 
 ### `include_latency` or `include_turn_metadata` is not adding data
 
