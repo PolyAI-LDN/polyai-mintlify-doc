@@ -237,22 +237,79 @@ These three fields are often confused. Here's how they relate:
 | `num_turns` | Integer | A count of turns in the conversation. This value reflects the number of turns that occurred, even if the `turns` array is empty due to configuration. |
 | `include_turn_metadata` | Query parameter (boolean) | When `true`, adds an extra `metadata` field to each turn with generative AI details. Does **not** control whether the `turns` array itself is populated. |
 
-<Note>
-Setting `include_turn_metadata=true` enriches each turn object with additional generative AI metadata. It does not affect whether turns are returned — the `turns` array population is controlled by your project's API configuration, not by this parameter.
-</Note>
+<Warning>
+`include_turn_metadata` and `include_latency` enrich **existing** turn data — they do not populate an empty `turns` array. If your `turns` array is empty, these parameters will have no effect. The `turns` array is controlled by your project's [transcript visibility](#transcript-visibility) setting, not by these query parameters.
+</Warning>
 
 ## Transcript visibility
 
-The `turns` array in the API response is controlled by the **transcript visibility** setting in your project's API configuration. When transcript access is disabled (`show_transcripts: false`), the API returns an empty `turns` array even though `num_turns` still reports the actual count.
+The `turns` array in the API response is controlled by the **transcript visibility** setting in your project's API configuration. When transcript access is disabled, the API returns an empty `turns` array even though `num_turns` still reports the actual count.
 
-If you need turn-level data and `turns` is empty, contact your PolyAI representative to check or update your project's API configuration.
+This is the most common reason for missing turn data. To check or update this setting:
+
+<Steps>
+  <Step title="Open Data Access in Agent Studio">
+    Navigate to **Agent Studio → Data Access** for your project.
+  </Step>
+  <Step title="Open Configuration">
+    Click the **Configuration** button at the top right of the Data Access page.
+  </Step>
+  <Step title="Enable transcript access">
+    Inside the configuration panel, ensure **Conversation transcript access** is enabled for the relevant agents. This is a project-level setting — it applies to all API keys for the project.
+  </Step>
+</Steps>
+
+<Warning>
+Transcript visibility is a **project-level configuration**, not a per-request parameter. If transcript access is disabled, no query parameter (including `include_turn_metadata` or `include_latency`) will populate the `turns` array. Contact your PolyAI representative if you cannot access the Data Access configuration.
+</Warning>
 
 ## Troubleshooting
 
 ### `turns` is empty but `num_turns` is greater than zero
 
-If `num_turns` reports a count but the `turns` array is empty:
+This is the most common issue reported by API users. Use this decision tree to diagnose the cause:
 
-1. **Check your project's API configuration.** Transcript visibility may be disabled for your project. This is the most common cause — the `turns` array is intentionally empty when `show_transcripts` is set to `false`. Contact your PolyAI representative to verify or update this setting.
-2. **Check if the conversation is still in progress.** If `in_progress` is `true`, turn data may still be arriving and may not be fully available yet.
-3. **Contact your PolyAI representative** if neither of the above applies. This may indicate a data pipeline delay or ingestion issue.
+```
+Empty turns array?
+├── Is num_turns > 0?
+│   ├── YES → Transcript visibility is disabled (most common cause).
+│   │         Go to Agent Studio → Data Access → Configuration
+│   │         and enable "Conversation transcript access".
+│   └── NO  → No turns were recorded. Check your filters
+│             (start_time, end_time, client_env).
+└── Are you using the v1 endpoint?
+    └── YES → v1 is deprecated. Migrate to v3 for full field support.
+              See the migration guide below.
+```
+
+<Steps>
+  <Step title="Check transcript visibility (most likely fix)">
+    Go to **Agent Studio → Data Access → Configuration** and verify that **Conversation transcript access** is enabled. This is a project-level setting. See [transcript visibility](#transcript-visibility) for details.
+  </Step>
+  <Step title="Confirm you are using v3">
+    Verify your endpoint URL contains `/v3/`. The v1 API is [deprecated](/api-reference/conversations/migrate-v1-to-v3) and may not return full conversation data. v1 moved to best-effort support on **2 March 2026** and will be unsupported from **31 August 2026**.
+  </Step>
+  <Step title="Check if the conversation is in progress">
+    If `in_progress` is `true`, turn data may still be arriving and may not be fully available yet.
+  </Step>
+  <Step title="Contact your PolyAI representative">
+    If none of the above applies, this may indicate a data pipeline delay or ingestion issue.
+  </Step>
+</Steps>
+
+### Only seeing basic fields (`id`, `account_id`, `project_id`, `started_at`)
+
+If the response only contains a subset of expected fields:
+
+1. **Confirm you are on v3.** The full response schema (including `latency`, `translated_user_input`, `english_agent_response`, etc.) is only available on v3. Check that your base URL uses `/v3/`, not `/v1/`. See the [migration guide](/api-reference/conversations/migrate-v1-to-v3).
+2. **Check your API key permissions.** In **Agent Studio → Data Access**, verify the API key has **Conversations data** permission enabled. The key must have the correct permission *and* the project must have the relevant metrics enabled.
+3. **Check metric configuration.** In **Agent Studio → Data Access → Configuration**, verify the response metrics you expect are enabled. If no metrics are selected, the `metrics` object in the response will be empty.
+
+### `include_latency` or `include_turn_metadata` is not adding data
+
+These parameters enrich **existing** turn data — they do not populate an empty `turns` array:
+
+- `include_latency=true` adds per-turn latency metrics to each turn object
+- `include_turn_metadata=true` adds additional generative AI metadata to each turn object
+
+If `turns` is empty, these parameters have no effect. Fix the underlying cause first (see [transcript visibility](#transcript-visibility) above).
