@@ -70,23 +70,23 @@ Extraction and evaluation happen within the same step execution — you do not n
 Entity extraction is a flow-only feature. [Managed Topics](/managed-topics/introduction) do not support entity extraction directly. If you need to collect structured data when a topic is matched, use the topic's action to [trigger a flow](/flows/triggering-flows) and configure entity extraction in that flow's steps.
 </Note>
 
-## How entity extraction works at runtime
+## How entity processing works
 
-When a Default step contains entities, the system follows a **two-task, sequential process** on each turn:
+When a Default step contains entities, the system processes them in two sequential phases on each turn:
 
-1. **Task 1 — Entity extraction and validation.** The LLM reads the user's message and extracts entity values. It then calls a built-in function (`builtin_validate_and_save_entities`) to validate each value against the entity's type rules (format, range, regex, etc.). Invalid entities are rejected and the LLM asks the user to try again. The LLM can call this function multiple times per turn — for example, validating one entity early while continuing to collect others.
+1. **Extraction and validation** — the agent extracts entity values from the caller's message and validates each one against the entity's type rules (format, range, regex, etc.). Invalid values are rejected and the caller is asked to try again.
 
-2. **Task 2 — Condition selection.** Once entities are validated and saved, the LLM evaluates which condition is best met by calling a second built-in function (`builtin_step_condition_met`). Conditions that have **required entities** will only match if those entities have already passed validation in Task 1.
+2. **Condition evaluation** — once entities are validated and saved, the agent evaluates which condition is best met. Conditions that have **required entities** will only match if those entities have already passed validation.
 
-These two tasks are **sequential** — entity validation always runs before condition evaluation. Each task involves a separate LLM function call, so a single step turn typically involves **at least two LLM calls**: one for `builtin_validate_and_save_entities` and one for `builtin_step_condition_met`.
-
-<Info>
-Both `builtin_validate_and_save_entities` and `builtin_step_condition_met` are visible in [Conversation Review](/analytics/conversations/review) as system-generated events. They are useful for debugging when entities are not being collected or conditions are not triggering as expected.
-</Info>
+These phases are **sequential** — validation always completes before condition evaluation begins.
 
 <Warning>
-Because validation happens first, an entity that fails validation will **not** satisfy a "required entities" check on any condition — even if the user provided a value. The entity must pass both extraction and validation before it counts as collected.
+An entity that fails validation will **not** satisfy a "required entities" check on any condition — even if the caller provided a value. The entity must pass both extraction and validation before it counts as collected.
 </Warning>
+
+<Tip>
+In [Conversation Review](/analytics/conversations/review), you will see system-generated events for entity validation and condition evaluation. These are useful for debugging when entities are not being collected or conditions are not triggering as expected.
+</Tip>
 
 ## Validation and retries
 

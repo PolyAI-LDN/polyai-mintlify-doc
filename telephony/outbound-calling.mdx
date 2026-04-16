@@ -113,49 +113,13 @@ The exact categories and how the agent decides between them are defined in the d
 
 ### How recipient detection works
 
-Detection runs on the first step of the outbound flow. A typical implementation uses:
+Detection runs on the first step of the outbound flow. A typical implementation involves:
 
-1. **A classification function** — the step prompt instructs the LLM to evaluate the first thing the recipient says and call a function (e.g. `call_answered_by`) with the detected category. The LLM uses the audio transcript to determine whether the response sounds like a human greeting, an IVR menu, a voicemail recording, or an out-of-service message.
+1. **A classification function** — the step prompt instructs the agent to evaluate what the recipient says on the first turn and classify it (e.g. human greeting, IVR menu, voicemail recording, or out-of-service message). The agent calls a function with the detected category, which routes to the appropriate path.
 
 2. **Barge-in enabled** on the detection step — voicemail greetings and IVR prompts do not wait for the agent to finish speaking, so barge-in prevents the agent from talking over them.
 
-3. **Smart VAD disabled** on the detection step — this avoids cutting off long IVR welcome messages before all menu options are read.
-
-4. **A specialized ASR model** — many projects use the `voicemail` ASR model on the detection step to improve transcription accuracy for pre-recorded messages and low-quality TTS voices.
-
-These are configured via [power user settings](/agent-settings/model-use) (experimental JSON). For example:
-
-```json
-{
-  "asr": {
-    "flow_overrides": {
-      "detect_answer": {
-        "model": "voicemail",
-        "provider": "default"
-      }
-    }
-  },
-  "barge_in": {
-    "flow_overrides": {
-      "detect_answer": {
-        "is_enabled": false,
-        "steps": {
-          "Detect Answer": {
-            "is_enabled": true
-          }
-        }
-      }
-    }
-  },
-  "smart_vad": {
-    "flow_overrides": {
-      "detect_answer": {
-        "is_enabled": false
-      }
-    }
-  }
-}
-```
+3. **Speech recognition tuning** — detection steps often use specialized ASR settings to improve transcription accuracy for pre-recorded messages and low-quality automated voices. Your PolyAI team can configure these settings for your project.
 
 Once the recipient is classified, the agent routes to the appropriate path — for example, entering an IVR traversal flow, leaving a voicemail, or starting the main conversation.
 
@@ -173,104 +137,28 @@ Recipient detection is a project-level flow pattern, not a toggle you can enable
 
 ## IVR traversal
 
-When the agent detects it has reached an IVR, it can navigate the phone menu to reach a human representative or collect information from the IVR itself. IVR traversal is a **custom flow pattern** — you design the navigation logic, DTMF functions, and hold behavior as part of your outbound project.
+When the agent detects it has reached an IVR, it can navigate the phone menu to reach a human representative or collect information from the IVR itself (e.g. hours of operation from a pre-recorded message).
 
-<Warning>
-IVR traversal is not a built-in platform feature. It requires custom flow design specific to your use case. Work with your project team to implement the patterns described here.
-</Warning>
+<Note>
+IVR traversal is not a built-in platform feature. It requires custom flow design specific to your use case. Work with your PolyAI team to implement IVR navigation for your project.
+</Note>
 
 ### How it works
 
-A typical IVR traversal flow involves three capabilities:
+A typical IVR traversal flow uses three capabilities:
 
-1. **DTMF output** — the agent sends keypad tones to select IVR menu options (e.g. "Press 1 for sales"). This is done via a function that returns the digit on the DTMF channel:
+- **DTMF output** — the agent sends keypad tones to select IVR menu options (e.g. "Press 1 for sales"). See [DTMF](/flows/dtmf) for configuration details.
+- **Wait on hold** — after selecting an option, the agent waits for a human to answer. The flow includes a dedicated hold step where the agent stays silent until someone picks up.
+- **Escape hatch** — if the agent gets stuck in the wrong branch of the IVR, it ends the call gracefully so the system can retry later.
 
-```python
-def output_dtmf(conv: Conversation, output: str):
-    """
-    Output DTMF tones to navigate a phone menu.
-    Args:
-        output: the string to output in DTMF (e.g. "1", "2", "1234")
-    """
-    return {
-        "utterance": output,
-        "utterance_channel": "DTMF"
-    }
-```
+The agent transcribes the IVR menu, determines which option to select, and sends the appropriate DTMF tone or spoken response. If the IVR transfers to a hold queue, the agent waits silently until a human answers.
 
-2. **Wait on hold** — after selecting an option, the agent may need to wait on hold for a human to answer. A wait function outputs an empty utterance and transitions to a dedicated "Wait on Hold" step:
+### Design considerations
 
-```python
-def wait_on_hold(conv: Conversation, turn: int):
-    """
-    Wait on hold when waiting to connect to a human via an IVR.
-    Args:
-        turn: counter of times you have called the function (no limit)
-    """
-    return {
-        "utterance": "",
-        "transition": {
-            "goto_flow": "traverse_ivr",
-            "goto_step": "Wait on Hold"
-        }
-    }
-```
-
-3. **Escape hatch** — if the agent gets stuck in the wrong branch of the IVR, it should have a way to give up gracefully (e.g. end the call with a retry status code).
-
-### IVR traversal prompt example
-
-The step prompt instructs the LLM how to navigate:
-
-```markdown
-## Navigate to human
-
-Using the functions below, navigate to a live representative from the IVR:
-- `output_dtmf` to press a number or enter a character sequence
-- `wait_on_hold` to wait on hold for a human to answer
-
-If a live representative answers, call `call_answered_by('business_employee')`.
-
-### Rules
-- **DO NOT** talk to an IVR unless it explicitly instructs you to say something.
-  If the IVR asks you to press a number, use `output_dtmf` only.
-- Do not ask follow-up questions or narrate your actions.
-- If there is no option for a representative, try saying "Representative".
-- If you are stuck, call `end_call('ivr_navigation_fail')` to end the call.
-```
-
-### ASR and VAD configuration for IVR
-
-When navigating an IVR, you typically want to:
-
-- **Extend the VAD timeout** — IVR messages can be long; you do not want to cut them off. A `vad_end` of 1600ms or higher is common for IVR traversal steps.
-- **Reduce the VAD timeout on hold** — when waiting for a human, you want fast detection once someone picks up. A `vad_end` of 500ms is typical for the "Wait on Hold" step.
-- **Use the voicemail ASR model** — IVRs often use low-quality TTS that general ASR models struggle with.
-
-```json
-{
-  "vad": {
-    "flow_overrides": {
-      "traverse_ivr": {
-        "vad_end": 1600,
-        "steps": {
-          "Wait on Hold": {
-            "vad_end": 500
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-### Known challenges
-
-- **Looping IVRs** — some phone trees loop back to the main menu. Include an escape hatch in your flow so the agent can end the call and retry later rather than getting stuck.
-- **Speech vs. DTMF confusion** — some IVRs accept speech ("say 'agent'") while others only accept keypresses. You may need helper functions that determine the correct output channel per menu option.
-- **Long hold times** — the agent needs a silence prompt that keeps it waiting rather than speaking. Configure `max_silence_count` to a high value (e.g. 1000) to prevent the agent from timing out on hold.
-
-For DTMF configuration details, see [DTMF](/flows/dtmf).
+- **Looping IVRs** — some phone trees loop back to the main menu. Always include an escape path so the agent can end the call and retry rather than getting stuck in a loop.
+- **Speech vs. DTMF** — some IVRs accept spoken commands ("say 'agent'") while others only accept keypresses. Your flow may need to handle both output channels depending on the menu instructions.
+- **Long hold times** — the agent must stay silent while on hold and respond quickly when a human picks up. Your PolyAI team can tune speech recognition and silence settings for hold scenarios.
+- **Low-quality audio** — IVRs often use automated voices that are harder to transcribe. Specialized speech recognition settings can improve accuracy on these steps.
 
 ## Best practices
 
