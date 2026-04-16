@@ -1,29 +1,24 @@
 ---
 title: 'DNIs Pool'
-description: 'Integrate your telephony system with PolyAI using a Pool of DNIs.'
+description: 'Integrate your telephony system with PolyAI using a pool of Dynamic Number Insertion (DNI) numbers.'
 ---
 
-# Overview
+A DNIs Pool is a rotating pool of Dynamic Number Insertion (DNI) numbers that allows you to connect to your Virtual Agent hosted on PolyAI's infrastructure. This integration enables metadata passing via PSTN numbers when SIP headers are unavailable.
 
-A DNIs Pool is a rotating pool of Dynamic Number Insertion (DNI) numbers that allows you 
-to connect to your Virtual Agent hosted on PolyAI's infrastructure. 
+## Overview
 
-This integration enables you to:
-- Share structured JSON metadata with your Agent at the beginning of a call.
-- Retrieve call state information at the end of the conversation.
+Use DNI pooling to:
+- Share structured JSON metadata with your agent at the beginning of a call
+- Retrieve call state information at the end of the conversation
+- Avoid custom SIP header requirements
 
 This is particularly useful when:
-- You're using PSTN, which by definition does not support sharing metadata.
-- You're using SIP installations that do not support custom SIP headers.
+- You're using PSTN, which by definition does not support sharing metadata
+- You're using SIP installations that do not support custom SIP headers
 
-A typical use case is sending a shared ID (or other metadata) at call start, 
-and using it later to retrieve handoff details, such as whether the call completed 
-successfully or needs escalation to a human agent.
+A typical use case is sending a shared ID (or other metadata) at call start, and using it later to retrieve handoff details, such as whether the call completed successfully or needs escalation to a human agent.
 
-You can follow the docs to learn how to integrate your telephony stack with PolyAI's DNIs Pooling solution.
-
-
-# Requirements
+## Requirements
 
 To set up the DNIs Pool integration, you'll need the following from your PolyAI contact:
 
@@ -33,16 +28,20 @@ To set up the DNIs Pool integration, you'll need the following from your PolyAI 
 - Agree with your PolyAI contact on the attributes the Agent will need to extract
 
 
-# Integration Runtime
+## Integration Runtime
 
 The integration involves two main API endpoints:
 - [`Reserve DNI`](/api-reference/dni/endpoint/dni-reservation)
 - [`Get Handoff`](/api-reference/handoff/endpoint/get-handoff)
 
-![DNIs Pooling Integration](/images/integrations/dnis-pooling-integration.jpg)
-*Figure: A visual overview of how DNIs Pool integration works in practice.*
+<Frame caption="DNI pool integration architecture showing metadata passing">
+  ![DNIs Pooling Integration](/images/integrations/dnis-pooling-integration.jpg)
+</Frame>
 
-The flow works as follows:
+### Call flow
+
+The integration flow works as follows:
+
 1. Client sends project-specific attributes to the Reserve DNI endpoint. An example payload would look like this:
 ```json
 {
@@ -72,13 +71,13 @@ An example response will look like this - note that the `shared_id` is the same 
 ```
 9. If a handoff state is present, the Client can transfer the call to a human agent; otherwise, the call is considered complete.
 
-# Agent setup
-As a first step, head over to your project.
-For the integration to work, your Agent needs to:
-- Store the attributes you are sending through the [`Reserve DNI`](/api-reference/dni/endpoint/dni-reservation) API.
-- Save the handoff info into state to have the [`Get Handoff`](/api-reference/handoff/endpoint/get-handoff) API to show them when invoked.
+## Agent setup
 
-## Store attributes
+For the integration to work, your agent needs to:
+- Store the attributes you are sending through the [`Reserve DNI`](/api-reference/dni/endpoint/dni-reservation) API
+- Save the handoff info into state to have the [`Get Handoff`](/api-reference/handoff/endpoint/get-handoff) API expose them when invoked
+
+### Store attributes
 Attributes received from the API can **only** be accessed in the `start_function`.
 Not doing it here would mean losing them for all the conversations, making it impossible for the integration to work.
 
@@ -105,25 +104,19 @@ You can then use those attributes in other functions, in the Managed Topics or e
 in your Agent. This will be useful to customize your Agent behavior, or use those attributes
 in other API calls to your infrastructure for example.
 
-## Save handoff info
-As outlined above, the bot will always need to end the conversation with this integration.
-For this reason, handoff information must be configured in other ways — specifically, 
-prepared to be exposed by the Handoff API.
+### Save handoff info
 
-The Handoff API can be configured to expose all the `state` variables that you desire.
-The most useful variables are often:
-- the handoff reason, which is usually stored in `conv.state.handoff_reason`
-- the handoff destination, which is usually stored in `conv.state.handoff_to`
-But you can always expose more based on your use case.
+The conversation will always end with this integration. Handoff information must be prepared to be exposed by the Handoff API.
 
-As long as you store your desired value in the `state` variables, the Handoff API will expose them
-(as long as it is configured to do so). 
+The Handoff API can be configured to expose all the `state` variables you desire. The most useful variables are often:
+- `conv.state.handoff_reason` - the reason for handoff
+- `conv.state.handoff_to` - the destination for the call
 
-At the moment, configuration can only be done by your PolyAI contact. Send them all the 
-variables you want to expose, and they will be able to set up the Handoff API accordingly.
+As long as you store your desired values in `state` variables, the Handoff API will expose them (if configured to do so).
 
+Configuration is handled by your PolyAI contact. Send them all the variables you want to expose, and they will set up the Handoff API accordingly.
 
-# Pool size 
+## Pool size 
 It's important to make sure that every customer hitting your solution gets to PolyAI.
 In a DNIs Pooling integration, the pool size is fundamental, as it will dictate how many
 concurrent calls you will be able to handle.
@@ -133,8 +126,8 @@ concurrent calls you expect to handle at peak times to avoid disruptions to your
 The pool size can be controlled by your PolyAI contact, so you can simply share with them
 the max number of concurrent calls you expect at peak times.
 
-# Fallback
-In the unfortunate case in which no DNI is available for the call you are sending to the PolyAI infrastructure,
-the API response status code will be a 404. You should set up your telephony system
-to handle this case, making sure calls go to a fallback queue.
+## Fallback handling
+
+If no DNI is available for your call, the Reserve DNI API returns a 404 status code. Set up your telephony system to handle this case by routing calls to a fallback queue.
+
 PolyAI monitors pool utilization per project and will be notified automatically, enabling prompt action to extend the pool size.
