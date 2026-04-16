@@ -120,7 +120,36 @@ Used for static reference material (like opening hours or prices). No interactio
 
 ## Entity extraction and structured data collection
 
-Managed Topics do not support entity extraction. If you need to collect structured data (names, dates, phone numbers, etc.) when a topic is matched, use the topic's action to [trigger a flow](/flows/triggering-flows) and configure [entity extraction](/flows/no-code/entities) in that flow's steps.
+Managed Topics do not support entity extraction directly. If you need to collect structured data (names, dates, phone numbers, etc.) when a topic is matched, trigger a flow from the topic's action and configure [entity extraction](/flows/no-code/entities) in that flow's steps.
+
+There are two ways to trigger a flow from a topic:
+
+### Using the /Flow shortcut (no code)
+
+In the topic's **Actions** field, type `/Flow` to insert a flow action. Select or create the target flow. When the topic matches, the agent enters the flow and can begin collecting entities.
+
+### Using a function call (code)
+
+Alternatively, add a function call action to the topic that calls `conv.goto_flow()`:
+
+```python
+def start_booking_flow(conv: Conversation):
+    conv.goto_flow("Collect booking details")
+    return
+```
+
+This approach is useful when you need additional logic before entering the flow — for example, storing the originating topic name in `conv.state` so the agent can return to it after the flow completes.
+
+### Returning to the topic after a flow
+
+If the agent is answering an FAQ and takes a detour through a flow (e.g. to collect a date or verify identity), the agent can pick up where it left off after exiting the flow. To do this:
+
+1. Before entering the flow, store the topic name in state (e.g. `conv.state.original_topic = "how_to_make_claim"`).
+2. In the flow's exit function, check the stored topic and return a prompt directing the LLM back to the relevant topic content.
+
+This avoids a generic "Is there anything else I can help with?" when the caller's original question has not yet been answered.
+
+For the full triggering-flows reference, see [Triggering flows](/flows/triggering-flows).
 
 ## Best practices
 

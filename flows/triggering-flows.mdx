@@ -33,26 +33,53 @@ What happens:
 
 ## Start a flow from a Managed Topics action
 
-A Managed Topic can be configured to start a flow.
+A Managed Topic can trigger a flow when it matches a user request. This is the primary way to collect [entities](/flows/no-code/entities) from a topic, since Managed Topics do not support entity extraction directly.
 
-When a topic matches a user request, you can attach an action that starts a specific flow.
-
-### How to configure this
-
-In Agent Studio:
-
-- Open **Build > Knowledge > Managed Topics tab**.
-- Select the topic that should trigger the workflow.
-- Add an action that starts a flow.
-- Choose the target flow.
-
-No custom function is required if no additional logic is needed.
-
-### Using the /Flow shortcut
+### Using the /Flow shortcut (no code)
 
 ![example-main](/images/flows/create-flow-rich-text.png)
 
-Inside a Managed Topics action field, type `/Flow` and use the (+) option to create or attach a flow.
+Inside a Managed Topics **Actions** field, type `/Flow` and use the (+) option to create or attach a flow. When the topic matches, the agent enters the selected flow at its start step.
+
+No custom function is required if you just need to enter the flow.
+
+### Using a function call from a topic
+
+If you need additional logic before entering the flow — for example, storing context so the agent can return to the topic afterward — use a function call action instead:
+
+```python
+def start_verification_flow(conv: Conversation, original_faq: str):
+    """
+    Enter the verification flow and remember which topic we came from.
+    Args:
+        original_faq: the name of the topic that triggered this function
+    """
+    conv.state.original_topic = original_faq
+    conv.goto_flow("Verify Identity")
+    return
+```
+
+You can also trigger a flow from a global function by calling `conv.goto_flow()` directly.
+
+### Returning to a topic after a flow
+
+When a topic triggers a flow (e.g. to collect a date or verify identity), the agent can return to the original topic content after the flow exits. To do this:
+
+1. Before entering the flow, store the topic name in state (e.g. `conv.state.original_topic`).
+2. In the flow's exit function, check the stored topic and return a prompt that directs the LLM to the relevant topic content:
+
+```python
+def exit_and_resume(conv: Conversation, flow: Flow):
+    conv.exit_flow()
+    if conv.state.original_topic:
+        return {
+            "content": f"Look for the topic '{conv.state.original_topic}' in your context. "
+                       f"Continue answering the caller's original question."
+        }
+    return {"utterance": "Is there anything else I can help with?"}
+```
+
+This pattern avoids a generic "Is there anything else?" when the caller's original question has not yet been answered.
 
 ## Start or switch flows from inside another flow
 
