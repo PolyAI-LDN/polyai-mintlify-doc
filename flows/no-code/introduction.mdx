@@ -101,12 +101,12 @@ There are two execution models inside flows. Understanding this prevents most co
 
 ### Default steps (LLM-driven) -- no code required
 
-In a Default step:
+In a Default step, the system follows a **sequential two-task process** on each turn:
 
-- The LLM evaluates conditions.
-- Condition labels are meaningful.
-- "Required entities" inform the LLM what must be present before a condition can pass.
-- Routing is determined by the model.
+1. **Entity extraction and validation** — the LLM extracts entity values from the user's message and calls `builtin_validate_and_save_entities` to check them against type rules. Invalid values are rejected and the user is asked to try again. The LLM can call this function multiple times in a single turn.
+2. **Condition selection** — once entities are validated, the LLM evaluates which condition is best met and calls `builtin_step_condition_met`. Conditions with **required entities** only match if those entities have already passed validation.
+
+These two tasks run **sequentially** — validation always completes before condition evaluation begins. This means each turn in a Default step involves at least **two LLM calls**.
 
 If you reference collected entities inside the prompt, you can use rich text `/entities`. This inserts a template tag in the format `{{entity:entity_name}}` that the system resolves at runtime. Entities extracted in a step are immediately available within that same step — both for prompt references and for condition evaluation.
 
@@ -114,7 +114,7 @@ If you reference collected entities inside the prompt, you can use rich text `/e
 Default step prompts support entity and variant attribute references, but do not support function references. To call transition functions or global functions from a prompt, use an [Advanced step](/flows/no-code/advanced-steps).
 </Note>
 
-In Conversation Review, you may see system-generated events that represent automatic entity validation and condition evaluation. These are normal and indicate the system is processing your flow steps correctly.
+In [Conversation Review](/analytics/conversations/review), you will see system-generated events for `builtin_validate_and_save_entities` and `builtin_step_condition_met`. These are the built-in functions that perform entity validation and condition matching respectively — they are useful for debugging entity collection and routing issues.
 
 You do not need to write code for this.
 

@@ -62,13 +62,31 @@ Street addresses or locations. No additional configuration.
 Entities extracted in a step are immediately available within that same step. You can:
 
 - **Reference entities in the prompt** using `{{entity:entity_name}}` — the system resolves the value at runtime, so a prompt can adapt its wording based on what the caller just provided.
-- **Use entities in redirect conditions** — mark an entity as a [required entity](/flows/no-code/introduction#conditions) on a condition so the LLM will not activate that path until the entity has been collected and validated.
+- **Use entities in redirect conditions** — mark an entity as a [required entity](/flows/no-code/introduction#conditions) on a condition so the LLM will not activate that path until the entity has been collected **and validated**.
 
-In short, extraction and evaluation happen within the same step execution — you do not need a separate step to use an entity you just collected.
+Extraction and evaluation happen within the same step execution — you do not need a separate step to use an entity you just collected.
 
 <Note>
 Entity extraction is a flow-only feature. [Managed Topics](/managed-topics/introduction) do not support entity extraction directly. If you need to collect structured data when a topic is matched, use the topic's action to [trigger a flow](/flows/triggering-flows) and configure entity extraction in that flow's steps.
 </Note>
+
+## How entity extraction works at runtime
+
+When a Default step contains entities, the system follows a **two-task, sequential process** on each turn:
+
+1. **Task 1 — Entity extraction and validation.** The LLM reads the user's message and extracts entity values. It then calls a built-in function (`builtin_validate_and_save_entities`) to validate each value against the entity's type rules (format, range, regex, etc.). Invalid entities are rejected and the LLM asks the user to try again. The LLM can call this function multiple times per turn — for example, validating one entity early while continuing to collect others.
+
+2. **Task 2 — Condition selection.** Once entities are validated and saved, the LLM evaluates which condition is best met by calling a second built-in function (`builtin_step_condition_met`). Conditions that have **required entities** will only match if those entities have already passed validation in Task 1.
+
+These two tasks are **sequential** — entity validation always runs before condition evaluation. Each task involves a separate LLM function call, so a single step turn typically involves **at least two LLM calls**: one for `builtin_validate_and_save_entities` and one for `builtin_step_condition_met`.
+
+<Info>
+Both `builtin_validate_and_save_entities` and `builtin_step_condition_met` are visible in [Conversation Review](/analytics/conversations/review) as system-generated events. They are useful for debugging when entities are not being collected or conditions are not triggering as expected.
+</Info>
+
+<Warning>
+Because validation happens first, an entity that fails validation will **not** satisfy a "required entities" check on any condition — even if the user provided a value. The entity must pass both extraction and validation before it counts as collected.
+</Warning>
 
 ## Validation and retries
 
@@ -85,9 +103,24 @@ If a branch depends on an entity being present, always include a clear fallback 
 
 ## Accessing entities in code
 
-Entities collected earlier in a flow are available in Function steps via `conv.entities.entity_name.value`. Entity values are always strings — cast to `int()` or `float()` before numeric comparisons.
+Entities collected earlier in a flow are available in Function steps via `conv.entities.entity_name.value`.
 
-See [no-code flows — accessing entities in a function](/flows/no-code/introduction#accessing-collected-entities-in-a-function) for examples.
+<Warning>
+Entity values are **always strings**, even for numeric types. You must cast to `int()` or `float()` before numeric comparisons, otherwise string comparison rules apply and `"9" > "10"` evaluates to `True`.
+</Warning>
+
+```python
+# Correct — cast before comparing
+party_size = int(conv.entities.number_of_guests.value)
+if party_size > 15:
+    flow.goto_step("Group Booking")
+
+# Incorrect — string comparison
+if conv.entities.number_of_guests.value > "15":  # "9" > "15" is True!
+    flow.goto_step("Group Booking")
+```
+
+See [no-code flows — accessing entities in a function](/flows/no-code/introduction#accessing-collected-entities-in-a-function) for more examples.
 
 ## Related pages
 
