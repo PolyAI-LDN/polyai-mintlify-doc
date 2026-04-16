@@ -1,6 +1,6 @@
 ---
 title: "Tutorial: Flow design patterns"
-description: "PolyAcademy Level 3 — Master collection, validation, verification patterns and LLM-led vs deterministic control."
+description: "PolyAcademy Level 3 – Master collection, validation, verification patterns and LLM-led vs deterministic control."
 sidebarTitle: Flow patterns
 icon: "shapes"
 noindex: true
@@ -10,7 +10,7 @@ import { ProgressTracker } from '/snippets/progress-tracker.jsx'
 import { Quiz } from '/snippets/quiz.jsx'
 
 <Info>
-  **Level 3 — Lesson 3 of 5** — Learn common flow patterns for collecting, validating, and acting on user input.
+  **Level 3 – Lesson 3 of 5** – Learn common flow patterns for collecting, validating, and acting on user input.
 </Info>
 
 Most flows follow a small number of repeatable patterns: collect a value, validate its format, then verify it against known data. For each pattern, decide whether to let the model lead (flexible, natural) or write deterministic logic (predictable, reliable).
@@ -63,14 +63,14 @@ def validate_tracking(conv, flow, tracking_number: str) -> str:
         return "That doesn't look like a valid tracking number. Ask the user to try again."
 ```
 
-When validation fails, the step prompt is still active — the model will ask the user again. This is the persistent prompt at work.
+When validation fails, the step prompt is still active – the model will ask the user again. This is the persistent prompt at work.
 
 <Warning>
   In voice, validation failures are often caused by transcription errors, not user mistakes. Avoid phrasing that blames the user.
 
   Instead of: "That's not a valid tracking number."
 
-  Prefer: "Sorry, I didn't quite catch that — could you repeat your tracking number?"
+  Prefer: "Sorry, I didn't quite catch that – could you repeat your tracking number?"
 </Warning>
 
 ## Check your understanding
@@ -79,10 +79,10 @@ When validation fails, the step prompt is still active — the model will ask th
   {
     q: "A user gives a tracking number that's correctly formatted but doesn't exist in the system. Which pattern handles this?",
     options: [
-      "Collection — re-ask for the number",
-      "Validation — the format check failed",
-      "Verification — the value is valid but doesn't match known data",
-      "None — this is an API error",
+      "Collection – re-ask for the number",
+      "Validation – the format check failed",
+      "Verification – the value is valid but doesn't match known data",
+      "None – this is an API error",
     ],
     correct: 2,
     explanation: "Validation checks format. Verification checks against known data. A correctly formatted number that doesn't exist in the system is a verification failure, not a validation failure.",
@@ -172,10 +172,10 @@ When something goes wrong in a flow (validation fails, API returns no match), yo
   {
     q: "You need to collect a date of birth and the client requires exactly 3 attempts before handoff. Which approach should you use?",
     options: [
-      "LLM-led — the model can count retries itself",
-      "Deterministic — use a counter in conv.state to enforce the limit",
+      "LLM-led – the model can count retries itself",
+      "Deterministic – use a counter in conv.state to enforce the limit",
       "Either approach works equally well",
-      "Neither — use a managed topic instead",
+      "Neither – use a managed topic instead",
     ],
     correct: 1,
     explanation: "When a client requires a strict retry limit, use deterministic control with a counter. The LLM may not count retries accurately or consistently, and you cannot guarantee it will stop at exactly 3 attempts.",
@@ -194,12 +194,12 @@ def escalate(conv, flow, utterance: str) -> dict:
     }
 ```
 
-Parameter: `utterance` — *The message to say to the user before transferring*
+Parameter: `utterance` – *The message to say to the user before transferring*
 
 By passing the utterance as a function argument, the model generates a contextually appropriate goodbye message, but the handoff is handled deterministically.
 
 <Warning>
-  If you return a hard-coded `utterance` with `handoff`, no second LLM request occurs. The utterance is played and the call is transferred immediately. This is efficient but means the model does not get a chance to add anything — make sure your utterance provides proper closure.
+  If you return a hard-coded `utterance` with `handoff`, no second LLM request occurs. The utterance is played and the call is transferred immediately. This is efficient but means the model does not get a chance to add anything – make sure your utterance provides proper closure.
 </Warning>
 
 ## Design principles
@@ -209,7 +209,7 @@ By passing the utterance as a function argument, the model generates a contextua
     Always define what happens after each step. Never assume the model will figure out the next action.
   </Card>
   <Card title="Design for failure" icon="triangle-exclamation">
-    Plan what happens when validation fails, APIs are down, or the user gives unexpected input. Designing the success path is straightforward — failure handling is where reliability is built.
+    Plan what happens when validation fails, APIs are down, or the user gives unexpected input. Designing the success path is straightforward – failure handling is where reliability is built.
   </Card>
   <Card title="Keep steps focused" icon="crosshairs">
     Each step should do one thing: collect one value, confirm one detail, or present one choice.
@@ -238,7 +238,7 @@ By passing the utterance as a function argument, the model generates a contextua
     </Accordion>
 
     <Accordion title="Example solution">
-      **Step 1 — Collect**
+      **Step 1 – Collect**
 
       Prompt: "Ask the user for their tracking number. Once they provide it, call `save_tracking`."
 
@@ -250,7 +250,7 @@ By passing the utterance as a function argument, the model generates a contextua
           return "Tracking number received."
       ```
 
-      **Step 2 — Validate**
+      **Step 2 – Validate**
 
       Prompt: "The tracking number has been collected. Call `check_format` to validate it."
 
@@ -275,7 +275,7 @@ By passing the utterance as a function argument, the model generates a contextua
           return "The format doesn't look right. Ask the user to repeat it."
       ```
 
-      **Step 3 — Lookup**
+      **Step 3 – Lookup**
 
       Prompt: "The tracking number is validated. Call `lookup_order` to check the status."
 
@@ -304,7 +304,7 @@ By passing the utterance as a function argument, the model generates a contextua
       "Return content telling the model to say goodbye, then hope it calls the handoff function",
       "Hard-code a generic goodbye utterance with handoff: True",
       "Pass the utterance as a function argument so the model generates it, then return it with handoff: True",
-      "Use two separate functions — one for goodbye, one for handoff",
+      "Use two separate functions – one for goodbye, one for handoff",
     ],
     correct: 2,
     explanation: "By passing the utterance as a function argument, the model generates contextually appropriate phrasing. The function then returns it as a hard-coded utterance with handoff: True, ensuring the transfer happens deterministically.",

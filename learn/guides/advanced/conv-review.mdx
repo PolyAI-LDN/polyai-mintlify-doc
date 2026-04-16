@@ -1,7 +1,7 @@
 ---
 title: "Tutorial: Conversation reviews (advanced)"
 sidebarTitle: "Conversation reviews (advanced)"
-description: "PolyAcademy Level 2 — Use advanced diagnostics to trace behavior to its source and identify system-level improvements."
+description: "PolyAcademy Level 2 – Use advanced diagnostics to trace behavior to its source and identify system-level improvements."
 icon: "stethoscope"
 noindex: true
 ---
@@ -10,7 +10,7 @@ import { ProgressTracker } from '/snippets/progress-tracker.jsx'
 import { Quiz } from '/snippets/quiz.jsx'
 
 <Info>
-  **Level 2 — Lesson 8 of 8** — Master advanced diagnostics to understand exactly why your agent behaves the way it does.
+  **Level 2 – Lesson 8 of 8** – Master advanced diagnostics to understand exactly why your agent behaves the way it does.
 </Info>
 
 At this stage, use [Conversation Review](/analytics/conversations/review) to answer questions like:
@@ -32,12 +32,12 @@ At Level 1, the transcript was enough. At Level 2, the transcript is only the **
 ```mermaid
 flowchart TD
     A[Unexpected agent behavior] --> B{What does the transcript show?}
-    B -->|Wrong word transcribed| C[ASR layer — check Transcript Corrections / Keyphrase Boosting]
-    B -->|Wrong topic retrieved| D[KB layer — check topic name, sample questions]
+    B -->|Wrong word transcribed| C[ASR layer – check Transcript Corrections / Keyphrase Boosting]
+    B -->|Wrong topic retrieved| D[KB layer – check topic name, sample questions]
     B -->|Right topic, wrong response| E[Rules / Response Controls layer]
-    B -->|Action didn't fire| F[Function trace — check call order and parameters]
-    B -->|Variant A ≠ Variant B| G[Variant layer — check which variant handled each turn]
-    B -->|Response too long for voice| H[Latency / interruption layer — tune pacing]
+    B -->|Action didn't fire| F[Function trace – check call order and parameters]
+    B -->|Variant A ≠ Variant B| G[Variant layer – check which variant handled each turn]
+    B -->|Response too long for voice| H[Latency / interruption layer – tune pacing]
 ```
 
 ## Check your understanding
@@ -174,7 +174,7 @@ Inspect entities to:
 >
 > Entity captured: date = today
 >
-> This is not a KB issue — it's extraction or phrasing.
+> This is not a KB issue – it's extraction or phrasing.
 
 ### Turn latency and interruptions
 
@@ -219,10 +219,10 @@ Annotations turn subjective impressions into actionable signals.
   {
     q: "The agent gave a wrong answer. You read the transcript but can't see why. What should you check next?",
     options: [
-      "Re-read the transcript — you must have missed something",
-      "The function trace, topic citations, and diagnosis layers — the transcript shows symptoms, not root causes",
-      "The agent's personality field — it may be overriding the response",
-      "The voice settings — audio issues can cause transcript inaccuracies",
+      "Re-read the transcript – you must have missed something",
+      "The function trace, topic citations, and diagnosis layers – the transcript shows symptoms, not root causes",
+      "The agent's personality field – it may be overriding the response",
+      "The voice settings – audio issues can cause transcript inaccuracies",
     ],
     correct: 1,
     explanation: "The transcript shows what happened, not why. At Level 2, root cause analysis uses diagnosis layers: function traces to see what fired, topic citations to see what triggered, and variant data to see what context was applied.",
@@ -249,7 +249,7 @@ Before treating an agent as stable:
 
 <Steps>
   <Step title="Challenge: Investigate a variant discrepancy">
-    Looking at your Conversations table, you notice that Variant A has a 40% handoff rate and Variant B has a 15% handoff rate — for the same types of customer queries.
+    Looking at your Conversations table, you notice that Variant A has a 40% handoff rate and Variant B has a 15% handoff rate – for the same types of customer queries.
 
     Describe your investigation:
     1. What is your first hypothesis?
@@ -261,12 +261,12 @@ Before treating an agent as stable:
     </Accordion>
 
     <Accordion title="Example solution">
-      1. **First hypothesis:** Variant A has a handoff action wired to trigger more broadly — perhaps its SMS flow fails more often, or its fallback routing is more aggressive.
+      1. **First hypothesis:** Variant A has a handoff action wired to trigger more broadly – perhaps its SMS flow fails more often, or its fallback routing is more aggressive.
 
       2. **Layers to check first:**
-         - **Function traces** — compare whether `transfer_call` is being called after different triggers in A vs B
-         - **Variant fields** — check if A has different escalation language or action overrides
-         - **Topic citations** — confirm the same KB topics are being retrieved for both variants
+         - **Function traces** – compare whether `transfer_call` is being called after different triggers in A vs B
+         - **Variant fields** – check if A has different escalation language or action overrides
+         - **Topic citations** – confirm the same KB topics are being retrieved for both variants
 
       3. **Confirming data:**
          - If function traces show `transfer_call` firing after different events → KB action branch issue
@@ -280,7 +280,7 @@ Before treating an agent as stable:
 
 <Quiz questions={[
   {
-    q: "Variant A has a 40% handoff rate and Variant B has 15% — for the same query types. What should you check first?",
+    q: "Variant A has a 40% handoff rate and Variant B has 15% – for the same query types. What should you check first?",
     options: [
       "The greeting text in each variant",
       "Function traces, variant fields, and topic citations to find where the two configurations diverge",
@@ -298,27 +298,27 @@ Beyond individual conversation review, you can use metrics and [dashboards](/ana
 
 ### Filtering conversations
 
-The **Conversations** page supports filtering by both built-in and custom metrics. Built-in metrics include environment, call duration, variant, and handoff reason. Custom metrics are values you log from your functions — for example, `cancel_initiated`, `id_v_successful`, or the brand the user asked about.
+The **Conversations** page supports filtering by both built-in and custom metrics. Built-in metrics include environment, call duration, variant, and handoff reason. Custom metrics are values you log from your functions – for example, `cancel_initiated`, `id_v_successful`, or the brand the user asked about.
 
 **Useful filter combinations:**
-- **All handoffs** — filter by handoff reason "has any value" to see every transferred call
-- **Specific handoff reason** — filter by a reason like "speak_to_agent" to find deflection opportunities
-- **Custom metric** — filter by `cancel_initiated` to review all cancellation flows
+- **All handoffs** – filter by handoff reason "has any value" to see every transferred call
+- **Specific handoff reason** – filter by a reason like "speak_to_agent" to find deflection opportunities
+- **Custom metric** – filter by `cancel_initiated` to review all cancellation flows
 
 ### QA metrics
 
 The QA metric identifies which knowledge base topic the agent used to answer each query:
 
-- **Raven (voice)** — the LLM determines the QA metric directly by matching its response to the most relevant topic. This is accurate because the LLM has full context.
-- **GPT-based agents (chat)** — the system encodes the user utterance, finds the closest topics by embedding similarity, generates a response, then matches the response back to topics. This can be less accurate when responses blend multiple topics.
+- **Raven (voice)** – the LLM determines the QA metric directly by matching its response to the most relevant topic. This is accurate because the LLM has full context.
+- **GPT-based agents (chat)** – the system encodes the user utterance, finds the closest topics by embedding similarity, generates a response, then matches the response back to topics. This can be less accurate when responses blend multiple topics.
 
 ### Using dashboards for improvement
 
 A well-built dashboard tracks your key metrics (containment, transfer rate, call duration, authentication success) over time. Focus on:
 
-1. **Containment trends** — are your improvements actually moving the number?
-2. **Top queries** — what are users asking about most? Are there unhandled intents?
-3. **Handoff reasons** — which reasons have the highest volume? Can you add flows or topics to reduce transfers?
+1. **Containment trends** – are your improvements actually moving the number?
+2. **Top queries** – what are users asking about most? Are there unhandled intents?
+3. **Handoff reasons** – which reasons have the highest volume? Can you add flows or topics to reduce transfers?
 
 For example, if "make an order" is a top query with high transfer rate, building an order troubleshooting flow could directly improve containment.
 
