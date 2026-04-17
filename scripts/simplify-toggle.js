@@ -206,19 +206,15 @@
       e.preventDefault();
       e.stopPropagation();
       setSimplified(false);
-      var btn = document.querySelector('.simplify-toggle');
-      if (btn) updateButton(btn, false);
+      document.querySelectorAll('.simplify-toggle').forEach(function (b) {
+        updateButton(b, false);
+      });
       markNavbarTabs();
       window.location.href = destPath;
     }
   }, true);
 
-  function injectToggle() {
-    if (document.querySelector('.simplify-toggle')) return;
-
-    var navbarList = document.querySelector('li.navbar-link') &&
-      document.querySelector('li.navbar-link').parentElement;
-
+  function createToggleButton() {
     var btn = document.createElement('button');
     btn.className = 'simplify-toggle';
     btn.type = 'button';
@@ -235,18 +231,39 @@
         return;
       }
       setSimplified(next);
-      updateButton(btn, next);
+      // Sync all toggle buttons on the page.
+      document.querySelectorAll('.simplify-toggle').forEach(function (b) {
+        updateButton(b, next);
+      });
       markNavbarTabs();
       applyDeveloperContent();
     });
 
-    if (navbarList) {
+    return btn;
+  }
+
+  function injectToggle() {
+    if (document.querySelector('.simplify-toggle')) return;
+
+    // Inject into every navbar list that contains a .navbar-link item.
+    // The maple theme renders separate mobile and desktop navbars, each with
+    // its own li.navbar-link — we need the toggle in both.
+    var navbarLinks = document.querySelectorAll('li.navbar-link');
+    var injected = false;
+
+    navbarLinks.forEach(function (link) {
+      var list = link.parentElement;
+      if (!list) return;
+      var btn = createToggleButton();
       var li = document.createElement('li');
       li.appendChild(btn);
-      navbarList.insertBefore(li, navbarList.firstChild);
-    } else {
+      list.insertBefore(li, list.firstChild);
+      injected = true;
+    });
+
+    if (!injected) {
       var header = document.getElementById('header') || document.querySelector('header');
-      if (header) header.appendChild(btn);
+      if (header) header.appendChild(createToggleButton());
     }
   }
 
