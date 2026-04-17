@@ -1,7 +1,7 @@
 ---
 title: Agent Development Kit (ADK)
 sidebarTitle: ADK
-description: Python CLI and package for building PolyAI agents locally with a Git-native workflow.
+description: Python CLI and package for building, managing, and deploying PolyAI voice AI agents locally.
 tag: "Code"
 mode: wide
 keywords:
@@ -11,14 +11,13 @@ keywords:
   - local development
   - YAML
   - Python
-  - Git workflow
+  - poly pull
+  - poly push
   - enterprise
   - scale
 ---
 
-The Agent Development Kit (ADK) is a Python CLI and package for building PolyAI agents locally. Pull your project as YAML and Python files, edit with any tool, push changes back.
-
-Version control, code review, CI/CD, and multi-agent management – standard engineering workflows applied to agent development.
+The Agent Development Kit (ADK) is a Python CLI (`polyai-adk` on PyPI) for building PolyAI agents locally. Pull your Agent Studio project as YAML and Python files, edit with any tool, and push changes back — all from the command line.
 
 <Note>
 ADK is currently in the **Early Access Program**. [Sign up for Early Access](https://fehky.share-eu1.hsforms.com/2oSGLpUctRvyqXcb6K44DAQ) to get started.
@@ -28,16 +27,16 @@ ADK is currently in the **Early Access Program**. [Sign up for Early Access](htt
 
 <CardGroup cols={3}>
   <Card title="Bulk authoring" icon="layer-group">
-    Generate topics, flows, or entities programmatically – push in one command
+    Generate topics, flows, or entities programmatically — push in one command
   </Card>
   <Card title="Version control" icon="code-branch">
-    YAML and Python files commit cleanly to Git for PR reviews, blame history, and rollback
+    YAML and Python files work with any version control system for reviews and rollback
   </Card>
   <Card title="AI-assisted editing" icon="wand-magic-sparkles">
-    Edit YAML and Python files with coding assistants, then push
+    Edit YAML and Python files with coding assistants (Cursor, Claude Code, etc.), then push
   </Card>
   <Card title="CI/CD pipelines" icon="rotate">
-    Automate agent deployment with standard CI/CD tooling
+    Run `poly push` in GitHub Actions or any CI/CD pipeline
   </Card>
   <Card title="Multi-project workflows" icon="diagram-project">
     Manage multiple agent projects from one environment
@@ -49,31 +48,80 @@ ADK is currently in the **Early Access Program**. [Sign up for Early Access](htt
 
 ## How it works
 
-ADK uses a pull-edit-push workflow similar to Git:
+ADK uses a pull-edit-push workflow:
 
 <Steps>
+  <Step title="Initialize">
+    Link a local directory to an Agent Studio project with `poly init`.
+  </Step>
   <Step title="Pull">
-    Pull your Agent Studio project to your local machine as YAML configuration and Python function files.
+    Run `poly pull` to download your project as structured YAML files organized by resource type — topics, flows, entities, and agent settings.
   </Step>
   <Step title="Edit">
-    Edit with any tool – IDE, scripts, or AI coding assistants. YAML for configuration, Python for functions.
+    Edit with any tool — IDE, scripts, or AI coding assistants. YAML handles configuration, Python handles functions.
   </Step>
   <Step title="Push">
-    Push changes back to Agent Studio. Your agent updates immediately in the target environment.
+    Run `poly push` to diff your local changes against the remote state and send updates to Agent Studio. Your agent updates immediately in the target environment.
   </Step>
 </Steps>
 
 ADK is fully compatible with Agent Studio and the APIs. Switch between surfaces at any time.
 
+## CLI commands
+
+| Command | Description |
+| --- | --- |
+| `poly init` | Link a local directory to an Agent Studio project |
+| `poly pull` | Download the current project state as YAML files |
+| `poly push` | Diff local changes against remote and send updates |
+| `poly docs` | Print documentation for any ADK resource type |
+
+## Project structure
+
+After pulling, your local directory contains human-readable YAML files organized by resource type:
+
+```text
+topics/
+  Frequently Asked Questions.yaml
+  Billing Issues.yaml
+flows/
+  greeting/
+    flow_config.yaml
+    flow_step_welcome.yaml
+    flow_step_billing_check.yaml
+entities/
+  billing_amount.yaml
+agent_settings/
+  role.yaml
+  personality.yaml
+  rules.yaml
+```
+
+Each YAML file represents a single resource. For example, a topic file:
+
+```yaml
+enabled: true
+actions: ""
+content: |
+  We accept Visa, Mastercard, and PayPal.
+  Refunds take 3–5 business days.
+example_queries:
+  - What payment methods do you accept?
+  - How long do refunds take?
+  - Can I pay with PayPal?
+```
+
+Cross-references between resources use human-readable name tags like `{{fn:check_billing}}` rather than raw IDs. ADK resolves these automatically at push time.
+
 ## Who it's for
 
-- **Development teams** – Git, CI/CD, and code review for agent development
-- **Teams at scale** – manage many agents from a single environment
-- **Automation** – generate and update agents programmatically
+- **Development teams** — version control, CI/CD, and code review for agent development
+- **Teams at scale** — manage many agents from a single environment
+- **Automation** — generate and update agents programmatically (e.g., create topics from a spreadsheet, then `poly push`)
 
 ## Get started
 
-Installation, CLI reference, and usage instructions:
+Installation, authentication, and usage instructions:
 
 <Card title="ADK documentation" icon="book" href="https://polyai.github.io/adk/">
   Guides, CLI reference, and examples.
