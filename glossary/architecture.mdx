@@ -106,9 +106,27 @@ The platform routes requests to the best-fit provider based on language, domain,
 
 See also: [ASR](/glossary/introduction#asr-automatic-speech-recognition), [ASR biasing](/glossary/introduction#asr-biasing), [Global ASR configuration](/learn/guides/advanced/global-asr)
 
-### 3. Agent service
+### Real-time voice processing
 
-The agent service is the core of the system, powered by PolyAI's LLM-native architecture. It receives the transcribed user input and coordinates:
+Voice conversations require capabilities beyond text-based AI. PolyAI handles these natively:
+
+- **Turn detection (endpointing)** — Detects when a caller has finished speaking and is waiting for a response. A pause mid-sentence ("I'd like to book... um... for Saturday") should not trigger a response, but a pause after a complete thought should. PolyAI uses a fusion of audio signals and text analysis to make this decision in real time.
+- **Interruption handling (barge-in)** — When a caller speaks over the agent, the system distinguishes genuine interruptions ("Actually, never mind — transfer me") from backchannel affirmations ("Yeah", "Uh-huh"). True interruptions stop the agent and process new input. Backchannels are acknowledged without interrupting the response.
+- **Background noise filtering** — Real-world calls include noise (TVs, cars, other conversations). Audio processing filters background noise so the speech recognition model receives clean input.
+
+### 3. Agent service — Raven LLM
+
+The agent service is the core of the system, powered by [Raven](/agent-settings/raven), PolyAI's proprietary LLM for voice conversations. Raven is not a wrapper around a third-party LLM — it is a purpose-built model trained for real-time spoken dialogue.
+
+| Capability | Raven (purpose-built) | Generic LLM providers |
+|---|---|---|
+| **Latency** | Sub-300ms end-to-end | Varies by provider, typically 500ms–2s |
+| **Language support** | 24+ languages with native performance | Depends on provider model |
+| **Voice-optimized responses** | Trained for spoken dialogue — natural length, pacing, phrasing | Trained for text — often too verbose for voice |
+| **Hallucination control** | Constrained by managed topics and retrieval pipeline | Varies by provider and prompt engineering |
+| **Enterprise reliability** | Single provider, SLA-backed | Multi-provider dependency chain |
+
+The agent service receives transcribed user input and coordinates:
 
 - **Language understanding**: Uses large language models (LLMs) to interpret what the user said, their intent, and extract entities in a conversational, context-aware manner
 - **Decision making (Policy engine)**: Determines the appropriate response based on your configured [Managed Topics](/managed-topics/introduction), [flows](/flows/introduction), and [rules](/agent-settings/rules) by executing nodes in priority order
@@ -270,8 +288,8 @@ See also: [Turn](/glossary/introduction#turn), [Policy engine](/glossary/introdu
   <Card title="Glossary" icon="book" href="/glossary/introduction">
     Definitions of key terms used throughout the platform.
   </Card>
-  <Card title="Getting started" icon="rocket" href="/get-started/quickstart">
-    Build your first agent step by step.
+  <Card title="Raven LLM" icon="brain" href="/agent-settings/raven">
+    Model configuration and language support.
   </Card>
   <Card title="Integrations" icon="plug" href="/integrations/introduction">
     Explore available platform integrations.
