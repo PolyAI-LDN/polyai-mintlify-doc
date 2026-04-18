@@ -52,6 +52,66 @@ Advanced step prompts support inline references using template tags:
 | Handoff | `{{ho:destinationId}}` | Trigger a handoff |
 | Variant attribute | `{{va:attributeId}}` | Insert a variant attribute value |
 
+## Common Advanced step patterns
+
+<AccordionGroup>
+  <Accordion title="Collect a confirmation code with ASR biasing">
+    **Use case:** Collect an alphanumeric confirmation code where ASR accuracy is critical.
+
+    **Step name:** `Collect confirmation code`
+
+    **ASR biasing:** Alphanumeric
+
+    **Prompt:**
+    ```text
+    Ask the caller for their confirmation code. It will be a mix of letters 
+    and numbers. Once you have it, call {{ft:save_confirmation_code}}.
+    ```
+
+    **Transition function:**
+    ```python
+    def save_confirmation_code(conv: Conversation, flow: Flow, code: str):
+        conv.state.confirmation_code = code
+        flow.goto_step("Verify booking")
+        return
+    ```
+
+    Without Alphanumeric ASR biasing, codes like "B4ZQ9" are frequently misrecognized.
+  </Accordion>
+
+  <Accordion title="Collect a payment amount with DTMF">
+    **Use case:** Let the caller type their payment amount on the keypad for accuracy.
+
+    **Step name:** `Enter payment amount`
+
+    **DTMF configuration:**
+    - Enable DTMF: on
+    - Max digits: 8
+    - End key: `#`
+    - Mark as PII: yes
+
+    **Prompt:**
+    ```text
+    Please enter your payment amount using your phone keypad, 
+    then press the hash key. For example, for fifty dollars, 
+    press 5-0-0-0 then hash.
+    ```
+  </Accordion>
+
+  <Accordion title="Handoff with variant-specific routing">
+    **Use case:** Transfer the caller to a department that varies by location.
+
+    **Prompt:**
+    ```text
+    The caller needs to speak with a specialist. Transfer them using 
+    {{ho:specialist_team}}. Before transferring, say: "I'm connecting 
+    you with our {{va:location_name}} specialist team now."
+    ```
+
+    The variant attribute `location_name` resolves to the active variant's value at runtime.
+  </Accordion>
+</AccordionGroup>
+
 ## Related pages
 
 <CardGroup cols={3}>

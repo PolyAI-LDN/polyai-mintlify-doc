@@ -63,15 +63,71 @@ Use Default steps for most of your flow. They allow you to:
 - Extract [entities](/flows/no-code/entities)
 - Branch to other steps using labeled edges
 
-Most booking, verification, and data-collection flows can be built entirely with Default steps.
+Most booking, verification, and data-collection flows can be built entirely with Default steps. Keep each step focused on one task.
 
-A common pattern:
+#### Common Default step patterns
 
-- Step 1: Collect an entity (e.g. number of passengers)
-- Step 2: Route to the correct branch (e.g. Individual Booking vs Group Booking)
-- Step 3: Continue collecting relevant details
+<AccordionGroup>
+  <Accordion title="Collect information and route">
+    **Use case:** Collect the number of guests, then branch to different booking paths.
 
-Keep each step focused on one task.
+    **Step name:** `Collect party size`
+
+    **Prompt:**
+    ```text
+    Ask how many guests will be dining.
+    ```
+
+    **Entities:** Number (min: 1, max: 100)
+
+    **Conditions:**
+    | Label | Description | Required entity |
+    |---|---|---|
+    | `small party` | Party size is 8 or fewer | `number_of_guests` |
+    | `large party` | Party size is more than 8 | `number_of_guests` |
+    | `unclear` | Caller did not provide a number after two attempts | — |
+  </Accordion>
+
+  <Accordion title="Confirm details before action">
+    **Use case:** Read back collected details and ask for confirmation before proceeding.
+
+    **Step name:** `Confirm booking`
+
+    **Prompt:**
+    ```text
+    Confirm the booking: {{entity:number_of_guests}} guests on 
+    {{entity:booking_date}} at {{entity:booking_time}}. 
+    Ask if that's correct.
+    ```
+
+    **Conditions:**
+    | Label | Description |
+    |---|---|
+    | `confirmed` | Caller confirms the details are correct |
+    | `change details` | Caller wants to modify something |
+    | `cancel` | Caller wants to cancel entirely |
+  </Accordion>
+
+  <Accordion title="Offer choices and route">
+    **Use case:** Present options and route based on the caller's choice.
+
+    **Step name:** `Select department`
+
+    **Prompt:**
+    ```text
+    Ask if they need help with billing, technical support, or something else.
+    ```
+
+    **Entities:** Multiple choice (options: billing, technical support, other)
+
+    **Conditions:**
+    | Label | Description | Required entity |
+    |---|---|---|
+    | `billing` | Caller selected billing | `department` |
+    | `technical` | Caller selected technical support | `department` |
+    | `other` | Caller selected something else or their request doesn't fit the options | `department` |
+  </Accordion>
+</AccordionGroup>
 
 ### Function step (low-code, still visual)
 
@@ -88,9 +144,65 @@ Function steps differ from Default steps in several ways:
 - They support conditions for visual routing, but conditions on Function steps **do not have required entities** -- your code handles all validation.
 - They do not support ASR biasing, DTMF, or other per-step audio configuration.
 
-If your flow starts to require complex logic, that's when a Function step becomes appropriate.
+If you can express the routing clearly using labeled branches, prefer Default steps. Move to a Function step only when you need code.
 
-If you can express the routing clearly using labeled branches, prefer Default steps.
+#### Common Function step patterns
+
+<AccordionGroup>
+  <Accordion title="API lookup and conditional routing">
+    **Use case:** Look up a booking in your backend and route based on the result.
+
+    ```python
+    def check_booking(conv: Conversation, flow: Flow):
+        response = conv.api.booking_api.get_booking(
+            confirmation_code=conv.entities.confirmation_code.value
+        )
+
+        if response.status_code == 200:
+            booking = response.json()
+            conv.state.booking_id = booking["id"]
+            conv.state.guest_name = booking["guest_name"]
+            flow.goto_step("Confirm booking", "found")
+        elif response.status_code == 404:
+            flow.goto_step("Retry or handoff", "not found")
+        else:
+            conv.log.error("Booking API error", status=response.status_code)
+            flow.goto_step("Retry or handoff", "error")
+        return
+    ```
+  </Accordion>
+
+  <Accordion title="Numeric comparison with business rules">
+    **Use case:** Route based on party size thresholds that the LLM should not interpret.
+
+    ```python
+    def route_by_party_size(conv: Conversation, flow: Flow):
+        party_size = int(conv.entities.number_of_guests.value)
+
+        if party_size > 15:
+            flow.goto_step("Group Booking", "large party")
+        elif party_size > 8:
+            flow.goto_step("Private Dining", "medium party")
+        else:
+            flow.goto_step("Standard Booking", "small party")
+        return
+    ```
+
+    Use Function steps for numeric thresholds — Default steps rely on the LLM's judgment, which is imprecise for boundary values like "is 15 large or medium?"
+  </Accordion>
+
+  <Accordion title="Write state and exit to another flow">
+    **Use case:** Store collected data and hand off to a different flow.
+
+    ```python
+    def save_and_transfer(conv: Conversation, flow: Flow):
+        conv.state.contact_phone = conv.entities.phone_number.value
+        conv.state.contact_email = conv.entities.email.value
+        conv.goto_flow("Payment Collection")
+        return
+    ```
+  </Accordion>
+</AccordionGroup>
 
 ### Exit flow
 
