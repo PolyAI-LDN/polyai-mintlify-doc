@@ -1,0 +1,84 @@
+---
+title: "How Raven works"
+description: "The real-time models and architecture behind PolyAI's proprietary LLM for customer service."
+keywords:
+  - raven
+  - architecture
+  - how it works
+  - endpointing
+  - interruption
+  - noise filtering
+  - latency
+  - real-time
+---
+
+Raven is not a single model. It is a coordinated system of specialized real-time models, each handling a different aspect of natural voice conversation. This page describes what those models do and why they produce faster, more natural conversations than assembling third-party components.
+
+## The Raven model stack
+
+Most voice AI platforms assemble separate vendor components: one provider for speech recognition, another for the LLM, another for text-to-speech. Each hand-off adds latency and loses conversational context.
+
+Raven is purpose-built as an integrated system. Its models share context and operate as a single pipeline:
+
+| Model | What it does | Why it matters |
+|-------|-------------|----------------|
+| **Endpointing model** | Detects when the caller has finished speaking, distinguishing true turn endings from mid-sentence pauses | Eliminates the awkward delays and premature cut-offs common with generic VAD (voice activity detection) |
+| **Interruption handling model** | Recognizes when a caller is genuinely interrupting vs. providing backchannel cues ("uh-huh", "right") | Prevents the agent from stopping mid-sentence on a backchannel, while still yielding immediately on a real interruption |
+| **Noise filtering model** | Separates caller speech from background noise, hold music, and crosstalk in real time | Maintains accuracy in real-world call center and mobile environments where audio quality varies |
+| **Language understanding model** | Interprets caller intent with full conversation history, grounded in your knowledge base | Avoids the hallucination and context loss that occur when a generic LLM receives only the latest transcription |
+| **Response generation model** | Produces natural conversational replies calibrated for spoken delivery | Generates responses that sound right when spoken aloud, not just when read as text |
+
+These models run concurrently, sharing state within the same inference pipeline. The result is sub-300ms median latency from end of caller speech to start of agent response.
+
+## Latency: integrated vs. assembled stacks
+
+When you assemble a voice AI stack from separate providers, each component adds its own processing time plus network overhead between them:
+
+| Stage | Assembled stack (typical) | Raven (integrated) |
+|-------|--------------------------|---------------------|
+| Endpointing / VAD | 200-500ms (generic VAD with safety buffer) | Included in pipeline (context-aware, no fixed buffer) |
+| Speech-to-text | 200-400ms | Shared context, no separate hand-off |
+| LLM processing | 300-800ms | Sub-300ms median (purpose-built for customer service) |
+| Text-to-speech | 150-300ms | Streamed in parallel with generation |
+| **Network hops between components** | 50-150ms per hop (3-4 hops) | Zero inter-component network hops |
+| **Total turn latency** | 1,000-2,500ms typical | Sub-300ms median response latency |
+
+<Note>
+The assembled-stack latencies above represent typical ranges observed across common voice AI provider combinations. Actual values vary by provider, region, and configuration. The key architectural difference is that Raven eliminates inter-component network hops and shares context across models, which removes the latency floor that assembled stacks cannot get below.
+</Note>
+
+## Why integration matters for conversation quality
+
+Beyond raw latency, the integrated architecture produces qualitatively better conversations:
+
+- **Endpointing accuracy** -- Because Raven's endpointing model has access to linguistic context (not just audio energy), it can distinguish "I'd like to book a table for..." (mid-sentence pause) from "I'd like to book a table for two." (completed turn). Generic VAD cannot make this distinction reliably.
+
+- **Interruption intelligence** -- A caller saying "yeah" during the agent's response is almost always a backchannel, not an interruption. Raven's interruption model understands this. Assembled stacks typically treat any detected speech as an interruption, causing the agent to stop talking unnecessarily.
+
+- **Noise resilience** -- Real calls include background noise, other speakers, hold music, and varying microphone quality. Raven's noise model is trained on actual call center audio, not clean studio recordings.
+
+- **Grounded responses** -- The language understanding and response generation models are trained specifically on customer service interactions with PolyAI's knowledge retrieval patterns. They ground answers in your knowledge base and say "I don't know" rather than hallucinating.
+
+## Supported languages
+
+Raven supports 24+ languages with near-perfect language consistency. You can keep prompts and knowledge in English and set the response language separately -- Raven responds in the target language without code-switching.
+
+See the full language list on the [Raven page](/agent-settings/raven#supported-languages).
+
+## Getting started
+
+Select **Raven 3.5** in [Voice configuration](/voice/voice-configuration) or [Chat configuration](/webchat/chat-configuration). No additional setup is needed -- the full model stack activates automatically.
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="Raven" icon="brain" href="/agent-settings/raven">
+    Feature overview, capabilities, and model versions
+  </Card>
+  <Card title="Architecture overview" icon="sitemap" href="/glossary/architecture">
+    How conversations flow through the full PolyAI pipeline
+  </Card>
+  <Card title="Voice configuration" icon="gear" href="/voice/voice-configuration">
+    Configure greeting, disclaimer, and call handling
+  </Card>
+</CardGroup>

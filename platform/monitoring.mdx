@@ -1,0 +1,128 @@
+---
+title: "Production monitoring"
+description: "Monitor agent performance in real time with alerts, webhooks, and dashboards."
+keywords:
+  - monitoring
+  - alerts
+  - observability
+  - production
+  - webhooks
+  - latency
+  - errors
+---
+
+PolyAI provides multiple layers of production monitoring so you can detect and respond to issues before they affect callers.
+
+## Monitoring layers
+
+| Layer | What it covers | Where to configure |
+|-------|---------------|-------------------|
+| **Alert rules** | Automated threshold-based monitoring for latency, errors, crashes, and call volume | [Alerts API](/api-reference/alerts/introduction) |
+| **Webhook notifications** | Real-time HTTP notifications when alerts trigger or resolve | [Webhooks API](/api-reference/webhooks/introduction) |
+| **Dashboards** | Visual performance tracking with standard, safety, and custom dashboards | [Dashboards](/analytics/dashboards/introduction) |
+| **Conversation review** | Per-call diagnosis with topic citations, source attribution, and turn-level analysis | [Conversations](/analytics/conversations/introduction) |
+| **PolyScore** | Automated conversation quality scoring | [PolyScore](/analytics/polyscore) |
+
+## Alert rules
+
+Create rules to monitor key performance metrics. When a metric breaches your configured threshold, PolyAI sends a signed webhook notification.
+
+### Available metrics
+
+| Metric | Description | Recommended threshold guidance |
+|--------|-------------|-------------------------------|
+| `turn_latency_p50` | Median turn latency (ms) | 800-1500ms depending on use case |
+| `turn_latency_p95` | 95th percentile turn latency (ms) | 1500-3000ms depending on use case |
+| `api_errors` | API errors in evaluation window | 0 for critical flows |
+| `function_errors` | Function execution errors in window | 0 for critical functions |
+| `call_crashes` | Call crashes in window | 0 (any crash is concerning) |
+| `call_volume` | Calls in window | Based on expected traffic patterns |
+
+### Setting up alerts
+
+<Steps>
+  <Step title="Create an alert rule">
+    Use the [Alerts API](/api-reference/alerts/endpoint/create-alert-rule) to define what to monitor:
+
+    ```bash
+    curl -X POST https://api.us.poly.ai/v1/alert-rules \
+      -H "x-api-key: YOUR_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "High turn latency (p95)",
+        "project_id": "proj_abc123",
+        "metric": "turn_latency_p95",
+        "operator": ">=",
+        "threshold_value": 1500,
+        "window_duration": "5m"
+      }'
+    ```
+  </Step>
+  <Step title="Register a webhook endpoint">
+    Configure where to receive notifications using the [Webhooks API](/api-reference/webhooks/endpoint/create-webhook-endpoint):
+
+    ```bash
+    curl -X POST https://api.us.poly.ai/v1/webhook-endpoints \
+      -H "x-api-key: YOUR_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "Production alert notifications",
+        "url": "https://example.com/webhooks/polyai",
+        "event_types": ["alerts.triggered", "alerts.resolved"]
+      }'
+    ```
+
+    <Warning>
+    The `signing_secret` is returned only once when you create a webhook endpoint. Store it securely immediately.
+    </Warning>
+  </Step>
+  <Step title="Verify alerts are working">
+    Check active alerts at any time:
+
+    ```bash
+    curl https://api.us.poly.ai/v1/alerts \
+      -H "x-api-key: YOUR_API_KEY"
+    ```
+  </Step>
+</Steps>
+
+### Recommended alert configurations
+
+For a typical production deployment, consider starting with these rules:
+
+| Alert | Metric | Threshold | Window | Why |
+|-------|--------|-----------|--------|-----|
+| High latency | `turn_latency_p95` | 2000ms | 5m | Callers notice delays above 2 seconds |
+| Call crashes | `call_crashes` | 0 | 5m | Any crash needs immediate attention |
+| Function errors | `function_errors` | 5 | 10m | Indicates integration issues |
+| Traffic drop | `call_volume` | Below expected baseline | 60m | May indicate telephony routing issues |
+
+## Dashboards
+
+[Dashboards](/analytics/dashboards/introduction) provide visual monitoring through three types:
+
+- **[Standard dashboards](/analytics/dashboards/standard)** -- pre-built views for call volume, containment, duration, and topic distribution
+- **[Safety dashboards](/analytics/dashboards/safety)** -- track safety-related metrics and edge cases
+- **[Custom dashboards](/analytics/dashboards/custom)** -- build your own views with configurable metrics and filters
+
+## Conversation-level diagnosis
+
+When an alert fires or you notice a metric change, [Conversation review](/analytics/conversations/introduction) lets you drill into individual calls:
+
+- **[Review conversations](/analytics/conversations/review)** -- read transcripts with full context
+- **[Annotations](/analytics/conversations/annotations)** -- tag and categorize conversations for quality tracking
+- **[Diagnosis](/analytics/conversations/diagnosis)** -- toggle topic citations, source attribution, and turn-level analysis to understand exactly what happened
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="Alerts API" icon="bell" href="/api-reference/alerts/introduction">
+    Full API reference for creating and managing alert rules
+  </Card>
+  <Card title="Webhooks API" icon="webhook" href="/api-reference/webhooks/introduction">
+    Configure webhook endpoints and verify signatures
+  </Card>
+  <Card title="Dashboards" icon="chart-line" href="/analytics/dashboards/introduction">
+    Visual performance tracking and custom views
+  </Card>
+</CardGroup>
