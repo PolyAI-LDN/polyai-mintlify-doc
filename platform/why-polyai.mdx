@@ -15,108 +15,42 @@ PolyAI is an enterprise voice AI platform purpose-built for customer service. Th
 
 Most voice AI platforms assemble third-party components -- one vendor for speech recognition, another for the LLM, another for text-to-speech. Each handoff adds latency and loses conversational context.
 
-Raven is PolyAI's proprietary LLM family, built as an integrated system of specialized real-time models:
+[Raven](/agent-settings/raven) is PolyAI's proprietary LLM family -- a coordinated system of specialized real-time models (endpointing, interruption handling, noise filtering, language understanding, response generation) that share context within a single inference pipeline. The result is sub-300ms median response latency across 24+ languages.
 
-- **Sub-300ms median response latency** -- not from aggressive timeouts, but from eliminating inter-component network hops
-- **Conversation-aware endpointing** -- detects true turn endings using linguistic context, not just silence duration
-- **Intelligent interruption handling** -- distinguishes real interruptions from backchannel cues ("uh-huh", "right")
-- **Noise-resilient processing** -- trained on real call center audio, not clean studio recordings
-- **24+ languages** with near-perfect language consistency
-
-See [How Raven works](/agent-settings/how-raven-works) for the full architecture breakdown.
+See [How Raven works](/agent-settings/how-raven-works) for the full architecture and latency comparison.
 
 ## Structured knowledge architecture
 
-PolyAI's knowledge system is designed for enterprise operations, not just document upload:
+PolyAI's knowledge system uses two complementary layers rather than a single flat document store:
 
-### Managed topics
+- **[Managed Topics](/managed-topics/introduction)** -- curated topics with weighted retrieval, action triggering (handoffs, SMS, function calls), flow integration, and per-environment activation control. See [Why Managed Topics](/managed-topics/introduction#why-managed-topics) for the full comparison with file-upload knowledge bases.
+- **[Connected Knowledge](/connected-knowledge/introduction)** -- auto-syncs from live sources (Zendesk, Gladly, URLs) and merges with Managed Topics at runtime. See [Knowledge sources comparison](/connected-knowledge/introduction#knowledge-sources-auto-sync-vs-file-upload) for how this differs from file-upload-only platforms.
 
-[Managed Topics](/managed-topics/introduction) give you precise control over what the agent says and does. Each topic has sample questions, a curated answer, and optional actions (handoffs, SMS, function calls). This is not a file-upload knowledge base -- it is a structured system with:
-
-- **Weighted retrieval** across topic name, sample questions, and content
-- **Action triggering** -- handoffs, SMS, function calls directly from topic matches
-- **Flow integration** -- trigger multi-step conversation workflows from any topic
-- **Activation control** -- toggle topics per environment for phased rollouts and A/B testing
-- **Priority over connected sources** -- Managed Topics always win when there is conflicting information
-
-### Connected knowledge with auto-sync
-
-[Connected Knowledge](/connected-knowledge/introduction) imports external content -- help articles, PDFs, Zendesk, Gladly -- and keeps it synchronized automatically. Unlike file-upload-only models, Connected Knowledge:
-
-- **Auto-syncs** from live sources (Zendesk, Gladly, URLs)
-- **Merges at runtime** with Managed Topics for unified retrieval
-- **Requires no curation** -- import existing content and let RAG handle matching
-
-### When to use which
-
-| Scenario | Use |
-|----------|-----|
-| Precise control over agent responses and actions | Managed Topics |
-| Large volumes of frequently updated FAQ content | Connected Knowledge |
-| Triggering handoffs, SMS, or function calls | Managed Topics |
-| Importing existing help center content quickly | Connected Knowledge |
-| Both -- they work together | Managed Topics + Connected Knowledge |
+Both layers use RAG. Managed Topics always take priority when there is a conflict.
 
 ## Enterprise deployment pipeline
 
-PolyAI's four-stage deployment pipeline -- Draft, Sandbox, Pre-release, Live -- is designed for enterprise risk management:
-
-- **Draft** -- development workspace for building and iterating
-- **Sandbox** -- isolated testing environment with version snapshots
-- **Pre-release** -- user acceptance testing (UAT) staging before production
-- **Live** -- production, with immediate rollback to any previous version
-
-This structure reduces production incidents by ensuring changes are tested at each stage before reaching live callers. Each environment can have its own phone number, and topic activation is environment-specific.
-
-See [The deployment pipeline](/environments-and-versions/introduction) for the full workflow.
+PolyAI uses a four-stage deployment pipeline -- Draft, Sandbox, Pre-release, Live -- with per-environment phone numbers, environment-specific topic activation, and instant rollback. See [Why four stages?](/environments-and-versions/introduction#why-four-stages) for the enterprise risk-reduction rationale and the [full deployment workflow](/environments-and-versions/introduction).
 
 ## Testing and quality assurance
 
-PolyAI's [test suite](/analytics/test-suite/introduction) enables regression testing before deployment:
-
-- **Save conversations as test cases** from real interactions or chat testing
-- **Group test cases into sets** by feature area (payments, bookings, escalations)
-- **Run against Draft or Sandbox** to catch regressions before they reach production
-- **Track pass/fail trends** over time to monitor agent quality
-
-Combined with the four-stage deployment pipeline, this creates a safety net where changes are tested against known scenarios before promotion.
+PolyAI's [test suite](/analytics/test-suite/introduction) lets you save real conversations as test cases, group them into sets by feature area, and run them against Draft or Sandbox after every change. Combined with the four-stage deployment pipeline, this creates a safety net where changes are validated against known scenarios before reaching live callers.
 
 ## Production monitoring and alerting
 
-PolyAI provides production monitoring through the [Alerts API](/api-reference/alerts/introduction) and [Webhooks API](/api-reference/webhooks/introduction):
-
-- **Real-time metric monitoring** -- track turn latency (p50/p95), API errors, function errors, call crashes, and call volume
-- **Configurable alert rules** -- set thresholds and evaluation windows per metric
-- **Webhook notifications** -- receive signed HTTP POST requests when alerts trigger or resolve
-- **Project-scoped or account-wide** -- monitor individual agents or your entire deployment
-
-See [Production monitoring](/platform/monitoring) for setup and configuration.
+PolyAI provides real-time metric monitoring with configurable alert rules and signed webhook notifications for latency, errors, crashes, and call volume. See [Production monitoring](/platform/monitoring) for the overview and [Alerts API](/api-reference/alerts/introduction) for the full reference.
 
 ## Guided training with PolyAcademy
 
-[PolyAcademy](/learn/guides/polyacademy) is a structured, hands-on training program built into the documentation:
-
-- **Level 1** -- build your first agent from scratch (no code required, ~30 minutes)
-- **Level 2** -- add complex topics, connect functions to APIs, fine-tune voice, use diagnostics
-- **Level 3** -- code organization, flow patterns, utterance design, and production voice polish
-
-After completing all three levels, you can structure complex projects, design reliable flows, and polish agent speech to production quality.
+[PolyAcademy](/learn/guides/polyacademy) is a three-level, hands-on training program built into the documentation. It takes you from creating your first agent (no code, ~30 minutes) through production-ready flow patterns and voice polish. See the [PolyAcademy page](/learn/guides/polyacademy) for what you'll learn at each level.
 
 ## Voice conversation design
 
-PolyAI's [Voice conversation style guide](/voice/conversation-style-guide) provides linguistic patterns for making voice agents sound human -- social presence markers, brevity techniques, tone calibration, and patterns for avoiding the robotic speech that plagues most voice AI implementations.
-
-This guide is backed by [PolyAcademy Level 3](/learn/guides/expert/utterance-design), which covers utterance design and voice polish in depth.
+PolyAI's [Voice conversation style guide](/voice/conversation-style-guide) covers the linguistic patterns that make voice agents sound human -- social presence markers, brevity, tone calibration -- backed by [PolyAcademy Level 3](/learn/guides/expert/utterance-design) for deeper training.
 
 ## Analytics and conversation intelligence
 
-PolyAI's analytics suite covers the full operational lifecycle:
-
-- **[Dashboards](/analytics/dashboards/introduction)** -- standard, safety, and custom dashboards with configurable metrics
-- **[Conversation review](/analytics/conversations/introduction)** -- full transcripts with topic citations, source attribution, and diagnosis tools
-- **[PolyScore](/analytics/polyscore)** -- automated conversation quality scoring
-- **[Smart Analyst](/smart-analyst/introduction)** -- AI-powered analytics assistant
-- **[CSAT](/analytics/csat/introduction)** -- customer satisfaction tracking
+PolyAI's analytics suite includes [dashboards](/analytics/dashboards/introduction) (standard, safety, custom), [conversation review](/analytics/conversations/introduction) with topic citations and source attribution, [PolyScore](/analytics/polyscore) for automated quality scoring, [Smart Analyst](/smart-analyst/introduction), and [CSAT tracking](/analytics/csat/introduction).
 
 ## Related pages
 

@@ -25,70 +25,13 @@ PolyAI provides multiple layers of production monitoring so you can detect and r
 
 ## Alert rules
 
-Create rules to monitor key performance metrics. When a metric breaches your configured threshold, PolyAI sends a signed webhook notification.
+The [Alerts API](/api-reference/alerts/introduction) lets you create rules that monitor key metrics -- turn latency, API errors, function errors, call crashes, and call volume. When a metric breaches your threshold, PolyAI sends a signed webhook notification to your [registered endpoints](/api-reference/webhooks/introduction).
 
-### Available metrics
+For setup instructions, available metrics, code examples, and webhook payload formats, see the [Alerts API reference](/api-reference/alerts/introduction).
 
-| Metric | Description | Recommended threshold guidance |
-|--------|-------------|-------------------------------|
-| `turn_latency_p50` | Median turn latency (ms) | 800-1500ms depending on use case |
-| `turn_latency_p95` | 95th percentile turn latency (ms) | 1500-3000ms depending on use case |
-| `api_errors` | API errors in evaluation window | 0 for critical flows |
-| `function_errors` | Function execution errors in window | 0 for critical functions |
-| `call_crashes` | Call crashes in window | 0 (any crash is concerning) |
-| `call_volume` | Calls in window | Based on expected traffic patterns |
+### Recommended starting configuration
 
-### Setting up alerts
-
-<Steps>
-  <Step title="Create an alert rule">
-    Use the [Alerts API](/api-reference/alerts/endpoint/create-alert-rule) to define what to monitor:
-
-    ```bash
-    curl -X POST https://api.us.poly.ai/v1/alert-rules \
-      -H "x-api-key: YOUR_API_KEY" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "High turn latency (p95)",
-        "project_id": "proj_abc123",
-        "metric": "turn_latency_p95",
-        "operator": ">=",
-        "threshold_value": 1500,
-        "window_duration": "5m"
-      }'
-    ```
-  </Step>
-  <Step title="Register a webhook endpoint">
-    Configure where to receive notifications using the [Webhooks API](/api-reference/webhooks/endpoint/create-webhook-endpoint):
-
-    ```bash
-    curl -X POST https://api.us.poly.ai/v1/webhook-endpoints \
-      -H "x-api-key: YOUR_API_KEY" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "Production alert notifications",
-        "url": "https://example.com/webhooks/polyai",
-        "event_types": ["alerts.triggered", "alerts.resolved"]
-      }'
-    ```
-
-    <Warning>
-    The `signing_secret` is returned only once when you create a webhook endpoint. Store it securely immediately.
-    </Warning>
-  </Step>
-  <Step title="Verify alerts are working">
-    Check active alerts at any time:
-
-    ```bash
-    curl https://api.us.poly.ai/v1/alerts \
-      -H "x-api-key: YOUR_API_KEY"
-    ```
-  </Step>
-</Steps>
-
-### Recommended alert configurations
-
-For a typical production deployment, consider starting with these rules:
+For a typical production deployment:
 
 | Alert | Metric | Threshold | Window | Why |
 |-------|--------|-----------|--------|-----|
