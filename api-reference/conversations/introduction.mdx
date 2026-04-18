@@ -81,12 +81,14 @@ The v3 endpoint supports three optional retrieval modes powered by Smart Analyst
 
 The Conversations API supports several query parameters for filtering and controlling the response:
 
-### Required parameters
+### Time range parameters
 
-| Parameter | Description |
-|-----------|-------------|
-| `start_time` | Start of time range (ISO8601) |
-| `end_time` | End of time range (ISO8601) |
+| Parameter | Description | Required |
+|-----------|-------------|----------|
+| `start_time` | Start of time range (ISO8601) | Required when using [retrieval modes](#retrieval-modes-optional) (`query_type` or `sample`). Optional otherwise – if omitted, no lower time bound is applied. |
+| `end_time` | End of time range (ISO8601) | Required when using [retrieval modes](#retrieval-modes-optional) (`query_type` or `sample`). Optional otherwise – if omitted, no upper time bound is applied. |
+
+<Tip>While `start_time` and `end_time` are technically optional for default queries, it is strongly recommended to always provide them to limit the result set and improve response times.</Tip>
 
 ### Retrieval mode parameters (optional)
 
@@ -243,7 +245,7 @@ These three fields are often confused. Here's how they relate:
 
 ## Transcript visibility
 
-The `turns` array in the API response is controlled by the **Conversation transcript** toggle in your project's API key configuration. When transcript access is disabled, the API returns an empty `turns` array even though `num_turns` still reports the actual count.
+The `turns` array in the API response is controlled by the **Conversation transcript** toggle (underlying field: `show_transcripts`) in your project's API key configuration. When transcript access is disabled, the API returns an empty `turns` array even though `num_turns` still reports the actual count.
 
 This is the most common reason for missing turn data. To check or update this setting:
 
@@ -308,6 +310,7 @@ If the response only contains a subset of expected fields:
 1. **Confirm you are on v3.** The full response schema (including `latency`, `translated_user_input`, `english_agent_response`, etc.) is only available on v3. Check that your base URL uses `/v3/`, not `/v1/`. See the [migration guide](/api-reference/conversations/migrate-v1-to-v3).
 2. **Check your API key permissions.** On the **API Keys** tab of the workspace homepage, verify the API key has **Conversations data** permission enabled. The key must have the correct permission *and* the project must have the relevant metrics enabled.
 3. **Check metric configuration.** On the **API Keys** tab, click **Configuration** and verify the response metrics you expect are enabled (e.g. `CALL_IN_PROGRESS`, `CALL_COMPLETED`, `HANDOFF_TO`). If no metrics are selected, the `metrics` object in the response will be empty.
+4. **Check field whitelisting (v1 only).** Projects on v1 may have field whitelisting enabled in their project configuration (`enable_whitelist: true`). When active, the API only returns fields explicitly listed in the project's API config — typically just `id`, `started_at`, `account_id`, and `project_id`. If you are on v1 and see this behavior, migrate to v3 where field visibility is controlled through the [API Keys Configuration panel](#transcript-visibility) instead.
 
 ### `include_latency` or `include_turn_metadata` is not adding data
 
