@@ -19,7 +19,6 @@ By the end of this guide, you will have call transcripts, recordings, and metada
 |---|---|---|
 | Bulk archival of recordings and transcripts | AWS S3 sync | [S3 integration](/call-data/s3-to-s3) |
 | Real-time metadata retrieval | Conversations API v3 (pull) | [List conversations](/call-data/conversations-api/list-conversations) |
-| Live dashboard updates | Webhooks (push) | [Webhooks API](/api-reference/webhooks/introduction) |
 | End-of-call routing context | Handoff states | [Handoff states](/call-data/conversations-api/handoff-states) |
 
 ## Choose your export method
@@ -55,19 +54,12 @@ By the end of this guide, you will have call transcripts, recordings, and metada
   <Tab title="Conversations API (real-time)">
     Best for CRM integration, real-time dashboards, and triggered workflows.
 
-    **Pull model** — your system periodically requests data:
+    Your system periodically requests data from the PolyAI API:
 
     ```mermaid
     flowchart LR
         A[Your system] -->|Periodic request| B[PolyAI API]
         B -->|Conversation data| A
-    ```
-
-    **Push model** — PolyAI sends updates to your webhook:
-
-    ```mermaid
-    flowchart LR
-        C[PolyAI] -->|Real-time webhook| D[Your system]
     ```
 
     ### Set up pull-based retrieval
@@ -78,16 +70,6 @@ By the end of this guide, you will have call transcripts, recordings, and metada
     - Duration, environment, variant, and handoff state
 
     **API key setup:** Generate an API key in **Configure > API Keys** (see [API keys](/secrets/api-keys)).
-
-    ### Set up push-based webhooks
-
-    Go to **Configure > APIs** and create a webhook endpoint using the [Webhooks API](/api-reference/webhooks/introduction):
-
-    1. Register your endpoint URL
-    2. Configure which events to receive (conversation completed, handoff triggered)
-    3. Store the signing secret to verify webhook payloads
-
-    See [create webhook endpoint](/api-reference/webhooks/endpoint/create-webhook-endpoint) for the full API reference.
   </Tab>
 </Tabs>
 
@@ -98,15 +80,13 @@ For most enterprise deployments, use both methods together:
 ```mermaid
 flowchart TD
     A[Call completes] --> B[S3 sync]
-    A --> C[Webhook fires]
+    A --> C[Your system polls API]
     B --> D[Data warehouse / compliance archive]
     C --> E[CRM update / dashboard refresh]
-    C --> F[Handoff state → live agent screen pop]
 ```
 
 - **S3 sync** handles bulk storage and compliance — recordings, full transcripts, metadata
-- **Webhooks** trigger immediate actions — CRM ticket creation, dashboard refresh, handoff context delivery
-- **Pull API** fills gaps for ad-hoc queries or backfills
+- **Conversations API** provides on-demand retrieval for CRM integration, dashboards, and ad-hoc queries
 
 ## Accessing call data in Agent Studio
 
@@ -123,9 +103,6 @@ You can also review individual calls directly in the platform:
   </Card>
   <Card title="Conversations API v3" icon="code" href="/api-reference/conversations/v3/endpoint/get-conversations">
     API reference for retrieving conversation data
-  </Card>
-  <Card title="Webhooks API" icon="webhook" href="/api-reference/webhooks/introduction">
-    Set up real-time event notifications
   </Card>
   <Card title="Handoff states" icon="phone-arrow-right" href="/call-data/conversations-api/handoff-states">
     Retrieve end-of-call routing context
