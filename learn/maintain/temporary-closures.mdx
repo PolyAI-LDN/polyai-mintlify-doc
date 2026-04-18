@@ -1,0 +1,149 @@
+---
+title: Temporary closures
+description: "Close your agent early or play a closure message for same-day schedule changes."
+---
+
+Handle same-day schedule changes like closing early, holidays, or emergency closures. Choose the approach that matches your agent's current setup.
+
+## Quick reference
+
+| I need to... | Best approach | Time estimate |
+|---|---|---|
+| Play a closure message (no routing change) | [Managed Topic](#option-1-managed-topic) | 5 min |
+| Toggle after-hours mode on/off | [Configuration Builder](#option-2-configuration-builder) | 2 min |
+| Redirect calls to a different number | [Call handoff](#option-3-update-call-handoff-routing) | 10 min |
+
+## Option 1: Managed Topic
+
+**Best for:** Playing a closure message without changing call routing. No developer setup required.
+
+<Steps>
+  <Step title="Create or update a topic">
+    Go to **Build > Knowledge > Managed Topics**. Create a new topic or find an existing one related to hours or closures.
+
+    - **Name:** `Temporary closure`
+    - **Sample questions:** "Are you open?", "What are your hours?", "Can I speak to someone?"
+    - **Content:** "We're currently closed and will reopen at our normal time tomorrow. Please call back then."
+    - **Actions:** Leave empty (info only) or add a handoff if you want to transfer the caller.
+  </Step>
+  <Step title="Activate the topic in Live">
+    Make sure the topic is active in the **Live** environment. If you have an existing opening hours topic, consider deactivating it temporarily so the closure topic takes priority.
+  </Step>
+  <Step title="Test in Sandbox">
+    Use **Agent Chat** in Sandbox to confirm the agent responds with your closure message.
+  </Step>
+  <Step title="Publish and promote">
+    Publish your changes, then promote to **Pre-release** and **Live**.
+  </Step>
+  <Step title="Revert when done">
+    Deactivate the closure topic and reactivate your normal hours topic. Publish and promote again.
+  </Step>
+</Steps>
+
+<Note>
+This approach changes what the agent **says**, but does not change call routing. The agent will still answer calls and have a conversation. If you need to hang up or transfer after the message, use one of the other options below.
+</Note>
+
+## Option 2: Configuration Builder
+
+**Best for:** Toggling after-hours mode on and off instantly. Requires a developer to set up the schema first (one-time setup).
+
+<Info>
+If your agent already has after-hours fields in the Configuration Builder, skip to [step 2](#flip-the-toggle).
+</Info>
+
+### One-time setup (developer required)
+
+A developer needs to add an after-hours toggle to the Configuration Builder schema and wire it into the agent's code. See [Configuration Builder](/configuration-builder/introduction) for the full guide.
+
+Example schema fields:
+
+```json
+{
+  "after_hours_enabled": {
+    "type": "boolean",
+    "title": "After hours mode",
+    "description": "Enable to play the after-hours message and skip normal conversation"
+  },
+  "after_hours_message": {
+    "type": "string",
+    "title": "After hours message",
+    "description": "Message to play when after-hours mode is on"
+  }
+}
+```
+
+Example function code:
+
+```python
+config = conv.real_time_config
+if config.get("after_hours_enabled"):
+    message = config.get("after_hours_message", "We're currently closed.")
+    conv.say(message)
+    conv.end_conversation()
+    return
+```
+
+### Flip the toggle
+
+<Steps>
+  <Step title="Open Configuration Builder">
+    Go to **Build > Configuration Builder > Data tab**.
+  </Step>
+  <Step title="Select the Live environment">
+    Switch to the **Live** tab. Changes here take effect immediately — no publish required.
+  </Step>
+  <Step title="Enable after-hours mode">
+    Toggle **After hours mode** on and enter your closure message (e.g., "We're closing early today. Please call back tomorrow.").
+  </Step>
+  <Step title="Save">
+    Click **Save**. The change is live immediately.
+  </Step>
+  <Step title="Revert when done">
+    Toggle **After hours mode** off and save. Normal behavior resumes instantly.
+  </Step>
+</Steps>
+
+<Warning>
+Configuration Builder changes in Live affect all active calls instantly. Double-check your values before saving.
+</Warning>
+
+## Option 3: Update call handoff routing
+
+**Best for:** Redirecting all calls to a different number or voicemail during the closure.
+
+<Steps>
+  <Step title="Open Call handoffs">
+    Go to **Build > Call handoffs**.
+  </Step>
+  <Step title="Edit the after-hours destination">
+    Find the handoff destination used for after-hours or the default handoff. Update the **Route** to point to the closure number or voicemail.
+  </Step>
+  <Step title="Test in Sandbox">
+    Call the Sandbox number and trigger a transfer to verify it routes correctly.
+  </Step>
+  <Step title="Publish and promote">
+    Publish and promote to Live.
+  </Step>
+  <Step title="Revert when done">
+    Change the route back to the original number. Publish and promote again.
+  </Step>
+</Steps>
+
+For detailed steps, see [Routing and handoffs](/learn/maintain/routing-handoffs).
+
+## Which option should I use?
+
+| Situation | Recommended option |
+|---|---|
+| Quick same-day closure, no developer available | [Managed Topic](#option-1-managed-topic) |
+| Recurring closures (holidays, early Fridays) | [Configuration Builder](#option-2-configuration-builder) |
+| Need to redirect calls to another team | [Call handoff](#option-3-update-call-handoff-routing) |
+| Need the agent to hang up after the message | [Configuration Builder](#option-2-configuration-builder) (with `conv.end_conversation()` in code) |
+
+## Related pages
+
+- [Managed Topics](/managed-topics/introduction) - Create and manage agent knowledge
+- [Configuration Builder](/configuration-builder/introduction) - Real-time configuration without publishing
+- [Routing and handoffs](/learn/maintain/routing-handoffs) - Update handoff destinations
+- [Environments and versions](/environments-and-versions/introduction) - Publish and promote changes
