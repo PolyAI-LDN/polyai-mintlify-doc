@@ -1,0 +1,185 @@
+---
+title: "Handle multi-site configuration with variant management"
+description: "Configure a single agent to serve multiple locations with site-specific hours, numbers, and routing using variant management."
+keywords:
+  - variant management
+  - multi-site
+  - multi-location
+  - CSV import
+  - routing
+---
+
+By the end of this guide, you will have a single agent serving multiple locations — each with its own phone number, hours, address, and routing — all managed from one project using variant management and CSV imports.
+
+## What you will build
+
+A hotel chain agent serving three locations (London, New York, Tokyo). Each location has:
+- Its own phone number and address
+- Location-specific hours and amenities
+- Automatic routing based on the number the caller dialed
+- SMS messages with the correct location details
+
+| Feature | PolyAI capability | Reference |
+|---|---|---|
+| Per-location data | Variant attributes | [Variant management](/variant-management/introduction) |
+| Bulk location setup | CSV import | [CSV imports](/variant-management/csv-imports) |
+| Automatic location detection | Start function routing | [Start function](/tools/start-function) |
+| Location-specific SMS | Variant variables in templates | [SMS](/sms/introduction) |
+| Per-location flow control | Active/inactive flows | [Flows](/flows/introduction) |
+
+## Prerequisites
+
+- A PolyAI agent with [environments](/environments-and-versions/introduction) configured
+- Phone numbers assigned per location (see [Numbers](/telephony/introduction))
+- Basic Python familiarity for the routing function
+
+## Step 1: Define your variants
+
+Go to **Build > Variant management** and create a variant for each location.
+
+### Create variants manually
+
+1. Click **Add variant**
+2. Name it (e.g., "London")
+3. Repeat for each location
+
+### Add attributes
+
+Click the **+** icon to add columns for each piece of location-specific data:
+
+| Attribute | London | New York | Tokyo |
+|---|---|---|---|
+| `phone_number` | +44 20 7123 4567 | +1 212 555 0100 | +81 3 1234 5678 |
+| `address` | 10 Kings Road, London | 350 5th Ave, New York | 1-1 Marunouchi, Tokyo |
+| `check_in_time` | 3:00 PM | 3:00 PM | 2:00 PM |
+| `check_out_time` | 11:00 AM | 12:00 PM | 11:00 AM |
+| `restaurant_name` | The Crown | The Brasserie | Sakura |
+
+## Step 2: Bulk import with CSV
+
+For large deployments (10+ locations), use CSV import instead. Go to **Build > Variant management** and click **Export** to get the current template, then fill it in:
+
+```csv
+id,name,is_default,attribute_phone_number,attribute_address,attribute_check_in_time,attribute_check_out_time,attribute_restaurant_name
+,London,true,+44 20 7123 4567,"10 Kings Road, London",3:00 PM,11:00 AM,The Crown
+,New York,false,+1 212 555 0100,"350 5th Ave, New York",3:00 PM,12:00 PM,The Brasserie
+,Tokyo,false,+81 3 1234 5678,"1-1 Marunouchi, Tokyo",2:00 PM,11:00 AM,Sakura
+```
+
+Import the file via **Build > Variant management > Import**.
+
+<Warning>
+Leave the `id` column empty for new variants. The system assigns IDs automatically. See [CSV imports](/variant-management/csv-imports) for the full format reference and limits (1,000 variants, 50 attributes, 10 MB file size).
+</Warning>
+
+## Step 3: Route callers to the right variant
+
+Create a [start function](/tools/start-function) that detects which location the caller dialed and sets the variant:
+
+Go to **Build > Tools**, create a function called `route_to_location`:
+
+```python
+def route_to_location(conv: Conversation):
+    """Route the caller to the correct location variant based on the number they dialed."""
+    phone_numbers = {
+        variant.phone_number: variant_name
+        for variant_name, variant in conv.variants.items()
+    }
+
+    if conv.callee_number and conv.callee_number in phone_numbers:
+        conv.set_variant(phone_numbers[conv.callee_number])
+    else:
+        conv.set_variant("London")  # default fallback
+
+    conv.log.info(f"Variant set to: {conv.variant.name}")
+```
+
+Set this as your **start function** in **Build > Tools > Start function**.
+
+For webchat, route based on URL parameters instead:
+
+```python
+def route_to_location(conv: Conversation):
+    """Route based on phone number (voice) or URL parameter (webchat)."""
+    if conv.callee_number:
+        # Voice: route by dialed number
+        phone_numbers = {
+            variant.phone_number: variant_name
+            for variant_name, variant in conv.variants.items()
+        }
+        conv.set_variant(phone_numbers.get(conv.callee_number, "London"))
+    else:
+        # Webchat: route by URL parameter
+        location = conv.metadata.get("location", "London")
+        if location in conv.variants:
+            conv.set_variant(location)
+```
+
+## Step 4: Use variant data in topics
+
+In your managed topic **Content** fields, reference variant attributes with `${variant_attribute}` syntax:
+
+**Topic: `hotel_check_in_times`**
+
+```text
+Check-in at our ${variant_address} location is from ${variant_check_in_time}, 
+and checkout is at ${variant_check_out_time}.
+```
+
+The agent automatically inserts the correct values based on the active variant.
+
+## Step 5: Send location-specific SMS
+
+In your SMS templates, use the same `${variant_attribute}` syntax:
+
+```text
+Here are your reservation details:
+
+Location: ${variant_restaurant_name}
+Address: ${variant_address}
+```
+
+See [SMS](/sms/introduction) for template setup.
+
+## Step 6: Control flows per variant
+
+If some locations have features others don't (e.g., only London has spa booking), use `active_flows` and `inactive_flows` attributes:
+
+| Attribute | London | New York | Tokyo |
+|---|---|---|---|
+| `active_flows` | spa_booking, restaurant_reservation | restaurant_reservation | restaurant_reservation |
+
+Check flow availability in your functions:
+
+```python
+if conv.variant:
+    active = conv.variant.active_flows
+    conv.log.info(f"Active flows for {conv.variant.name}: {active}")
+```
+
+## Test the setup
+
+1. **In-app calling** — select a specific variant from the **Call configuration** panel in Agent Studio and verify location-specific responses
+2. **Webchat** — set the variant manually in the start function for testing:
+    ```python
+    if not conv.callee_number:
+        conv.set_variant("Tokyo")
+    ```
+3. **Each variant** — test all locations to confirm correct hours, addresses, and routing
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Variant management" icon="sitemap" href="/variant-management/introduction">
+    Full reference for variants and attributes
+  </Card>
+  <Card title="CSV imports" icon="file-csv" href="/variant-management/csv-imports">
+    Bulk import and update variants
+  </Card>
+  <Card title="Start function" icon="play" href="/tools/start-function">
+    Route callers at conversation start
+  </Card>
+  <Card title="SMS" icon="message" href="/sms/introduction">
+    Send location-specific SMS messages
+  </Card>
+</CardGroup>
