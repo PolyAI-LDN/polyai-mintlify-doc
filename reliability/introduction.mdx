@@ -1,0 +1,83 @@
+---
+title: Reliability overview
+sidebarTitle: Overview
+description: Monitor, debug, and maintain reliable voice agent performance in production.
+keywords:
+  - reliability
+  - uptime
+  - monitoring
+  - production
+  - SLA
+---
+
+This section covers how to keep your PolyAI agent running reliably in production — from proactive monitoring and alerting to diagnosing specific issues like latency, call disconnects, and audio quality problems.
+
+## Reliability tools
+
+| Tool | What it does | Where to find it |
+|---|---|---|
+| [Alerts API](/api-reference/alerts/introduction) | Automated threshold monitoring with webhook notifications | Configure > APIs |
+| [Dashboards](/analytics/dashboards/introduction) | Call volume, containment, handoff rate, and trends | Configure > Dashboards |
+| [Conversation diagnosis](/analytics/conversations/diagnosis) | Per-turn inspection of latency, functions, topics, and logs | Analytics > Conversations |
+| [Smart Analyst](/smart-analyst/introduction) | AI-powered root cause analysis across 500+ conversations | Analytics > Smart Analyst |
+| [Test suite](/analytics/test-suite/introduction) | Automated regression testing before promotions | Build > Test suite |
+
+## Proactive monitoring checklist
+
+Set up these monitors before going live:
+
+<Steps>
+  <Step title="Set up latency alerts">
+    Create alert rules for `turn_latency_p95` (threshold: 1500-3000ms depending on your use case) and `turn_latency_p50` (threshold: 800-1500ms). Use a 5-minute window. See [Alerts API](/api-reference/alerts/introduction).
+  </Step>
+  <Step title="Set up error alerts">
+    Create alert rules for `call_crashes` (threshold: 0), `function_errors`, and `api_errors`. Any crash warrants investigation. See [Alerts API](/api-reference/alerts/introduction).
+  </Step>
+  <Step title="Register webhook endpoints">
+    Point alert notifications at your incident management system (PagerDuty, Opsgenie, Slack). See [Webhooks API](/api-reference/webhooks/introduction).
+  </Step>
+  <Step title="Configure dashboards">
+    Set up a [standard dashboard](/analytics/dashboards/standard) to track daily call volume, containment rate, and handoff reasons. Add a [safety dashboard](/analytics/dashboards/safety) if you handle sensitive topics.
+  </Step>
+  <Step title="Build a regression test suite">
+    Save 10-20 test cases from real conversations covering your critical paths. Run them before every promotion. See [testing overview](/analytics/test-suite/introduction).
+  </Step>
+</Steps>
+
+## When something goes wrong
+
+| Symptom | Start here |
+|---|---|
+| Agent responds slowly | [Troubleshoot latency](/reliability/troubleshoot-latency) |
+| Calls dropping or disconnecting | [Debug call disconnects](/reliability/debug-call-disconnects) |
+| Audio is silent, distorted, or mispronounced | [Audio quality issues](/reliability/audio-quality) |
+| Agent gives wrong answers | [Common issues](/learn/maintain/common-issues) — knowledge base section |
+| Function fails or returns errors | [Common issues](/learn/maintain/common-issues) — function section |
+| Changes not appearing in production | [Common issues](/learn/maintain/common-issues) — deployment section |
+
+## Escalation criteria
+
+Contact [PolyAI support](/troubleshoot/support-guide) when:
+
+- Repeated 4XX/5XX errors persist after verifying your configuration
+- SIP handoffs fail consistently after validating the number, URI, and headers
+- Call volume drops more than 30% unexpectedly
+- Agent error rate exceeds 5% across conversations
+- Dashboards or transcripts are not loading
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Alerts API" icon="bell" href="/api-reference/alerts/introduction">
+    Configure automated monitoring with webhook notifications
+  </Card>
+  <Card title="Performance monitoring" icon="chart-line" href="/learn/maintain/performance-monitoring">
+    Ongoing metrics tracking and optimization
+  </Card>
+  <Card title="Support guide" icon="life-ring" href="/troubleshoot/support-guide">
+    Contact support and understand priority levels
+  </Card>
+  <Card title="Common issues" icon="wrench" href="/learn/maintain/common-issues">
+    Quick fixes for the most frequent problems
+  </Card>
+</CardGroup>

@@ -1,0 +1,143 @@
+---
+title: Troubleshoot latency
+description: Identify and fix the root causes of slow agent responses.
+keywords:
+  - latency
+  - slow response
+  - performance
+  - debugging
+  - turn latency
+---
+
+Use this page when callers experience slow agent responses. You will learn how to measure latency, identify which component is slow, and fix the most common causes.
+
+## Measure the problem
+
+### Check turn latency in conversation diagnosis
+
+1. Go to **Analytics > Conversations** and find the affected call
+2. Open the conversation and enable **Turn latency** in the diagnosis panel
+3. Look at the per-turn breakdown:
+
+| Component | Description | Typical range |
+|---|---|---|
+| **LLM requests** | Time for the language model to generate a response | 200-800ms |
+| **Function calls** | Time for function execution, including external API calls | 0-5000ms+ |
+| **Total response time** | User speech end to agent response start | 500-2000ms |
+
+### Check latency trends in dashboards
+
+Go to **Configure > Dashboards** and review latency trends over time. A sudden spike points to a specific change; a gradual increase may indicate growing complexity.
+
+### Set up latency alerts
+
+If you haven't already, create alert rules for latency metrics:
+
+```bash
+curl -X POST https://api.us.poly.ai/v1/alert-rules \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "High turn latency (p95)",
+    "project_id": "proj_abc123",
+    "metric": "turn_latency_p95",
+    "operator": ">=",
+    "threshold_value": 2000,
+    "window_duration": "5m"
+  }'
+```
+
+## Identify the bottleneck
+
+### Slow LLM responses
+
+**Symptoms:** High LLM request time across many turns, not just function-calling turns.
+
+**Common causes and fixes:**
+
+| Cause | Fix |
+|---|---|
+| Too many global rules | Consolidate rules. Remove redundant or rarely triggered rules. Each rule adds to the prompt. |
+| Large knowledge base retrieval | Make topic names and sample questions more distinct so fewer topics are retrieved per turn. |
+| Complex prompt instructions | Simplify step prompts in flows. Remove redundant few-shot examples (keep 2-3, not 5+). |
+| Long conversation history | For long-running conversations, check whether earlier turns are providing useful context or just adding noise. |
+
+### Slow function calls
+
+**Symptoms:** High function call time on turns where tools are invoked. Other turns are fast.
+
+**Common causes and fixes:**
+
+| Cause | Fix |
+|---|---|
+| Slow external API | Add `conv.log` timing to measure the API call specifically. Check if the external service has latency issues. |
+| Multiple sequential API calls | Where possible, combine calls or cache results in `conv.state`. |
+| Large response payloads | Only extract the fields you need from API responses. |
+| Missing error timeouts | Add timeout handling to prevent functions from hanging indefinitely. |
+
+**Debugging pattern:**
+
+```python
+import time
+
+def lookup_customer(conv: Conversation, phone: str):
+    start = time.time()
+    response = conv.api.crm_api.get_customer(phone_number=phone)
+    elapsed = time.time() - start
+
+    conv.log.info(f"CRM lookup took {elapsed:.2f}s", status=response.status_code)
+
+    if elapsed > 2.0:
+        conv.log.warning("CRM lookup slow", elapsed=elapsed)
+```
+
+### Slow TTS
+
+**Symptoms:** Agent response audio starts late even though the transcript appears quickly in diagnosis.
+
+**Common causes and fixes:**
+
+| Cause | Fix |
+|---|---|
+| Very long agent responses | Shorten managed topic content. Keep responses under 2-3 sentences for voice. |
+| Complex voice configuration | If using low stability settings, the TTS provider may take longer to generate audio. Try increasing stability. |
+
+## Systematic latency investigation
+
+<Steps>
+  <Step title="Find a slow call">
+    Filter conversations by latency in **Analytics > Conversations**, or check alert notifications.
+  </Step>
+  <Step title="Open conversation diagnosis">
+    Enable **Turn latency**, **Tool calls**, and **Logs** in the diagnosis panel.
+  </Step>
+  <Step title="Identify the slow turns">
+    Look for turns with total response time above 2 seconds.
+  </Step>
+  <Step title="Check the breakdown">
+    Is the slowness in LLM requests, function calls, or both?
+  </Step>
+  <Step title="Apply the fix">
+    Use the tables above to match the bottleneck to a fix. Test in Sandbox before promoting.
+  </Step>
+  <Step title="Verify the improvement">
+    Run the same conversation flow again and compare latency. Check dashboard trends over the next few days.
+  </Step>
+</Steps>
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Conversation diagnosis" icon="stethoscope" href="/analytics/conversations/diagnosis">
+    Per-turn latency breakdown and function logs
+  </Card>
+  <Card title="Alerts API" icon="bell" href="/api-reference/alerts/introduction">
+    Set up automated latency monitoring
+  </Card>
+  <Card title="Performance monitoring" icon="chart-line" href="/learn/maintain/performance-monitoring">
+    Ongoing latency and quality tracking
+  </Card>
+  <Card title="conv.api reference" icon="code" href="/tools/classes/conv-api">
+    API client with environment-aware routing
+  </Card>
+</CardGroup>

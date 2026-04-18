@@ -1,0 +1,110 @@
+---
+title: Audio quality issues
+description: Diagnose and fix voice quality problems including mispronunciation, distortion, and ASR errors.
+keywords:
+  - audio quality
+  - pronunciation
+  - ASR
+  - speech recognition
+  - TTS
+  - voice quality
+  - distortion
+---
+
+Use this page when callers or reviewers report audio quality problems — mispronounced words, distorted audio, or the agent misunderstanding what callers say.
+
+## Agent mispronounces words
+
+**Symptom:** The agent says a brand name, technical term, or address incorrectly.
+
+**Fix options (in order of preference):**
+
+1. **Pronunciations** — go to **Channels > Response Control > Pronunciations** and add a correction rule. You can use IPA notation, SSML, or regex-based replacements. See [pronunciations](/response-control/pronunciations).
+
+2. **Stop keywords** — if the agent should never say a specific word or phrase, add it to **Channels > Response Control > Stop Keywords**. See [stop keywords](/response-control/stop-keywords).
+
+3. **Voice tuning** — adjust **Stability** in **Channels > Voice > Agent Voice**. Lower stability gives more natural variation but can occasionally produce unexpected pronunciations. Higher stability (0.7+) is more predictable.
+
+## Agent's voice sounds distorted or unnatural
+
+**Symptom:** The TTS audio sounds choppy, robotic, or distorted.
+
+**Diagnosis:**
+
+| Check | How |
+|---|---|
+| Voice stability setting | If stability is below 0.5, the voice may produce inconsistent quality. Go to **Channels > Voice > Agent Voice** and increase to 0.7+. |
+| Response length | Very long responses can strain TTS quality. Keep responses under 2-3 sentences for voice. |
+| Network quality | If testing via phone, try testing via in-browser call to isolate network issues from TTS issues. |
+| Voice provider status | Check if the TTS provider (ElevenLabs, Cartesia, etc.) is experiencing issues. |
+
+## Agent misunderstands caller speech (ASR errors)
+
+**Symptom:** The transcript shows incorrect words — the agent "heard" something different from what the caller said.
+
+**Diagnosis:**
+
+1. Open the conversation in **Analytics > Conversations**
+2. Enable **Transcript corrections** in the diagnosis panel to see where corrections were applied
+3. Compare the transcript against the recording (if available)
+
+**Fix options:**
+
+| Cause | Fix |
+|---|---|
+| Uncommon words or jargon | Add [ASR biasing](/flows/asr-biasing) for expected terms — names, product codes, addresses |
+| Alphanumeric input (confirmation codes, postcodes) | Enable **Alphanumeric** ASR biasing on the relevant flow step |
+| Name spelling | Enable **Name spelling** ASR biasing when collecting names |
+| Background noise | This is a caller-side issue. Consider adding a rule: "If you can't understand the caller, ask them to repeat in a quieter environment." |
+| Strong accents | Add more sample questions with varied phrasing to improve topic retrieval even when individual words are misrecognized |
+
+### ASR biasing reference
+
+| Biasing type | Use when collecting |
+|---|---|
+| **Alphanumeric** | Confirmation codes, postcodes, account numbers |
+| **Name spelling** | First/last names when spelled out letter by letter |
+| **Time and date** | Appointment times, booking dates |
+| **Numbers** | Phone numbers, quantities, amounts |
+| **Addresses** | Street addresses, city names |
+
+See [ASR biasing](/flows/asr-biasing) and [speech recognition](/speech-recognition/introduction) for configuration details.
+
+## Caller can't hear the agent at all
+
+**Symptom:** The call connects but no agent audio is heard.
+
+See [debug call disconnects — silent call](/reliability/debug-call-disconnects#silent-call--no-agent-audio) for diagnosis steps.
+
+## Audio plays but is too quiet or too loud
+
+**Symptom:** The agent audio volume is noticeably different from the caller's volume.
+
+**Fix:** Volume levels are controlled by the TTS provider and telephony path. If the issue persists across calls:
+
+1. Check **Channels > Voice > Voice Configuration** for audio settings
+2. If using a Twilio integration, check Twilio's media settings for gain/volume controls
+3. Contact [PolyAI support](/troubleshoot/support-guide) if the issue affects all calls — it may require platform-level adjustment
+
+## Monitoring audio quality over time
+
+- **Annotate conversations** — when reviewing calls in [conversation review](/analytics/conversations/review), use [annotations](/analytics/conversations/annotations) to tag ASR errors or pronunciation issues. This creates a searchable record.
+- **Track ASR accuracy** — monitor word accuracy trends in [dashboards](/analytics/dashboards/introduction). Target: above 95%.
+- **Use Smart Analyst** — ask "What are the most common ASR errors this week?" to identify systemic patterns across hundreds of calls.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Pronunciations" icon="volume-high" href="/response-control/pronunciations">
+    Correct mispronounced words and brand names
+  </Card>
+  <Card title="ASR biasing" icon="ear-listen" href="/flows/asr-biasing">
+    Improve speech recognition accuracy for structured input
+  </Card>
+  <Card title="Voice configuration" icon="gear" href="/voice/voice-configuration">
+    Configure greeting audio, disclaimer, and call handling
+  </Card>
+  <Card title="Speech recognition" icon="microphone" href="/speech-recognition/introduction">
+    Global ASR settings and keyphrase boosting
+  </Card>
+</CardGroup>

@@ -1,0 +1,139 @@
+---
+title: Debug call disconnects
+description: Diagnose and fix unexpected call drops, silent calls, and failed handoffs.
+keywords:
+  - call disconnect
+  - call drop
+  - silent call
+  - handoff failure
+  - SIP
+  - telephony
+---
+
+Use this page when callers report unexpected disconnections, silent calls, or failed handoffs. Each section covers a specific symptom with diagnosis steps and fixes.
+
+## Call drops after the disclaimer
+
+**Symptom:** The agent plays the disclaimer or greeting, then the call ends immediately.
+
+**Cause:** No knowledge base topics are published to the environment the caller reached. The agent has nothing to say after the greeting and terminates the call.
+
+**Fix:**
+1. Go to **Build > Knowledge > Managed Topics**
+2. Verify at least one topic exists and is published
+3. Check **Deployments > Environments** — confirm the version with your topics has been promoted to the affected environment
+
+## Silent call — no agent audio
+
+**Symptom:** The call connects but the caller hears nothing. The call may eventually time out.
+
+**Diagnosis:**
+
+| Check | How |
+|---|---|
+| Voice configuration | Go to **Channels > Voice > Agent Voice** — is a voice selected? Is the TTS provider healthy? |
+| Greeting/disclaimer audio | Go to **Channels > Voice > Voice Configuration** — is greeting audio configured and generated? |
+| Environment mismatch | Confirm the phone number is assigned to the correct environment in **Configure > Numbers** |
+
+**Common causes:**
+- No voice is selected in the Voice tab
+- Greeting audio file is missing or failed to generate
+- The phone number routes to a different environment than expected
+
+## Call drops mid-conversation
+
+**Symptom:** The call disconnects unexpectedly during an active conversation.
+
+**Diagnosis:**
+
+<Steps>
+  <Step title="Find the call in conversation review">
+    Go to **Analytics > Conversations** and locate the dropped call by time or phone number.
+  </Step>
+  <Step title="Check the last turns">
+    Look at the final turns in the transcript. Did the agent attempt a handoff? Did a function fail?
+  </Step>
+  <Step title="Enable diagnosis layers">
+    Turn on **Tool calls**, **Logs**, and **Turn latency** to see what happened on the last turn.
+  </Step>
+  <Step title="Check for function errors">
+    An unhandled exception in a function can cause the call to terminate. Look for error entries in the **Logs** layer.
+  </Step>
+</Steps>
+
+**Common causes:**
+- Unhandled function exception — add `try/except` blocks to all functions that call external APIs
+- Call crash due to infinite loop in flow transitions — always `return` after `flow.goto_step()`
+- Caller hung up (not a bug — check if the agent's response was too long or the wait was too silent)
+
+## Handoff failures
+
+**Symptom:** The agent says it's transferring the call, but the transfer fails or the call drops.
+
+**Diagnosis:**
+
+| Check | How |
+|---|---|
+| Handoff destination exists | Go to **Configure > Call Handoffs** and verify the destination is configured |
+| Route format | The route must include the country code (starts with `+`) for phone numbers, or be a valid SIP URI |
+| SIP method | Check whether the destination uses REFER, INVITE, or BYE — some telephony providers don't support all methods |
+| Firewall / network | If using SIP, verify that your provider allows incoming SIP from PolyAI's IP ranges |
+
+**Common causes:**
+
+| Cause | Fix |
+|---|---|
+| Missing country code in route | Add `+` prefix and country code (e.g., `+44207...` not `0207...`) |
+| SIP REFER not supported | Switch the handoff to INVITE method in **Call Handoffs** |
+| Wrong SIP URI | Verify the URI with your telephony provider |
+| Handoff destination name mismatch | If using `transfer_call` in code, verify the destination name matches exactly |
+
+<Warning>
+When using SIP REFER, the agent's utterance before the handoff may be cut short because the call transfer happens immediately. If the pre-transfer message is important, use SIP INVITE instead — it keeps the agent connected until the receiving party answers.
+</Warning>
+
+## Outbound call failures
+
+**Symptom:** An outbound call triggered via the [Outbound Calling API](/api-reference/outbound/introduction) fails to connect.
+
+**Diagnosis:**
+1. Check the call status via `GET /call-status/{call_id}` — see [get call status](/api-reference/outbound/endpoint/get-call-status)
+2. Verify the destination number includes the country code
+3. Check that your outbound calling quota has not been exceeded
+4. Verify the project and environment are correctly specified in the API call
+
+## Systematic disconnect investigation
+
+When you need to investigate a pattern of disconnects (not just a single call):
+
+<Steps>
+  <Step title="Filter conversations by outcome">
+    In **Analytics > Conversations**, filter for calls with short duration or no handoff where one was expected.
+  </Step>
+  <Step title="Check dashboards for trends">
+    Go to **Configure > Dashboards** and look for call volume drops or spikes in short calls.
+  </Step>
+  <Step title="Use Smart Analyst">
+    Ask [Smart Analyst](/smart-analyst/introduction): "Why are calls disconnecting early this week?" It samples up to 500 conversations to find patterns.
+  </Step>
+  <Step title="Set up alerts">
+    Create an alert rule for `call_crashes` with threshold 0 and a 5-minute window to catch issues immediately.
+  </Step>
+</Steps>
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Call handoff" icon="phone-arrow-right" href="/call-handoff/introduction">
+    Configure handoff destinations and SIP routing
+  </Card>
+  <Card title="Telephony" icon="phone" href="/telephony/introduction">
+    Number management and routing setup
+  </Card>
+  <Card title="Common issues" icon="wrench" href="/learn/maintain/common-issues">
+    Quick reference for frequent problems
+  </Card>
+  <Card title="Support guide" icon="life-ring" href="/troubleshoot/support-guide">
+    Contact support for persistent issues
+  </Card>
+</CardGroup>
