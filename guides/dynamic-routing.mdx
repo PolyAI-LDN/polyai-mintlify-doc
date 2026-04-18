@@ -24,7 +24,7 @@ An agent that:
 |---|---|---|
 | Caller lookup at call start | Start function + `conv.api` | [Start function](/tools/start-function), [conv.api](/tools/classes/conv-api) |
 | Conditional flow entry | `conv.goto_flow()` | [Triggering flows](/flows/triggering-flows) |
-| Conditional handoff | `transfer_call` function | [Call handoff](/call-handoff/introduction) |
+| Conditional handoff | `handoff` return value | [Call handoff](/call-handoff/introduction), [Return values](/tools/return-values) |
 | Manager-controlled toggles | Configuration builder | [Configuration builder](/configuration-builder/introduction) |
 
 ## Prerequisites
@@ -87,9 +87,10 @@ def route_caller(conv: Conversation):
         conv.log.info("VIP caller — routing to dedicated team")
         return {
             "utterance": f"Welcome back, {caller['name']}. Let me connect you with your dedicated support team.",
-            "transfer_call": {
-                "destination": "VIP_SUPPORT",
-                "reason": "VIP_CALLER"
+            "handoff": {
+                "type": "VIP_SUPPORT",
+                "reason": "VIP_CALLER",
+                "refer": {"phone_number": "VIP_SUPPORT_NUMBER"}
             }
         }
 
@@ -209,7 +210,11 @@ def route_caller(conv: Conversation):
         if config.get("fallback_destination"):
             return {
                 "utterance": "Let me connect you with our support team.",
-                "transfer_call": {"destination": config["fallback_destination"]}
+                "handoff": {
+                    "type": config["fallback_destination"],
+                    "reason": "CRM_UNAVAILABLE",
+                    "refer": {"phone_number": config["fallback_destination"]}
+                }
             }
         return
 
@@ -223,7 +228,11 @@ def route_caller(conv: Conversation):
     if caller.get("tier") == "vip" and config.get("vip_routing_enabled", True):
         return {
             "utterance": f"Welcome back, {caller['name']}. Connecting you now.",
-            "transfer_call": {"destination": "VIP_SUPPORT", "reason": "VIP_CALLER"}
+            "handoff": {
+                "type": "VIP_SUPPORT",
+                "reason": "VIP_CALLER",
+                "refer": {"phone_number": "VIP_SUPPORT_NUMBER"}
+            }
         }
 
     # Check ticket flow toggle
