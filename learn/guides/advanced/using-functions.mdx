@@ -98,7 +98,7 @@ Parameters:
 
 Creating a function is not enough. **The LLM will not call a function it does not know exists.**
 
-To make a function available to the LLM, you must reference it somewhere – in a topic action, a flow step, or directly in the Rules field using the `@function_name` syntax.
+To make a function available to the LLM, you must reference it somewhere – in a topic action, a flow step, or directly in the Behavior field using the `@function_name` syntax.
 
 When you reference a function, Agent Studio highlights it and registers it in the LLM request. The LLM will then see the function's full definition (name, description, parameters) and can choose to call it.
 
@@ -113,8 +113,8 @@ You can inspect the LLM request directly in **Conversation Review → Diagnosis 
 | Section | What it contains |
 |---|---|
 | **Base system prompt – intro** | Your Personality and Role fields concatenated |
-| **Base system prompt – rules** | Everything in the Rules field |
-| **Context information** | Knowledge base content retrieved for this turn (empty if no relevant topic matched) |
+| **Base system prompt – behavior** | Everything in the Behavior field |
+| **Context information** | Knowledge content retrieved for this turn (empty if no relevant topic matched) |
 | **Conversation history** | The full transcript so far, alternating `assistant` / `user` roles |
 | **Functions** | Definitions of any functions that have been referenced |
 
@@ -129,20 +129,20 @@ This means your function name, description, and parameter descriptions are all p
     q: "You create a function called `check_order_status` but the LLM never calls it. What is the most likely cause?",
     options: [
       "The function has a bug in the Python code",
-      "The function has not been referenced anywhere in a topic, flow, or rules",
+      "The function has not been referenced anywhere in a topic, flow, or behavior",
       "The LLM does not support functions",
       "The function name contains underscores",
     ],
     correct: 1,
-    explanation: "Creating a function does not make it visible to the LLM. You must reference it – in a topic action, a flow step, or the Rules field. If the function does not appear in the LLM request's functions list, it has not been registered.",
+    explanation: "Creating a function does not make it visible to the LLM. You must reference it – in a topic action, a flow step, or the Behavior field. If the function does not appear in the LLM request's functions list, it has not been registered.",
   }
 ]} />
 
 <FillBlank
-  prompt='To make a function visible to the LLM, you reference it in a topic, flow, or Rules field using the syntax: @________'
+  prompt='To make a function visible to the LLM, you reference it in a topic, flow, or Behavior field using the syntax: @________'
   answer={["function_name", "@function_name"]}
   hint="What prefix makes a function reference?"
-  explanation='Use @function_name in Rules, a topic action, or a flow step. Agent Studio highlights it and registers the function in the LLM request.'
+  explanation='Use @function_name in Behavior, a topic action, or a flow step. Agent Studio highlights it and registers the function in the LLM request.'
 />
 
 ## The two-request pattern
@@ -153,7 +153,7 @@ When the LLM calls a function, it takes **two LLM requests** to produce the fina
   <Step title="Request 1: the LLM decides to call a function">
     The LLM receives the user input, sees the available function definitions, and outputs a **tool call** rather than text.
 
-    The response content is empty. The function call object contains the function name and the parameter values the LLM extracted from the conversation.
+    The response content is empty. The tool call object contains the function name and the parameter values the LLM extracted from the conversation.
   </Step>
   <Step title="The function runs">
     Agent Studio executes the Python function with the provided parameters and gets back a result.
@@ -163,9 +163,9 @@ When the LLM calls a function, it takes **two LLM requests** to produce the fina
   </Step>
 </Steps>
 
-This is visible in Conversation Diagnosis. When a function is called, you will see two requests instead of one. Enable the **Function calls** toggle to see what parameters were passed and what was returned.
+This is visible in Conversation Diagnosis. When a function is called, you will see two requests instead of one. Enable the **Tool calls** toggle to see what parameters were passed and what was returned.
 
-### What the conversation history looks like after a function call
+### What the conversation history looks like after a tool call
 
 ```
 assistant: "Hi, thanks for calling. How can I help?"
@@ -198,7 +198,7 @@ The `function` role is the third role alongside `user` and `assistant`. This is 
     In **Build → Functions**, create a function called `get_store_hours` with no parameters. Return a string like `"The store is open Monday–Friday, 9am to 6pm."`.
   </Step>
   <Step title="Reference it">
-    In **Build → Agent → Rules**, add a reference to `@get_store_hours`. Confirm it highlights.
+    In **Build → Agent → Behavior**, add a reference to `@get_store_hours`. Confirm it highlights.
   </Step>
   <Step title="Test it">
     Open **Chat** and ask "What are your opening hours?" Check the LLM request in **Conversation Diagnosis** to confirm:
