@@ -5,7 +5,7 @@ description: "Define and validate structured data types like names, dates, and p
 
 Entities are structured values the agent can collect and reuse during a flow. Each entity has a **type** that determines what validation is applied. Entity names must be unique across all entities in your project.
 
-Mark an entity as required on a condition if the LLM should not consider that condition satisfied without a valid value. In Function steps, you must enforce this yourself in code.
+Mark an entity as required on a condition so the LLM won't consider that condition satisfied without a valid value. In Function steps, you must enforce this yourself in code.
 
 ## Entity types and configuration
 
@@ -59,17 +59,17 @@ Street addresses or locations. No additional configuration.
 
 </AccordionGroup>
 
-## Entity visibility within a step
+## Entity visibility in a step
 
-Entities extracted in a step are immediately available within that same step. You can:
+Entities extracted in a step are immediately available in that same step. You can:
 
-- **Reference entities in the prompt** using `{{entity:entity_name}}` – the system resolves the value at runtime, so a prompt can adapt its wording based on what the caller just provided.
-- **Use entities in redirect conditions** – mark an entity as a [required entity](/flows/no-code/introduction#conditions) on a condition so the LLM will not activate that path until the entity has been collected **and validated**.
+- **Reference entities in the prompt** using `{{entity:entity_name}}` – the system resolves the value at runtime, so the prompt can adapt based on what the caller just provided.
+- **Use entities in redirect conditions** – mark an entity as a [required entity](/flows/no-code/introduction#conditions) on a condition so the LLM won't activate that path until the entity has been collected **and validated**.
 
-Extraction and evaluation happen within the same step execution – you do not need a separate step to use an entity you just collected.
+Extraction and evaluation happen in the same step execution – you do not need a separate step to use an entity you just collected.
 
 <Note>
-Entity extraction is a flow-only feature. [Managed Topics](/managed-topics/introduction) do not support entity extraction directly. If you need to collect structured data when a topic is matched, use the topic's action to [trigger a flow](/flows/triggering-flows) and configure entity extraction in that flow's steps.
+Entity extraction is a flow-only feature. [Managed Topics](/managed-topics/introduction) don't support entity extraction directly. To collect structured data when a topic is matched, use the topic's action to [trigger a flow](/flows/triggering-flows) and configure entity extraction in that flow's steps.
 </Note>
 
 ## When entities count as "collected"
@@ -78,7 +78,7 @@ An entity only counts as collected once it passes validation. If a caller provid
 
 This means a condition with **required entities** will only trigger after every required entity has a valid value. If you are debugging why a condition is not firing, check whether the entity passed validation – not just whether the caller said something.
 
-In [Conversation Review](/analytics/conversations/review), you can see system-generated events for entity validation and condition evaluation. These help you identify whether an entity was rejected or a condition was skipped.
+In [Conversation Review](/analytics/conversations/review), system-generated events show entity validation and condition evaluation results, helping you identify whether an entity was rejected or a condition was skipped.
 
 ## Validation and retries
 
@@ -93,7 +93,7 @@ If a branch depends on an entity being present, always include a clear fallback 
 
 ## Accessing entities in code
 
-Entities collected earlier in a flow are available in Function steps via `conv.entities.entity_name.value`.
+Entities collected earlier in a flow are available in Function steps through `conv.entities.entity_name.value`.
 
 <Warning>
 Entity values are **always strings**, even for numeric types. You must cast to `int()` or `float()` before numeric comparisons, otherwise string comparison rules apply and `"9" > "10"` evaluates to `True`.
