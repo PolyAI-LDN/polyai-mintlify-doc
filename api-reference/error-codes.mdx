@@ -1,0 +1,226 @@
+---
+title: "Error codes"
+sidebarTitle: "Error codes"
+description: "HTTP status codes and platform-specific error codes returned by PolyAI APIs."
+keywords:
+  - error codes
+  - HTTP status
+  - troubleshooting
+  - API errors
+---
+
+When a request fails, PolyAI APIs return a structured JSON error response. This page documents the HTTP status codes, error response format, and platform-specific error codes you may encounter.
+
+## Error response format
+
+All API errors return a JSON body with the following structure:
+
+```json
+{
+  "error": {
+    "code": "SCHEMA_VALIDATION_FAILED",
+    "id": 1,
+    "message": "Request body failed schema validation.",
+    "correlation_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `code` | string | Machine-readable error code in `UPPER_SNAKE_CASE`. |
+| `id` | integer | Numeric error identifier. |
+| `message` | string | Human-readable description of the error. |
+| `correlation_id` | string | Unique request identifier from the `X-Polyai-Correlation-Id` header. Include this when contacting support. |
+
+## Standard HTTP status codes
+
+These standard codes apply across all PolyAI APIs.
+
+| Status | Meaning | When it occurs |
+|--------|---------|----------------|
+| 400 | Bad request | The request body or query parameters failed validation. |
+| 401 | Unauthorized | Missing, expired, or invalid API key or token. |
+| 403 | Forbidden | You do not have permission for the requested action. |
+| 404 | Not found | The requested resource does not exist. |
+| 405 | Method not allowed | The HTTP method is not supported for this endpoint. |
+| 408 | Request timeout | The request exceeded the server timeout. |
+| 409 | Conflict | A resource with the same identifier already exists. |
+| 410 | Gone | The resource has been permanently deleted. |
+| 412 | Precondition failed | A required precondition was not met (for example, deploying to live before pre-release). |
+| 415 | Unsupported media type | The uploaded file type is not supported. |
+| 422 | Unprocessable entity | The request is well-formed but contains semantic errors. |
+| 429 | Too many requests | Rate limit exceeded. Retry after the period indicated in the response headers. |
+| 500 | Internal server error | An unexpected error occurred on the server. |
+| 501 | Not implemented | The requested functionality is not yet available. |
+| 502 | Bad gateway | An upstream service returned an error or timed out. |
+| 503 | Service unavailable | The service is temporarily unavailable. |
+
+## Platform error codes
+
+PolyAI APIs return domain-specific error codes alongside HTTP status codes. These help you identify the exact cause of a failure.
+
+### Authentication and authorization
+
+| Code | ID | HTTP | Description |
+|------|----|------|-------------|
+| `AUTH_USER_NOT_FOUND` | 3001 | 404 | User not found in the auth system. |
+| `AUTH_USER_UNAUTHORISED` | 3002 | 401 | Invalid credentials or expired session. |
+| `AUTH_USER_INVALID_TOKEN` | 3003 | 401 | Token is malformed, expired, or revoked. |
+| `USER_ACCESS_FORBIDDEN` | 2 | 403 | User lacks permission for the requested action. |
+| `EXTERNAL_USER_FORBIDDEN` | 3 | 403 | External user privilege level is too low. |
+| `ACCOUNT_INSUFFICIENT_PERMISSIONS` | 1003 | 403 | User lacks permissions for this account operation. |
+
+### Conversations
+
+| Code | ID | HTTP | Description |
+|------|----|------|-------------|
+| `CONVERSATIONS_NOT_FOUND` | 5001 | 404 | Conversation ID does not exist. |
+| `CONVERSATIONS_VALIDATION_FAILED` | 5002 | 400 | Conversation request body failed validation. |
+| `CONVERSATIONS_RECORDING_NOT_FOUND` | 5003 | 404 | Audio recording not found for this conversation. |
+| `GET_CONVERSATIONS_FILTER_PARSE_ERROR` | — | 400 | Filter expression syntax is invalid. |
+| `GET_CONVERSATIONS_INVALID_SORT_PARAMETER` | — | 400 | Sort field is not in the allowed set. |
+
+### Chat
+
+| Code | ID | HTTP | Description |
+|------|----|------|-------------|
+| `CHAT_DRAFT_NOT_EXIST` | 4001 | 400 | The draft you are attempting to chat with does not exist. |
+| `CHAT_TIMEOUT` | 4002 | 400 | Chat session exceeded the timeout limit. |
+| `CHAT_DRAFT_DEPLOYMENT_FAILED` | 4003 | 500 | Draft auto-deploy failed before the chat could start. |
+| `ChatConversationEnded` | — | 410 | You sent a message to a conversation that has already ended. |
+
+### Deployments
+
+| Code | ID | HTTP | Description |
+|------|----|------|-------------|
+| `DEPLOYMENT_NOT_FOUND` | 6001 | 404 | Deployment ID does not exist. |
+| `DEPLOYMENTS_ALREADY_PUBLISHED` | 6009 | 409 | Draft is already published to the target environment. |
+| `DEPLOYMENTS_ENVIRONMENT_ALREADY_PUBLISHED` | 6002 | 200 | Environment already has this version (idempotent). |
+| `DEPLOYMENTS_VALIDATION_FAILED` | 6007 | 400 | Request body validation failed. |
+| `DEPLOYMENTS_INVALID_ENVIRONMENT` | 6008 | 400 | Invalid or missing `environment` query parameter. |
+| `ErrPreReleaseNotReady` | — | 412 | You must deploy to pre-release before promoting to live. |
+
+### Flows
+
+| Code | ID | HTTP | Description |
+|------|----|------|-------------|
+| `FLOW_NOT_FOUND` | 8001 | 404 | Flow ID does not exist. |
+| `FLOWS_NAME_ALREADY_EXISTS` | 8003 | 409 | A flow with this name already exists. |
+| `FLOWS_FUNCTION_NAME_ALREADY_EXISTS` | 8004 | 409 | A function with this name already exists in the flow. |
+| `FLOWS_RESERVED_PARAMETER_NAME` | 8005 | 400 | You used a reserved parameter name. |
+| `FLOWS_RESERVED_FUNCTION_NAME` | 8006 | 400 | You used a reserved function name. |
+
+### Functions
+
+| Code | ID | HTTP | Description |
+|------|----|------|-------------|
+| `FUNCTION_NOT_FOUND` | 9001 | 404 | Function ID does not exist. |
+| `FUNCTIONS_DEPLOYMENT_HAS_ERRORS` | 9004 | 400 | Function code contains errors that prevent deployment. |
+| `FUNCTION_EXECUTION_FAILED` | 9006 | 400 | Function encountered a runtime execution error. |
+| `FUNCTION_FAILED_TO_PARSE` | 9007 | 400 | Function source code has parse errors. |
+| `FUNCTION_NAME_ALREADY_EXISTS` | 9009 | 409 | A function with this name already exists. |
+| `FUNCTIONS_RESERVED_NAME` | 9010 | 400 | You used a system-reserved function name. |
+
+### Knowledge base
+
+| Code | ID | HTTP | Description |
+|------|----|------|-------------|
+| `KNOWLEDGE_BASE_TOPIC_ALREADY_EXISTS` | 11001 | 409 | A topic with this name already exists. |
+| `KNOWLEDGE_BASE_IMPORT_NO_CSV_FOUND` | 11002 | 400 | No CSV file found in the import request. |
+| `KNOWLEDGE_BASE_IMPORT_INVALID_TYPE` | 11003 | 415 | The uploaded file type is not supported. |
+| `KNOWLEDGE_BASE_IMPORT_MISSING_COLUMNS` | 11004 | 400 | Required columns are missing from the CSV import. |
+| `KNOWLEDGE_BASE_TOPICS_INVALID` | 11005 | 400 | Topic data failed validation. |
+| `KNOWLEDGE_BASE_RICH_TEXT_INVALID` | 11006 | 400 | Rich text markup is malformed or references a missing entity. |
+
+### Phone numbers and connectors
+
+| Code | ID | HTTP | Description |
+|------|----|------|-------------|
+| `PHONE_NUMBERS_NOT_FOUND` | 14006 | 404 | Phone number does not exist. |
+| `PHONE_NUMBERS_ALREADY_EXISTS` | 14007 | 409 | Phone number has already been imported. |
+| `PHONE_NUMBERS_INVALID_PHONE_NUMBER_FORMAT` | 14003 | 400 | Number is not in valid E.164 format. |
+| `PHONE_NUMBERS_CONNECTOR_DOES_NOT_EXIST` | 14005 | 404 | Referenced connector not found. |
+| `CONNECTORS_NOT_FOUND` | 14100 | 404 | Connector ID does not exist. |
+| `CONNECTORS_VALIDATION_FAILED` | 14101 | 400 | Connector request body failed validation. |
+
+### Variants
+
+| Code | ID | HTTP | Description |
+|------|----|------|-------------|
+| `VARIANTS_BAD_ATTRIBUTES_ERROR` | 26001 | 400 | Attribute values do not match the expected schema. |
+| `VARIANTS_DUPLICATE_NAME_ERROR` | 26002 | 409 | A variant with this name already exists. |
+| `VARIANTS_REMOVE_DEFAULT_ERROR` | 26003 | 400 | You cannot remove the default variant. |
+| `VariantsImportInvalidDelimiter` | — | 400 | CSV delimiter not recognized. |
+| `VariantImportMissingColumnsHttp` | — | 400 | CSV is missing required columns. |
+| `VariantImportDuplicateColumnsHttp` | — | 400 | CSV has duplicate column headers. |
+
+### Real-time configuration
+
+| Code | ID | HTTP | Description |
+|------|----|------|-------------|
+| `REAL_TIME_CONFIG_FORBIDDEN_ACCESS` | 29001 | 403 | Not authorized to access real-time configs. |
+| `REAL_TIME_CONFIG_INVALID_FOR_SCHEMA` | 29002 | 400 | Config values fail JSON Schema validation. |
+| `REAL_TIME_CONFIG_INVALID_SCHEMA` | 29004 | 400 | JSON Schema definition is invalid. |
+| `REAL_TIME_CONFIG_UNKNOWN_CLIENT_ENVIRONMENT` | 29006 | 400 | Client environment is not one of `sandbox`, `pre-release`, or `live`. |
+
+### Accounts and projects
+
+| Code | ID | HTTP | Description |
+|------|----|------|-------------|
+| `ACCOUNT_NOT_FOUND` | 1002 | 404 | Account ID does not exist. |
+| `ACCOUNT_CREATE_INVALID_ID` | 1004 | 400 | Account ID contains non-alphanumeric characters or is too similar to an existing ID. |
+| `ACCOUNT_CREATE_EXISTING_ID` | 1006 | 409 | Account ID is already taken. |
+| `PROJECT_NOT_FOUND` | 15001 | 404 | Project ID does not exist. |
+| `PROJECT_ID_ALREADY_EXISTS` | 15005 | 409 | Project ID is already taken. |
+| `PROJECT_ID_INVALID` | 15006 | 400 | Project ID does not meet format requirements. |
+
+### SMS
+
+| Code | ID | HTTP | Description |
+|------|----|------|-------------|
+| `SMS_TEMPLATE_NOT_FOUND` | 20001 | 404 | SMS template ID does not exist. |
+
+### Test suite
+
+| Code | ID | HTTP | Description |
+|------|----|------|-------------|
+| `MissingTestCasesHttp` | — | 422 | One or more test case IDs were not found. |
+| `NoTestCasesHttp` | — | 422 | No test cases exist for this project. |
+
+## WebSocket close codes
+
+If you are using the WebRTC Gateway or webchat WebSocket connections, you may encounter these close codes:
+
+| Code | Meaning | When it occurs |
+|------|---------|----------------|
+| 1000 | Normal closure | Connection closed cleanly. |
+| 1006 | Abnormal closure | Connection dropped unexpectedly (for example, network failure). |
+| 408 | Pong timeout | Server did not receive a pong response within the configured timeout. |
+
+## Troubleshooting
+
+### Include the correlation ID in support requests
+
+Every API response includes an `X-Polyai-Correlation-Id` header. When contacting PolyAI support, include this value so the team can trace the request through the system.
+
+### Common patterns
+
+| Symptom | Likely cause | Resolution |
+|---------|-------------|------------|
+| 401 on every request | API key missing or malformed | Verify the `x-api-key` header is present and correctly formatted. |
+| 403 after key rotation | Old key revoked | Confirm you are using the new key. |
+| 404 for a known resource | Wrong region | Verify the base URL matches your account region. |
+| 409 on create | Duplicate identifier | Use a different name or ID, or check for existing resources. |
+| 422 on import | Schema mismatch | Verify CSV columns match the expected format. Check the error `data` field for column details. |
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="API getting started" icon="key" href="/api-reference/introduction">
+    Authentication, base URLs, and API versioning.
+  </Card>
+  <Card title="Conversations API" icon="messages" href="/api-reference/conversations/introduction">
+    Retrieve conversation data and transcripts.
+  </Card>
+</CardGroup>

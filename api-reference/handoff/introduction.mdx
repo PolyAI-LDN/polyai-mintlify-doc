@@ -52,15 +52,39 @@ API keys are scoped to account, project, and region. Your PolyAI representative 
 
 ## Typical flow
 
-A downstream platform receives an inbound call that has just transitioned from the PolyAI agent.  
-It performs:
+A downstream platform receives an inbound call that has just transitioned from the PolyAI agent. It queries the handoff state, then uses the data to populate the agent desktop, route the interaction, or enrich CRM entries.
 
-`GET …/v1/{account_id}/{project_id}/handoff_state?id={conversation_id}`
+<CodeGroup>
 
-The returned data can then be used to:
-- populate the agent desktop  
-- route the interaction to the correct queue  
-- enrich logs or CRM entries  
-- maintain continuity between the automated and human-handled parts of the interaction
+```bash curl
+curl -X GET \
+  "https://api.us-1.platform.polyai.app/v1/ACCOUNT-xxx/PROJECT-xxx/handoff_state?id=CONV-1234567890" \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    "https://api.us-1.platform.polyai.app/v1/ACCOUNT-xxx/PROJECT-xxx/handoff_state",
+    headers={"x-api-key": "YOUR_API_KEY"},
+    params={"id": "CONV-1234567890"},
+)
+handoff = response.json()
+print(handoff["data"])  # Free-form handoff metadata
+```
+
+```typescript TypeScript
+const params = new URLSearchParams({ id: "CONV-1234567890" });
+
+const res = await fetch(
+  `https://api.us-1.platform.polyai.app/v1/ACCOUNT-xxx/PROJECT-xxx/handoff_state?${params}`,
+  { headers: { "x-api-key": "YOUR_API_KEY" } }
+);
+const handoff = await res.json();
+console.log(handoff.data); // Free-form handoff metadata
+```
+
+</CodeGroup>
 
 The endpoint is read-only and returns exactly the state stored by the PolyAI agent at the moment of handoff.
