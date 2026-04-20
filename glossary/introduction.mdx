@@ -17,11 +17,11 @@ Application-to-Person 10-Digit Long Code. A US regulatory framework requiring re
 
 ## Agent
 
-An AI-driven voice agent built on PolyAI that interacts with customers in real time across voice (telephony), chat (webchat), and SMS. See [Agent settings](/agent-settings/introduction), [Quickstart](/get-started/quickstart).
+An AI-driven voice agent built on PolyAI that interacts with customers in real time across voice (telephony), chat (webchat), and SMS. Each agent is a self-contained project with its own knowledge base, flows, functions, voice configuration, and deployment environments. You set global behavior — such as greeting, personality, and role — in the Agent settings page, and the agent uses these alongside its knowledge base to generate contextual, grounded responses. See [Agent settings](/agent-settings/introduction), [Quickstart](/get-started/quickstart).
 
 ## Agent Studio
 
-The primary interface for designing, configuring, and deploying AI agents. Used for creating agent logic, configuring settings, and monitoring performance. See [Getting started](/get-started/quickstart), [Build essentials](/essentials/order).
+The primary interface for designing, configuring, and deploying AI agents. Agent Studio is organized into sections: **Build** (knowledge base, flows, tools, variants, test suite), **Channels** (voice, chat, response control, audio management, speech recognition), **Configure** (settings, numbers, APIs, integrations, dashboards, user management), and **Deployments** (environments and project history). See [Getting started](/get-started/quickstart), [Build essentials](/essentials/order).
 
 ## Annotation
 
@@ -38,6 +38,10 @@ A technique to improve speech recognition by instructing the ASR model to priori
 ## Barge-in
 
 When a user interrupts the agent mid-sentence. The system detects this and stops playback to process the user's input immediately.
+
+## Branch
+
+A parallel working copy of your agent's draft, enabling multiple team members to make changes simultaneously without conflicts. Branches can be merged back into the main draft with visual conflict resolution. See [Environments and versions](/environments-and-versions/introduction).
 
 ## BYOM (Bring Your Own Model)
 
@@ -105,11 +109,11 @@ A data architecture pattern where all changes are stored as a sequence of events
 
 ## Flows
 
-A conversation logic system that guides users through structured interactions with decision points, branching logic, automated actions, and transition functions. See [Flows](/flows/introduction), [Examples](/flows/example).
+A conversation logic system that guides users through structured, multi-step interactions. Use flows when your agent needs to follow step-by-step instructions for complex tasks like reservations, data collection, or authentication. Each flow contains steps, transition functions, and conditions (such as "all entities collected") that determine when the agent moves to the next step. Flows can be built with a visual no-code editor or with code-driven transition functions. See [Flows](/flows/introduction), [Examples](/flows/example), [No-code flows](/flows/no-code/introduction).
 
 ## Function
 
-A reusable backend operation executed during a conversation. Can retrieve external data, modify state, perform calculations, or log structured data. See [Functions](/tools/introduction), [Function classes](/tools/classes).
+A reusable backend operation (also called a "tool") that gives your agent the ability to interact with the outside world during a conversation. Functions can retrieve external data, modify conversation state, perform calculations, send SMS messages, or log structured data. Each function has an LLM description that helps the model understand when to call it, along with named parameters and optional delay control with filler responses for high-latency operations. Special function types include [start functions](/tools/start-function) (triggered at conversation start) and [end functions](/tools/end-function) (triggered when a conversation ends). See [Functions](/tools/introduction), [Function classes](/tools/classes).
 
 ## Global rules
 
@@ -117,7 +121,11 @@ Behavior constraints applied across all agent interactions for consistency, comp
 
 ## Handoff
 
-Transferring a user from the AI agent to a human agent. Can be rule-based, user-requested, or AI-driven. See [Call handoff](/call-handoff/introduction).
+Transferring a user from the AI agent to a human agent or external system. Handoffs can be triggered from knowledge base actions, flows, or functions. Each handoff includes a destination (where to route the call), a reason (why the transfer is happening), and optionally an utterance (what the agent says before transferring). The [Handoff API](/api-reference/handoff/introduction) lets downstream platforms retrieve conversation context at the moment of transfer. See [Call handoff](/call-handoff/introduction).
+
+## Integration
+
+A pre-built connection between PolyAI and a third-party platform. Integrations are grouped by category: Telephony (Twilio, Amazon Connect, Genesys, Five9, Dialpad), CRM (Salesforce), Hospitality (OpenTable, TripleSeat), Healthcare (Epic), Knowledge base (Gladly), and MCP tool servers. Browse available integrations under **Configure > Integrations** in Agent Studio. See [Integrations](/integrations/introduction).
 
 ## IPA (International Phonetic Alphabet)
 
@@ -135,9 +143,13 @@ The AI model powering the agent's understanding and response generation. PolyAI'
 
 The production environment where the agent handles real customer traffic. See [Environments and versions](/environments-and-versions/introduction).
 
+## MCP (Model Context Protocol)
+
+An open standard for connecting AI agents to external tool servers. In Agent Studio, you can add MCP servers under **Configure > Integrations > MCP** to extend your agent with third-party tools and resources. Agent Studio auto-discovers available tools and lets you toggle them individually. See [MCP integrations](/integrations/mcp).
+
 ## Managed Topics
 
-Version-controlled, editable topics in **Build > Knowledge > Managed Topics**. Support sample questions, content, actions (function calls, handoffs, SMS). See [Managed Topics](/managed-topics/introduction), [RAG](/managed-topics/RAG/introduction).
+Version-controlled, editable topics in **Build > Knowledge > Managed Topics**. Each topic has a name, content that determines relevance to user input, sample questions, and actions the agent can execute when the topic is matched. Topics can trigger function calls, handoffs, and SMS messages. See [Managed Topics](/managed-topics/introduction), [RAG](/managed-topics/RAG/introduction).
 
 ## Multi-site configuration
 
@@ -161,7 +173,7 @@ The decision-making component that controls conversation flow by executing nodes
 
 ## PolyScore
 
-An AI-generated quality score (0–10) assigned to each eligible voice conversation. Evaluates conversation quality, task success, and customer experience. Displayed as a color-coded badge in Conversation Review and accessible via the Conversations API. See [PolyScore](/analytics/polyscore).
+An AI-generated quality score (0–10) assigned to each eligible voice conversation. Composed of two sub-scores: **Agent Quality** (how well the agent performed) and **Task Success** (whether the caller's issue was resolved). Scores are interpreted as: None (no engagement from user), Low (call likely failed to resolve the issue), Medium (operating as designed but with areas for improvement), and High (resolved the issue smoothly with strong performance). Displayed as a color-coded badge in Conversation Review and accessible via the Conversations API. See [PolyScore](/analytics/polyscore).
 
 ## Pre-release
 
@@ -283,6 +295,14 @@ A configuration allowing different behaviors within a single agent project. Supp
 
 Fields used in API filters and analytics to identify and segment conversations by specific agent variant.
 
+## Translation
+
+A localized version of agent content (greetings, confirmations, prompts) managed through the Translations page under **Channels > Response Control**. Translations can be auto-generated or manually overridden. Reference them in functions via `conv.translations.your_key`. See [Translations](/response-control/translations).
+
 ## VoIP (Voice over Internet Protocol)
 
 Delivering voice communications over IP networks rather than traditional telephone lines.
+
+## Webhook
+
+An HTTP callback that PolyAI sends to your endpoint when specific events occur (for example, a conversation ends or a handoff is triggered). Configure webhooks via the [Webhooks API](/api-reference/webhooks/introduction) to integrate with external systems in real time.
