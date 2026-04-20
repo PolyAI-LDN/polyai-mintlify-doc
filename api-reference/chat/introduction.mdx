@@ -53,21 +53,79 @@ All requests must include the following headers (case-sensitive):
 
 ## Example: Create chat
 
-**POST**
-`/v1/poly-scs-uk/PROJECT-191bfa2a/chat/create`
+**POST** `/v1/{account_id}/{project_id}/chat/create`
 
-**Body** (optional)
+<CodeGroup>
 
-```json
-{
-  "variant_id": "VARIANT-xxxxxxxx",
-  "integration_attributes": {
-    "user_id": "12345",
-    "session_id": "abc-123-def",
-    "customer_tier": "premium"
-  }
-}
+```bash curl
+curl -X POST \
+  "https://api.us-1.platform.polyai.app/v1/ACCOUNT-xxx/PROJECT-xxx/chat/create" \
+  -H "X-API-KEY: YOUR_API_KEY" \
+  -H "X-TOKEN: YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "variant_id": "VARIANT-xxxxxxxx",
+    "integration_attributes": {
+      "user_id": "12345",
+      "customer_tier": "premium"
+    }
+  }'
 ```
+
+```python Python
+import requests
+
+base_url = "https://api.us-1.platform.polyai.app"
+headers = {
+    "X-API-KEY": "YOUR_API_KEY",
+    "X-TOKEN": "YOUR_TOKEN",
+    "Content-Type": "application/json",
+}
+
+response = requests.post(
+    f"{base_url}/v1/ACCOUNT-xxx/PROJECT-xxx/chat/create",
+    headers=headers,
+    json={
+        "variant_id": "VARIANT-xxxxxxxx",
+        "integration_attributes": {
+            "user_id": "12345",
+            "customer_tier": "premium",
+        },
+    },
+)
+data = response.json()
+conversation_id = data["conversation_id"]
+print(data["response"])
+```
+
+```typescript TypeScript
+const baseUrl = "https://api.us-1.platform.polyai.app";
+const headers = {
+  "X-API-KEY": "YOUR_API_KEY",
+  "X-TOKEN": "YOUR_TOKEN",
+  "Content-Type": "application/json",
+};
+
+const res = await fetch(
+  `${baseUrl}/v1/ACCOUNT-xxx/PROJECT-xxx/chat/create`,
+  {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      variant_id: "VARIANT-xxxxxxxx",
+      integration_attributes: {
+        user_id: "12345",
+        customer_tier: "premium",
+      },
+    }),
+  }
+);
+const data = await res.json();
+const conversationId = data.conversation_id;
+console.log(data.response);
+```
+
+</CodeGroup>
 
 **Response**
 
@@ -80,17 +138,64 @@ All requests must include the following headers (case-sensitive):
 
 ## Example: Send message
 
-**POST**
-`/v1/poly-scs-uk/PROJECT-191bfa2a/chat/respond`
+**POST** `/v1/{account_id}/{project_id}/chat/respond`
 
-**Body**
+<CodeGroup>
 
-```json
-{
-  "conversation_id": "CONV-1234567890",
-  "message": "What's your return policy?"
+```bash curl
+curl -X POST \
+  "https://api.us-1.platform.polyai.app/v1/ACCOUNT-xxx/PROJECT-xxx/chat/respond" \
+  -H "X-API-KEY: YOUR_API_KEY" \
+  -H "X-TOKEN: YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "conversation_id": "CONV-1234567890",
+    "message": "What'\''s your return policy?"
+  }'
+```
+
+```python Python
+response = requests.post(
+    f"{base_url}/v1/ACCOUNT-xxx/PROJECT-xxx/chat/respond",
+    headers=headers,
+    json={
+        "conversation_id": "CONV-1234567890",
+        "message": "What's your return policy?",
+    },
+)
+data = response.json()
+print(data["response"])
+
+if data.get("end_conversation"):
+    print("Conversation ended")
+if data.get("handoff"):
+    print(f"Handoff to: {data['handoff']['destination']}")
+```
+
+```typescript TypeScript
+const respondRes = await fetch(
+  `${baseUrl}/v1/ACCOUNT-xxx/PROJECT-xxx/chat/respond`,
+  {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      conversation_id: "CONV-1234567890",
+      message: "What's your return policy?",
+    }),
+  }
+);
+const respondData = await respondRes.json();
+console.log(respondData.response);
+
+if (respondData.end_conversation) {
+  console.log("Conversation ended");
+}
+if (respondData.handoff) {
+  console.log(`Handoff to: ${respondData.handoff.destination}`);
 }
 ```
+
+</CodeGroup>
 
 **Response**
 
@@ -118,16 +223,44 @@ All requests must include the following headers (case-sensitive):
 
 ## Example: Close chat
 
-**PUT**
-`/v1/poly-scs-uk/PROJECT-191bfa2a/chat/close`
+**PUT** `/v1/{account_id}/{project_id}/chat/close`
 
-**Body**
+<CodeGroup>
 
-```json
-{
-  "conversation_id": "CONV-1234567890"
-}
+```bash curl
+curl -X PUT \
+  "https://api.us-1.platform.polyai.app/v1/ACCOUNT-xxx/PROJECT-xxx/chat/close" \
+  -H "X-API-KEY: YOUR_API_KEY" \
+  -H "X-TOKEN: YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"conversation_id": "CONV-1234567890"}'
 ```
+
+```python Python
+response = requests.put(
+    f"{base_url}/v1/ACCOUNT-xxx/PROJECT-xxx/chat/close",
+    headers=headers,
+    json={"conversation_id": "CONV-1234567890"},
+)
+print(response.json())
+```
+
+```typescript TypeScript
+const closeRes = await fetch(
+  `${baseUrl}/v1/ACCOUNT-xxx/PROJECT-xxx/chat/close`,
+  {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({
+      conversation_id: "CONV-1234567890",
+    }),
+  }
+);
+const closeData = await closeRes.json();
+console.log(closeData);
+```
+
+</CodeGroup>
 
 **Response**
 

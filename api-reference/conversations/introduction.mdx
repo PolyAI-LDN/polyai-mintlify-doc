@@ -175,51 +175,235 @@ All examples use the v3 endpoint:
 
 ### Retrieve all conversations in a time range
 
-```bash
+<CodeGroup>
+
+```bash curl
 curl -X GET \
-  "https://api.us-1.platform.polyai.app/v3/{account_id}/{project_id}/conversations?start_time=2026-04-01T00:00:00Z&end_time=2026-04-02T00:00:00Z&limit=100" \
+  "https://api.us-1.platform.polyai.app/v3/ACCOUNT-xxx/PROJECT-xxx/conversations?start_time=2026-04-01T00:00:00Z&end_time=2026-04-02T00:00:00Z&limit=100" \
   -H "x-api-key: YOUR_API_KEY"
 ```
+
+```python Python
+import requests
+
+base_url = "https://api.us-1.platform.polyai.app"
+headers = {"x-api-key": "YOUR_API_KEY"}
+
+response = requests.get(
+    f"{base_url}/v3/ACCOUNT-xxx/PROJECT-xxx/conversations",
+    headers=headers,
+    params={
+        "start_time": "2026-04-01T00:00:00Z",
+        "end_time": "2026-04-02T00:00:00Z",
+        "limit": 100,
+    },
+)
+conversations = response.json()
+
+for conv in conversations:
+    print(f"{conv['id']} — {conv['started_at']} — {conv['num_turns']} turns")
+```
+
+```typescript TypeScript
+const baseUrl = "https://api.us-1.platform.polyai.app";
+const headers = { "x-api-key": "YOUR_API_KEY" };
+
+const params = new URLSearchParams({
+  start_time: "2026-04-01T00:00:00Z",
+  end_time: "2026-04-02T00:00:00Z",
+  limit: "100",
+});
+
+const res = await fetch(
+  `${baseUrl}/v3/ACCOUNT-xxx/PROJECT-xxx/conversations?${params}`,
+  { headers }
+);
+const conversations = await res.json();
+
+for (const conv of conversations) {
+  console.log(`${conv.id} — ${conv.started_at} — ${conv.num_turns} turns`);
+}
+```
+
+</CodeGroup>
 
 ### Search transcripts for a keyword
 
 Use `query_type=transcript` to find conversations containing specific text. Optionally filter by `turn_type` to search only user or agent turns.
 
-```bash
+<CodeGroup>
+
+```bash curl
 curl -X GET \
-  "https://api.us-1.platform.polyai.app/v3/{account_id}/{project_id}/conversations?start_time=2026-04-01T00:00:00Z&end_time=2026-04-02T00:00:00Z&query_type=transcript&query=cancel%20reservation&turn_type=user&limit=50" \
+  "https://api.us-1.platform.polyai.app/v3/ACCOUNT-xxx/PROJECT-xxx/conversations?start_time=2026-04-01T00:00:00Z&end_time=2026-04-02T00:00:00Z&query_type=transcript&query=cancel%20reservation&turn_type=user&limit=50" \
   -H "x-api-key: YOUR_API_KEY"
 ```
+
+```python Python
+response = requests.get(
+    f"{base_url}/v3/ACCOUNT-xxx/PROJECT-xxx/conversations",
+    headers=headers,
+    params={
+        "start_time": "2026-04-01T00:00:00Z",
+        "end_time": "2026-04-02T00:00:00Z",
+        "query_type": "transcript",
+        "query": "cancel reservation",
+        "turn_type": "user",
+        "limit": 50,
+    },
+)
+results = response.json()
+```
+
+```typescript TypeScript
+const searchParams = new URLSearchParams({
+  start_time: "2026-04-01T00:00:00Z",
+  end_time: "2026-04-02T00:00:00Z",
+  query_type: "transcript",
+  query: "cancel reservation",
+  turn_type: "user",
+  limit: "50",
+});
+
+const searchRes = await fetch(
+  `${baseUrl}/v3/ACCOUNT-xxx/PROJECT-xxx/conversations?${searchParams}`,
+  { headers }
+);
+const results = await searchRes.json();
+```
+
+</CodeGroup>
 
 ### Semantic search
 
 Use `query_type=semantic` to find conversations that are semantically similar to your query, even if the exact words don't appear in the transcript.
 
-```bash
+<CodeGroup>
+
+```bash curl
 curl -X GET \
-  "https://api.us-1.platform.polyai.app/v3/{account_id}/{project_id}/conversations?start_time=2026-04-01T00:00:00Z&end_time=2026-04-02T00:00:00Z&query_type=semantic&query=customer%20frustrated%20about%20billing&limit=20" \
+  "https://api.us-1.platform.polyai.app/v3/ACCOUNT-xxx/PROJECT-xxx/conversations?start_time=2026-04-01T00:00:00Z&end_time=2026-04-02T00:00:00Z&query_type=semantic&query=customer%20frustrated%20about%20billing&limit=20" \
   -H "x-api-key: YOUR_API_KEY"
 ```
+
+```python Python
+response = requests.get(
+    f"{base_url}/v3/ACCOUNT-xxx/PROJECT-xxx/conversations",
+    headers=headers,
+    params={
+        "start_time": "2026-04-01T00:00:00Z",
+        "end_time": "2026-04-02T00:00:00Z",
+        "query_type": "semantic",
+        "query": "customer frustrated about billing",
+        "limit": 20,
+    },
+)
+similar = response.json()
+```
+
+```typescript TypeScript
+const semanticParams = new URLSearchParams({
+  start_time: "2026-04-01T00:00:00Z",
+  end_time: "2026-04-02T00:00:00Z",
+  query_type: "semantic",
+  query: "customer frustrated about billing",
+  limit: "20",
+});
+
+const semanticRes = await fetch(
+  `${baseUrl}/v3/ACCOUNT-xxx/PROJECT-xxx/conversations?${semanticParams}`,
+  { headers }
+);
+const similar = await semanticRes.json();
+```
+
+</CodeGroup>
 
 ### Random sampling
 
 Use `sample=random` to retrieve a random subset of conversations within a time range – useful for quality audits.
 
-```bash
+<CodeGroup>
+
+```bash curl
 curl -X GET \
-  "https://api.us-1.platform.polyai.app/v3/{account_id}/{project_id}/conversations?start_time=2026-04-01T00:00:00Z&end_time=2026-04-08T00:00:00Z&sample=random&limit=10" \
+  "https://api.us-1.platform.polyai.app/v3/ACCOUNT-xxx/PROJECT-xxx/conversations?start_time=2026-04-01T00:00:00Z&end_time=2026-04-08T00:00:00Z&sample=random&limit=10" \
   -H "x-api-key: YOUR_API_KEY"
 ```
+
+```python Python
+response = requests.get(
+    f"{base_url}/v3/ACCOUNT-xxx/PROJECT-xxx/conversations",
+    headers=headers,
+    params={
+        "start_time": "2026-04-01T00:00:00Z",
+        "end_time": "2026-04-08T00:00:00Z",
+        "sample": "random",
+        "limit": 10,
+    },
+)
+sample = response.json()
+```
+
+```typescript TypeScript
+const sampleParams = new URLSearchParams({
+  start_time: "2026-04-01T00:00:00Z",
+  end_time: "2026-04-08T00:00:00Z",
+  sample: "random",
+  limit: "10",
+});
+
+const sampleRes = await fetch(
+  `${baseUrl}/v3/ACCOUNT-xxx/PROJECT-xxx/conversations?${sampleParams}`,
+  { headers }
+);
+const sample = await sampleRes.json();
+```
+
+</CodeGroup>
 
 ### Filter by channel
 
 Use the `channel` parameter to restrict results to a specific medium. You can specify it multiple times to include several channels.
 
-```bash
+<CodeGroup>
+
+```bash curl
 curl -X GET \
-  "https://api.us-1.platform.polyai.app/v3/{account_id}/{project_id}/conversations?start_time=2026-04-01T00:00:00Z&end_time=2026-04-02T00:00:00Z&channel=WEBCHAT&limit=50" \
+  "https://api.us-1.platform.polyai.app/v3/ACCOUNT-xxx/PROJECT-xxx/conversations?start_time=2026-04-01T00:00:00Z&end_time=2026-04-02T00:00:00Z&channel=WEBCHAT&limit=50" \
   -H "x-api-key: YOUR_API_KEY"
 ```
+
+```python Python
+response = requests.get(
+    f"{base_url}/v3/ACCOUNT-xxx/PROJECT-xxx/conversations",
+    headers=headers,
+    params={
+        "start_time": "2026-04-01T00:00:00Z",
+        "end_time": "2026-04-02T00:00:00Z",
+        "channel": "WEBCHAT",
+        "limit": 50,
+    },
+)
+webchat_convos = response.json()
+```
+
+```typescript TypeScript
+const channelParams = new URLSearchParams({
+  start_time: "2026-04-01T00:00:00Z",
+  end_time: "2026-04-02T00:00:00Z",
+  channel: "WEBCHAT",
+  limit: "50",
+});
+
+const channelRes = await fetch(
+  `${baseUrl}/v3/ACCOUNT-xxx/PROJECT-xxx/conversations?${channelParams}`,
+  { headers }
+);
+const webchatConvos = await channelRes.json();
+```
+
+</CodeGroup>
 
 A successful response includes:
 
