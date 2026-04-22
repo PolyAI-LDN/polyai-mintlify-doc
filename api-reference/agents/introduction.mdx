@@ -1,0 +1,223 @@
+---
+title: "Agents API"
+sidebarTitle: "Overview"
+description: "Build, configure, and deploy PolyAI agents programmatically. Manage agents, branches, knowledge bases, telephony, and deployments from your own systems."
+---
+
+The Agents API is a set of REST endpoints for building and shipping PolyAI agents without the UI. It covers the full agent lifecycle: create the agent, branch for parallel work, edit behavior and knowledge, provision telephony, publish through environments, and tweak runtime values after launch.
+
+Use it when you want to automate agent setup from your own tooling — CRM workflows, CCaaS provisioning, internal platforms, or coding agents — instead of clicking through Agent Studio.
+
+<Note>
+Also known as the **builder APIs** or **Agent Studio APIs**. This reference covers the same surface area.
+</Note>
+
+## How it differs from the Conversations API
+
+The Agents API is the **build and deploy** layer. The [Conversations API](/api-reference/conversations/introduction) is the **read and analyze** layer. They're separate services with separate base URLs, auth, and audiences.
+
+|                | Agents API                          | Conversations API                         |
+| -------------- | ----------------------------------- | ----------------------------------------- |
+| **Purpose**    | Build and deploy agents             | Read call data and transcripts            |
+| **Direction**  | Write (create, update, deploy)      | Read (query, retrieve)                    |
+| **Base URL**   | `api.{region}.poly.ai/v1/agents/…`  | `api.{region}.platform.polyai.app/v3/…`   |
+| **Auth**       | API key (workspace-scoped)          | API key (project-scoped)                  |
+| **Who uses it**| Developers automating agent builds  | Analysts, integrations pulling call data  |
+
+If you want to ship an agent change, use the Agents API. If you want to know what happened in a call, use the Conversations API. See [Getting started](/api-reference/introduction) for the full distinction across all API families.
+
+## Resource model
+
+The Agents API is organized around a small set of nested resources:
+
+```
+agent
+ ├── branch                 # isolated working copy
+ │    ├── behavior          # system prompt and interaction rules
+ │    ├── knowledge-base    # topics and RAG
+ │    ├── attributes        # variant dimensions
+ │    └── variants          # site-specific overrides
+ ├── deployment             # published version per environment
+ ├── telephony
+ │    ├── connector         # voice-infra binding
+ │    └── phone-number      # E.164 number routed to a connector
+ └── real-time-config       # runtime values editable without publishing
+```
+
+Everything except deployments, telephony, and real-time configs is scoped to a **branch**. The default branch is `main`; create additional branches for parallel development and merge them back.
+
+## Base URL
+
+The Agents API uses the same regional base URL family as [Alerts](/api-reference/alerts/introduction) and [Webhooks](/api-reference/webhooks/introduction):
+
+| Region | Base URL                 |
+| ------ | ------------------------ |
+| US     | `https://api.us.poly.ai` |
+| UK     | `https://api.uk.poly.ai` |
+| EU     | `https://api.eu.poly.ai` |
+
+All Agents API paths are prefixed with `/v1/agents`.
+
+<Warning>
+Do not use `https://api.poly.ai` without a region prefix — it returns an error. Always include the region.
+</Warning>
+
+## Authentication
+
+All endpoints authenticate with an API key sent in the `x-api-key` header. Keys are scoped to a workspace.
+
+```bash
+curl https://api.us.poly.ai/v1/agents \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+<Note>
+API keys for the Agents API are not yet available through self-service. Email [developers@poly.ai](mailto:developers@poly.ai) to request access.
+</Note>
+
+## Quick start
+
+### 1. Create an agent
+
+```bash
+curl -X POST https://api.us.poly.ai/v1/agents \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Support Agent",
+    "description": "Handles Tier 1 support for the US market"
+  }'
+```
+
+The response includes an `agentId` and a default `main` branch.
+
+### 2. Update the agent's behavior
+
+```bash
+curl -X PATCH https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/behavior \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "behavior": "You are a friendly, concise support agent..."
+  }'
+```
+
+### 3. Add a knowledge base topic
+
+```bash
+curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/knowledge-base/topics \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Password reset",
+    "content": "Users can reset their password by..."
+  }'
+```
+
+### 4. Publish to sandbox
+
+```bash
+curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/deployments/publish \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "environment": "sandbox" }'
+```
+
+### 5. Promote to pre-release, then live
+
+```bash
+curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/deployments/DEPLOYMENT_ID/promote \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+## Environments
+
+Deployments run in one of three environments:
+
+| Environment   | Purpose                                                   |
+| ------------- | --------------------------------------------------------- |
+| `sandbox`     | Safe space for testing without affecting production calls |
+| `pre-release` | Staging for final validation before going live            |
+| `live`        | Production — serves real customer traffic                 |
+
+Use `publish` to push a draft into `sandbox`, then `promote` to move through `pre-release` and `live`. Use `rollback` to revert a deployment. See [Environments and versions](/environments-and-versions/introduction) for the full model.
+
+## Branches
+
+Branches are isolated working copies of an agent. Create a branch for any non-trivial change:
+
+```bash
+curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "name": "experiment-new-greeting" }'
+```
+
+Merge back to `main` when you're ready:
+
+```bash
+curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/BRANCH_ID/merge \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+## Real-time configs
+
+Real-time configs let you change runtime values (opening hours, seasonal messaging, holiday flags) without a publish cycle. Updates take effect immediately.
+
+Define a JSON Schema for a config page, then PATCH variables against it:
+
+```bash
+curl -X PATCH https://api.us.poly.ai/v1/agents/AGENT_ID/real-time-configs/live/variables \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "variables": { "open_hour": 8, "close_hour": 22 } }'
+```
+
+## Variants
+
+Variants let you run one agent across many sites — hotel chains, restaurant groups, franchises — with site-specific values (phone number, address, hours). Define attributes (dimensions), then create variants (combinations).
+
+See [Variant management](/variant-management/introduction) for the conceptual model.
+
+## Error responses
+
+| Status | Description                                            |
+| ------ | ------------------------------------------------------ |
+| 400    | Validation error - check request body or parameters    |
+| 401    | Missing or invalid API key                             |
+| 403    | API key lacks permission for the workspace or resource |
+| 404    | Resource not found                                     |
+| 409    | Conflict - e.g. merging a branch with diverged state   |
+| 422    | Malformed ID or schema validation error                |
+| 500    | Internal server error                                  |
+
+### Example error response
+
+```json
+{
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "name",
+      "message": "must be between 1 and 128 characters"
+    }
+  ]
+}
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Environments and versions" icon="rocket" href="/environments-and-versions/introduction">
+    How sandbox, pre-release, and live environments fit together.
+  </Card>
+  <Card title="Variant management" icon="sitemap" href="/variant-management/introduction">
+    Run one agent across many sites with attribute-driven variants.
+  </Card>
+  <Card title="Telephony" icon="phone" href="/telephony/introduction">
+    Provision phone numbers and route them to connectors.
+  </Card>
+  <Card title="Managed topics" icon="book" href="/managed-topics/introduction">
+    How knowledge base topics power retrieval and actions.
+  </Card>
+</CardGroup>

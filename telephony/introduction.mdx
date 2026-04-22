@@ -58,9 +58,52 @@ Agent-initiated calls for reminders, follow-ups, and notifications.
 
 </div>
 
+## Automate with the Agents API
+
+Telephony plumbing is scriptable too — helpful for bulk provisioning and for reshaping routing as part of a broader deployment.
+
+<AccordionGroup>
+  <Accordion title="Provision numbers and connectors via the Agents API" icon="code">
+    Connectors bind phone numbers to voice infrastructure; phone numbers are E.164 strings routed through a connector. The [Agents API](/api-reference/agents/introduction) has CRUD for both.
+
+    <CodeGroup>
+    ```bash curl
+    # Import a phone number onto an existing connector
+    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/telephony/phone-numbers/+442071234567 \
+      -H "x-api-key: $POLYAI_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{ "connectorId": "conn_abc123" }'
+
+    # Reassign a number to a different connector
+    curl -X PATCH https://api.us.poly.ai/v1/agents/AGENT_ID/telephony/phone-numbers/+442071234567 \
+      -H "x-api-key: $POLYAI_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{ "connectorId": "conn_new456" }'
+    ```
+
+    ```python Python
+    import os, requests
+
+    BASE = "https://api.us.poly.ai"
+    HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
+
+    # Look up which connector serves a given number
+    resp = requests.post(
+        f"{BASE}/v1/agents/{AGENT_ID}/telephony/connectors/lookup",
+        headers=HEADERS,
+        json={"phoneNumber": "+442071234567"},
+    )
+    connector = resp.json()
+    ```
+    </CodeGroup>
+
+    See [Connectors](/api-reference/agents/endpoint/connectors/list-all-connectors-for-a-project) and [Phone numbers](/api-reference/agents/endpoint/phone-numbers/list-all-phone-numbers-for-a-project) for the full endpoint list.
+  </Accordion>
+</AccordionGroup>
+
 ## Related pages
 
-<CardGroup cols={3}>
+<CardGroup cols={2}>
   <Card title="Route management" icon="route" href="/telephony/route-management">
     Configure how calls are routed to your agent
   </Card>
@@ -69,6 +112,9 @@ Agent-initiated calls for reminders, follow-ups, and notifications.
   </Card>
   <Card title="SMS" icon="message" href="/sms/introduction">
     Send text messages during voice conversations
+  </Card>
+  <Card title="Phone number endpoints" icon="square-terminal" href="/api-reference/agents/endpoint/phone-numbers/list-all-phone-numbers-for-a-project">
+    Import and reassign numbers via the Agents API.
   </Card>
 </CardGroup>
 

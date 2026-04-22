@@ -251,9 +251,54 @@ Not every topic needs to be available all the time. You can temporarily **deacti
 
 This is useful for seasonal articles, phased rollouts, A/B tests, or hiding content that is not ready for production.
 
+## Automate with the Agents API
+
+If you already have a knowledge base somewhere else — a help center, CMS, or intents list — you can create and sync topics programmatically instead of clicking through the UI.
+
+<AccordionGroup>
+  <Accordion title="Seed or sync topics via the Agents API" icon="code">
+    The [Agents API](/api-reference/agents/introduction) has full CRUD for knowledge base topics. This is especially handy for the initial migration or for scheduled syncs from an external source.
+
+    <CodeGroup>
+    ```bash curl
+    # Create a knowledge base topic on the main branch
+    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/knowledge-base/topics \
+      -H "x-api-key: $POLYAI_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "Password reset",
+        "sampleQuestions": ["How do I reset my password?", "I forgot my password"],
+        "content": "To reset your password, visit the account portal..."
+      }'
+    ```
+
+    ```python Python
+    import os, requests
+
+    BASE = "https://api.us.poly.ai"
+    HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
+
+    # Sync all FAQ entries from your CMS into PolyAI topics
+    for faq in cms.list_faqs():
+        requests.post(
+            f"{BASE}/v1/agents/{AGENT_ID}/branches/main/knowledge-base/topics",
+            headers=HEADERS,
+            json={
+                "name": faq["title"],
+                "sampleQuestions": faq["variants"],
+                "content": faq["answer"],
+            },
+        )
+    ```
+    </CodeGroup>
+
+    See [Knowledge base endpoints](/api-reference/agents/endpoint/knowledge-base/list-knowledge-base-topics-for-a-project) for the full list.
+  </Accordion>
+</AccordionGroup>
+
 ## Resources
 
-<CardGroup cols={3}>
+<CardGroup cols={2}>
   <Card title="Actions guide" icon="bolt" href="/managed-topics/how-to-setup-action/introduction">
     Add tool calls, handoffs, and SMS triggers to topics.
   </Card>
@@ -262,5 +307,8 @@ This is useful for seasonal articles, phased rollouts, A/B tests, or hiding cont
   </Card>
   <Card title="Maintenance guide" icon="wrench" href="/learn/maintain/knowledge-base">
     Keep topics accurate and up to date over time.
+  </Card>
+  <Card title="Knowledge base endpoints" icon="square-terminal" href="/api-reference/agents/endpoint/knowledge-base/list-knowledge-base-topics-for-a-project">
+    Create and sync topics via the Agents API.
   </Card>
 </CardGroup>
