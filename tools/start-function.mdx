@@ -209,6 +209,8 @@ See [return values](/tools/return-values) for the full list of supported return 
   <Accordion title="Multi-site variant routing">
     The most common advanced use of the start function is routing to a [variant](/variant-management/introduction) based on the dialled number, SIP headers, or other metadata. This is how multi-site agents (hotels, restaurant chains, retail) determine which location's content to use.
 
+    **Hardcoded map** – use when the number-to-variant mapping is small and static:
+
     ```python
     def start_function(conv: Conversation):
         phone_numbers = {
@@ -218,6 +220,21 @@ See [return values](/tools/return-values) for the full list of supported return 
         conv.set_variant(phone_numbers.get(conv.callee_number, "default"))
         return str()
     ```
+
+    **Dynamic lookup from variant attributes** – use when you store the phone number (or any routing key) as an attribute in the variant table. For example, if your variant table has a `callee` column containing each variant's phone number:
+
+    ```python
+    def start_function(conv: Conversation):
+        callee_map = {
+            variant.callee: variant_name
+            for variant_name, variant in conv.variants.items()
+        }
+        if conv.callee_number and conv.callee_number in callee_map:
+            conv.set_variant(callee_map[conv.callee_number])
+        return str()
+    ```
+
+    Replace `variant.callee` with whatever attribute name you defined in **Build > Variant management** (e.g., `variant.phone_number`, `variant.routing_id`).
 
     **Full article:** [Variant management](/variant-management/introduction)
   </Accordion>
