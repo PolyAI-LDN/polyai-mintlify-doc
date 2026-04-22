@@ -16,6 +16,43 @@ Managed Topics define what your agent knows and how it responds. Each topic has 
 
 Managed Topics are found under **Build > Knowledge > Managed Topics tab**.
 
+<Info>
+**Seeding topics from an existing knowledge base?** The [Agents API](/api-reference/agents/introduction) exposes CRUD for knowledge base topics, so you can bulk-create, update, or sync from an external CMS.
+
+<CodeGroup>
+```bash curl
+# Create a knowledge base topic on the main branch
+curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/knowledge-base/topics \
+  -H "x-api-key: $POLYAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Password reset",
+    "sampleQuestions": ["How do I reset my password?", "I forgot my password"],
+    "content": "To reset your password, visit the account portal..."
+  }'
+```
+
+```python Python
+import os, requests
+
+BASE = "https://api.us.poly.ai"
+HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
+
+# Sync all FAQ entries from your CMS into PolyAI topics
+for faq in cms.list_faqs():
+    requests.post(
+        f"{BASE}/v1/agents/{AGENT_ID}/branches/main/knowledge-base/topics",
+        headers=HEADERS,
+        json={
+            "name": faq["title"],
+            "sampleQuestions": faq["variants"],
+            "content": faq["answer"],
+        },
+    )
+```
+</CodeGroup>
+</Info>
+
 <Note>
 **Use Managed Topics when** you need precise control over what the agent says, or when the answer should trigger an action (SMS, handoff, tool call). **Use [Connected Knowledge](/connected-knowledge/introduction) instead** when you want to expose large volumes of external content (help articles, PDFs, FAQs) without curating individual topics.
 </Note>

@@ -24,6 +24,41 @@ Connect phone numbers to your agent. Manage in **Configure > Numbers**.
 You can also connect through other contact center platforms like [Genesys](/integrations/voice/sip/genesys), [Five9](/integrations/voice/sip/five9), or [NICE CXone](/integrations/voice/sip/NICECXone) with SIP. See [Integrations](/integrations/introduction) for the full list.
 </Note>
 
+<Info>
+**Provisioning numbers at scale?** The [Agents API](/api-reference/agents/introduction) covers phone numbers and connectors. Connectors bind phone numbers to voice infrastructure; phone numbers are E.164 strings routed through a connector. See [Connectors](/api-reference/agents/endpoint/connectors/list-all-connectors-for-a-project) and [Phone numbers](/api-reference/agents/endpoint/phone-numbers/list-all-phone-numbers-for-a-project).
+
+<CodeGroup>
+```bash curl
+# Import a phone number onto an existing connector
+curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/telephony/phone-numbers/+442071234567 \
+  -H "x-api-key: $POLYAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "connectorId": "conn_abc123" }'
+
+# Reassign a number to a different connector (e.g. to move to a new variant)
+curl -X PATCH https://api.us.poly.ai/v1/agents/AGENT_ID/telephony/phone-numbers/+442071234567 \
+  -H "x-api-key: $POLYAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "connectorId": "conn_new456" }'
+```
+
+```python Python
+import os, requests
+
+BASE = "https://api.us.poly.ai"
+HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
+
+# Look up which connector serves a given number
+resp = requests.post(
+    f"{BASE}/v1/agents/{AGENT_ID}/telephony/connectors/lookup",
+    headers=HEADERS,
+    json={"phoneNumber": "+442071234567"},
+)
+connector = resp.json()
+```
+</CodeGroup>
+</Info>
+
 ## Integration options
 
 <CardGroup cols={2}>

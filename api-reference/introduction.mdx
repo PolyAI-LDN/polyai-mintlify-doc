@@ -1,15 +1,39 @@
 ---
 title: 'Getting started'
-description: 'Regional API endpoints, authentication with API keys, and Conversations API versioning.'
+description: 'The three PolyAI API families, regional base URLs, authentication with API keys, and Conversations API versioning.'
 ---
 
-Set up your API integration with PolyAI. Learn about regional endpoints, API key authentication, and which API version to use for each integration.
+Set up your API integration with PolyAI. Learn which API family to use, how to authenticate, and which version to pick for each integration.
+
+## API families at a glance
+
+PolyAI exposes three distinct API families, each with its own base URL pattern, auth model, and audience.
+
+| Family | What it's for | Base URL pattern | Examples |
+| ------ | ------------- | ---------------- | -------- |
+| **Build & deploy** | Programmatically build, configure, and ship agents | `api.{region}.poly.ai/v1/agents/…` | [Agents API](/api-reference/agents/introduction) |
+| **Runtime & data** | Runtime interaction with an agent and post-call data | `api.{region}.platform.polyai.app/{version}/…` | [Chat](/api-reference/chat/introduction), [Conversations](/api-reference/conversations/introduction), [Handoff](/api-reference/handoff/introduction), [Concurrent Calls](/api-reference/concurrent-calls/introduction), [DNI](/api-reference/dni/introduction), [External Events](/api-reference/external-events/introduction), [Outbound Calling](/api-reference/outbound/introduction) |
+| **Monitoring** | Observe, alert on, and receive events from running agents | `api.{region}.poly.ai/v1/…` | [Alerts](/api-reference/alerts/introduction), [Webhooks](/api-reference/webhooks/introduction) |
+
+The **build & deploy** and **monitoring** families share the `poly.ai` host. The **runtime & data** family lives on `platform.polyai.app`. They are separate services with separate API keys.
+
+### Agents API vs Conversations API
+
+The two are frequently confused. Use this table to pick the right one:
+
+|                | Agents API                          | Conversations API                         |
+| -------------- | ----------------------------------- | ----------------------------------------- |
+| **Purpose**    | Build and deploy agents             | Read call data and transcripts            |
+| **Direction**  | Write (create, update, deploy)      | Read (query, retrieve)                    |
+| **Base URL**   | `api.{region}.poly.ai/v1/agents/…`  | `api.{region}.platform.polyai.app/v3/…`   |
+| **Auth**       | API key (workspace-scoped)          | API key (project-scoped)                  |
+| **Who uses it**| Developers automating agent builds  | Analysts, integrations pulling call data  |
+
+In short: **Agents API creates and ships agents. Conversations API tells you what those agents did on calls.**
 
 ## Base URLs
 
-PolyAI exposes two distinct base URL patterns depending on which API you are using.
-
-### Data and conversations APIs (regional)
+### Runtime and data APIs (regional)
 
 The Conversations, Chat, Handoff, Concurrent Calls, DNI, External Events, and Outbound Calling APIs use regional base URLs:
 
@@ -23,9 +47,9 @@ Most endpoints follow this pattern:
 
 `https://api.{region}.platform.polyai.app/{version}/{account_id}/{project_id}/…`
 
-### Agent Studio APIs
+### Agents API, Alerts, and Webhooks
 
-The Alerts and Webhooks APIs use a separate set of regional base URLs:
+The [Agents API](/api-reference/agents/introduction), [Alerts API](/api-reference/alerts/introduction), and [Webhooks API](/api-reference/webhooks/introduction) use a separate set of regional base URLs:
 
 | Region | Base URL |
 | ------ | -------- |
@@ -33,9 +57,10 @@ The Alerts and Webhooks APIs use a separate set of regional base URLs:
 | UK     | `https://api.uk.poly.ai` |
 | EU     | `https://api.eu.poly.ai` |
 
-Endpoints follow this pattern:
+Endpoint patterns:
 
-`https://api.{region}.poly.ai/v1/…`
+- Agents API: `https://api.{region}.poly.ai/v1/agents/…`
+- Alerts, Webhooks: `https://api.{region}.poly.ai/v1/…`
 
 <Warning>
 Do not use `https://api.poly.ai` without a region prefix – it will return an error. Always include the region (e.g. `api.us.poly.ai`).

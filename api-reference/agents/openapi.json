@@ -1,0 +1,2924 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "PolyAI Agents API",
+    "version": "1.0.3",
+    "description": "Build and deploy PolyAI agents programmatically. Create agents, manage branches, update behavior rules, configure knowledge bases, provision telephony, publish deployments, and update real-time configs."
+  },
+  "servers": [
+    {
+      "url": "https://api.us.poly.ai",
+      "description": "US region"
+    },
+    {
+      "url": "https://api.uk.poly.ai",
+      "description": "UK region"
+    },
+    {
+      "url": "https://api.eu.poly.ai",
+      "description": "EU region"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key"
+      }
+    },
+    "schemas": {
+      "ActiveDeploymentsResponse": {
+        "description": "The latest deployment for each environment (sandbox, pre-release,\nlive). Entries are null when no deployment exists for an environment.",
+        "type": "object",
+        "properties": {
+          "activeDeployments": {
+            "description": "Latest deployment per environment (sandbox, pre-release, live). Value is null if no deployment exists for that environment.",
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DeploymentResponse"
+            }
+          }
+        },
+        "required": [
+          "activeDeployments"
+        ]
+      },
+      "AgentRulesResponse": {
+        "type": "object",
+        "properties": {
+          "behavior": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "behavior"
+        ],
+        "additionalProperties": false,
+        "title": "AgentRulesResponse"
+      },
+      "AttributeResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false,
+        "title": "AttributeResponse"
+      },
+      "BatchGetConnectorsBody": {
+        "description": "Set of connector IDs to retrieve in a single call.",
+        "type": "object",
+        "properties": {
+          "connectorIds": {
+            "description": "List of connector IDs to retrieve",
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "connectorIds"
+        ]
+      },
+      "BatchGetConnectorsResponse": {
+        "description": "Result of a batch connector lookup, partitioned into connectors that\nwere found and IDs that weren't.",
+        "type": "object",
+        "properties": {
+          "found": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorResponse"
+            }
+          },
+          "notFound": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "found",
+          "notFound"
+        ]
+      },
+      "BatchGetPhoneNumbersBody": {
+        "description": "Set of E.164 phone numbers to retrieve in a single call.",
+        "type": "object",
+        "properties": {
+          "phoneNumbers": {
+            "description": "List of phone numbers to retrieve",
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "phoneNumbers"
+        ]
+      },
+      "BatchGetPhoneNumbersResponse": {
+        "description": "Result of a batch phone-number lookup, partitioned into numbers that\nwere found and numbers that weren't.",
+        "type": "object",
+        "properties": {
+          "found": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PhoneNumberResponse"
+            }
+          },
+          "notFound": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "found",
+          "notFound"
+        ]
+      },
+      "BatchUpdateConnectorItem": {
+        "description": "A single connector update within a batch update request.",
+        "type": "object",
+        "properties": {
+          "connectorId": {
+            "description": "Connector ID to update",
+            "type": "string"
+          },
+          "variantId": {
+            "description": "Variant ID to assign, or null to unassign",
+            "type": "string"
+          },
+          "asrLangCode": {
+            "description": "ASR language code",
+            "type": "string"
+          },
+          "voiceName": {
+            "description": "Google TTS voice name",
+            "type": "string"
+          },
+          "projectId": {
+            "description": "Move connector to a different project",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connectorId"
+        ]
+      },
+      "BatchUpdateConnectorsBody": {
+        "description": "Ordered list of connector updates.\n\nEach update is applied independently \u2014 partial success is possible.",
+        "type": "object",
+        "properties": {
+          "updates": {
+            "description": "List of connector updates",
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BatchUpdateConnectorItem"
+            }
+          }
+        },
+        "required": [
+          "updates"
+        ]
+      },
+      "BatchUpdateConnectorsResponse": {
+        "description": "Per-connector results from a batch update.\n\nEach entry reports success or failure independently.",
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BatchUpdateResultItem"
+            }
+          }
+        },
+        "required": [
+          "results"
+        ]
+      },
+      "BatchUpdateResultItem": {
+        "description": "Result of a single connector update within a batch.",
+        "type": "object",
+        "properties": {
+          "connectorId": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "description": "Updated connector (present when success=True)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorResponse"
+              }
+            ]
+          },
+          "error": {
+            "description": "Error message (present when success=False)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connectorId",
+          "success"
+        ]
+      },
+      "ConfigPageResponse": {
+        "description": "A real-time config page for one environment: its JSON Schema\ndefinition plus the current variable values.",
+        "type": "object",
+        "properties": {
+          "clientEnv": {
+            "description": "Environment (sandbox, pre-release, live)",
+            "type": "string"
+          },
+          "variables": {
+            "description": "Config key-value pairs",
+            "type": "object"
+          },
+          "schema": {
+            "description": "JSON Schema (Draft 7) definition",
+            "type": "object"
+          },
+          "lastUpdated": {
+            "description": "ISO 8601 timestamp of last update",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clientEnv"
+        ]
+      },
+      "ConnectorResponse": {
+        "description": "A connector: the voice, language, variant, and environment bundle\nthat handles incoming calls. Multiple phone numbers can share one\nconnector.",
+        "type": "object",
+        "properties": {
+          "connectorId": {
+            "description": "Unique connector identifier",
+            "type": "string"
+          },
+          "name": {
+            "description": "Connector display name",
+            "type": "string"
+          },
+          "accountId": {
+            "description": "Account this connector belongs to",
+            "type": "string"
+          },
+          "projectId": {
+            "description": "Project this connector belongs to",
+            "type": "string"
+          },
+          "clientEnv": {
+            "description": "Client environment (sandbox, pre-release, live)",
+            "type": "string"
+          },
+          "variantId": {
+            "description": "Assigned variant ID (empty string if unassigned)",
+            "type": "string"
+          },
+          "asrLangCode": {
+            "description": "ASR language code (e.g. en-US)",
+            "type": "string"
+          },
+          "ttsLangCode": {
+            "description": "TTS language code (e.g. en-US)",
+            "type": "string"
+          },
+          "voiceName": {
+            "description": "Google TTS voice name (e.g. en-US-Neural2-A)",
+            "type": "string"
+          },
+          "disableHandoff": {
+            "description": "Whether call handoff is disabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "connectorId",
+          "name",
+          "accountId",
+          "projectId",
+          "clientEnv",
+          "variantId",
+          "asrLangCode",
+          "ttsLangCode",
+          "voiceName",
+          "disableHandoff"
+        ]
+      },
+      "CreateAgentBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "agentId": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9-]+$"
+          },
+          "responseSettings": {
+            "type": "object",
+            "properties": {
+              "greeting": {
+                "type": "string",
+                "minLength": 1
+              },
+              "languageCode": {
+                "type": "string",
+                "minLength": 1,
+                "default": "en-GB"
+              }
+            },
+            "required": [
+              "greeting"
+            ],
+            "additionalProperties": false
+          },
+          "voiceSettings": {
+            "type": "object",
+            "properties": {
+              "voiceId": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "voiceId"
+            ],
+            "additionalProperties": false
+          },
+          "llmSettings": {
+            "type": "object",
+            "properties": {
+              "modelId": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "experimentalConfig": {
+            "type": "object",
+            "properties": {
+              "configs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "features": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "createdBy": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "updatedBy": {
+                      "type": "string"
+                    },
+                    "active": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "features",
+                    "createdAt",
+                    "createdBy",
+                    "updatedAt",
+                    "updatedBy",
+                    "active"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "configs"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "name",
+          "responseSettings",
+          "voiceSettings"
+        ],
+        "additionalProperties": false,
+        "title": "CreateAgentBody"
+      },
+      "CreateAgentResponse": {
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string"
+          },
+          "agentId": {
+            "type": "string"
+          },
+          "agentName": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "branchCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "accountId",
+          "agentId",
+          "agentName",
+          "createdAt",
+          "updatedAt",
+          "branchCount"
+        ],
+        "additionalProperties": false,
+        "title": "CreateAgentResponse"
+      },
+      "CreateAttributeBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false,
+        "title": "CreateAttributeBody"
+      },
+      "CreateBranchBody": {
+        "type": "object",
+        "properties": {
+          "branchName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "branchName"
+        ],
+        "additionalProperties": false,
+        "title": "CreateBranchBody"
+      },
+      "CreateKnowledgeBaseTopicBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1
+          },
+          "actions": {
+            "type": "string"
+          },
+          "exampleQueries": {
+            "type": "object",
+            "properties": {
+              "queries": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 100
+              }
+            },
+            "required": [
+              "queries"
+            ],
+            "additionalProperties": false
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "content"
+        ],
+        "additionalProperties": false,
+        "title": "CreateKnowledgeBaseTopicBody"
+      },
+      "CreateVariantBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "attributeValues": {
+            "type": "object",
+            "properties": {
+              "values": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "default": {}
+              }
+            },
+            "additionalProperties": false,
+            "default": {
+              "values": {}
+            }
+          },
+          "isDefault": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false,
+        "title": "CreateVariantBody"
+      },
+      "DeleteConnectorResponse": {
+        "description": "Summary of a connector deletion, including every phone number that\nwas released by the cascade.",
+        "type": "object",
+        "properties": {
+          "deletedConnector": {
+            "description": "ID of the deleted connector",
+            "type": "string"
+          },
+          "deletedPhoneNumbers": {
+            "description": "Phone numbers that were associated with the connector",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "deletedConnector",
+          "deletedPhoneNumbers"
+        ]
+      },
+      "DeletePhoneNumberErrorItem": {
+        "description": "An error encountered while deleting a phone number in a batch.",
+        "type": "object",
+        "properties": {
+          "phoneNumber": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "phoneNumber",
+          "error"
+        ]
+      },
+      "DeletePhoneNumberResponse": {
+        "description": "The phone number that was released.",
+        "type": "object",
+        "properties": {
+          "deleted": {
+            "description": "The deleted phone number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "deleted"
+        ]
+      },
+      "DeletePhoneNumbersBody": {
+        "description": "Phone numbers to release in a single call.\n\nReleases are processed independently; see the response for per-number results.",
+        "type": "object",
+        "properties": {
+          "phoneNumbers": {
+            "description": "List of phone numbers to delete",
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "phoneNumbers"
+        ]
+      },
+      "DeletePhoneNumbersResponse": {
+        "description": "Per-number results of a batch release \u2014 phone numbers that were\nsuccessfully released, plus any that couldn't be and why.",
+        "type": "object",
+        "properties": {
+          "deleted": {
+            "description": "Successfully deleted phone numbers",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "errors": {
+            "description": "Per-number errors (omitted when empty)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeletePhoneNumberErrorItem"
+            }
+          }
+        },
+        "required": [
+          "deleted"
+        ]
+      },
+      "DeploymentResponse": {
+        "description": "A deployment of an agent version to a specific environment, plus\nwho created it and when.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Unique deployment identifier",
+            "type": "string"
+          },
+          "accountId": {
+            "description": "Account this deployment belongs to",
+            "type": "string"
+          },
+          "agentId": {
+            "description": "Agent (project) this deployment belongs to",
+            "type": "string"
+          },
+          "environment": {
+            "description": "Environment (sandbox, pre-release, live)",
+            "type": "string"
+          },
+          "artifactVersion": {
+            "description": "Artifact version reference",
+            "type": "string"
+          },
+          "version": {
+            "description": "Version hash linking deployments across environments",
+            "type": "string"
+          },
+          "createdBy": {
+            "description": "Email of user who created the deployment",
+            "type": "string"
+          },
+          "createdAt": {
+            "description": "ISO 8601 timestamp of when the deployment was created",
+            "type": "string"
+          },
+          "metadata": {
+            "description": "Deployment metadata (e.g. deployment_message)",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "accountId",
+          "agentId",
+          "environment",
+          "artifactVersion",
+          "version",
+          "createdBy",
+          "createdAt"
+        ]
+      },
+      "DuplicateAgentBody": {
+        "type": "object",
+        "properties": {
+          "newAgentId": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9-]+$"
+          },
+          "newAgentName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "newAgentName"
+        ],
+        "additionalProperties": false,
+        "title": "DuplicateAgentBody"
+      },
+      "GetAgentsResponse": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "accountId": {
+              "type": "string"
+            },
+            "agentId": {
+              "type": "string"
+            },
+            "agentName": {
+              "type": "string"
+            },
+            "createdAt": {
+              "type": "string"
+            },
+            "updatedAt": {
+              "type": "string"
+            },
+            "branchCount": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "accountId",
+            "agentId",
+            "agentName",
+            "createdAt",
+            "updatedAt",
+            "branchCount"
+          ],
+          "additionalProperties": false
+        },
+        "title": "GetAgentsResponse"
+      },
+      "GetAttributesResponse": {
+        "type": "object",
+        "properties": {
+          "attributes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "attributes"
+        ],
+        "additionalProperties": false,
+        "title": "GetAttributesResponse"
+      },
+      "GetConfigPageResponse": {
+        "description": "A single config page for one environment.",
+        "type": "object",
+        "properties": {
+          "clientEnv": {
+            "description": "Environment (sandbox, pre-release, live)",
+            "type": "string"
+          },
+          "variables": {
+            "description": "Config key-value pairs",
+            "type": "object"
+          },
+          "schema": {
+            "description": "JSON Schema (Draft 7) definition",
+            "type": "object"
+          },
+          "lastUpdated": {
+            "description": "ISO 8601 timestamp of last update",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clientEnv"
+        ]
+      },
+      "GetConfigPagesResponse": {
+        "description": "One config page per environment (sandbox, pre-release, live).",
+        "type": "object",
+        "properties": {
+          "configPages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfigPageResponse"
+            }
+          }
+        },
+        "required": [
+          "configPages"
+        ]
+      },
+      "GetConnectorsResponse": {
+        "description": "Every connector in the project.",
+        "type": "object",
+        "properties": {
+          "connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorResponse"
+            }
+          }
+        },
+        "required": [
+          "connectors"
+        ]
+      },
+      "GetDeploymentsResponse": {
+        "description": "Deployments for the requested environment, ordered newest first.",
+        "type": "object",
+        "properties": {
+          "deployments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeploymentResponse"
+            }
+          }
+        },
+        "required": [
+          "deployments"
+        ]
+      },
+      "GetPhoneNumbersResponse": {
+        "description": "Every phone number in the project, optionally filtered by connector.",
+        "type": "object",
+        "properties": {
+          "phoneNumbers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PhoneNumberResponse"
+            }
+          }
+        },
+        "required": [
+          "phoneNumbers"
+        ]
+      },
+      "GetVariantsResponse": {
+        "type": "object",
+        "properties": {
+          "variants": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "isDefault": {
+                  "type": "boolean"
+                },
+                "attributeValues": {
+                  "type": "object",
+                  "properties": {
+                    "values": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "values"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "isDefault",
+                "attributeValues"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "variants"
+        ],
+        "additionalProperties": false,
+        "title": "GetVariantsResponse"
+      },
+      "ImportPhoneNumberBody": {
+        "description": "Import settings for a single phone number, including which environment it routes to.",
+        "type": "object",
+        "properties": {
+          "clientEnv": {
+            "description": "Client environment (sandbox, pre-release, live)",
+            "default": "live",
+            "type": "string"
+          }
+        }
+      },
+      "ImportPhoneNumberResponse": {
+        "description": "The phone number that was imported.",
+        "type": "object",
+        "properties": {
+          "imported": {
+            "description": "The imported phone number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "imported"
+        ]
+      },
+      "ImportPhoneNumbersBody": {
+        "description": "A batch of phone numbers to import, all sharing the same environment assignment.",
+        "type": "object",
+        "properties": {
+          "phoneNumbers": {
+            "description": "List of phone numbers to import",
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "clientEnv": {
+            "description": "Client environment (sandbox, pre-release, live)",
+            "default": "live",
+            "type": "string"
+          }
+        },
+        "required": [
+          "phoneNumbers"
+        ]
+      },
+      "ImportPhoneNumbersResponse": {
+        "description": "The set of phone numbers that were imported.",
+        "type": "object",
+        "properties": {
+          "imported": {
+            "description": "List of successfully imported phone numbers",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "imported"
+        ]
+      },
+      "LookupConnectorBody": {
+        "description": "Lookup payload for finding the connector that serves a given E.164 phone number.",
+        "type": "object",
+        "properties": {
+          "phoneNumber": {
+            "description": "Phone number to look up (E.164 format)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "phoneNumber"
+        ]
+      },
+      "MergeBranchBody": {
+        "type": "object",
+        "properties": {
+          "deploymentMessage": {
+            "type": "string",
+            "default": ""
+          },
+          "conflictResolutions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "strategy": {
+                  "type": "string",
+                  "enum": [
+                    "ours",
+                    "theirs",
+                    "base"
+                  ]
+                },
+                "value": {}
+              },
+              "required": [
+                "path",
+                "strategy"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false,
+        "title": "MergeBranchBody"
+      },
+      "MutationDeploymentResponse": {
+        "description": "The resulting deployment from a promote / rollback / publish action,\nplus any test runs it triggered.",
+        "type": "object",
+        "properties": {
+          "deployment": {
+            "$ref": "#/components/schemas/DeploymentResponse"
+          },
+          "testRunIds": {
+            "description": "IDs of test runs triggered by this deployment action",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "deployment"
+        ]
+      },
+      "PhoneNumberResponse": {
+        "description": "A phone number owned by the project, plus the connector it routes incoming calls to.",
+        "type": "object",
+        "properties": {
+          "number": {
+            "description": "Phone number in E.164 format",
+            "type": "string"
+          },
+          "projectId": {
+            "description": "Project this number belongs to",
+            "type": "string"
+          },
+          "accountId": {
+            "description": "Account this number belongs to",
+            "type": "string"
+          },
+          "clientEnv": {
+            "description": "Client environment (sandbox, pre-release, live)",
+            "type": "string"
+          },
+          "connectorId": {
+            "description": "Connector this number is routed to",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "projectId",
+          "accountId",
+          "clientEnv"
+        ]
+      },
+      "PromoteDeploymentBody": {
+        "description": "Metadata attached to a promote action: an optional message and an\nexplicit target environment override.",
+        "type": "object",
+        "properties": {
+          "deploymentMessage": {
+            "description": "Message describing this promotion",
+            "default": "",
+            "type": "string"
+          },
+          "targetEnvironment": {
+            "description": "Target environment to promote to. If omitted, promotes to the next environment in sequence (sandbox->pre-release->live).",
+            "type": "string"
+          }
+        }
+      },
+      "PublishDeploymentBody": {
+        "description": "Metadata attached to a publish action, with an optional target environment.",
+        "type": "object",
+        "properties": {
+          "deploymentMessage": {
+            "description": "Message describing this publish",
+            "default": "",
+            "type": "string"
+          },
+          "environment": {
+            "description": "Environment to publish to (defaults to sandbox)",
+            "type": "string"
+          }
+        }
+      },
+      "ReassignPhoneNumberBody": {
+        "description": "Target connector for reassigning a phone number.",
+        "type": "object",
+        "properties": {
+          "connectorId": {
+            "description": "Target connector ID to reassign the phone number to",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connectorId"
+        ]
+      },
+      "RollbackDeploymentBody": {
+        "description": "Metadata attached to a rollback action.",
+        "type": "object",
+        "properties": {
+          "deploymentMessage": {
+            "description": "Message describing this rollback",
+            "default": "",
+            "type": "string"
+          }
+        }
+      },
+      "UpdateAgentRulesBody": {
+        "type": "object",
+        "properties": {
+          "behavior": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "behavior"
+        ],
+        "additionalProperties": false,
+        "title": "UpdateAgentRulesBody"
+      },
+      "UpdateAttributeBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false,
+        "title": "UpdateAttributeBody"
+      },
+      "UpdateConfigSchemaBody": {
+        "description": "The JSON Schema definition to apply to a config page.",
+        "type": "object",
+        "properties": {
+          "schema": {
+            "description": "JSON Schema (Draft 7) definition",
+            "type": "object"
+          }
+        },
+        "required": [
+          "schema"
+        ]
+      },
+      "UpdateConfigVariablesBody": {
+        "description": "Variables to shallow-merge into an environment's config page.",
+        "type": "object",
+        "properties": {
+          "variables": {
+            "description": "Key-value pairs to merge into the existing config",
+            "type": "object"
+          }
+        },
+        "required": [
+          "variables"
+        ]
+      },
+      "UpdateConnectorBody": {
+        "description": "Partial update to a connector.\n\nOnly fields present in the request body are changed; absent fields are\nleft alone. Pass ``null`` to clear a value explicitly.",
+        "type": "object",
+        "properties": {
+          "variantId": {
+            "description": "Variant ID to assign, or null to unassign",
+            "type": "string"
+          },
+          "asrLangCode": {
+            "description": "ASR language code (e.g. en-US)",
+            "type": "string"
+          },
+          "voiceName": {
+            "description": "Google TTS voice name (e.g. en-US-Neural2-A). tts_lang_code is auto-derived from the voice name prefix. Validated via TTS probe.",
+            "type": "string"
+          },
+          "projectId": {
+            "description": "Move connector to a different project. API key must have access to both projects.",
+            "type": "string"
+          }
+        }
+      },
+      "UpdateKnowledgeBaseTopicBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "content": {
+            "type": "string"
+          },
+          "actions": {
+            "type": "string"
+          },
+          "exampleQueries": {
+            "type": "object",
+            "properties": {
+              "queries": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 100
+              }
+            },
+            "required": [
+              "queries"
+            ],
+            "additionalProperties": false
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "title": "UpdateKnowledgeBaseTopicBody"
+      },
+      "UpdateVariantBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "attributeValues": {
+            "type": "object",
+            "properties": {
+              "values": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "default": {}
+              }
+            },
+            "additionalProperties": false
+          },
+          "isDefault": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "title": "UpdateVariantBody"
+      },
+      "VariantResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "attributeValues": {
+            "type": "object",
+            "properties": {
+              "values": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "values"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "isDefault",
+          "attributeValues"
+        ],
+        "additionalProperties": false,
+        "title": "VariantResponse"
+      }
+    }
+  },
+  "paths": {
+    "/v1/agents": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "List of agents for the current account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAgentsResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List agents",
+        "tags": [
+          "Agents"
+        ]
+      },
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Created agent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAgentResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create agent",
+        "tags": [
+          "Agents"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agents/{agentId}": {
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "Agent deleted"
+          }
+        },
+        "summary": "Delete agent",
+        "tags": [
+          "Agents"
+        ]
+      }
+    },
+    "/v1/agents/{agentId}/branches": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "List of branches"
+          }
+        },
+        "summary": "List branches",
+        "tags": [
+          "Branches"
+        ]
+      },
+      "post": {
+        "responses": {
+          "201": {
+            "description": "Branch created"
+          }
+        },
+        "summary": "Create branch",
+        "tags": [
+          "Branches"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBranchBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}": {
+      "delete": {
+        "responses": {
+          "200": {
+            "description": "Branch deleted"
+          }
+        },
+        "summary": "Delete branch",
+        "tags": [
+          "Branches"
+        ]
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/attributes": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "List of attributes for the agent branch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAttributesResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List attributes",
+        "tags": [
+          "Variants"
+        ]
+      },
+      "post": {
+        "responses": {
+          "201": {
+            "description": "Created attribute",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttributeResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create attribute",
+        "tags": [
+          "Variants"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAttributeBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/attributes/{attributeId}": {
+      "delete": {
+        "responses": {
+          "200": {
+            "description": "Attribute deleted"
+          }
+        },
+        "summary": "Delete attribute",
+        "tags": [
+          "Variants"
+        ]
+      },
+      "patch": {
+        "responses": {
+          "200": {
+            "description": "Updated attribute",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttributeResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update attribute",
+        "tags": [
+          "Variants"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAttributeBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/behavior": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Current behavior rules for the agent branch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRulesResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Rules not found"
+          }
+        },
+        "summary": "Get agent behavior rules",
+        "tags": [
+          "Agent Behavior"
+        ]
+      },
+      "patch": {
+        "responses": {
+          "200": {
+            "description": "Updated behavior rules",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRulesResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update agent behavior rules",
+        "tags": [
+          "Agent Behavior"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAgentRulesBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/knowledge-base/topics": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "List of knowledge base topics"
+          }
+        },
+        "summary": "List knowledge base topics",
+        "tags": [
+          "Knowledge Base"
+        ]
+      },
+      "post": {
+        "responses": {
+          "201": {
+            "description": "Created topic"
+          }
+        },
+        "summary": "Create knowledge base topic",
+        "tags": [
+          "Knowledge Base"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateKnowledgeBaseTopicBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/knowledge-base/topics/{topicId}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Knowledge base topic"
+          },
+          "404": {
+            "description": "Topic not found"
+          }
+        },
+        "summary": "Get knowledge base topic",
+        "tags": [
+          "Knowledge Base"
+        ]
+      },
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "Topic deleted"
+          }
+        },
+        "summary": "Delete knowledge base topic",
+        "tags": [
+          "Knowledge Base"
+        ]
+      },
+      "patch": {
+        "responses": {
+          "204": {
+            "description": "Topic updated"
+          },
+          "404": {
+            "description": "Topic not found"
+          }
+        },
+        "summary": "Update knowledge base topic",
+        "tags": [
+          "Knowledge Base"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateKnowledgeBaseTopicBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/merge": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Branch merged"
+          }
+        },
+        "summary": "Merge branch",
+        "tags": [
+          "Branches"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeBranchBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/variants": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "List of variants",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetVariantsResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List variants",
+        "tags": [
+          "Variants"
+        ]
+      },
+      "post": {
+        "responses": {
+          "201": {
+            "description": "Created variant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariantResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create variant",
+        "tags": [
+          "Variants"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVariantBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/variants/{variantId}": {
+      "delete": {
+        "responses": {
+          "200": {
+            "description": "Variant deleted"
+          }
+        },
+        "summary": "Delete variant",
+        "tags": [
+          "Variants"
+        ]
+      },
+      "patch": {
+        "responses": {
+          "200": {
+            "description": "Updated variant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariantResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update variant",
+        "tags": [
+          "Variants"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateVariantBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/deployments": {
+      "get": {
+        "summary": "List deployments for an environment",
+        "tags": [
+          "Deployments"
+        ],
+        "parameters": [
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "sandbox",
+                "pre-release",
+                "live"
+              ],
+              "type": "string"
+            },
+            "description": "Environment to list deployments for (sandbox, pre-release, live)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Max number of deployments to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDeploymentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/deployments/active": {
+      "get": {
+        "summary": "Get active deployment per environment",
+        "tags": [
+          "Deployments"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveDeploymentsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/deployments/publish": {
+      "post": {
+        "summary": "Publish the current draft to an environment",
+        "tags": [
+          "Deployments"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishDeploymentBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationDeploymentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/deployments/{deploymentId}/promote": {
+      "post": {
+        "summary": "Promote a deployment to the next environment",
+        "tags": [
+          "Deployments"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromoteDeploymentBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationDeploymentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "deploymentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/deployments/{deploymentId}/rollback": {
+      "post": {
+        "summary": "Rollback to a previous deployment",
+        "tags": [
+          "Deployments"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackDeploymentBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationDeploymentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "deploymentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/duplicate": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Duplicated agent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAgentResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Duplicate agent",
+        "tags": [
+          "Agents"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DuplicateAgentBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/real-time-configs": {
+      "get": {
+        "summary": "List all config pages",
+        "tags": [
+          "Real-Time Configs"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetConfigPagesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/real-time-configs/{clientEnv}": {
+      "get": {
+        "summary": "Get a config page by environment",
+        "tags": [
+          "Real-Time Configs"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetConfigPageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "clientEnv",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/real-time-configs/{clientEnv}/schema": {
+      "put": {
+        "summary": "Upsert the JSON Schema for a config page",
+        "tags": [
+          "Real-Time Configs"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateConfigSchemaBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetConfigPageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "clientEnv",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/real-time-configs/{clientEnv}/variables": {
+      "patch": {
+        "summary": "Update config variables for an environment",
+        "tags": [
+          "Real-Time Configs"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateConfigVariablesBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetConfigPageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "clientEnv",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/telephony/connectors": {
+      "get": {
+        "summary": "List all connectors for a project",
+        "tags": [
+          "Connectors"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetConnectorsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/telephony/connectors/batch": {
+      "post": {
+        "summary": "Batch get connectors by ID",
+        "tags": [
+          "Connectors"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchGetConnectorsBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchGetConnectorsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Batch update connectors",
+        "tags": [
+          "Connectors"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchUpdateConnectorsBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchUpdateConnectorsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/telephony/connectors/lookup": {
+      "post": {
+        "summary": "Look up connector by phone number",
+        "tags": [
+          "Connectors"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LookupConnectorBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/telephony/connectors/{connectorId}": {
+      "get": {
+        "summary": "Get a connector by ID",
+        "tags": [
+          "Connectors"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a connector and its phone numbers",
+        "tags": [
+          "Connectors"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteConnectorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update a connector",
+        "tags": [
+          "Connectors"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateConnectorBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "connectorId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/telephony/phone-numbers": {
+      "get": {
+        "summary": "List all phone numbers for a project",
+        "tags": [
+          "Phone Numbers"
+        ],
+        "parameters": [
+          {
+            "name": "connectorId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by connector ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPhoneNumbersResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          }
+        }
+      },
+      "post": {
+        "summary": "Import phone numbers into a project",
+        "tags": [
+          "Phone Numbers"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportPhoneNumbersBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportPhoneNumbersResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete phone numbers from a project",
+        "tags": [
+          "Phone Numbers"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeletePhoneNumbersBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletePhoneNumbersResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/telephony/phone-numbers/batch": {
+      "post": {
+        "summary": "Batch get phone numbers",
+        "tags": [
+          "Phone Numbers"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchGetPhoneNumbersBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchGetPhoneNumbersResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/telephony/phone-numbers/{phoneNumber}": {
+      "get": {
+        "summary": "Get a specific phone number",
+        "tags": [
+          "Phone Numbers"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhoneNumberResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "post": {
+        "summary": "Import a single phone number",
+        "tags": [
+          "Phone Numbers"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportPhoneNumberBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportPhoneNumberResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a single phone number",
+        "tags": [
+          "Phone Numbers"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletePhoneNumberResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Reassign a phone number to a different connector",
+        "tags": [
+          "Phone Numbers"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReassignPhoneNumberBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhoneNumberResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "phoneNumber",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    }
+  },
+  "tags": [
+    {
+      "name": "Agents",
+      "description": "Create, list, duplicate, and delete agents."
+    },
+    {
+      "name": "Branches",
+      "description": "Create isolated branches for parallel development and merge back to main."
+    },
+    {
+      "name": "Agent Behavior",
+      "description": "Read and update an agent's behavior rules (system prompt, interaction style, edge cases)."
+    },
+    {
+      "name": "Knowledge Base",
+      "description": "Manage knowledge base topics used for retrieval and tool invocation."
+    },
+    {
+      "name": "Variants",
+      "description": "Manage site-specific variations of an agent using attributes and variants."
+    },
+    {
+      "name": "Deployments",
+      "description": "Publish drafts, promote across environments, and roll back deployments."
+    },
+    {
+      "name": "Connectors",
+      "description": "Manage telephony connectors that bind phone numbers to voice infrastructure."
+    },
+    {
+      "name": "Phone Numbers",
+      "description": "Provision, reassign, and delete phone numbers on an agent's connectors."
+    },
+    {
+      "name": "Real-Time Configs",
+      "description": "Update runtime values (e.g. opening hours) outside the publish workflow."
+    }
+  ]
+}
