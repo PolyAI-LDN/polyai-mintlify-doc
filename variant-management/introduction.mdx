@@ -125,14 +125,28 @@ This example shows how to assign variants dynamically based on user context. The
 
 ### Voice example (phone number-based)
 
+Match the dialled number against a variant attribute to set the active variant. The attribute name (e.g., `phone_number`, `callee`) must match a column you defined in **Build > Variant management**.
+
 ```python
 def start_function(conv: Conversation):
     phone_numbers = {
         variant.phone_number: variant_name
         for variant_name, variant in conv.variants.items()
     }
-    if conv.callee_number:
+    if conv.callee_number and conv.callee_number in phone_numbers:
         conv.set_variant(phone_numbers[conv.callee_number])
+```
+
+If your variant table uses a different column name for the phone number (for example, `callee`), replace `variant.phone_number` with `variant.callee`:
+
+```python
+def start_function(conv: Conversation):
+    callee_map = {
+        variant.callee: variant_name
+        for variant_name, variant in conv.variants.items()
+    }
+    if conv.callee_number and conv.callee_number in callee_map:
+        conv.set_variant(callee_map[conv.callee_number])
 ```
 
 ### Webchat example (URL parameter-based)
