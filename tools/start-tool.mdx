@@ -1,8 +1,9 @@
 ---
-title: 'Start function'
+title: 'Start tool'
 description: 'Initialize conversation state, read SIP headers, and set variant routing before the greeting plays.'
 tag: "Code"
 keywords:
+  - start tool
   - start function
   - initialization
   - SIP headers
@@ -10,9 +11,9 @@ keywords:
   - startup
 ---
 
-**This page requires Python familiarity.** The start function is written in Python and runs before every call's greeting.
+**This page requires Python familiarity.** The start tool is a Python function named `start_function` that runs before every call's greeting.
 
-The **Start function** runs when a conversation begins, before the greeting plays. Use it to initialize conversation state, read SIP headers, or make API calls. A broken or slow start function delays or prevents the greeting from playing, affecting every inbound call.
+The **Start tool** (Python identifier: `start_function`) runs when a conversation begins, before the greeting plays. Use it to initialize conversation state, read SIP headers, or make API calls. A broken or slow `start_function` delays or prevents the greeting from playing, affecting every inbound call.
 
 ```mermaid
 sequenceDiagram
@@ -33,21 +34,21 @@ sequenceDiagram
 ```
 
 <Warning>
-The start function is **synchronous** – it must complete before the greeting plays. If it times out, the greeting may not play correctly, and the conversation may enter an unexpected state. Keep start function execution fast to avoid issues.
+The start tool is **synchronous** – `start_function` must complete before the greeting plays. If it times out, the greeting may not play correctly, and the conversation may enter an unexpected state. Keep execution fast to avoid issues.
 
-**For outbound agents**: if the recipient answers and hangs up before the start function completes, the function may be skipped entirely. Design your outbound start functions to handle this gracefully.
+**For outbound agents**: if the recipient answers and hangs up before `start_function` completes, it may be skipped entirely. Design your outbound start tools to handle this gracefully.
 </Warning>
 
-[Delay control](/tools/delay-control) (filler utterances) is **not supported** on start functions. If your start function has variable latency, the only mitigation is to keep it fast or move slow operations into a flow step.
+[Delay control](/tools/delay-control) (filler utterances) is **not supported** on the start tool. If `start_function` has variable latency, the only mitigation is to keep it fast or move slow operations into a flow step.
 
-### When to use the start function vs. a flow step
+### When to use the start tool vs. a flow step
 
-Not every API call belongs in the start function. Use this decision framework:
+Not every API call belongs in the start tool. Use this decision framework:
 
 | Scenario | Where to place it |
 |----------|------------------|
-| Data needed **before** the greeting (e.g. caller lookup for a personalized greeting) | Start function |
-| Fast, reliable API (&lt;1s response time) | Start function – reduces mid-conversation latency |
+| Data needed **before** the greeting (e.g. caller lookup for a personalized greeting) | Start tool |
+| Fast, reliable API (&lt;1s response time) | Start tool – reduces mid-conversation latency |
 | Slow or unreliable API (external CRM, third-party lookup) | First [flow step](/flows/introduction) – protects the greeting |
 | Data only needed mid-conversation | Flow step |
 
@@ -85,16 +86,16 @@ If an API call is not strictly needed before the greeting, move it to the first 
   <Accordion title="Read integration attributes" icon="plug">
     Access [`conv.integration_attributes`](/tools/classes/conv-object#integration_attributes) to read metadata passed from external integrations (e.g. DNIs pooling, Chat API).
 
-    <Note>`conv.integration_attributes` can only be read in the start function. Extract values and store them in `conv.state` for use later.</Note>
+    <Note>`conv.integration_attributes` can only be read in `start_function`. Extract values and store them in `conv.state` for use later.</Note>
   </Accordion>
   <Accordion title="Configure a TTS provider" icon="microphone">
-    Set the TTS provider in the start function. Supported providers include [Cartesia](https://docs.cartesia.ai/api-reference/tts/tts), [PlayHT](https://docs.play.ht/reference/api-getting-started), and [Rime](https://docs.rime.ai/api-reference/voices). See [voice configuration](/voice/voice-configuration) and [function classes](/tools/classes).
+    Set the TTS provider in `start_function`. Supported providers include [Cartesia](https://docs.cartesia.ai/api-reference/tts/tts), [PlayHT](https://docs.play.ht/reference/api-getting-started), and [Rime](https://docs.rime.ai/api-reference/voices). See [voice configuration](/voice/voice-configuration) and [tool classes](/tools/classes).
   </Accordion>
 </AccordionGroup>
 
 ## Implementation example
 
-Below is a Python implementation of the **Start function**:
+Below is a Python implementation of the start tool. The function must be named `start_function`:
 
 ```python
 import datetime as dt
@@ -124,7 +125,7 @@ def start_function(conv: Conversation):
     site = site_map.get(conv.callee_number, "default")
     conv.set_variant(site)
 
-    # Store integration attributes (only available in start function)
+    # Store integration attributes (only available in start_function)
     if conv.integration_attributes:
         conv.state.shared_id = conv.integration_attributes.get("shared_id")
 
@@ -134,11 +135,11 @@ def start_function(conv: Conversation):
 
 ## Return values
 
-The start function supports the same [return values](/tools/return-values) as other functions. The most common patterns are:
+The start tool supports the same [return values](/tools/return-values) as other tools. The most common patterns are:
 
 ### Empty string (default)
 
-Return `str()` when the start function only needs to set up state. The agent greeting defined in the Agent settings will play as normal.
+Return `str()` when `start_function` only needs to set up state. The agent greeting defined in the Agent settings will play as normal.
 
 ```python
 return str()
@@ -146,7 +147,7 @@ return str()
 
 ### Dynamic greeting
 
-Return an `utterance` to override the default greeting with a dynamically generated message. This is useful when the greeting depends on data fetched during the start function (e.g. the caller's name or site-specific wording).
+Return an `utterance` to override the default greeting with a dynamically generated message. This is useful when the greeting depends on data fetched during `start_function` (e.g. the caller's name or site-specific wording).
 
 ```python
 return {
@@ -155,7 +156,7 @@ return {
 ```
 
 <Warning>
-Returning an `utterance` from the start function overrides the Agent Greeting field. If you use both, test carefully to ensure the correct greeting plays.
+Returning an `utterance` from `start_function` overrides the Agent Greeting field. If you use both, test carefully to ensure the correct greeting plays.
 </Warning>
 
 ### Listen configuration
@@ -177,9 +178,9 @@ See [return values](/tools/return-values) for the full list of supported return 
 
 ## Best practices
 
-1. **Keep it fast**: The start function blocks the greeting. Target under 1 second total execution time. Move slow or unreliable API calls to a [flow step](/flows/introduction).
+1. **Keep it fast**: The start tool blocks the greeting. Target under 1 second total execution time. Move slow or unreliable API calls to a [flow step](/flows/introduction).
 
-2. **Never hardcode credentials**: Use [`conv.utils.get_secret()`](/secrets/introduction) for all API keys, tokens, and passwords. Hardcoded credentials in function code are a security risk and may be exposed in logs or version history.
+2. **Never hardcode credentials**: Use [`conv.utils.get_secret()`](/secrets/introduction) for all API keys, tokens, and passwords. Hardcoded credentials in tool code are a security risk and may be exposed in logs or version history.
 
    ```python
    api_key = conv.utils.get_secret("my_api_key")
@@ -195,19 +196,19 @@ See [return values](/tools/return-values) for the full list of supported return 
 
    * Predefine and initialize all state variables needed for the conversation to avoid undefined behaviors.
 
-   * Extract `conv.integration_attributes` here – they are only available in the start function.
+   * Extract `conv.integration_attributes` here – they are only available in `start_function`.
 
 5. **Contextual relevance**:
 
    * Only include setup steps that are directly relevant to the conversation's purpose.
 
-   * Avoid overloading the start function with unnecessary logic.
+   * Avoid overloading the start tool with unnecessary logic.
 
 ## Common patterns
 
 <AccordionGroup>
   <Accordion title="Multi-site variant routing">
-    The most common advanced use of the start function is routing to a [variant](/variant-management/introduction) based on the dialled number, SIP headers, or other metadata. This is how multi-site agents (hotels, restaurant chains, retail) determine which location's content to use.
+    The most common advanced use of the start tool is routing to a [variant](/variant-management/introduction) based on the dialled number, SIP headers, or other metadata. This is how multi-site agents (hotels, restaurant chains, retail) determine which location's content to use.
 
     **Hardcoded map** – use when the number-to-variant mapping is small and static:
 
@@ -267,7 +268,7 @@ See [return values](/tools/return-values) for the full list of supported return 
   </Accordion>
 
   <Accordion title="Multi-voice configuration">
-    The start function is where you configure which TTS voice the agent uses for a given call. This is required when running multiple voices across variants or channels, because the Voice page UI may not expose all available providers.
+    The start tool is where you configure which TTS voice the agent uses for a given call. This is required when running multiple voices across variants or channels, because the Voice page UI may not expose all available providers.
 
     **Full article:** [Multi-voice](/voice/multi-voice)
   </Accordion>
@@ -284,13 +285,13 @@ See [return values](/tools/return-values) for the full list of supported return 
 ## Related pages
 
 <CardGroup cols={3}>
-  <Card title="End function" icon="stop" href="/tools/end-function">
+  <Card title="End tool" icon="stop" href="/tools/end-tool">
     Run post-call processing after a conversation ends.
   </Card>
   <Card title="Return values" icon="reply" href="/tools/return-values">
     Control agent behavior with string and dictionary returns.
   </Card>
   <Card title="Variant management" icon="code-branch" href="/variant-management/introduction">
-    Route calls to specific variants from the start function.
+    Route calls to specific variants from the start tool.
   </Card>
 </CardGroup>
