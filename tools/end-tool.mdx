@@ -1,8 +1,9 @@
 ---
-title: 'End function'
+title: 'End tool'
 description: 'Run post-call processing asynchronously after a conversation ends.'
 tag: "Code"
 keywords:
+  - end tool
   - end function
   - post-call
   - cleanup
@@ -10,13 +11,13 @@ keywords:
   - conversation end
 ---
 
-**This page requires Python familiarity.** The end function is written in Python and runs after every call.
+**This page requires Python familiarity.** The end tool is a Python function named `end_function` that runs after every call.
 
-The **End function** runs at the end of a conversation for final data processing, cleanup, and integration tasks. Because it runs asynchronously after the call has ended, you can perform complex operations–API calls, summaries, CRM writes–without affecting the caller experience.
+The **End tool** (Python identifier: `end_function`) runs at the end of a conversation for final data processing, cleanup, and integration tasks. Because it runs asynchronously after the call has ended, you can perform complex operations – API calls, summaries, CRM writes – without affecting the caller experience.
 
-The end function runs on every completed call. If it writes to external systems (CRM updates, ticket creation, data exports), errors or bugs in this function can silently corrupt downstream data across all calls. Test end function changes in Sandbox before promoting.
+`end_function` runs on every completed call. If it writes to external systems (CRM updates, ticket creation, data exports), errors or bugs can silently corrupt downstream data across all calls. Test changes in Sandbox before promoting.
 
-Everything stored on `conv.state` during the call is fully available in the end function. This is the core mechanism that makes it useful: any data your functions collected or computed mid-call can be read, transformed, and sent to external systems after the conversation is over.
+Everything stored on `conv.state` during the call is fully available in `end_function`. This is the core mechanism that makes it useful: any data your tools collected or computed mid-call can be read, transformed, and sent to external systems after the conversation is over.
 
 ```mermaid
 sequenceDiagram
@@ -41,15 +42,15 @@ sequenceDiagram
 
 2. **Post-conversation data handling**: Captures and processes important details from the conversation for reporting, logging, or integration.
 
-3. **External integrations**: Call APIs, create tickets, or trigger follow-up workflows from the end function.
+3. **External integrations**: Call APIs, create tickets, or trigger follow-up workflows from the end tool.
 
 ## Use cases
 
-The **End function**:
+The end tool:
 
 ### 1. Generates a structured call summary
 
-The most common end function pattern is generating a structured summary from `conv.state` at the end of the conversation. This is especially valuable for voice agents where human agents need a written record of what was discussed.
+The most common end-tool pattern is generating a structured summary from `conv.state` at the end of the conversation. This is especially valuable for voice agents where human agents need a written record of what was discussed.
 
 * **Example use case**: Compile caller intent, topics discussed, and resolution status into a summary and push it to your CRM or ticketing system.
 
@@ -73,13 +74,13 @@ The most common end function pattern is generating a structured summary from `co
 
 ### 5. Logs outbound call dispositions
 
-The end function is not limited to inbound voice. Outbound agents use it to log call dispositions, update lead records, and trigger follow-up sequences after each call.
+The end tool is not limited to inbound voice. Outbound agents use it to log call dispositions, update lead records, and trigger follow-up sequences after each call.
 
 * **Example use case**: After an outbound sales call, update the lead status in your CRM and queue a follow-up email if the prospect requested more information.
 
 ## Implementation example
 
-Below is a Python implementation of the **End function**:
+Below is a Python implementation of the end tool. The function must be named `end_function`:
 
 ```python
 def end_function(conv: Conversation):
@@ -108,21 +109,21 @@ def end_function(conv: Conversation):
         log_error_to_monitoring_service(e)
 ```
 
-The end function's return value is not used by the runtime. You do not need to return anything.
+`end_function`'s return value is not used by the runtime. You do not need to return anything.
 
-## Best practices for end function design
+## Best practices for end-tool design
 
 <Warning>
-**Critical:** Errors in the end function do not surface to the caller (the call is already over), but they can silently break downstream workflows. Always implement thorough error handling with try/except blocks and external logging, as shown in the example above. Test end function changes in Sandbox before deploying to production.
+**Critical:** Errors in `end_function` do not surface to the caller (the call is already over), but they can silently break downstream workflows. Always implement thorough error handling with try/except blocks and external logging, as shown in the example above. Test changes in Sandbox before deploying to production.
 </Warning>
 
 1. **Efficient execution**:
 
-   * Design the function to complete quickly. Parallelize independent API calls where possible, avoid unnecessary data fetching, and keep heavy computation outside the critical path.
+   * Design `end_function` to complete quickly. Parallelize independent API calls where possible, avoid unnecessary data fetching, and keep heavy computation outside the critical path.
 
 2. **Error handling**:
 
-   * Wrap your end function body in a `try/except` block and log errors to an external monitoring service. Without this, failures are completely invisible.
+   * Wrap the `end_function` body in a `try/except` block and log errors to an external monitoring service. Without this, failures are completely invisible.
 
 3. **Data consistency**:
 
@@ -165,13 +166,13 @@ Ensure customer records are up to date with the latest interaction details.
 ## Related pages
 
 <CardGroup cols={3}>
-  <Card title="Start function" icon="play" href="/tools/start-function">
+  <Card title="Start tool" icon="play" href="/tools/start-tool">
     Initialize conversation context before the greeting plays.
   </Card>
   <Card title="Surveys (CSAT)" icon="star-half-stroke" href="/analytics/csat/introduction">
-    Trigger post-call satisfaction surveys from the end function.
+    Trigger post-call satisfaction surveys from the end tool.
   </Card>
   <Card title="conv object" icon="code" href="/tools/classes/conv-object">
-    Access conv.state and other data in the end function.
+    Access conv.state and other data in end_function.
   </Card>
 </CardGroup>

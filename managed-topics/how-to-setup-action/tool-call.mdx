@@ -1,0 +1,91 @@
+---
+title: "Invoke tool"
+description: "Invoke a tool (Python function) from a managed-topic action to extend your agent with custom logic."
+tag: "Code"
+keywords:
+  - tool call
+  - invoke tool
+  - function call
+  - action function
+  - custom logic
+  - API call
+---
+
+Add tools to actions to extend your agent's capabilities with custom logic – look up data, call APIs, or perform calculations during a conversation.
+
+<Note>Tools are Python `function`s – "tool" and "function" refer to the same feature, and the `{"{{fn:…}}"}` reference syntax below keeps the `fn:` prefix for backward compatibility.</Note>
+
+## Adding a tool
+
+Add a tool to the **Actions** field of a managed topic in three ways:
+
+1. Type `/` in the Actions field
+2. Right-click in the Actions field
+3. Click the **+** icon on the right side of the field
+
+Select a tool from the menu, or create a new one to populate later. You can reuse the same tool across multiple topics and actions.
+
+<Warning>
+  Tool references like `{"{{fn:order_lookup}}"}` are **only valid in the Actions field**. Placing them in the Content field will not trigger the tool, and no error is shown. Always add tool references in Actions.
+</Warning>
+
+Iterative testing helps get your agent to call tools as expected.
+
+## `{"{{fn:...}}"}` vs `{"{{ft:...}}"}` syntax
+
+The `{"{{fn:...}}"}` syntax references **global tools** (also called global functions), which can be used across topics, flows, and rules. This is different from **[transition functions](/flows/transition-functions)** (`{"{{ft:...}}"}` syntax), which are scoped to a single flow.
+
+## Known limitation: tools in flows
+
+<Warning>
+  When a tool is referenced inside a flow action, it may not be included in the LLM's tool definitions. This means the LLM cannot see or call the tool. If you encounter this, add the tool reference to the [Behavior](/agent-settings/rules) section so the LLM is aware of it.
+</Warning>
+
+## Example prompt
+
+Use this pattern in the **Actions** field to ensure the agent calls a tool before responding:
+
+```plaintext
+When the user asks "where is my order," do not respond until you have called {{fn:order_lookup}} with an order number. If you don't have the order number, ask for it first, then call {{fn:order_lookup}}. Use the tool's response to answer the caller.
+```
+
+The agent will always invoke the tool before responding, and ground its answer in the tool's output.
+
+## Controlling agent behavior after a tool call
+
+Tools can return values that control what the agent says or does next – for example, returning an exact `utterance` for the agent to speak, triggering a `handoff`, or ending the call with `hangup`.
+
+See [Return values](/tools/return-values) for the full reference.
+
+## Testing
+
+<Steps>
+  <Step title="Save and open the test panel">
+    Save your agent and click **Play** in the header to open the test chat panel.
+  </Step>
+  <Step title="Test the invocation">
+    Ask a test question like "Where is my order?" and observe how the agent handles the interaction.
+  </Step>
+  <Step title="Inspect tool calls">
+    Enable the **Tool calls** toggle in the test panel settings to inspect which tools were called and what parameters were passed. Use this to confirm the tool was actually triggered and that the correct arguments were sent – especially when the agent is not behaving as expected.
+
+    ![Testing a tool call with the test panel](/images/managed-topics/fn-test-tool-calls.png)
+  </Step>
+</Steps>
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Send SMS actions" icon="message" href="/managed-topics/how-to-setup-action/send-sms">
+    Trigger SMS messages from Managed Topic actions.
+  </Card>
+  <Card title="Handoff actions" icon="phone-forward" href="/managed-topics/how-to-setup-action/handoff">
+    Transfer callers to live agents from topics.
+  </Card>
+  <Card title="Create a tool" icon="code" href="/tools/how-to-setup">
+    Set up a new tool with parameters and Python code.
+  </Card>
+  <Card title="Return values" icon="arrow-right" href="/tools/return-values">
+    Control agent behavior with tool return values.
+  </Card>
+</CardGroup>
