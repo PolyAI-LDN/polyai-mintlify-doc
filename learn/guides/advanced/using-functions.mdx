@@ -103,12 +103,12 @@ To make a function available to the LLM, you must reference it somewhere – in 
 When you reference a function, Agent Studio highlights it and registers it in the LLM request. The LLM will then see the function's full definition (name, description, parameters) and can choose to call it.
 
 <Warning>
-  A common mistake is creating a function and testing the agent, only to find the LLM never calls it. Check the LLM request in Conversation Diagnosis – if the function is not listed under "functions", it has not been referenced anywhere.
+  A common mistake is creating a function and testing the agent, only to find the LLM never calls it. If the function was not triggered, confirm you have referenced it with `@function_name` in a topic action, a flow step, or the Behavior field. Use the **Tool calls** layer in [Conversation Diagnosis](/analytics/conversations/diagnosis) to verify what the agent actually did.
 </Warning>
 
 ## What the LLM actually sees
 
-You can inspect the LLM request directly in **Conversation Review → Diagnosis → LLM requests** (covered in detail in [Lesson 8: Advanced diagnostics](/learn/guides/advanced/conv-review)). The request is structured like this:
+When you reference a function, it is added to the prompt sent to the LLM. The prompt is structured roughly like this:
 
 | Section | What it contains |
 |---|---|
@@ -163,7 +163,7 @@ When the LLM calls a function, it takes **two LLM requests** to produce the fina
   </Step>
 </Steps>
 
-This is visible in Conversation Diagnosis. When a function is called, you will see two requests instead of one. Enable the **Tool calls** toggle to see what parameters were passed and what was returned.
+Enable the **Tool calls** toggle in [Conversation Diagnosis](/analytics/conversations/diagnosis) to see what parameters the agent passed to the function and what was returned. The function call and its result both appear in the turn timeline.
 
 ### What the conversation history looks like after a tool call
 
@@ -201,10 +201,10 @@ The `function` role is the third role alongside `user` and `assistant`. This is 
     In **Build → Agent → Behavior**, add a reference to `@get_store_hours`. Confirm it highlights.
   </Step>
   <Step title="Test it">
-    Open **Chat** and ask "What are your opening hours?" Check the LLM request in **Conversation Diagnosis** to confirm:
-    - The function appears in the functions list
-    - Two requests are shown (one tool call, one text response)
-    - The function result appears in conversation history under the `function` role
+    Open **Chat** and ask "What are your opening hours?" Enable the **Tool calls** layer in [Conversation Diagnosis](/analytics/conversations/diagnosis) to confirm:
+    - The `get_store_hours` tool call appears with its parameters
+    - The returned value is shown in the turn timeline
+    - The agent's spoken response incorporates the returned value
   </Step>
 </Steps>
 
