@@ -16,43 +16,6 @@ Managed Topics define what your agent knows and how it responds. Each topic has 
 
 Managed Topics are found under **Build > Knowledge > Managed Topics tab**.
 
-<Info>
-**Seeding topics from an existing knowledge base?** The [Agents API](/api-reference/agents/introduction) exposes CRUD for knowledge base topics, so you can bulk-create, update, or sync from an external CMS.
-
-<CodeGroup>
-```bash curl
-# Create a knowledge base topic on the main branch
-curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/knowledge-base/topics \
-  -H "x-api-key: $POLYAI_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Password reset",
-    "sampleQuestions": ["How do I reset my password?", "I forgot my password"],
-    "content": "To reset your password, visit the account portal..."
-  }'
-```
-
-```python Python
-import os, requests
-
-BASE = "https://api.us.poly.ai"
-HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
-
-# Sync all FAQ entries from your CMS into PolyAI topics
-for faq in cms.list_faqs():
-    requests.post(
-        f"{BASE}/v1/agents/{AGENT_ID}/branches/main/knowledge-base/topics",
-        headers=HEADERS,
-        json={
-            "name": faq["title"],
-            "sampleQuestions": faq["variants"],
-            "content": faq["answer"],
-        },
-    )
-```
-</CodeGroup>
-</Info>
-
 <Note>
 **Use Managed Topics when** you need precise control over what the agent says, or when the answer should trigger an action (SMS, handoff, tool call). **Use [Connected Knowledge](/connected-knowledge/introduction) instead** when you want to expose large volumes of external content (help articles, PDFs, FAQs) without curating individual topics.
 </Note>
@@ -287,6 +250,47 @@ Not every topic needs to be available all the time. You can temporarily **deacti
 - CSV import/export includes an `Active` column (`Y`/`N`) for bulk updates.
 
 This is useful for seasonal articles, phased rollouts, A/B tests, or hiding content that is not ready for production.
+
+<AccordionGroup>
+  <Accordion title="Seed or sync topics via the Agents API" icon="code">
+    If you already have a knowledge base somewhere else — a help center, CMS, or intents list — the [Agents API](/api-reference/agents/introduction) lets you bulk-create topics programmatically rather than clicking through the UI. This is especially handy for the initial migration.
+
+    <CodeGroup>
+    ```bash curl
+    # Create a knowledge base topic on the main branch
+    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/knowledge-base/topics \
+      -H "x-api-key: $POLYAI_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "Password reset",
+        "sampleQuestions": ["How do I reset my password?", "I forgot my password"],
+        "content": "To reset your password, visit the account portal..."
+      }'
+    ```
+
+    ```python Python
+    import os, requests
+
+    BASE = "https://api.us.poly.ai"
+    HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
+
+    # Sync all FAQ entries from your CMS into PolyAI topics
+    for faq in cms.list_faqs():
+        requests.post(
+            f"{BASE}/v1/agents/{AGENT_ID}/branches/main/knowledge-base/topics",
+            headers=HEADERS,
+            json={
+                "name": faq["title"],
+                "sampleQuestions": faq["variants"],
+                "content": faq["answer"],
+            },
+        )
+    ```
+    </CodeGroup>
+
+    See [Knowledge base endpoints](/api-reference/agents/endpoint/knowledge-base/list-knowledge-base-topics-for-a-project) for the full list.
+  </Accordion>
+</AccordionGroup>
 
 ## Resources
 

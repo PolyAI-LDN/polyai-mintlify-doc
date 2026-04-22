@@ -16,44 +16,6 @@ Use behavioral rules to enforce consistency across every conversation – includ
 
 Define your agent's behavior by going to **[Build > Agent](/agent-settings/introduction)** and then scrolling to the **Behavior** section.
 
-<Info>
-**Driving behavior from code?** The [Agents API](/api-reference/agents/introduction) has GET and PATCH endpoints for the same behavior text — useful for templating rules across many agents, A/B testing prompts on branches, or syncing rules from a source of truth in your CMS.
-
-<CodeGroup>
-```bash curl
-# Read the current behavior on a branch
-curl https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/behavior \
-  -H "x-api-key: $POLYAI_API_KEY"
-
-# Update the behavior on a branch
-curl -X PATCH https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/behavior \
-  -H "x-api-key: $POLYAI_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "behavior": "Always refer to artworks as exhibits. Use a warm, curious tone."
-  }'
-```
-
-```python Python
-import os, requests
-
-BASE = "https://api.us.poly.ai"
-HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
-
-# Apply the same behavior rules across a fleet of agents
-AGENT_IDS = [...]
-BEHAVIOR = open("rules/support-agent.md").read()
-
-for agent_id in AGENT_IDS:
-    requests.patch(
-        f"{BASE}/v1/agents/{agent_id}/branches/main/behavior",
-        headers=HEADERS,
-        json={"behavior": BEHAVIOR},
-    )
-```
-</CodeGroup>
-</Info>
-
 **Example:**
 
 For a museum agent that always refers to "exhibits" instead of "artworks":
@@ -254,6 +216,46 @@ LLMs tend to end every output with a question. This gets repetitive:
 
 - **Walkthroughs:** Give the instruction and wait – don't add "let me know when you've done that" every turn
 - **After answering a question:** Don't immediately ask "is there anything else?" – give the user a chance to acknowledge or follow up
+
+<AccordionGroup>
+  <Accordion title="Manage behavior rules via the Agents API" icon="code">
+    Rules are just text, which makes them easy to template, diff, and sync. The [Agents API](/api-reference/agents/introduction) exposes the same behavior field that the UI edits — useful for applying a shared rule set across many agents, or keeping rules in a source-controlled file.
+
+    <CodeGroup>
+    ```bash curl
+    # Read the current behavior on a branch
+    curl https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/behavior \
+      -H "x-api-key: $POLYAI_API_KEY"
+
+    # Update the behavior on a branch
+    curl -X PATCH https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/behavior \
+      -H "x-api-key: $POLYAI_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "behavior": "Always refer to artworks as exhibits. Use a warm, curious tone."
+      }'
+    ```
+
+    ```python Python
+    import os, requests
+
+    BASE = "https://api.us.poly.ai"
+    HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
+
+    # Apply the same behavior rules across a fleet of agents
+    AGENT_IDS = [...]
+    BEHAVIOR = open("rules/support-agent.md").read()
+
+    for agent_id in AGENT_IDS:
+        requests.patch(
+            f"{BASE}/v1/agents/{agent_id}/branches/main/behavior",
+            headers=HEADERS,
+            json={"behavior": BEHAVIOR},
+        )
+    ```
+    </CodeGroup>
+  </Accordion>
+</AccordionGroup>
 
 ## Related pages
 

@@ -22,45 +22,6 @@ Test agent changes before they reach live callers. Draft → Sandbox → Pre-rel
 **Saving is not the same as going live.** Saved changes are drafts. Drafts must be **published** to Sandbox, then **promoted** through Pre-release to Live. Unpublished changes don't appear in any environment.
 </Warning>
 
-<Info>
-**Prefer to script this?** The [Agents API](/api-reference/agents/introduction) exposes the same deployment pipeline — [publish](/api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment), [promote](/api-reference/agents/endpoint/deployments/promote-a-deployment-to-the-next-environment), and [rollback](/api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment) — so you can wire deployments into CI or your own tooling.
-
-<CodeGroup>
-```bash curl
-# Publish the current draft to sandbox
-curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/deployments/publish \
-  -H "x-api-key: $POLYAI_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{ "environment": "sandbox" }'
-
-# Promote a sandbox deployment to pre-release
-curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/deployments/DEPLOYMENT_ID/promote \
-  -H "x-api-key: $POLYAI_API_KEY"
-```
-
-```python Python
-import os, requests
-
-BASE = "https://api.us.poly.ai"
-HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
-
-# Publish the current draft to sandbox
-resp = requests.post(
-    f"{BASE}/v1/agents/{AGENT_ID}/deployments/publish",
-    headers=HEADERS,
-    json={"environment": "sandbox"},
-)
-deployment_id = resp.json()["id"]
-
-# Promote to pre-release once sandbox checks pass
-requests.post(
-    f"{BASE}/v1/agents/{AGENT_ID}/deployments/{deployment_id}/promote",
-    headers=HEADERS,
-)
-```
-</CodeGroup>
-</Info>
-
 ```mermaid
 stateDiagram-v2
     [*] --> Draft: Make changes
@@ -187,6 +148,47 @@ Each environment can have its own phone number. To assign:
 Assign phone numbers and SIP headers per version.
 
 ![assign version phone numbers](/images/deployment/assign-number.png)
+
+<AccordionGroup>
+  <Accordion title="Deploy via the Agents API" icon="code">
+    The same pipeline is available programmatically via the [Agents API](/api-reference/agents/introduction) — useful for wiring deployments into CI or orchestrating releases across many agents. The relevant endpoints are [publish](/api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment), [promote](/api-reference/agents/endpoint/deployments/promote-a-deployment-to-the-next-environment), and [rollback](/api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment).
+
+    <CodeGroup>
+    ```bash curl
+    # Publish the current draft to sandbox
+    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/deployments/publish \
+      -H "x-api-key: $POLYAI_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{ "environment": "sandbox" }'
+
+    # Promote a sandbox deployment to pre-release
+    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/deployments/DEPLOYMENT_ID/promote \
+      -H "x-api-key: $POLYAI_API_KEY"
+    ```
+
+    ```python Python
+    import os, requests
+
+    BASE = "https://api.us.poly.ai"
+    HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
+
+    # Publish the current draft to sandbox
+    resp = requests.post(
+        f"{BASE}/v1/agents/{AGENT_ID}/deployments/publish",
+        headers=HEADERS,
+        json={"environment": "sandbox"},
+    )
+    deployment_id = resp.json()["id"]
+
+    # Promote to pre-release once sandbox checks pass
+    requests.post(
+        f"{BASE}/v1/agents/{AGENT_ID}/deployments/{deployment_id}/promote",
+        headers=HEADERS,
+    )
+    ```
+    </CodeGroup>
+  </Accordion>
+</AccordionGroup>
 
 ## Related pages
 
