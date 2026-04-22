@@ -176,16 +176,41 @@ first_site_hours = sites[0]["hours"] if sites else None
 
 ## Programmatic management via API
 
-For deployments managing configuration across many locations, you can also manage real-time config programmatically through the API. The following endpoints are available:
+For deployments managing configuration across many locations, the [Agents API](/api-reference/agents/introduction) exposes the same real-time config surface the UI uses:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/real-time-configs` | List all real-time configs |
-| `GET` | `/real-time-configs/:clientEnv` | Get config for a specific environment |
-| `PATCH` | `/real-time-configs/:clientEnv/variables` | Update config variables |
-| `PUT` | `/real-time-configs/:clientEnv/schema` | Update the config schema |
+| `GET` | [`/v1/agents/{agentId}/real-time-configs`](/api-reference/agents/endpoint/real-time-configs/list-real-time-configs) | List configs across environments |
+| `GET` | [`/v1/agents/{agentId}/real-time-configs/{clientEnv}`](/api-reference/agents/endpoint/real-time-configs/get-a-real-time-config) | Get config for a specific environment |
+| `PATCH` | [`/v1/agents/{agentId}/real-time-configs/{clientEnv}/variables`](/api-reference/agents/endpoint/real-time-configs/update-real-time-config-variables) | Update config variables |
+| `PUT` | [`/v1/agents/{agentId}/real-time-configs/{clientEnv}/schema`](/api-reference/agents/endpoint/real-time-configs/update-real-time-config-schema) | Update the config schema |
 
 This is especially useful when customers need to update settings themselves at scale, rather than editing values manually in the UI.
+
+<AccordionGroup>
+  <Accordion title="Example: sync real-time config from an external source of truth" icon="code">
+    ```python Python
+    import os, requests
+
+    BASE = "https://api.us.poly.ai"
+    HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
+
+    # Push the latest opening hours from your internal scheduling system
+    requests.patch(
+        f"{BASE}/v1/agents/{AGENT_ID}/real-time-configs/live/variables",
+        headers=HEADERS,
+        json={
+            "variables": {
+                "opening_hours": scheduling.get_hours_for_today(),
+                "after_hours_enabled": scheduling.is_out_of_hours(),
+            }
+        },
+    )
+    ```
+
+    Changes take effect immediately in the target environment — no promotion required.
+  </Accordion>
+</AccordionGroup>
 
 ## Best practices
 
