@@ -177,28 +177,164 @@ nav [data-testid="tag"]:has-text("Advanced") {
 
 /* ── Simplify view toggle ──────────────────────────────────────────────────── */
 
-/* Button injected into top nav by simplify-view.js */
+/* Floating fixed-position pill injected into <body> by simplify-toggle.js.
+   Theme-independent — doesn't rely on Mintlify navbar DOM (which has changed
+   across theme versions and no longer exposes a stable injection target).
+   Top-right placement keeps it visible on every page, in both modes.
+   Sits just below the Mintlify navbar (h-16 = 4rem) to avoid overlapping
+   the logo, search, and theme toggle. */
 .simplify-toggle {
+  position: fixed;
+  top: 4.75rem;
+  right: 1.25rem;
+  z-index: 60;
   display: inline-flex;
   align-items: center;
-  gap: 0.35em;
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  gap: 0.5em;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: var(--studio-paper);
+  border: 1px solid var(--studio-lime-35);
   border-radius: 999px;
-  padding: 0.28em 0.8em;
-  color: inherit;
+  padding: 0.55em 1.1em;
+  color: var(--studio-ink);
   cursor: pointer;
   white-space: nowrap;
-  transition: background 140ms ease, border-color 140ms ease;
-  margin-left: 0.6rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.simplify-toggle .simplify-toggle__icon {
+  font-size: 0.95em;
+  line-height: 1;
 }
 
 .simplify-toggle:hover {
-  background: rgba(217, 238, 80, 0.12);
-  border-color: var(--studio-lime-35);
+  background: var(--studio-lime-12);
+  border-color: var(--studio-lime);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.15), 0 0 0 3px var(--studio-lime-12);
+  transform: translateY(-1px);
+}
+
+.simplify-toggle:focus-visible {
+  outline: 2px solid var(--studio-lime);
+  outline-offset: 2px;
+}
+
+/* Dark-mode friendly surface */
+html.dark .simplify-toggle {
+  background: var(--studio-ink);
+  color: #f5f5f5;
+}
+
+/* Active/simplified state — solid lime so the exit control is unmissable */
+.simplify-toggle--active {
+  background: var(--studio-lime) !important;
+  border-color: var(--studio-lime) !important;
+  color: var(--studio-ink) !important;
+  box-shadow: 0 6px 20px rgba(217, 238, 80, 0.45), 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.simplify-toggle--active:hover {
+  background: var(--studio-lime) !important;
+  filter: brightness(0.96);
+}
+
+/* On small screens, shrink padding and keep it just below the mobile navbar */
+@media (max-width: 640px) {
+  .simplify-toggle {
+    top: 4.25rem;
+    right: 0.75rem;
+    font-size: 0.75rem;
+    padding: 0.45em 0.9em;
+  }
+}
+
+/* ── Simplified-mode landing page CTAs ─────────────────────────────────────
+   Used on /platform/simplified-mode for the primary Enter / Exit buttons. */
+.simplified-mode-cta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 0;
+  background: var(--studio-lime);
+  color: var(--studio-ink) !important;
+  border: 1px solid var(--studio-lime);
+  border-radius: 12px;
+  text-decoration: none !important;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: filter 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+  box-shadow: 0 2px 10px rgba(217, 238, 80, 0.35);
+  max-width: 480px;
+}
+
+.simplified-mode-cta:hover {
+  filter: brightness(0.96);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(217, 238, 80, 0.45);
+}
+
+.simplified-mode-cta__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: rgba(22, 22, 23, 0.12);
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.simplified-mode-cta__label {
+  font-weight: 700;
+  flex: 1 1 auto;
+}
+
+.simplified-mode-cta__sub {
+  flex: 1 0 100%;
+  font-size: 0.8rem;
+  font-weight: 400;
+  opacity: 0.75;
+  padding-left: 2.5rem;
+}
+
+.simplified-mode-cta--exit {
+  background: transparent;
+  color: inherit !important;
+  border: 1px solid var(--studio-lime-35);
+  box-shadow: none;
+}
+
+.simplified-mode-cta--exit:hover {
+  background: var(--studio-lime-12);
+  border-color: var(--studio-lime);
+  box-shadow: none;
+}
+
+.simplified-mode-cta--disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  box-shadow: none;
+}
+
+.simplified-mode-status {
+  margin: 1.5rem 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--studio-lime-35);
+  border-left: 4px solid var(--studio-lime);
+  border-radius: 10px;
+  background: var(--studio-lime-12);
+}
+
+.simplified-mode-status p {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
 }
 
 /* When simplified mode is active, hide Code/Advanced tagged content blocks */

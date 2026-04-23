@@ -1,7 +1,14 @@
 (function () {
   // ── Simplify view toggle ──────────────────────────────────────────────────
-  // URL-based simplified mode: adds ?view=simplified to the URL.
-  // The preference travels with the link so it can be shared/bookmarked.
+  // Persistent simplified mode backed by localStorage.
+  // Once on, it stays on across page loads and sessions until the user clicks
+  // "Exit simplified mode" or navigates to a page that's flagged as complex
+  // (in which case it auto-exits and takes them there in full-docs view).
+  //
+  // ?view=simplified is still honoured as a one-shot entry point (e.g. from
+  // the /platform/simplified-mode landing page link or an external share),
+  // and is mirrored back into the URL on navigations so links can be shared.
+  var STORAGE_KEY = 'polyai-simplified-mode';
 
   // Sidebar group names to hide entirely in simplified mode.
   var HIDDEN_GROUPS = ['Developer tools', 'Secrets', 'Code-driven flows'];
@@ -77,11 +84,31 @@
     return COMPLEX_PREFIXES.some(function (p) { return pathname.startsWith(p); });
   }
 
-  function isSimplified() {
+  function readStoredPreference() {
+    try {
+      return window.localStorage.getItem(STORAGE_KEY) === '1';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function writeStoredPreference(on) {
+    try {
+      if (on) window.localStorage.setItem(STORAGE_KEY, '1');
+      else window.localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {}
+  }
+
+  function hasUrlFlag() {
     return new URLSearchParams(window.location.search).get('view') === 'simplified';
   }
 
+  function isSimplified() {
+    return readStoredPreference() || hasUrlFlag();
+  }
+
   function setSimplified(on) {
+    writeStoredPreference(on);
     var url = new URL(window.location.href);
     if (on) {
       url.searchParams.set('view', 'simplified');
@@ -95,11 +122,12 @@
   function updateButton(btn, simplified) {
     btn.setAttribute('aria-pressed', simplified);
     btn.title = simplified
-      ? 'Switch to full docs (show all content)'
-      : 'Simplified view — hide developer-only content';
+      ? 'Exit simplified mode (show all docs)'
+      : 'Enter simplified mode (hide developer and API content)';
     btn.innerHTML = simplified
-      ? '<span>\u2726 Simplified</span>'
-      : '<span>\u2699\uFE0E Full docs</span>';
+      ? '<span class="simplify-toggle__icon">\u2726</span><span class="simplify-toggle__label">Simplified \u2014 exit</span>'
+      : '<span class="simplify-toggle__icon">\u2726</span><span class="simplify-toggle__label">Simplified mode</span>';
+    btn.classList.toggle('simplify-toggle--active', !!simplified);
   }
 
   // Mark sidebar section headers, sub-groups, tagged items, and path-matched items.
@@ -210,6 +238,7 @@
         updateButton(b, false);
       });
       markNavbarTabs();
+      updateLandingPageStatus();
       window.location.href = destPath;
     }
   }, true);
@@ -223,10 +252,10 @@
     btn.addEventListener('click', function () {
       var next = document.documentElement.dataset.simplified !== 'true';
       // If switching INTO simplified mode while on a complex page, redirect home.
-      // Use a sessionStorage flag so simplified mode is applied even if Mintlify
-      // strips the ?view=simplified query param during its initial routing.
+      // localStorage persistence means we don't need the sessionStorage flag,
+      // but we still redirect so the user lands somewhere the mode makes sense.
       if (next && isComplexPath(window.location.pathname)) {
-        sessionStorage.setItem('polyai-enter-simplified', '1');
+        writeStoredPreference(true);
         window.location.href = '/';
         return;
       }
@@ -237,34 +266,62 @@
       });
       markNavbarTabs();
       applyDeveloperContent();
+      updateLandingPageStatus();
     });
 
     return btn;
   }
 
   function injectToggle() {
+    // Floating fixed-position button attached to <body>. Theme-independent —
+    // doesn't rely on Mintlify's navbar DOM, which has changed across versions
+    // and does not expose a stable injection target in the current maple theme.
     if (document.querySelector('.simplify-toggle')) return;
+    if (!document.body) return;
+    var btn = createToggleButton();
+    document.body.appendChild(btn);
+  }
 
-    // Inject into every navbar list that contains a .navbar-link item.
-    // The maple theme renders separate mobile and desktop navbars, each with
-    // its own li.navbar-link — we need the toggle in both.
-    var navbarLinks = document.querySelectorAll('li.navbar-link');
-    var injected = false;
-
-    navbarLinks.forEach(function (link) {
-      var list = link.parentElement;
-      if (!list) return;
-      var btn = createToggleButton();
-      var li = document.createElement('li');
-      li.appendChild(btn);
-      list.insertBefore(li, list.firstChild);
-      injected = true;
-    });
-
-    if (!injected) {
-      var header = document.getElementById('header') || document.querySelector('header');
-      if (header) header.appendChild(createToggleButton());
+  // Wires up the explicit Enter / Exit buttons on the /platform/simplified-mode
+  // landing page. Shows a confirmation panel once the user is in simplified mode.
+  function updateLandingPageStatus() {
+    var active = document.documentElement.dataset.simplified === 'true';
+    var status = document.getElementById('simplified-mode-status');
+    var enter = document.getElementById('simplified-mode-enter');
+    if (status) {
+      if (active) status.removeAttribute('hidden');
+      else status.setAttribute('hidden', '');
     }
+    if (enter) enter.classList.toggle('simplified-mode-cta--disabled', active);
+  }
+
+  function wireLandingPageButtons() {
+    var enter = document.getElementById('simplified-mode-enter');
+    if (enter && !enter.dataset.simplifyBound) {
+      enter.dataset.simplifyBound = '1';
+      enter.addEventListener('click', function (e) {
+        e.preventDefault();
+        writeStoredPreference(true);
+        // Land on the home page in simplified mode so the user sees the
+        // filtered experience immediately.
+        window.location.href = '/?view=simplified';
+      });
+    }
+    var exit = document.getElementById('simplified-mode-exit');
+    if (exit && !exit.dataset.simplifyBound) {
+      exit.dataset.simplifyBound = '1';
+      exit.addEventListener('click', function (e) {
+        e.preventDefault();
+        setSimplified(false);
+        document.querySelectorAll('.simplify-toggle').forEach(function (b) {
+          updateButton(b, false);
+        });
+        markNavbarTabs();
+        applyDeveloperContent();
+        updateLandingPageStatus();
+      });
+    }
+    updateLandingPageStatus();
   }
 
   function onNav() {
@@ -273,17 +330,18 @@
       markSidebarGroups();
       markNavbarTabs();
       applyDeveloperContent();
+      wireLandingPageButtons();
     }, 150);
   }
 
   // Apply preference immediately (before paint).
-  // If arriving via a redirect from a complex page, consume the one-shot flag.
-  if (sessionStorage.getItem('polyai-enter-simplified')) {
-    sessionStorage.removeItem('polyai-enter-simplified');
-    setSimplified(true);
-  } else {
-    setSimplified(isSimplified());
+  // Precedence: localStorage preference > ?view=simplified URL flag.
+  // The URL flag is still honoured as a one-shot entry point and promoted to
+  // the stored preference so the mode sticks.
+  if (hasUrlFlag() && !readStoredPreference()) {
+    writeStoredPreference(true);
   }
+  setSimplified(isSimplified());
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
@@ -291,12 +349,14 @@
       markSidebarGroups();
       markNavbarTabs();
       applyDeveloperContent();
+      wireLandingPageButtons();
     });
   } else {
     injectToggle();
     markSidebarGroups();
     markNavbarTabs();
     applyDeveloperContent();
+    wireLandingPageButtons();
   }
 
   // Re-run on Mintlify SPA navigations, preserving ?view=simplified in URL.
