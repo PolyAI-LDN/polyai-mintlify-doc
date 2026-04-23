@@ -273,28 +273,13 @@
   }
 
   function injectToggle() {
+    // Floating fixed-position button attached to <body>. Theme-independent —
+    // doesn't rely on Mintlify's navbar DOM, which has changed across versions
+    // and does not expose a stable injection target in the current maple theme.
     if (document.querySelector('.simplify-toggle')) return;
-
-    // Inject into every navbar list that contains a .navbar-link item.
-    // The maple theme renders separate mobile and desktop navbars, each with
-    // its own li.navbar-link — we need the toggle in both.
-    var navbarLinks = document.querySelectorAll('li.navbar-link');
-    var injected = false;
-
-    navbarLinks.forEach(function (link) {
-      var list = link.parentElement;
-      if (!list) return;
-      var btn = createToggleButton();
-      var li = document.createElement('li');
-      li.appendChild(btn);
-      list.insertBefore(li, list.firstChild);
-      injected = true;
-    });
-
-    if (!injected) {
-      var header = document.getElementById('header') || document.querySelector('header');
-      if (header) header.appendChild(createToggleButton());
-    }
+    if (!document.body) return;
+    var btn = createToggleButton();
+    document.body.appendChild(btn);
   }
 
   // Wires up the explicit Enter / Exit buttons on the /platform/simplified-mode
