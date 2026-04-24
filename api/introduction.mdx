@@ -34,7 +34,7 @@ Use the APIs tab when you want your agent to:
 Typical use cases:
 - Look up a ticket, booking, or account
 - Create or update a record
-- Trigger downstream systems from a [flow](/flow/introduction)
+- Trigger downstream systems from a [flow](/flows/introduction)
 
 ## How API definitions work
 
@@ -58,7 +58,7 @@ Example:
 ## Base URL and environments
 
 Each API supports separate configuration for:
-- Draft / Sandbox
+- Draft and Sandbox
 - Pre-release
 - Live
 
@@ -74,7 +74,7 @@ At runtime, the agent automatically uses the base URL for the active environment
 Each operation represents a single HTTP endpoint.
 
 You define:
-- Method (GET, POST, PUT, DELETE, etc.)
+- Method (`GET`, `POST`, `PATCH`, `PUT`, or `DELETE`)
 - Operation name
 - Resource path
 
@@ -109,15 +109,17 @@ This means you can:
 - Check `response.status_code`
 - Access `response.text`
 - Call `response.json()` to parse JSON responses
-- Call `conv.log_api_response(response)` to log the response for debugging in [Conversation Review](/analytics/conversations/review)
 
-### Debugging with `conv.log_api_response()`
+Every API call is automatically logged (method, URL, status code, and elapsed time) and the response appears in [Conversation Review](/analytics/conversations/review). You can add additional context with `conv.log.info()`, `conv.log.warning()`, or `conv.log.error()`.
 
-Use `conv.log_api_response(response)` to log API responses so they appear in Conversation Review. This is useful when troubleshooting failed or unexpected API calls.
+### Debugging with `conv.log`
+
+Use `conv.log.info()`, `conv.log.warning()`, or `conv.log.error()` to add custom log entries that appear in Conversation Review alongside the automatic request log. This is useful when troubleshooting failed or unexpected API calls.
 
 ```python
 response = conv.api.salesforce.get_contact("123")
-conv.log_api_response(response)
+if response.status_code != 200:
+    conv.log.error(f"Salesforce lookup failed: {response.status_code} {response.text}")
 ```
 
 ### Example: reading JSON from a response
@@ -150,12 +152,12 @@ Always check the response status before processing data. Non-200 responses may i
 
 ```python
 response = conv.api.salesforce.get_contact("123")
-conv.log_api_response(response)
 
 if response.status_code == 200:
     data = response.json()
     return {"content": f"The account status is {data['status']}."}
 else:
+    conv.log.error(f"Salesforce lookup failed: {response.status_code}")
     return {"content": "I wasn't able to retrieve the account details. Please try again later."}
 ```
 
@@ -163,13 +165,13 @@ You can also use `response.raise_for_status()` to raise an exception on non-2xx 
 
 ```python
 response = conv.api.salesforce.get_contact("123")
-conv.log_api_response(response)
 
 try:
     response.raise_for_status()
     data = response.json()
     return {"content": f"The account status is {data['status']}."}
-except Exception:
+except Exception as e:
+    conv.log.error(f"Salesforce lookup failed: {e}")
     return {"content": "Something went wrong while fetching your account details."}
 ```
 
@@ -239,23 +241,22 @@ This behaves similarly to a thin wrapper around a standard HTTP client.
 
 ## Authentication
 
-Authentication is configured at the API level.
+Authentication is configured per environment (Draft and Sandbox, Pre-release, Live) on each API. This lets you point each environment at the appropriate credentials without changing code.
 
 <Warning>
-Authentication configuration is **not branch-specific**. If you edit auth settings on any branch, the change applies globally – including to the main branch. Take care when modifying auth configuration.
+Authentication configuration is **not branch-specific**. Auth settings on an API apply across all branches for a given environment, so editing auth on any branch also affects the main branch. Take care when modifying auth configuration.
 </Warning>
 
 Supported authentication types:
 - **No auth** – No authentication required.
-- **API key** – A key sent in a header or query parameter.
 - **Basic auth** – Username and password encoded in the `Authorization` header.
-- **OAuth 2.0** – Token-based authentication with automatic token management.
-- **Bearer token** – A token sent in the `Authorization` header.
+- **API key** – A key sent in a header or query parameter.
+- **OAuth 2.0** – Token-based authentication using the client credentials grant, with automatic token refresh. You configure the access token URL, client ID, client secret, scope, whether credentials are sent as a header or in the body, and optional auth header name and token prefix.
 
 Auth configuration covers three aspects:
-1. **Type** – The authentication method (API key, bearer token, basic auth, OAuth 2.0, etc.)
-2. **Location** – Where credentials are sent (header, query parameter, or cookie)
-3. **Secret value** – The credential itself, managed securely by Agent Studio
+1. **Type** – The authentication method (`No auth`, `Basic auth`, `API key`, or `OAuth 2.0`).
+2. **Location** – For API keys, where the credential is sent (`Header` or `Query`).
+3. **Secret value** – The credential itself, managed securely by Agent Studio.
 
 Auth credentials are handled by Agent Studio and are not embedded in flows or functions.
 
@@ -266,7 +267,7 @@ The APIs tab provides:
 - Environment-aware routing
 - A simple runtime interface with `conv.api`
 - A `requests.Response`-like return object that you process with `response.json()`
-- Debugging support via `conv.log_api_response()`
+- Automatic request logging, plus custom log entries via `conv.log.info()`, `conv.log.warning()`, and `conv.log.error()`
 
 ## Related pages
 
