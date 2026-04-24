@@ -124,11 +124,11 @@
   function updateButton(btn, simplified) {
     btn.setAttribute('aria-pressed', simplified);
     btn.title = simplified
-      ? 'Exit simplified mode (show all docs)'
-      : 'Enter simplified mode (hide developer and API content)';
+      ? 'Exit no code mode (show all docs)'
+      : 'Enter no code mode (hide developer and API content)';
     btn.innerHTML = simplified
-      ? '<span class="simplify-toggle__icon">\u2726</span><span class="simplify-toggle__label">Simplified \u2014 exit</span>'
-      : '<span class="simplify-toggle__icon">\u2726</span><span class="simplify-toggle__label">Simplified mode</span>';
+      ? '<span class="simplify-toggle__icon">\u2726</span><span class="simplify-toggle__label">No code \u2014 exit</span>'
+      : '<span class="simplify-toggle__icon">\u2726</span><span class="simplify-toggle__label">No code mode</span>';
     btn.classList.toggle('simplify-toggle--active', !!simplified);
   }
 
