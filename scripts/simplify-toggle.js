@@ -9,6 +9,8 @@
   // the /platform/simplified-mode landing page link or an external share),
   // and is mirrored back into the URL on navigations so links can be shared.
   var STORAGE_KEY = 'polyai-simplified-mode';
+  var POSITION_KEY = 'polyai-simplified-pill-position';
+  var DRAG_THRESHOLD = 4; // px — movement before we treat a pointerdown as a drag
 
   // Sidebar group names to hide entirely in simplified mode.
   var HIDDEN_GROUPS = ['Developer tools', 'Secrets', 'Code-driven flows'];
@@ -249,7 +251,15 @@
     btn.type = 'button';
     updateButton(btn, isSimplified());
 
-    btn.addEventListener('click', function () {
+    btn.addEventListener('click', function (e) {
+      // Drag-just-ended clicks are suppressed by makeDraggable (which sets
+      // suppressNextClick). Guard here too in case other code fires a click.
+      if (btn.dataset.dragSuppressClick === '1') {
+        btn.dataset.dragSuppressClick = '';
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       var next = document.documentElement.dataset.simplified !== 'true';
       // If switching INTO simplified mode while on a complex page, redirect home.
       // localStorage persistence means we don't need the sessionStorage flag,
@@ -269,17 +279,143 @@
       updateLandingPageStatus();
     });
 
+    makeDraggable(btn);
     return btn;
   }
+
+  // ── Drag support ──────────────────────────────────────────────────────────
+  // The pill lives at a fixed top-right position by default. Users can drag
+  // it anywhere in the viewport; the position is stored in localStorage and
+  // restored on reload. A small movement threshold ensures a plain click still
+  // toggles simplified mode without being swallowed by the drag handler.
+
+  function readStoredPosition() {
+    try {
+      var raw = window.localStorage.getItem(POSITION_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (typeof parsed.left !== 'number' || typeof parsed.top !== 'number') return null;
+      return parsed;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function writeStoredPosition(pos) {
+    try {
+      window.localStorage.setItem(POSITION_KEY, JSON.stringify(pos));
+    } catch (e) {}
+  }
+
+  function clampPosition(left, top, width, height) {
+    var maxLeft = Math.max(0, window.innerWidth - width);
+    var maxTop = Math.max(0, window.innerHeight - height);
+    return {
+      left: Math.min(Math.max(0, left), maxLeft),
+      top: Math.min(Math.max(0, top), maxTop)
+    };
+  }
+
+  function applyStoredPosition(btn) {
+    var pos = readStoredPosition();
+    if (!pos) return;
+    var rect = btn.getBoundingClientRect();
+    var clamped = clampPosition(pos.left, pos.top, rect.width || 160, rect.height || 36);
+    btn.style.left = clamped.left + 'px';
+    btn.style.top = clamped.top + 'px';
+    btn.style.right = 'auto';
+    btn.style.bottom = 'auto';
+  }
+
+  function makeDraggable(btn) {
+    var startX = 0, startY = 0;
+    var originLeft = 0, originTop = 0;
+    var dragging = false;
+    var pointerId = null;
+
+    btn.addEventListener('pointerdown', function (e) {
+      // Only left-button / primary touch
+      if (e.button !== undefined && e.button !== 0) return;
+      var rect = btn.getBoundingClientRect();
+      startX = e.clientX;
+      startY = e.clientY;
+      originLeft = rect.left;
+      originTop = rect.top;
+      pointerId = e.pointerId;
+      dragging = false;
+    });
+
+    btn.addEventListener('pointermove', function (e) {
+      if (pointerId === null || e.pointerId !== pointerId) return;
+      var dx = e.clientX - startX;
+      var dy = e.clientY - startY;
+      if (!dragging && Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
+      if (!dragging) {
+        dragging = true;
+        btn.classList.add('simplify-toggle--dragging');
+        try { btn.setPointerCapture(pointerId); } catch (err) {}
+      }
+      var rect = btn.getBoundingClientRect();
+      var next = clampPosition(originLeft + dx, originTop + dy, rect.width, rect.height);
+      btn.style.left = next.left + 'px';
+      btn.style.top = next.top + 'px';
+      btn.style.right = 'auto';
+      btn.style.bottom = 'auto';
+      e.preventDefault();
+    });
+
+    function endDrag(e) {
+      if (pointerId === null) return;
+      if (e && e.pointerId !== pointerId) return;
+      try { btn.releasePointerCapture(pointerId); } catch (err) {}
+      pointerId = null;
+      if (dragging) {
+        btn.classList.remove('simplify-toggle--dragging');
+        var rect = btn.getBoundingClientRect();
+        writeStoredPosition({ left: rect.left, top: rect.top });
+        // Swallow the click event that follows pointerup after a drag so the
+        // mode doesn't toggle when the user just repositioned the pill.
+        btn.dataset.dragSuppressClick = '1';
+        setTimeout(function () { btn.dataset.dragSuppressClick = ''; }, 0);
+      }
+      dragging = false;
+    }
+
+    btn.addEventListener('pointerup', endDrag);
+    btn.addEventListener('pointercancel', endDrag);
+  }
+
+  // Re-clamp saved position into view on resize (e.g. orientation change,
+  // browser window shrunk) so the pill can never end up off-screen.
+  window.addEventListener('resize', function () {
+    document.querySelectorAll('.simplify-toggle').forEach(function (btn) {
+      var pos = readStoredPosition();
+      if (!pos) return;
+      var rect = btn.getBoundingClientRect();
+      var clamped = clampPosition(pos.left, pos.top, rect.width, rect.height);
+      btn.style.left = clamped.left + 'px';
+      btn.style.top = clamped.top + 'px';
+      btn.style.right = 'auto';
+      btn.style.bottom = 'auto';
+      if (clamped.left !== pos.left || clamped.top !== pos.top) {
+        writeStoredPosition(clamped);
+      }
+    });
+  });
 
   function injectToggle() {
     // Floating fixed-position button attached to <body>. Theme-independent —
     // doesn't rely on Mintlify's navbar DOM, which has changed across versions
     // and does not expose a stable injection target in the current maple theme.
-    if (document.querySelector('.simplify-toggle')) return;
+    if (document.querySelector('.simplify-toggle')) {
+      // Re-apply stored position in case the DOM was re-rendered around us.
+      document.querySelectorAll('.simplify-toggle').forEach(applyStoredPosition);
+      return;
+    }
     if (!document.body) return;
     var btn = createToggleButton();
     document.body.appendChild(btn);
+    applyStoredPosition(btn);
   }
 
   // Wires up the explicit Enter / Exit buttons on the /platform/simplified-mode
