@@ -10,6 +10,7 @@ keywords:
   - talk tracks
   - multi-step
   - workflow
+  - no-code flows
 ---
 
 Flows guide callers through structured, multi-step processes – collecting a booking reference, routing by account type, or verifying identity before transferring.
@@ -20,50 +21,82 @@ Flows are found under **Build > Flows** in Agent Studio.
 
 Use [Managed Topics](/managed-topics/introduction) for simple question-and-answer interactions. Use flows when the conversation requires a specific sequence of steps, input validation, or branching logic.
 
-This page includes Python code. For no-code flows, see [no-code flows](/flows/no-code/introduction).
+<Tip>
+**No code?** You can build most flows visually using **Default steps** and entity extraction — no Python required. Start with the [no-code flows guide](/flows/no-code/introduction).
+</Tip>
+
+## How flows work
+
+Each flow is made up of **steps** — self-contained conversation states that ask for something, validate input, and route the conversation forward. Steps are connected by labeled edges that describe when each path should be taken.
+
+There are two ways to build flow logic:
+
+<CardGroup cols={2}>
+  <Card title="No-code (Default steps)" icon="wand-magic-sparkles" href="/flows/no-code/introduction">
+    Write natural-language prompts, extract entities, and route by labeled conditions. Best for booking, verification, and data-collection flows.
+  </Card>
+  <Card title="Code-driven (Function / Advanced steps)" icon="code" href="/flows/transition-functions">
+    Use Python to call APIs, apply strict business rules, or perform numeric comparisons. Best when routing depends on custom logic.
+  </Card>
+</CardGroup>
 
 ## How to trigger a flow
 
 Three ways to start a flow:
 
-1. **From code** – call `conv.goto_flow("Reservation flow")` in a function
-2. **From a Managed Topic** – type `/Flow` in the Actions field
-3. **From another flow** – use `conv.goto_flow()` in a Function step or transition function
+1. **From a Managed Topic** – type `/Flow` in the Actions field
+2. **From another flow** – use a transition step in the flow editor
+3. **From code** – call `conv.goto_flow("Reservation flow")` in a function
 
 See [triggering flows](/flows/triggering-flows) for detailed instructions and examples.
 
 APIs do not trigger flows directly. Flows orchestrate steps, and Function steps can call APIs.
 
-## How flows work
+## Connecting steps
 
-Each flow is made up of:
+In the Flow Editor:
 
-- Steps: Self-contained conversation states, made up of:
-  - Text prompts, just like Knowledge topics.
-  - Global functions and transition functions: Logic blocks that validate input, call APIs, store values, and move the conversation forward.
+- Use `/Steps` in the prompt to connect to the next step
+- Add labeled conditions on the edges between steps to describe when each path should be taken
+- Use the Flow Functions modal to see all transitions in one place
 
-That means as each step is sequentially processed, the LLM sees:
-- The current step's text prompt.
-- A list of available functions with names, descriptions, and arguments.
+<Warning>
+Always include an exit step in your flow. Un-exited flows can cause hallucinations.
+</Warning>
 
-What the LLM doesn't see:
-- Previous step prompts.
-- Any system context, unless it's surfaced in the prompt or state.
+Use descriptive step and condition names like `check_reservation_match`, not vague ones like `step_two` – this helps the LLM reason correctly.
 
-**Previous steps are not visible to the LLM.** Each prompt must be self-contained.
+## Standard entity types
 
-## LLM interaction model
+Define the kind of input your agent collects (Alphanumeric, Number, Date, Time, Phone number, Name, Address, Free text, Multiple choice). See [entity types](/flows/no-code/entities) for configuration.
+
+<div className="developer-only">
+
+## Developer details
+
+The following sections cover the Python execution model and code-driven techniques. If you are building flows without code, you can skip these.
+
+### LLM interaction model
 
 When the agent is inside a flow step, this is the input order:
 
 1. System prompt (includes [Behavior](/agent-settings/rules) and [Agent](/agent-settings/agent) agent configuration).
 2. Any relevant [Knowledge](/managed-topics/introduction) topics (if applicable).
+3. The current step's text prompt.
+4. A list of available functions with names, descriptions, and arguments.
+
+What the LLM doesn't see:
+
+- Previous step prompts.
+- Any system context, unless it's surfaced in the prompt or state.
+
+**Previous steps are not visible to the LLM.** Each prompt must be self-contained.
 
 ### Knowledge function visibility in flows
 
 To make global Knowledge functions available while a flow is running, enable this in your agent's **Voice configuration** or **Chat configuration** settings (under the advanced LLM configuration section). Contact your PolyAI representative if you need help enabling this setting.
 
-## Key techniques
+### Code-driven techniques
 
 These techniques require Python. See **Code-driven flows** in the sidebar.
 
@@ -72,44 +105,27 @@ These techniques require Python. See **Code-driven flows** in the sidebar.
 - Set [ASR biasing](/flows/asr-biasing) to improve voice transcription for structured or ambiguous values like confirmation codes or personal names. Learn more about [ASR (automatic speech recognition)](https://en.wikipedia.org/wiki/Speech_recognition).
 - Use [variables](/tools/variables) to store and reference data across steps.
 
-## Connecting steps
-
-In the Flow Editor:
-
-- Use `/Steps` in the prompt to connect to the next step
-- Add named transition functions to manage movement between states
-- Use the Flow Functions modal to see all transitions in one place
-
-<Warning>
-Always include an exit step in your flow. Un-exited flows can cause hallucinations.
-</Warning>
-
-Use descriptive function names like `check_reservation_match`, not vague ones like `step_two` – this helps the LLM reason correctly.
-
-## Standard entity types
-
-Define the kind of input your agent collects (Alphanumeric, Number, Date, Time, Phone number, Name, Address, Free text, Multiple choice). See [entity types](/flows/no-code/entities) for configuration.
-
+</div>
 
 ## Next steps
 
 <CardGroup cols={2}>
-  <Card title="Example flow" icon="diagram-project" href="./example">
-    A complete reservation confirmation flow with step-by-step walkthrough.
-  </Card>
   <Card title="No-code flows" icon="wand-magic-sparkles" href="./no-code/introduction">
     Build flows visually with prompts and entity extraction – no Python required.
   </Card>
+  <Card title="No-code quickstart" icon="rocket" href="./no-code/quickstart">
+    Build your first no-code flow step by step.
+  </Card>
+  <Card title="Entities" icon="puzzle-piece" href="./no-code/entities">
+    Configure entity types, validation, and collection in your flows.
+  </Card>
+  <Card title="Advanced steps" icon="gear" href="./no-code/advanced-steps">
+    ASR biasing, DTMF, and rich text references in advanced steps.
+  </Card>
+  <Card title="Example flow" icon="diagram-project" href="./example">
+    A complete reservation confirmation flow with step-by-step walkthrough.
+  </Card>
   <Card title="Transition functions" icon="code" href="./transition-functions">
     Write Python logic to control how your agent moves between steps.
-  </Card>
-  <Card title="ASR biasing" icon="microphone" href="./asr-biasing">
-    Improve voice transcription accuracy for structured inputs.
-  </Card>
-  <Card title="Few-shot prompting" icon="lightbulb" href="./few-shot-prompting">
-    Use examples in prompts to improve accuracy and reduce ambiguity.
-  </Card>
-  <Card title="Flow object" icon="cube" href="./object">
-    Python reference for goto_step() and current_step.
   </Card>
 </CardGroup>
