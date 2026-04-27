@@ -15,6 +15,17 @@ Add tools to actions to extend your agent's capabilities with custom logic – l
 
 <Note>Tools are Python `function`s – "tool" and "function" refer to the same feature, and the `{"{{fn:…}}"}` reference syntax below keeps the `fn:` prefix for backward compatibility.</Note>
 
+## Actions vs Content
+
+Tools only run when referenced from the **Actions** field. Content is what the agent says; Actions are what the agent does next. If you come from an intent-based background, the mental model is:
+
+| Field | Equivalent | Visible to retriever |
+| --- | --- | --- |
+| Content | `say` function | Yes |
+| Actions | `transition` function | No |
+
+Putting `{"{{fn:...}}"}` in Content will not call the tool and produces no error – the reference is treated as plain text.
+
 ## Adding a tool
 
 Add a tool to the **Actions** field of a managed topic in three ways:
@@ -41,6 +52,8 @@ The `{"{{fn:...}}"}` syntax references **global tools** (also called global func
   When a tool is referenced inside a flow action, it may not be included in the LLM's tool definitions. This means the LLM cannot see or call the tool. If you encounter this, add the tool reference to the [Behavior](/agent-settings/rules) section so the LLM is aware of it.
 </Warning>
 
+If your topic detours through a flow and needs to return to the original topic afterwards, see [Returning to the topic after a flow](/managed-topics/introduction#returning-to-the-topic-after-a-flow) for the state-preservation pattern (storing the originating topic in `conv.state` and using the flow's exit function to direct the LLM back).
+
 ## Example prompt
 
 Use this pattern in the **Actions** field to ensure the agent calls a tool before responding:
@@ -50,6 +63,10 @@ When the user asks "where is my order," do not respond until you have called {{f
 ```
 
 The agent will always invoke the tool before responding, and ground its answer in the tool's output.
+
+<Tip>
+The reason this pattern is reliable: it splits the speaking turn from the tool-calling turn. Telling the agent to both say something and call a tool in the same turn is a known [anti-pattern](/managed-topics/introduction#common-anti-patterns) – the agent typically does one or the other, but not both consistently.
+</Tip>
 
 ## Controlling agent behavior after a tool call
 
