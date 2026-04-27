@@ -16,13 +16,14 @@
   var HIDDEN_GROUPS = ['Developer tools', 'Secrets', 'Code-driven flows'];
 
   // Collapsed sub-group button labels to hide in simplified mode.
-  // SMS and Call handoffs are intentionally excluded here — their intro pages
-  // are visible in simplified mode with developer content behind an accordion.
+  // SMS, Call handoffs, and Flows are intentionally excluded here — their intro
+  // pages are visible in simplified mode with developer content behind an
+  // accordion, and Flows contains a No-code sub-group that must stay visible.
   var HIDDEN_SUBGROUPS = [
     'Tools', 'Configuration builder',
     'Speech recognition', 'Response control', 'Audio management',
     'Variant management',
-    'Flows', 'Test suite',
+    'Test suite',
     'APIs', 'API and export',
     'PolyAcademy level 2', 'PolyAcademy level 3',
     // Managed-service integration groups (hidden in simplified mode)
@@ -44,13 +45,20 @@
     '/tools/', '/secrets/', '/extend/', '/configuration-builder/',
     '/speech-recognition/', '/response-control/', '/audio-management/', '/variant-management/',
     '/telephony/twilio/',
-    '/flows/',
     '/call-data/conversations-api/',
     '/analytics/test-suite/',
     '/api-reference/', '/api/'
   ];
   var COMPLEX_EXACT = [
     '/call-data/s3-to-s3',
+    // Code-driven flow pages — the no-code subdirectory stays visible.
+    '/flows/triggering-flows',
+    '/flows/example',
+    '/flows/transition-functions',
+    '/flows/object',
+    '/flows/asr-biasing',
+    '/flows/dtmf',
+    '/flows/few-shot-prompting',
     // Managed-service integration pages (not in Studio UI)
     '/integrations/managed-services',
     '/integrations/voice/sip/custom-sip', '/integrations/voice/dnis-pool',
@@ -76,7 +84,7 @@
 
   // These intro pages are "mixed" — they appear in simplified mode with developer
   // content tucked behind an accordion. They must not trigger exit from simplified mode.
-  var SIMPLIFIED_INTROS = ['/call-handoff/introduction', '/sms/introduction'];
+  var SIMPLIFIED_INTROS = ['/call-handoff/introduction', '/sms/introduction', '/flows/introduction'];
 
   function isComplexPath(pathname) {
     if (SIMPLIFIED_INTROS.indexOf(pathname) !== -1) return false;
