@@ -21,6 +21,8 @@ Use handoffs to transfer callers to human agents when they reach a point requiri
 
 The SIP-based handoff methods described below apply to voice interactions. Webchat handoffs use HTTP-based integrations with your live chat platform. To manage handoff states programmatically, visit the [Handoff API documentation](/api-reference/handoff/introduction).
 
+Handoff is the primary [human-in-the-loop (HITL)](/glossary/introduction#hitl-human-in-the-loop) mechanism in Agent Studio: the agent runs autonomously by default and escalates to a human only when needed. Configure *when* the agent escalates with [Managed Topic actions](/managed-topics/how-to-setup-action/handoff) and [flow actions](/flows/no-code/advanced-steps); configure *what context the human receives* with the fields documented in [Handoff context handover](#handoff-context-handover) below.
+
 ## Related handoff documentation
 
 - **[Handoff actions in Managed Topics](/managed-topics/how-to-setup-action/handoff)** - Add handoff triggers to Knowledge topics
@@ -171,6 +173,57 @@ When using SIP REFER, the utterance may not play before the transfer completes b
 * Gives QA teams full visibility into the exact wording customers heard.
 
 </Accordion>
+
+### Handoff context handover
+
+When the agent transfers a caller to a human, the human-side system needs context about what already happened. PolyAI exposes that context through three complementary channels — pick whichever your contact-center platform supports.
+
+| Channel | Best for | What you get |
+|---------|----------|--------------|
+| **SIP headers** | Lightweight metadata embedded in the transfer signal itself; supported by most SBCs and Twilio Flex. | Custom `X-` headers (e.g. `X-Customer-ID`, `X-Reason`, `X-Caller-ID`) populated from `conv.state` variables at transfer time. See [Configuring SIP headers](#configuring-sip-headers). |
+| **[Handoff API](/api-reference/handoff/introduction)** | Larger structured payloads that don't fit in headers, or when the destination needs a "screen pop" with full context. | The `handoff` object stored in `conv.state.handoff` (or written via `conv.call_handoff()`), retrievable by `id` or `shared_id`. The `data` field is free-form JSON, so you control the shape. |
+| **[Conversations API](/api-reference/conversations/introduction)** | Post-handoff CRM enrichment, BI, and QA workflows. | Full conversation including the `handoff` object with `destination`, `reason`, `utterance`, plus the entire transcript, [`conv.log`](/tools/classes/conv-log) entries, and any [custom metrics](/tools/classes/conv-object#write_metric) the agent recorded. |
+
+The data the agent writes (and the human therefore sees) is whatever you choose to store. Common fields:
+
+- **Identifiers** – `customer_id`, `account_number`, `shared_id` linking the PolyAI conversation to a record in your CRM
+- **Verification status** – `successfully_identified`, `auth_method`, `verification_attempts` so the agent doesn't ask the caller to re-verify
+- **Reason for escalation** – machine-readable `reason` (e.g. `policy_violation`, `complaint_escalation`, `customer_refund`); see [Handoff reason and utterance](#handoff-reason-and-utterance)
+- **Pre-handoff utterance** – the exact wording the agent used before transferring, logged for QA
+- **Caller intent and slots** – any entities collected during the AI portion of the call (order ID, refund amount, preferred callback time)
+
+<Tip>
+Choose **one** channel as the source of truth and keep the others consistent with it. Changes made in `conv.state.handoff` are reflected in both the Handoff API and the Conversations API automatically; SIP headers must be set explicitly on each handoff destination or via `conv.call_handoff(sip_headers={...})`.
+</Tip>
+
+#### Writing context from a function
+
+```python
+def transfer_to_billing(conv):
+    return conv.call_handoff(
+        destination="billing",
+        reason="refund_request",
+        utterance="Let me transfer you to a billing specialist who can help with that refund.",
+        sip_headers={
+            "X-Customer-ID": conv.state.customer_id,
+            "X-Verified": "true",
+            "X-Reason": "refund_request",
+        },
+    )
+```
+
+The `destination` parameter must match a handoff configured under **Build > Call handoffs**. The `reason` and `utterance` surface in [Conversation Review](/analytics/conversations/review) and the [Conversations API](/api-reference/conversations/introduction); the `sip_headers` are merged with any headers configured on the destination, with values passed here taking precedence.
+
+#### Webchat handoffs
+
+Webchat uses the same conceptual model but exchanges context over WebSocket events rather than SIP. The PolyAI agent emits a `poly_agent_triggered_handoff` event followed by `client_handoff_required`; the live-chat platform handles queueing (`handoff_queue_status`) and acceptance (`handoff_accepted`), then the human appears in the session as `live_agent_joined`. See [Webchat handoff in conversation events](/call-data/conversations-api/handoff-states#live-agent-events) for the full event sequence.
+
+#### Feedback loops from the human side
+
+Once a human has handled the escalation, you can close the loop in two ways:
+
+1. **Tag the conversation in Conversation Review.** Live agents (or QA reviewers) can apply [annotations](/analytics/conversations/annotations) such as *Escalated unnecessarily* or *Wrong topic* directly on the PolyAI conversation. Tagged calls surface in [QA workflows](/learn/maintain/qa-analytics) and Smart Analyst queries.
+2. **Push outcomes back via the Conversations API.** If your CRM captures a resolution code on the human-handled portion, attach it back to the conversation by `shared_id`. This pairs the agent's `reason` field with the human's actual outcome, which is what [Smart Analyst](/smart-analyst/introduction) needs to answer questions like *"What share of complaint escalations were resolved on first contact?"*.
 
 ### Using your own Twilio number
 
