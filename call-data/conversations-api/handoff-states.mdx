@@ -76,24 +76,28 @@ When both IDs are provided, the API prioritizes the `shared_id`.
 
 For full details on parameters, headers, and error codes, refer to the [Handoff API documentation](/api-reference/handoff/introduction).
 
-## Live agent events
+## Webchat and SMS handoff via the Chat API
 
-In webchat, handoffs are exchanged as a sequence of WebSocket events rather than a single state transition. This section documents the event sequence so you can integrate a live-chat platform with PolyAI.
+For webchat and SMS integrations using the [Chat API](/api-reference/chat/introduction), the agent signals a handoff on the `chat/respond` response: `end_conversation` is set to `true` and a `handoff` object is included alongside the agent's final message.
 
-| Event | Direction | When it fires |
-|-------|-----------|---------------|
-| `poly_agent_triggered_handoff` | PolyAI → client | The agent decided to escalate (e.g. `conv.call_handoff()` was called or a Managed Topic handoff action ran). |
-| `initiate_handoff` | PolyAI → client | The handoff descriptor (destination, reason) is sent to the channel handler. |
-| `client_handoff_required` | PolyAI → client | The client (your live-chat platform) should now route the session to a human. Includes `route` for downstream routing. |
-| `handoff_queue_status` | Client → PolyAI | Optional. Reports queue position and estimated wait time so the agent can communicate them to the user. |
-| `handoff_accepted` | Client → PolyAI | A human has picked up the session. PolyAI stops generating responses. |
-| `live_agent_joined` | Client → PolyAI | The human's profile (name, avatar) is attached to the session. |
-| `live_agent_typing` / `live_agent_message` | Client → PolyAI | Forwarded so the user sees the human's typing indicator and messages in the same UI. |
-| `live_agent_left` | Client → PolyAI | The human has ended their leg of the session. |
-| `handoff_failed` / `handoff_timeout` | Client → PolyAI | The transfer could not complete; the agent may retry or fall back. |
-| `handoff_termination` | Internal | Closes an active handoff when the session ends. |
+```json
+{
+  "conversation_id": "CONV-1234567890",
+  "response": "Transferring you to a live agent.",
+  "end_conversation": true,
+  "handoff": {
+    "destination": "live_agent_queue",
+    "reason": "billing_question"
+  }
+}
+```
 
-These map 1:1 to the event types in PolyAI's webchat protocol. The live agent's name displays in the typing indicator and message bubbles as `<agentName> (Live Agent)` once `live_agent_joined` is received.
+When your widget or SMS connector sees `handoff` in the response:
+
+1. Stop calling `chat/respond` for this conversation.
+2. Use `destination` to route the session to the right queue or skill in your live-chat platform.
+3. Call the [Handoff API](/api-reference/handoff/introduction) with the `conversation_id` (or your `shared_id`) to retrieve the full `data` payload — customer identifiers, verification status, collected entities — for a screen-pop on the live agent's desktop.
+4. Optionally call `chat/close` once the human has accepted the session.
 
 For voice handoffs, the equivalent signal is a SIP REFER, INVITE, or BYE — see [Call handoff](/call-handoff/introduction#adding-a-handoff-destination).
 
