@@ -76,6 +76,31 @@ When both IDs are provided, the API prioritizes the `shared_id`.
 
 For full details on parameters, headers, and error codes, refer to the [Handoff API documentation](/api-reference/handoff/introduction).
 
+## Webchat and SMS handoff via the Chat API
+
+For webchat and SMS integrations using the [Chat API](/api-reference/chat/introduction), the agent signals a handoff on the `chat/respond` response: `end_conversation` is set to `true` and a `handoff` object is included alongside the agent's final message.
+
+```json
+{
+  "conversation_id": "CONV-1234567890",
+  "response": "Transferring you to a live agent.",
+  "end_conversation": true,
+  "handoff": {
+    "destination": "live_agent_queue",
+    "reason": "billing_question"
+  }
+}
+```
+
+When your widget or SMS connector sees `handoff` in the response:
+
+1. Stop calling `chat/respond` for this conversation.
+2. Use `destination` to route the session to the right queue or skill in your live-chat platform.
+3. Call the [Handoff API](/api-reference/handoff/introduction) with the `conversation_id` (or your `shared_id`) to retrieve the full `data` payload — customer identifiers, verification status, collected entities — for a screen-pop on the live agent's desktop.
+4. Optionally call `chat/close` once the human has accepted the session.
+
+For voice handoffs, the equivalent signal is a SIP REFER, INVITE, or BYE — see [Call handoff](/call-handoff/introduction#adding-a-handoff-destination).
+
 ## SIP header handoff
 
 Some deployments include handoff metadata in [SIP](https://en.wikipedia.org/wiki/Session_Initiation_Protocol) headers when calls are passed back to the contact center. SIP headers can provide critical context quickly, because they package agent IDs and handoff states into lightweight metadata.
