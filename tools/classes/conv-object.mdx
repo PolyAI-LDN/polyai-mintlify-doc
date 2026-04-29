@@ -347,6 +347,53 @@ The Conversation object (conv) provides access to conversation data and tools fo
     if response.status_code == 200:
       contact_data = response.json()
     ```
+
+    See [`conv.api`](./conv-api) for the full reference.
+  </Accordion>
+
+  <Accordion title="integrations">
+    **Description**: Executor for calling pre-built external integrations (e.g. OpenTable, Tripleseat). Access integrations using `conv.integrations.{integration_name}`.
+
+    Unlike `conv.api`, integrations are PolyAI-managed connections where authentication, request shaping, and headers are handled for you. Each integration exposes its own custom methods plus a generic `proxy_request` method for any endpoint.
+
+    **Example**:
+    ```python
+    response = conv.integrations.tripleseat.create_lead(
+      public_key="abc123",
+      first_name="Jane",
+      last_name="Smith",
+      phone_number="+15551234567"
+    )
+    if response.status_code == 200:
+      lead = response.json()
+
+    # Or use the generic proxy_request for any endpoint
+    response = conv.integrations.tripleseat.proxy_request(
+      endpoint="/v1/bookings.json",
+      http_method="GET"
+    )
+    ```
+
+    See [Integrations](/integrations/introduction) for the list of available integrations.
+  </Accordion>
+
+  <Accordion title="webchat">
+    **Description**: Webchat-specific interface (`WebchatInterface`). Use this for functionality that only applies on webchat channels.
+
+    **Sub-attributes and methods**:
+    - `chat_call_actions` (list) – click-to-call buttons queued for the next agent message.
+    - `set_chat_call_actions(actions)` – set the list of `ChatCallAction` objects to render as Contact Us buttons in the webchat widget.
+
+    A `ChatCallAction` takes `contact_number` (full E.164 phone number including country code) and an optional `title` for the button label.
+
+    **Example**:
+    ```python
+    from polyai.webchat import ChatCallAction
+
+    conv.webchat.set_chat_call_actions([
+      ChatCallAction(contact_number="+15551234567", title="Call our team")
+    ])
+    ```
   </Accordion>
 
   <Accordion title="generic_external_events">
@@ -562,6 +609,83 @@ The Conversation object (conv) provides access to conversation data and tools fo
     **Example**:
     ```python
     conv.send_sms_template(to_number=conv.caller_number, template="booking_confirmation")
+    ```
+  </Accordion>
+
+  <Accordion title="send_whatsapp">
+    **Description**: Send a WhatsApp template message through Twilio.
+
+    To send a WhatsApp message, the Twilio subaccount must use a phone number enabled for WhatsApp. Both the phone number and the message template content require approval from Meta. Once approved, Twilio provides a `content_id` that must be referenced when sending.
+
+    <Note>WhatsApp messaging requires a configured Twilio integration and is not a native PolyAI channel. Contact your PolyAI representative for setup.</Note>
+
+    **Parameters**:
+    - `to_number` (str) – recipient phone number.
+    - `from_number` (str) – sender phone number (must be WhatsApp-enabled).
+    - `content_id` (str) – alphanumeric ID of the approved message template.
+    - `content` (str, optional) – text content. Default `""`.
+    - `retry_count` (int, optional) – number of retries to attempt.
+
+    **Example**:
+    ```python
+    conv.send_whatsapp(
+      to_number=conv.caller_number,
+      from_number="+441234567890",
+      content_id="HX5678efgh"
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="set_csat_eligibility">
+    **Description**: Override whether this conversation is eligible for [CSAT surveys](/analytics/csat/introduction).
+
+    If set to `False`, the conversation is excluded from CSAT regardless of normal logic (call type, percentage, weekly caps). If set to `True` or not called, normal CSAT logic applies.
+
+    **Parameters**:
+    - `eligible` (bool) – whether the conversation is eligible for CSAT.
+    - `reason` (str, optional) – reason for the decision (used in logs).
+
+    **Example**:
+    ```python
+    if conv.state.get("contains_pii"):
+      conv.set_csat_eligibility(False, reason="pii_detected")
+    ```
+  </Accordion>
+
+  <Accordion title="set_csat_phone_number">
+    **Description**: Override the phone number used to send CSAT SMS surveys. Useful when the actual caller phone number is passed via a SIP header rather than the caller ID (for example, in IVR setups).
+
+    **Parameters**:
+    - `phone_number` (str) – phone number to send CSAT SMS to.
+
+    **Example**:
+    ```python
+    real_caller = conv.sip_headers.get("X-Original-Caller")
+    if real_caller:
+      conv.set_csat_phone_number(real_caller)
+    ```
+  </Accordion>
+
+  <Accordion title="set_csat_score">
+    **Description**: Record a [CSAT](/analytics/csat/introduction) score for the conversation. Used by the platform's CSAT voice survey flow.
+
+    **Parameters**:
+    - `score` (int) – CSAT score between 1 and 5.
+
+    Raises `ValueError` if the score is not an integer between 1 and 5.
+
+    **Example**:
+    ```python
+    conv.set_csat_score(5)
+    ```
+  </Accordion>
+
+  <Accordion title="set_csat_survey_entered">
+    **Description**: Mark that the caller entered the CSAT survey flow. Used by the platform's CSAT voice survey flow.
+
+    **Example**:
+    ```python
+    conv.set_csat_survey_entered()
     ```
   </Accordion>
 
