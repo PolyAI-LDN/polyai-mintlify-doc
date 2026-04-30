@@ -166,16 +166,30 @@ if response.status_code == 404:
 
 ## Logging API responses
 
-For debugging and review, log responses explicitly.
+For debugging and review, log responses explicitly with `conv.log_api_response()`.
 
 ```python
 response = conv.api.sweet_booking_api.create_booking(json=payload)
 conv.log_api_response(response)
 ```
 
-This makes the response visible in:
+This records request metadata (URL, method, status code, response time, and error body on non-2xx responses) and makes it visible in:
 - Conversation Review → Diagnosis
 - Conversations API
+
+### Grouping by URL pattern
+
+Pass `override_url` when the real URL contains high-cardinality path variables (IDs, tokens) so calls group cleanly in analytics.
+
+```python
+response = conv.api.sweet_booking_api.get_booking(booking_id="abc123")
+conv.log_api_response(
+  response,
+  override_url="https://api.sweets.example/bookings/{booking_id}"
+)
+```
+
+Without `override_url`, each booking ID would log as a distinct URL.
 
 ## Environment awareness
 
