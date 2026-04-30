@@ -30,6 +30,48 @@ if conv.state.my_variable == 10:
     return "Well done you hit 10"
 ```
 
+### Reading variables that haven't been set
+
+Reading a `conv.state` variable that was never assigned returns Python `None` – it does **not** raise `AttributeError` or `KeyError`. Both attribute and dictionary access are supported and equivalent:
+
+```python
+conv.state.foo            # None if never set
+conv.state["foo"]         # None if never set
+conv.state.get("foo")     # None if never set (with optional default)
+```
+
+This enables a few common patterns:
+
+**Defensive defaults with `or`** – use when any falsy value should be replaced:
+
+```python
+attempts = conv.state.verification_attempts or 0
+intent = conv.state.call_intent or "other"
+```
+
+Note: `or` cannot distinguish "never set" from a stored falsy value (`0`, `""`, `False`, `None`).
+
+**Explicit unset check with `is None`** – use when the variable is intentionally initialized to `None` in the [start tool](/tools/start-tool) as a marker that no value has been collected yet:
+
+```python
+def start_function(conv: Conversation):
+    conv.state.booking_time = None   # explicit "not yet collected" marker
+    conv.state.customer_id = None
+
+# later, in a flow step
+if conv.state.booking_time is None:
+    return "What time would you like to book?"
+```
+
+**Strict "key was assigned at all" check with `in`** – use when you must distinguish "never assigned" from a stored `None`:
+
+```python
+if "booking_time" in conv.state:
+    ...
+```
+
+Initializing variables to `None` (or a sensible default like `""` or `0`) in `start_function` is recommended whenever a variable is referenced in a [prompt template](#prompt-templating) or read in a flow step before it is guaranteed to be set, so template references and conditional checks always resolve predictably.
+
 ### Built-in state keys
 
 The `conv.state` object comes pre-populated with system-managed keys. These are set automatically by the platform and available in every conversation:
