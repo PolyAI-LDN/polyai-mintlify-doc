@@ -1,0 +1,140 @@
+---
+title: "Prompting Studio Assistant"
+sidebarTitle: Prompting guide
+description: "Practical patterns for getting consistently good results from Studio Assistant – with real prompt examples for building, testing, asking, and analyzing."
+keywords:
+  - studio assistant prompts
+  - prompt examples
+  - prompting guide
+  - copilot best practices
+---
+
+Studio Assistant performs best when your messages are **specific**, **scoped**, and **grounded in business rules**. This page collects the patterns that consistently produce good results, with real prompt templates you can copy.
+
+## Four prompt categories
+
+Studio Assistant's quick-start templates group prompts into four intents. Use them as a mental model when phrasing your own requests.
+
+<CardGroup cols={2}>
+  <Card title="Build" icon="hammer">
+    Add or change agent configuration – flows, topics, entities, functions, handoffs.
+  </Card>
+  <Card title="Test" icon="flask">
+    Run conversations and validation against the current draft.
+  </Card>
+  <Card title="Ask" icon="circle-question">
+    Get answers about your agent or about PolyAI concepts.
+  </Card>
+  <Card title="Analyze" icon="chart-line">
+    Inspect performance, behavior patterns, and what callers are asking about.
+  </Card>
+</CardGroup>
+
+### Build
+
+For creating or modifying agent configuration. Use **Agent** mode (or **Plan** mode if you want to review first).
+
+Examples:
+
+- *Help my agent **book appointments**.*
+- *Add a new topic to the knowledge base.*
+- *Handle call transfers to a human agent.*
+- *Add a refund flow. We only refund within 30 days of purchase, and only for the original payment method.*
+- *Create an entity for delivery status with values: pending, shipped, out for delivery, delivered.*
+
+### Test
+
+For exercising the agent against scripted scenarios.
+
+Examples:
+
+- *Test my agent with a sample conversation.*
+- *Check if my agent handles **refund requests**.*
+- *Check if my agent handles **angry callers**.*
+- *Run a full validation on recent changes.*
+
+### Ask
+
+For learning, exploration, and understanding. Read-only – use **Ask** mode.
+
+Examples:
+
+- *What can my agent do right now?*
+- *How do I improve my agent's responses?*
+- *Explain how **handoffs** work.*
+- *Which flows reference the `account_lookup` function?*
+- *Summarize the personality and role defined in agent settings.*
+
+### Analyze
+
+For inspecting performance and patterns in real conversations.
+
+Examples:
+
+- *What's causing handoffs?*
+- *How did my agent perform this week?*
+- *What are customers asking about most?*
+
+## Patterns that work well
+
+### State the business rule, not just the action
+
+The assistant does not know your business policies. Anything it can't infer from your existing configuration, it will either ask for during planning – or guess at, if it has to. Stating the rule up front saves a round-trip.
+
+❌ *Add a refund flow.*
+
+✅ *Add a refund flow. Refund window is 30 days from purchase. Refunds always go to the original payment method. Final-sale items can't be refunded – the agent should explain this and offer a 10% discount on the next order instead.*
+
+### Scope each request to one unit of work
+
+One flow, one topic, one set of related changes. This keeps plans focused and review easy.
+
+❌ *Build me a full restaurant agent.*
+
+✅ A sequence of focused requests:
+
+1. *Set up the agent's personality and role for a casual neighborhood Italian restaurant.*
+2. *Add a flow that books a table. Collect party size, date, time, and name. Confirm before booking.*
+3. *Add a topic for opening hours: open 5pm–10pm Tuesday to Sunday, closed Mondays.*
+4. *Add a flow for special dietary requests that hands off to a human if it can't be answered.*
+
+### Anchor changes to existing elements by name
+
+When you're modifying something that already exists, name it. The assistant resolves names against your project state.
+
+✅ *Update the **opening-hours** topic – we're now open until 8pm on weekdays.*
+
+✅ *Change the **booking flow** so it asks for a phone number before confirming.*
+
+✅ *Make the **refund flow** transfer to a human if the order is older than 30 days.*
+
+### Use Plan mode for anything non-trivial
+
+For multi-flow changes, restructures, or new integrations, switch to **Plan** mode first. You'll get:
+
+- A summary of what already exists and what would change.
+- A list of business-specific information the assistant still needs.
+- The proposed implementation steps.
+
+Review the plan, fill in gaps, then switch to **Agent** mode and say *"go ahead with the plan"*.
+
+### Iterate – don't restart
+
+If a result isn't quite right, follow up in the same conversation rather than starting over. The assistant has the full context of what it just built.
+
+✅ *Looks good, but the booking flow shouldn't ask for a phone number if the caller is already authenticated.*
+
+✅ *Same flow, but switch the confirmation step to use SMS instead of reading it back on the call.*
+
+## What the assistant won't do
+
+- **Invent business knowledge.** Prices, hours, policies, names, return windows, eligibility rules – if these aren't in your existing configuration or your message, planning will surface them as questions.
+- **Edit anything other than your draft.** It never publishes or promotes between [environments](/environments-and-versions/introduction).
+- **Make changes in Plan or Ask mode.** It will tell you to switch to **Agent** mode.
+- **Share its system prompt or internal architecture.** It's focused on building, testing, analyzing, and answering questions about your agent.
+
+## Disclaimer
+
+> AI can make mistakes. Please review all responses.
+
+Every change Studio Assistant makes appears on your draft just like a manual edit. Inspect it, tweak it, or revert it before promoting to a higher environment.
