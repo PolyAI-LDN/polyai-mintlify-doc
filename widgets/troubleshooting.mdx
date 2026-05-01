@@ -1,0 +1,213 @@
+---
+title: "Troubleshooting"
+sidebarTitle: "Troubleshooting"
+description: "Diagnose widget issues — rendering, microphone, network, CSP, and call-quality problems."
+keywords:
+  - widget troubleshooting
+  - polyphone troubleshooting
+  - chat widget troubleshooting
+  - csp
+  - microphone
+  - webrtc
+---
+
+Widgets run in the visitor's browser, so the issues you'll hit usually fall into a small, well-understood set: rendering, CSP, microphone, network/WebRTC, and audio routing. Walk through the relevant checks below and you'll resolve most of them in a few minutes.
+
+## Widget not appearing
+
+**Symptoms:** No launcher in the bottom-right after embedding the script.
+
+Check, in order:
+
+1. **Script is on the page.** Open browser DevTools, go to the **Network** tab, and reload. Confirm a request to `messaging.poly.ai/widget/...js` returns 200.
+2. **Snippet placement.** The script must be present in page source, before `</body>`. If you're using Tag Manager, verify the tag fired (check the GTM debugger).
+3. **Domain matches the widget configuration.** Widgets only render on the domain set in **Website URL**. If you changed domains, update the widget and re-publish.
+4. **Ad blockers or privacy extensions.** Test in a private/incognito window with extensions disabled.
+5. **HTTPS is in use.** Browsers block microphone access (and disable Phone widget launchers) on `http://` origins. Confirm the page is served over HTTPS with a valid certificate.
+6. **Tag Manager or website code syntax errors.** Missing quotes or unclosed tags can prevent the script from loading.
+
+## CSP or security headers block the widget
+
+If your site uses Content Security Policy (CSP), your policy may need to allow the widget script and its runtime endpoints.
+
+**What to add to your CSP:**
+
+- `script-src` — allow `messaging.poly.ai`.
+- `connect-src` — allow `wss://webrtc-gateway.<region>.polyai.app` (Phone widgets) and `https://messaging.poly.ai`.
+- `frame-src` — allow the PolyAI iframe origin.
+
+Check DevTools **Console** for CSP violation errors, then ask your web team to add the missing directives.
+
+<Note>
+If your organization requires a formal security review, share your CSP errors and current CSP header with PolyAI support.
+</Note>
+
+## Cookie consent banner overlaps the widget
+
+**What to try:**
+
+1. Adjust your cookie banner's `z-index` (the widget launcher uses `z-index: 10000`).
+2. [Adjust the widget position](/widgets/install#widget-positioning-chat-widgets) using CSS on the `#poly-ai-chat` element (Chat widgets).
+3. Test on mobile, where banners often cover more screen space.
+
+## iFrame or embed restrictions
+
+If your website is primarily rendered inside an iFrame, some browser rules can restrict behaviour.
+
+**What to try:**
+
+1. Test the widget on the top-level page (not inside an iFrame).
+2. Check your iFrame `sandbox` attributes and whether scripts and top navigation are allowed.
+
+## Phone widgets
+
+### Call button is disabled
+
+**Symptoms:** The launcher renders but **Start call** is greyed out.
+
+Common causes:
+
+- **Insecure context.** The page is on `http://` or otherwise not a secure context. Move to HTTPS.
+- **Unsupported browser.** Polyphone requires WebRTC: Chrome 72+, Firefox 60+, Safari 14.1+ desktop / 16+ iOS, Edge 79+.
+- **Another tab has an active call.** One active call per browser. The disabled state shows a "Call active in another tab" message. Close the other tab or end the active call.
+
+### Microphone permission denied
+
+**Symptoms:** After clicking **Start call**, the widget shows **Mic blocked**.
+
+Have the visitor:
+
+1. Click the lock icon in the address bar.
+2. Set **Microphone** to **Allow** for your site.
+3. Reload the page.
+4. Click **Try again** in the widget.
+
+On macOS, also check **System Settings > Privacy & Security > Microphone** and ensure the browser has access. On iOS Safari, mic access for embedded iframes requires iOS 16 or later.
+
+### Stuck on "Connecting…"
+
+**Symptoms:** Widget never progresses past **Connecting…** and eventually shows an error.
+
+Polyphone retries the connection up to 3 times with a 1-second base delay before failing. If it consistently fails:
+
+- **Corporate firewall blocking WebRTC.** WebRTC needs UDP traffic and STUN access. Ask network admins to allow outbound traffic to PolyAI's WebRTC gateway and `stun.l.google.com:19302`.
+- **VPN or proxy interference.** Some VPNs strip UDP. Try without the VPN.
+- **Browser extensions.** Privacy or content-blocking extensions can break WebSocket signaling. Test in a private/incognito window.
+
+If only some users hit this, capture the failure mode in DevTools **Network** (look for failed `wss://` connections) and share with PolyAI support.
+
+### No audio after connect
+
+**Symptoms:** The widget reaches **In call** but neither side can hear each other.
+
+Check:
+
+1. **OS audio routing** — the right input and output devices are selected.
+2. **Browser mic permission** — still granted (some browsers reset on origin changes).
+3. **Mute state** — the in-call mute button isn't engaged.
+4. **System volume / hardware mute** — physical mute switches on headsets are a common culprit.
+5. **Echo cancellation** — Polyphone enables it by default. If you hear yourself echoing, check that you're not running other VoIP apps on the same mic.
+
+### Audio quality issues
+
+**Symptoms:** Calls connect but audio is choppy, robotic, or laggy.
+
+- **Network bandwidth** — Polyphone needs ~30 kbps each way at minimum. Run a speed test.
+- **Wi-Fi congestion** — test on wired ethernet to rule out Wi-Fi.
+- **Background bandwidth use** — large downloads, video calls, or screen-sharing on the same connection compete with the audio stream.
+- **Browser tab throttling** — some browsers throttle background tabs. Keep the call tab in the foreground.
+
+### Cross-tab lock issues
+
+**Symptoms:** Visitor sees "Call active in another tab" but doesn't have any tab open.
+
+The cross-tab lock uses a `localStorage` heartbeat (5 s) with a 10 s stale threshold. If a tab crashes mid-call the lock can stay set briefly. Wait ~15 seconds and reload, or manually clear `POLY_AI_POLYPHONE_CALL_ACTIVE` from the site's `localStorage` in DevTools.
+
+## Chat widgets
+
+### `tel:` links do not launch calls
+
+**Possible causes:**
+
+- Desktop browsers may not have a default calling app.
+- Some managed devices block `tel:` links.
+
+**What to try:**
+
+1. Test on a mobile device.
+2. Confirm your number is valid and in international format.
+3. Verify device policies allow phone links.
+
+### QR code does not scan
+
+**Possible causes:**
+
+- Low contrast or too small on mobile.
+- Camera permissions or scanner limitations.
+
+**What to try:**
+
+1. Increase the QR size (if configurable).
+2. Test with a different scanner app.
+3. Ensure screen brightness is sufficient.
+
+## "Snippet has changed since last publish"
+
+**Symptoms:** The Embed tab shows a red banner.
+
+This means the script tag stored on your site no longer matches the published configuration. Copy the new tag from the Embed tab and update your site (or tag manager). Until you do, visitors will still see the old configuration.
+
+You'll see this banner whenever:
+
+- You change the variant or environment for the widget.
+- The widget is recreated (rare, e.g. after deletion and re-add).
+
+You will **not** see it when you change branding, copy, or policies — those propagate without a re-embed.
+
+## Best practices
+
+### Placement and UX
+
+- Place the widget in a **bottom corner** and keep it consistent across pages.
+- Avoid overlapping cookie banners, accessibility controls, "Back to top" buttons, or mobile navigation.
+- If you use a sticky footer, test the widget on mobile to ensure it remains tappable.
+
+### Performance
+
+- The widget script loads asynchronously by default — don't change that.
+- Avoid duplicating the snippet in multiple places.
+- For performance-sensitive sites, consider loading the widget only on high-intent pages (checkout, booking, support).
+
+### Privacy and security
+
+- Only include the widget on domains you control.
+- Review your privacy policy to ensure it covers chat and voice interactions.
+- If you use cookie consent, confirm whether widget functionality should wait until consent is granted.
+
+## When to contact support
+
+Gather this information before opening a ticket:
+
+- The widget configuration ID (visible in the editor URL).
+- Affected page URL(s).
+- Browser and OS the visitor is using (e.g., Chrome 122 on iOS 17).
+- Steps to reproduce, including which state the widget gets stuck in.
+- Browser DevTools **Console** and **Network** logs (filter by `messaging.poly.ai` and `webrtc-gateway`).
+- Approximate timestamp of a failing interaction so we can correlate to gateway logs.
+- Whether ad blockers, VPN, or privacy tools are enabled.
+
+Send the bundle to your customer success contact or open a ticket via your usual support channel.
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="Configure widget" icon="sliders" href="/widgets/configure">
+    Brand it, write the copy, set up consent.
+  </Card>
+  <Card title="Install on your site" icon="code" href="/widgets/install">
+    Embed via direct HTML or Tag Manager.
+  </Card>
+  <Card title="Test your widget" icon="circle-play" href="/widgets/test">
+    Hosted preview for stakeholder review.
+  </Card>
+</CardGroup>
