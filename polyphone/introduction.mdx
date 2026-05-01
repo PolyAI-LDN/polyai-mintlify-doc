@@ -1,0 +1,109 @@
+---
+title: "Polyphone"
+sidebarTitle: "Overview"
+description: "Embed a voice-only WebRTC widget on your website so customers can call your agent in one click."
+keywords:
+  - polyphone
+  - voice widget
+  - webrtc
+  - browser voice
+  - voice channel
+  - click to call
+---
+
+Polyphone is a voice-only widget that lets visitors talk to your agent directly from your website over WebRTC – no phone number, no dial-out. Configure, brand, and embed it from **Channels > Widgets** in Agent Studio.
+
+<Note>
+Polyphone is the voice sibling of [Webchat](/webchat/introduction). Both widgets share the same configuration surface in Agent Studio, the same embed model, and the same publish lifecycle. The Polyphone widget runs in a separate iframe with microphone permissions and connects to PolyAI's WebRTC gateway.
+</Note>
+
+## When to use Polyphone
+
+Use Polyphone when you want:
+
+- A **voice-first experience** on your website (e.g. a "Talk to us" call-to-action).
+- **One-click calling** without asking visitors to dial a phone number.
+- **Branded voice** that matches your site's look and feel.
+- A widget that **reuses your existing agent** – no separate flows or configuration.
+
+For text-only conversations, use [Webchat](/webchat/widget) instead. Polyphone and Webchat are configured separately; a single project can run both.
+
+## How it works
+
+```
+Visitor's browser                           PolyAI
+─────────────────────                       ──────────────
+Polyphone iframe (mic, autoplay)
+   │
+   ├── HTTPS  ──────► Iris script endpoint  (loads widget JS)
+   │
+   └── WSS    ──────► WebRTC gateway        (signaling + Opus audio)
+                            │
+                            └─► your agent
+```
+
+Polyphone is loaded by a single `<script>` tag on your site. The script injects an iframe pinned to the bottom-right of the page. When a visitor clicks the launcher, the widget requests microphone access, opens a WebSocket to PolyAI's WebRTC gateway, and starts an Opus 48 kHz audio call with your agent.
+
+Only **one Polyphone call can be active per browser** at a time. The widget enforces this with a cross-tab lock so a visitor with multiple tabs open cannot start parallel calls.
+
+## Prerequisites
+
+Before creating a Polyphone widget you'll need:
+
+- An Agent Studio project with a **published variant**.
+- The **website domain(s)** where the widget will be embedded (Polyphone only loads on domains you allow-list).
+- Access to your website's HTML templates _or_ your tag manager.
+- An **HTTPS** site – browsers require a secure context for microphone access.
+
+Polyphone has **no dependency on Webchat**. You can ship a Polyphone-only widget without ever configuring a chat agent.
+
+## Browser support
+
+Polyphone uses standard WebRTC primitives. Verified browsers:
+
+| Browser | Minimum version |
+| --- | --- |
+| Chrome / Chromium | 72 |
+| Firefox | 60 |
+| Safari (macOS) | 14.1 |
+| Safari (iOS) | 16 |
+| Edge | 79 |
+
+Visitors on unsupported browsers see a disabled call button with a brief explanation.
+
+## Polyphone vs. telephony
+
+Polyphone and traditional telephony serve different needs:
+
+| | Polyphone | Telephony |
+| --- | --- | --- |
+| Channel | Browser microphone | Phone network (PSTN/SIP) |
+| Visitor sees | Widget on your website | A phone number to dial |
+| Latency / quality | Opus 48 kHz over WebRTC | Carrier-dependent |
+| Setup | Embed a script tag | Provision a number, configure SIP |
+| Best for | Web-first journeys, support deflection | Inbound call centers, omnichannel routing |
+
+You can run both: Polyphone for visitors already on your site, telephony for callers from anywhere else. Both connect to the same agent.
+
+## Channel pages
+
+<CardGroup cols={2}>
+  <Card title="Widget" href="/polyphone/widget" icon="phone">
+    Create, style, and configure a Polyphone widget in Agent Studio.
+  </Card>
+  <Card title="Installation" href="/polyphone/widget-installation" icon="code">
+    Embed the script tag on your website with HTML or Tag Manager.
+  </Card>
+  <Card title="Test widget" href="/polyphone/test-widget" icon="circle-play">
+    Walk through a real call from the editor preview link.
+  </Card>
+  <Card title="Troubleshooting" href="/polyphone/widget-troubleshooting" icon="wrench">
+    Mic permissions, ICE failures, cross-tab lock, and more.
+  </Card>
+</CardGroup>
+
+## Related pages
+
+- [Webchat introduction](/webchat/introduction) – the text-only sibling channel
+- [Variant management](/variant-management) – per-domain or per-region widget configuration
+- [WebRTC gateway API](/api-reference/webrtc-gateway) – the underlying transport (advanced)
