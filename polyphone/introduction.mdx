@@ -1,103 +1,62 @@
 ---
 title: "Polyphone"
 sidebarTitle: "Overview"
-description: "Embed a voice-only WebRTC widget on your website so customers can call your agent in one click."
+description: "Let visitors call your agent in one click, right from your website."
 keywords:
   - polyphone
   - voice widget
-  - webrtc
   - browser voice
-  - voice channel
   - click to call
+  - voice channel
+  - webrtc
 ---
 
-Polyphone is a voice-only widget that lets visitors talk to your agent directly from your website over WebRTC – no phone number, no dial-out. Configure, brand, and embed it from **Channels > Widgets** in Agent Studio.
+Polyphone puts a "Talk to us" button on your website. Visitors click it and start speaking to your agent — no phone number to dial, no app to install. Set it up in **Channels > Widgets** in Agent Studio.
 
-<Note>
-Polyphone is a **voice transport**, just like telephony – it carries spoken conversations between a visitor and your agent. The difference is the medium: Polyphone uses the visitor's browser microphone over WebRTC, while [telephony](/telephony/introduction) uses the public phone network. Both share the same agent and the same TTS [voice](/voice/introduction) configuration.
-</Note>
-
-## Polyphone in the channel mix
-
-Polyphone is one of several ways customers can reach your agent. It is unambiguously a **voice channel** – the only thing that distinguishes it from a phone call is the transport.
-
-| | Polyphone | Numbers (telephony) | Chat (webchat) | Voice (TTS settings) |
-| --- | --- | --- | --- | --- |
-| What it is | Voice widget on your site | Phone numbers your agent answers | Text widget on your site | Configures the agent's spoken voice |
-| Modality | Voice | Voice | Text | – (shared by all voice channels) |
-| Transport | WebRTC (browser mic) | PSTN / SIP | HTTPS / WebSocket | – |
-| Configured under | Channels > Widgets | Channels > Numbers | Channels > Widgets | Channels > Voice |
-| Docs | This section | [Telephony](/telephony/introduction) | [Webchat](/webchat/introduction) | [Voice](/voice/introduction) |
-
-Polyphone and Numbers are two transports for the same voice agent. They share the agent's TTS voice (set under **Channels > Voice**) and the same conversation logic – swapping transports does not require a separate flow.
+It's the same agent that answers your phone numbers, with the same voice and the same conversation flow. Polyphone is just another way for customers to reach it — through the browser instead of the phone network.
 
 ## When to use Polyphone
 
-Use Polyphone when you want:
+Reach for Polyphone when you want:
 
-- A **voice-first experience** on your website (e.g. a "Talk to us" call-to-action).
-- **One-click calling** without asking visitors to dial a phone number.
-- **Branded voice** that matches your site's look and feel.
-- A widget that **reuses your existing agent** – no separate flows or configuration.
+- A **"Talk to us" call-to-action** on your website or product.
+- **One-click calling** without asking visitors to find or dial a number.
+- A **branded voice experience** that lives inside your site's look and feel.
+- A widget that **reuses your existing agent** — no parallel build-out.
 
-For text-only conversations, use [Webchat](/webchat/widget) instead. Polyphone and Webchat are configured separately; a single project can run both.
+For text-only conversations on your site, use [Webchat](/webchat/introduction). For phone calls from anywhere, use [Numbers](/telephony/introduction). Polyphone, Webchat, and Numbers all share the same agent — you can run any combination.
 
-## How it works
+## Polyphone in the channel mix
 
-```
-Visitor's browser                           PolyAI
-─────────────────────                       ──────────────
-Polyphone iframe (mic, autoplay)
-   │
-   ├── HTTPS  ──────► Iris script endpoint  (loads widget JS)
-   │
-   └── WSS    ──────► WebRTC gateway        (signaling + Opus audio)
-                            │
-                            └─► your agent
-```
+Polyphone is a **voice channel**, just like a phone number. The only thing that changes between them is how the audio gets to PolyAI.
 
-Polyphone is loaded by a single `<script>` tag on your site. The script injects an iframe pinned to the bottom-right of the page. When a visitor clicks the launcher, the widget requests microphone access, opens a WebSocket to PolyAI's WebRTC gateway, and starts an Opus 48 kHz audio call with your agent.
+| | Polyphone | Numbers (telephony) | Chat (webchat) | Voice (TTS settings) |
+| --- | --- | --- | --- | --- |
+| What customers do | Click a button on your site | Dial a phone number | Type in a widget on your site | – (configures how your agent sounds) |
+| Modality | Voice | Voice | Text | Shared by all voice channels |
+| Where you set it up | Channels > Widgets | Channels > Numbers | Channels > Widgets | Channels > Voice |
+| Docs | This section | [Numbers](/telephony/introduction) | [Webchat](/webchat/introduction) | [Voice](/voice/introduction) |
 
-Only **one Polyphone call can be active per browser** at a time. The widget enforces this with a cross-tab lock so a visitor with multiple tabs open cannot start parallel calls.
+Polyphone and Numbers are two ways into the same voice agent. They share the agent's spoken [voice](/voice/introduction) (set once, under **Channels > Voice**) and the same conversation logic — switching a visitor between them doesn't require a separate flow.
+
+## What you get out of the box
+
+- **A configurable launcher** — colour, position, and label match your site.
+- **A consent step** — visitors agree to mic access and your privacy notice before the call connects.
+- **Mute / end-call controls** — standard call UI built into the widget.
+- **Cross-tab safety** — only one call can be active per visitor, even if they have multiple tabs open.
+- **Domain allow-list** — the widget only loads on domains you've authorised.
 
 ## Prerequisites
 
-Before creating a Polyphone widget you'll need:
+Before you create a Polyphone widget, you'll need:
 
 - An Agent Studio project with a **published variant**.
-- The **website domain(s)** where the widget will be embedded (Polyphone only loads on domains you allow-list).
-- Access to your website's HTML templates _or_ your tag manager.
-- An **HTTPS** site – browsers require a secure context for microphone access.
+- The **website domain(s)** where the widget will be embedded.
+- Access to your website's HTML or your tag manager.
+- An **HTTPS** site — browsers require a secure context for microphone access.
 
 Polyphone has **no dependency on Webchat**. You can ship a Polyphone-only widget without ever configuring a chat agent.
-
-## Browser support
-
-Polyphone uses standard WebRTC primitives. Verified browsers:
-
-| Browser | Minimum version |
-| --- | --- |
-| Chrome / Chromium | 72 |
-| Firefox | 60 |
-| Safari (macOS) | 14.1 |
-| Safari (iOS) | 16 |
-| Edge | 79 |
-
-Visitors on unsupported browsers see a disabled call button with a brief explanation.
-
-## Polyphone vs. telephony
-
-Polyphone and traditional telephony serve different needs:
-
-| | Polyphone | Telephony |
-| --- | --- | --- |
-| Channel | Browser microphone | Phone network (PSTN/SIP) |
-| Visitor sees | Widget on your website | A phone number to dial |
-| Latency / quality | Opus 48 kHz over WebRTC | Carrier-dependent |
-| Setup | Embed a script tag | Provision a number, configure SIP |
-| Best for | Web-first journeys, support deflection | Inbound call centers, omnichannel routing |
-
-You can run both: Polyphone for visitors already on your site, telephony for callers from anywhere else. Both connect to the same agent.
 
 ## Channel pages
 
@@ -116,10 +75,62 @@ You can run both: Polyphone for visitors already on your site, telephony for cal
   </Card>
 </CardGroup>
 
+## Technical details
+
+<Accordion title="How a call connects">
+
+```
+Visitor's browser                           PolyAI
+─────────────────────                       ──────────────
+Polyphone iframe (mic, autoplay)
+   │
+   ├── HTTPS  ──────► Iris script endpoint  (loads widget JS)
+   │
+   └── WSS    ──────► WebRTC gateway        (signaling + Opus audio)
+                            │
+                            └─► your agent
+```
+
+Polyphone is loaded by a single `<script>` tag on your site. The script injects an iframe pinned to the bottom-right of the page. When a visitor clicks the launcher, the widget requests microphone access, opens a WebSocket to PolyAI's WebRTC gateway, and starts an Opus 48 kHz audio call with your agent.
+
+Only **one Polyphone call can be active per browser** at a time. The widget enforces this with a cross-tab lock so a visitor with multiple tabs open cannot start parallel calls.
+
+</Accordion>
+
+<Accordion title="Polyphone vs. telephony, side by side">
+
+| | Polyphone | Telephony |
+| --- | --- | --- |
+| Transport | WebRTC over the browser | Phone network (PSTN / SIP) |
+| Visitor sees | A widget on your website | A phone number to dial |
+| Latency / quality | Opus 48 kHz over WebRTC | Carrier-dependent |
+| Setup | Embed a script tag | Provision a number, configure SIP |
+| Best for | Web-first journeys, support deflection | Inbound call centres, omnichannel routing |
+
+You can run both: Polyphone for visitors already on your site, telephony for callers from anywhere else. Both connect to the same agent.
+
+</Accordion>
+
+<Accordion title="Browser support">
+
+Polyphone uses standard WebRTC primitives. Verified browsers:
+
+| Browser | Minimum version |
+| --- | --- |
+| Chrome / Chromium | 72 |
+| Firefox | 60 |
+| Safari (macOS) | 14.1 |
+| Safari (iOS) | 16 |
+| Edge | 79 |
+
+Visitors on unsupported browsers see a disabled call button with a brief explanation.
+
+</Accordion>
+
 ## Related pages
 
 - [Voice](/voice/introduction) – the agent's TTS voice, shared by Polyphone and telephony
-- [Telephony](/telephony/introduction) – PSTN / SIP transport for the same voice agent
+- [Numbers (telephony)](/telephony/introduction) – the phone-network route into the same voice agent
 - [Webchat](/webchat/introduction) – the text channel that uses the same widget framework
 - [Variant management](/variant-management) – per-domain or per-region widget configuration
 - [WebRTC gateway API](/api-reference/webrtc-gateway) – the underlying transport (advanced)
