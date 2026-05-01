@@ -1,0 +1,132 @@
+---
+title: "Widgets"
+sidebarTitle: "Overview"
+description: "One unified surface for embedding PolyAI on your website — pick Phone or Chat as the widget type."
+keywords:
+  - widget
+  - polyphone widget
+  - chat widget
+  - voice widget
+  - embed
+  - website widget
+---
+
+PolyAI widgets put your agent on your website in minutes. From **Deployment > Widget** in Agent Studio, create a widget, choose **Phone** or **Chat** as the type, brand it, copy the script tag, and ship it.
+
+Phone and Chat widgets are built from the **same unified Widget surface** — same editor, same styling controls, same embed model. The widget type just determines whether visitors get a voice call or a text conversation.
+
+{/* TODO image — alt: "Add widget dialog with Phone vs Chat widget type selector" — path: /images/widgets/add-widget-dialog.png */}
+
+## Widget types
+
+<CardGroup cols={2}>
+  <Card title="Phone widget (Polyphone)" icon="phone" href="/polyphone/introduction">
+    Click-to-call voice on your website. Visitors talk to your agent directly in the browser over WebRTC — no number to dial, no app to install.
+  </Card>
+  <Card title="Chat widget (Webchat)" icon="message" href="/webchat/introduction">
+    Text chat on your website. Visitors type to the same agent that answers your phone calls, with channel-specific styling and safety filters.
+  </Card>
+</CardGroup>
+
+You can run both on the same site. Many teams ship a Phone widget on high-intent pages and a Chat widget elsewhere.
+
+## How it fits together
+
+```
+Deployment > Widget                                    Your website
+┌────────────────────────────────┐                 ┌──────────────────┐
+│  Add widget                    │                 │                  │
+│  ┌──────────────────────────┐  │   <script>      │   ┌──────────┐  │
+│  │ Type: ◉ Phone  ○ Chat    │──┼──── tag ───────▶│   │ Launcher │  │
+│  │ Name, URL, Variant, Env  │  │                 │   └──────────┘  │
+│  └──────────────────────────┘  │                 │                  │
+│                                │                 └──────────────────┘
+│  Editor: Styling • Content •   │
+│  Embed                         │
+└────────────────────────────────┘
+```
+
+One editor, two flavours, one script tag per widget.
+
+## What's shared vs. type-specific
+
+Underneath, both widget types share a common configuration record (`widget_configurations`) — widget name, variant, environment, host domain, agent name, disclaimer, consent button, and policy URLs all live there. Each type then layers its own table on top: `webchat_configurations` for Chat (header text, header/agent images, primary colour) and `polyphone_configurations` for Phone (theme colour, WebRTC token). That's why the editor feels the same across both — it's the same underlying surface.
+
+### Configuration
+
+|  | Phone | Chat |
+| --- | --- | --- |
+| Created from **Deployment > Widget** | ✓ | ✓ |
+| Widget name, website URL, variant, environment | ✓ | ✓ |
+| Agent name | ✓ | ✓ |
+| Primary / theme colour | ✓ | ✓ |
+| Disclaimer message + privacy & terms URLs | ✓ | ✓ |
+| Consent button ("I consent and start chat") | – | ✓ |
+| Header text | – | ✓ |
+| Header image (logo) and agent avatar with fit options | – | ✓ |
+| Bubble prompt style defaults (text + background colour) | – | ✓ |
+
+### Runtime experience
+
+|  | Phone | Chat |
+| --- | --- | --- |
+| Modality | Voice (WebRTC over Opus 48 kHz) | Text |
+| Launcher button on host page | ✓ | ✓ |
+| Mobile fullscreen takeover | ✓ | ✓ |
+| Call-start → connecting → in-call → ended states | ✓ | n/a |
+| Mute / unmute, voice activity indicator, call timer | ✓ | n/a |
+| Microphone permission flow + "Mic blocked" recovery | ✓ | n/a |
+| Cross-tab call lock (one active call per browser) | ✓ | n/a |
+| Conversation transcript, attachments, suggestion chips | n/a | ✓ |
+| Maintenance mode banner | n/a | ✓ |
+| Configurable render mode (`default` or `fullscreen`) | n/a | ✓ |
+| Granular UI visibility toggles (header, minimize, close, privacy, terms, start-new-chat) | n/a | ✓ |
+| Prompt bubble shown next to launcher | n/a | ✓ |
+| Launcher animation (`bounce`, `grow`, `pulse`) | n/a | ✓ |
+| iOS WebView mode (`data-platform="ios"`) | n/a | ✓ |
+| Hosted **Test widget** preview link for stakeholder calls | ✓ | – (use in-editor preview) |
+
+### JavaScript SDK
+
+Both widgets expose a global API on the host page so you can drive them from your own code. The surfaces don't overlap — Phone exposes telephony events, Chat exposes messaging events.
+
+|  | Phone (`PolyphoneAPI`) | Chat (`WebchatAPI`) |
+| --- | --- | --- |
+| Lifecycle | `onReady` | `onReady`, `destroy` |
+| Open / close | – (launcher only) | `openWidget`, `closeWidget`, `endSession`, `onOpen`, `onClosed`, `onSessionEnded` |
+| Connection | `connect`, `disconnect`, `connectAndCall`, `isConnected`, `onConnecting`, `onConnected`, `onDisconnected` | n/a (session managed automatically) |
+| Call control | `startCall`, `endCall`, `mute`, `unmute`, `getCurrentSession`, `onAnswered`, `onEnded`, `onFailed`, `onMuted`, `onUnmuted`, `onTranscription` | n/a |
+| Messaging | n/a | `onMessageSent`, `onMessageReceived` |
+| Launcher | n/a (the widget renders its own phone button) | `showIcon`, `hideIcon`, `animateIcon`, `showBubble` |
+| Errors | `onError` | (surfaces via `onSessionEnded` / fallback page) |
+| Script-tag config | – | `data-platform`, `data-render-mode`, `data-auto-open`, `data-show-icon`, `data-show-header` |
+
+The **Configure widget** and **Install on your site** pages cover both types in one walkthrough — Phone-specific and Chat-specific bits are called out inline.
+
+## Prerequisites
+
+Before you create a widget:
+
+- The web domain(s) where you'll embed it.
+- Access to your website's HTML templates _or_ your tag manager.
+- A published variant for the agent that will respond.
+- An **HTTPS** site — required for both Phone (microphone access) and recommended for Chat.
+
+For **Chat** widgets specifically, complete [Chat configuration](/webchat/chat-configuration) (LLM, greeting, safety filters) before creating the widget.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Configure widget" icon="sliders" href="/widgets/configure">
+    Brand it, write the copy, set up consent.
+  </Card>
+  <Card title="Install on your site" icon="code" href="/widgets/install">
+    One script tag, live in minutes — direct HTML or Tag Manager.
+  </Card>
+  <Card title="Test your widget" icon="circle-play" href="/widgets/test">
+    Hosted preview link for stakeholder review (Phone widgets).
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/widgets/troubleshooting">
+    Microphone, network, CSP, and rendering issues.
+  </Card>
+</CardGroup>

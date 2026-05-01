@@ -1,0 +1,179 @@
+---
+title: "Install on your site"
+sidebarTitle: "Install on your site"
+description: "Embed your widget on your website — single script tag, live in minutes."
+keywords:
+  - widget installation
+  - embed widget
+  - script tag
+  - tag manager
+---
+
+Once your widget is configured, getting it live is a single script tag. Paste it on your site, publish, and your visitors can start using it — typically in minutes. The install flow is identical for Phone and Chat widgets.
+
+## Installation methods
+
+Pick **one** route:
+
+- **Option A: Direct HTML embed** — recommended for most sites.
+- **Option B: Tag Manager** — when your organisation manages scripts through Google Tag Manager or similar.
+
+<Tip>
+Not sure which route to take? Start with **Option A** — it's the fastest path to live.
+</Tip>
+
+## Step 1: Generate a widget tag
+
+1. Go to **Deployment > Widget** in Agent Studio and open your widget.
+2. Configure [Styling and Content](/widgets/configure).
+3. Click **Save and publish**.
+4. Open the **Embed** tab.
+5. Copy the unique script tag — it looks like this:
+
+```html
+<script src="https://messaging.poly.ai/widget/YOUR_UNIQUE_CODE.js"></script>
+```
+
+{/* TODO image — alt: "Embed tab with the widget script tag ready to copy" — path: /images/widgets/embed-script-tag.png */}
+
+The tag is bound to the widget's domain, variant, and environment. If any of those change, re-publish and re-embed.
+
+## Option A: Direct HTML embed
+
+1. Open the HTML template that loads on **every page** (often called your global layout, base template, or `index.html`).
+2. Paste the script tag **just before the closing `</body>` tag**.
+3. Publish your website changes.
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <!-- Your existing head content -->
+  </head>
+  <body>
+    <!-- Your page content -->
+
+    <!-- Paste the PolyAI widget script here, just before </body> -->
+    <script src="https://messaging.poly.ai/widget/YOUR_UNIQUE_CODE.js"></script>
+  </body>
+</html>
+```
+
+You only need to embed the script once. Updates to styling, content, or the agent take effect on the next page load — no re-embed required.
+
+<Note>
+The script must be served over **HTTPS**. For Phone widgets, the host page must also be in a [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts) — browsers block microphone access on insecure origins, so the call button is disabled on `http://` pages.
+</Note>
+
+## Option B: Tag Manager
+
+1. Open your tag manager (e.g., Google Tag Manager) and create a new **Custom HTML** tag.
+2. Paste the script tag.
+3. Set the trigger to **All Pages** (or restrict to the pages where you want the widget).
+4. Publish the container.
+
+The widget appears on the next page load.
+
+<Note>
+Always retrieve your actual script tag from **Deployment > Widget > Embed** in Agent Studio. The tag in this guide is illustrative only.
+</Note>
+
+## Script-tag attributes (Chat widgets)
+
+Chat widgets accept optional `data-*` attributes on the `<script>` tag — read once at load time, no JavaScript required. Phone widgets don't use these; their behaviour is configured entirely in the editor and driven by call state.
+
+```html
+<script
+  src="https://messaging.poly.ai/widget/YOUR_UNIQUE_CODE.js"
+  data-platform="web"
+  data-render-mode="default"
+  data-auto-open="false"
+  data-show-icon="true"
+  data-show-header="true"
+></script>
+```
+
+| Attribute | Values | Default | Effect |
+| --- | --- | --- | --- |
+| `data-platform` | `web`, `ios` | `web` | Use `ios` inside `WKWebView` — automatically applies fullscreen and hides the header. |
+| `data-render-mode` | `default`, `fullscreen` | `default` | `fullscreen` makes the chat fill the viewport, useful for dedicated chat pages or native app screens. |
+| `data-auto-open` | `true`, `false` | `false` | Opens the chat as soon as the widget initialises. |
+| `data-show-icon` | `true`, `false` | `true` | Show or hide the floating launcher. Combine with a custom button calling `WebchatAPI.openWidget()` for a bespoke trigger. |
+| `data-show-header` | `true`, `false` | `true` | Show or hide the chat header. Defaults to `false` when `data-platform="ios"`. |
+
+## Widget positioning (Chat widgets)
+
+After installing a Chat widget, you can control its position with CSS. The widget renders inside a `#poly-ai-chat` element. Add a `<style>` block in the `<body>` of your page:
+
+```html
+<style>
+  #poly-ai-chat {
+    bottom: 1rem;
+    right: 1rem;
+  }
+</style>
+```
+
+Adjust `bottom` and `right` to avoid overlap with cookie banners, navigation bars, or other fixed UI.
+
+### Widget icon sizes
+
+| Device  | Icon size   |
+| ------- | ----------- |
+| Desktop | 60px × 60px |
+| Mobile  | 44px × 44px |
+
+Account for these dimensions when positioning the widget.
+
+## Re-embedding
+
+You only need to re-embed when **the script tag itself changes**. The Embed tab in Agent Studio shows a **Snippet changed** banner if the published script differs from the version your team has on the site. Hand the new tag to your dev team or update your tag manager configuration.
+
+You do **not** need to re-embed when you change:
+
+- Branding (header text, logo, agent name, primary colour).
+- CTA copy or disclaimer.
+- Policy links.
+- The agent or variant the widget connects to (within the same widget configuration).
+
+## Verifying the install
+
+<Steps>
+<Step title="Widget appears">
+  The launcher renders in the bottom-right corner of pages where the script is embedded.
+</Step>
+<Step title="Widget opens">
+  Clicking the launcher opens the widget panel.
+</Step>
+<Step title="Phone: place a call">
+  Click **Start call**. The browser asks for microphone permission. Allow → the widget shows **Connecting…** then **In call** when your agent answers.
+</Step>
+<Step title="Chat: send a message">
+  Type a message. The agent should respond with the configured greeting and answer subsequent messages.
+</Step>
+</Steps>
+
+### Quick verification tips
+
+1. Open your website in a **private/incognito window**.
+2. Hard refresh (`Ctrl+Shift+R` or `Cmd+Shift+R`) to bypass cached scripts.
+3. Test on a desktop browser (Chrome or Edge) and a mobile device (iOS Safari or Android Chrome).
+
+If anything looks off, see [Troubleshooting](/widgets/troubleshooting).
+
+## Cross-tab behaviour (Phone widgets)
+
+When a visitor opens your site in multiple tabs, Polyphone keeps things clean: **one active call per browser**. The widget writes a heartbeat to `localStorage` while a call is live, and other tabs show the call button disabled with a "Call active in another tab" message. Closing the active tab releases the lock within ~10 seconds.
+
+It's automatic — no configuration needed.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Test your widget" href="/widgets/test" icon="circle-play">
+    Walk through a real call from the editor preview link (Phone widgets).
+  </Card>
+  <Card title="Troubleshooting" href="/widgets/troubleshooting" icon="wrench">
+    Common installation issues and fixes.
+  </Card>
+</CardGroup>
