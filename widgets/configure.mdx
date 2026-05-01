@@ -56,39 +56,43 @@ The editor gives you three tabs — **Styling**, **Content**, and **Embed** — 
 
 ## Styling tab
 
-Match the widget to your brand. Styling controls are shared across Phone and Chat — visual changes you make on a Chat widget look identical on a Phone widget, so your brand stays consistent across both channels.
+Match the widget to your brand. Some controls are shared, others are type-specific — the editor only shows the fields that apply to the widget you're editing.
 
 {/* TODO image — alt: "Styling tab with header, agent, and colour controls" — path: /images/widgets/styling-tab.png */}
 
-### Header
-
-<ParamField path="Header text" type="string">
-  The title shown in the widget header. Use your brand or agent name. Example: "Acme Support".
-</ParamField>
-
-<ParamField path="Header image" type="file">
-  Optional. Upload a logo or wordmark for the header.
-</ParamField>
-
-### Agent
+### Shared
 
 <ParamField path="Agent name" type="string">
-  The name displayed in the widget (defaults to the variant's agent). 1–50 characters. Example: "Emily".
+  Display name for the agent (defaults to the variant's agent). Used in both the call card (Phone) and the chat header / message rows (Chat). 1–50 characters. Example: "Emily".
 </ParamField>
 
-<ParamField path="Agent image" type="file">
-  Optional. Upload an avatar for the agent. Shown during a call (Phone) or alongside messages (Chat).
-</ParamField>
-
-### Color
-
-<ParamField path="Primary color" type="string">
-  Sets the launcher and primary action accent color. Pick from the brand swatches or enter a hex code. Example: `#c3da28`.
+<ParamField path="Primary / theme colour" type="string">
+  Accent colour for the launcher and primary actions. Pick from the brand swatches or enter a hex code. Example: `#c3da28`. Stored as `theme_color` for Phone widgets and as `color` for Chat widgets — same control, same effect.
 </ParamField>
 
 <Tip>
-Check colour contrast against the launcher's white iconography to keep the call/chat button legible. The launcher is a 60 px circle on desktop, 44 px on mobile.
+Check contrast against the launcher's white iconography to keep the call/chat button legible. The launcher is a 60 px circle on desktop, 44 px on mobile.
 </Tip>
+
+### Chat-only
+
+These fields appear only when the widget type is **Chat**:
+
+<ParamField path="Header text" type="string">
+  The title shown in the chat header. Use your brand or product name. Example: "Acme Support".
+</ParamField>
+
+<ParamField path="Header image" type="file">
+  Optional. Logo or wordmark for the chat header. JPEG / JPG / PNG up to 2 MB. Min. 400 × 100 px (recommended 800 × 200 px). Choose a fit option of **Fit** (preserve aspect ratio) or **Fill** (crop to frame).
+</ParamField>
+
+<ParamField path="Agent image" type="file">
+  Optional. Avatar shown alongside agent messages. JPEG / JPG / PNG / static GIF up to 1 MB. Min. 128 × 128 px (recommended 256 × 256 px). Same Fit / Fill options.
+</ParamField>
+
+<Note>
+Phone widgets don't render a header logo or agent avatar — the call card is intentionally minimal so the focus stays on the live audio. Use the agent name and primary colour to brand it.
+</Note>
 
 ## Content tab
 
@@ -99,10 +103,10 @@ Write the copy your visitor sees the moment they open the widget — welcome mes
 ### Welcome message
 
 <ParamField path="Welcome message" type="string">
-  Shown on the widget's start screen. Phone widgets default to "Hi I'm \[agent name], how can I help today?". Up to 100 characters.
+  Shown on the widget's start screen. Phone widgets default to "Hi I'm \[agent name], how can I help today?". For Chat, the conversation greeting comes from the agent's [chat configuration](/webchat/chat-configuration), not the widget. Up to 100 characters.
 </ParamField>
 
-### Call-to-action labels (Phone widgets)
+### Phone-only: call-to-action labels
 
 <ParamField path="Start call label" type="string">
   Primary CTA the visitor clicks to begin a call. Defaults to "Start call". Up to 100 characters.
@@ -113,7 +117,7 @@ Write the copy your visitor sees the moment they open the widget — welcome mes
 </ParamField>
 
 <Note>
-For Phone widgets, transient call-state strings ("Connecting…", "In call", "Mute", "Unmute", "Call ended", "Start new call", and the generic error message) are not editable in v1. Submit a feature request if you need to localize them.
+For Phone widgets, transient call-state strings ("Connecting…", "In call", "Mute", "Unmute", "Call ended", "Start new call", and the generic error message) are not editable in v1. Submit a feature request if you need to localise them.
 </Note>
 
 ### Disclaimer and consent
@@ -148,6 +152,22 @@ Review your transparency, disclosure, and consent requirements carefully before 
 <ParamField path="Terms & conditions URL" type="string">
   Required when the disclaimer is enabled. Must be `https://`. Example: `https://example.com/terms`.
 </ParamField>
+
+### Chat-only: launcher and behaviour
+
+Chat widgets expose extra runtime controls that don't apply to Phone:
+
+| Control | Where it's set | Effect |
+| --- | --- | --- |
+| Render mode | Editor + `data-render-mode` script attribute | `default` (floating launcher + panel) or `fullscreen` (chat fills the viewport, launcher hidden). |
+| Auto-open | `data-auto-open="true"` on the script tag | Opens the chat as soon as the widget initialises — useful for dedicated chat pages. |
+| Show / hide launcher | `data-show-icon="false"` on the script tag, plus `WebchatAPI.showIcon()` / `hideIcon()` at runtime | Use to hook up a custom trigger button on your site. |
+| Header visibility | `data-show-header` on the script tag, plus per-element flags in `visibilityConfig` | Show or hide the header, minimize button, close button, privacy link, terms link, and "Start new chat" button. |
+| Prompt bubble | Default text + background colour in the editor; runtime calls via `WebchatAPI.showBubble({...})` | Shows a speech bubble next to the launcher to draw attention or run a campaign. |
+| Launcher animation | `WebchatAPI.animateIcon({ type, durationMs })` | One of `bounce`, `grow`, `pulse`. |
+| iOS WebView | `data-platform="ios"` on the script tag | Forces fullscreen and hides the header so the chat looks native inside `WKWebView`. |
+
+Phone widgets don't have these knobs — the launcher renders with a fixed size, the call card is fullscreen on mobile only, and behaviour is driven by call state rather than host-page config. See [Install on your site](/widgets/install) for the full script-tag attribute reference.
 
 ## Embed tab
 

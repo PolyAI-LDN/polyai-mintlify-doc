@@ -50,18 +50,56 @@ One editor, two flavours, one script tag per widget.
 
 ## What's shared vs. type-specific
 
-| | Phone | Chat |
+Underneath, both widget types share a common configuration record (`widget_configurations`) — widget name, variant, environment, host domain, agent name, disclaimer, consent button, and policy URLs all live there. Each type then layers its own table on top: `webchat_configurations` for Chat (header text, header/agent images, primary colour) and `polyphone_configurations` for Phone (theme colour, WebRTC token). That's why the editor feels the same across both — it's the same underlying surface.
+
+### Configuration
+
+|  | Phone | Chat |
 | --- | --- | --- |
-| Created from | Deployment > Widget | Deployment > Widget |
-| Styling controls (header, agent, primary colour) | ✓ | ✓ |
-| Welcome message and CTA labels | ✓ | ✓ |
-| Disclaimer and policy URLs | ✓ | ✓ |
-| Live preview + Test widget | ✓ | Preview only |
-| Modality | Voice (WebRTC) | Text |
-| Hosted preview link for stakeholder testing | ✓ | – |
-| Cross-tab call lock | ✓ (one active call per browser) | n/a |
-| Microphone permission flow | ✓ | n/a |
-| `tel:` / QR fallback options | – | ✓ |
+| Created from **Deployment > Widget** | ✓ | ✓ |
+| Widget name, website URL, variant, environment | ✓ | ✓ |
+| Agent name | ✓ | ✓ |
+| Primary / theme colour | ✓ | ✓ |
+| Disclaimer message + privacy & terms URLs | ✓ | ✓ |
+| Consent button ("I consent and start chat") | – | ✓ |
+| Header text | – | ✓ |
+| Header image (logo) and agent avatar with fit options | – | ✓ |
+| Bubble prompt style defaults (text + background colour) | – | ✓ |
+
+### Runtime experience
+
+|  | Phone | Chat |
+| --- | --- | --- |
+| Modality | Voice (WebRTC over Opus 48 kHz) | Text |
+| Launcher button on host page | ✓ | ✓ |
+| Mobile fullscreen takeover | ✓ | ✓ |
+| Call-start → connecting → in-call → ended states | ✓ | n/a |
+| Mute / unmute, voice activity indicator, call timer | ✓ | n/a |
+| Microphone permission flow + "Mic blocked" recovery | ✓ | n/a |
+| Cross-tab call lock (one active call per browser) | ✓ | n/a |
+| Conversation transcript, attachments, suggestion chips | n/a | ✓ |
+| Maintenance mode banner | n/a | ✓ |
+| Configurable render mode (`default` or `fullscreen`) | n/a | ✓ |
+| Granular UI visibility toggles (header, minimize, close, privacy, terms, start-new-chat) | n/a | ✓ |
+| Prompt bubble shown next to launcher | n/a | ✓ |
+| Launcher animation (`bounce`, `grow`, `pulse`) | n/a | ✓ |
+| iOS WebView mode (`data-platform="ios"`) | n/a | ✓ |
+| Hosted **Test widget** preview link for stakeholder calls | ✓ | – (use in-editor preview) |
+
+### JavaScript SDK
+
+Both widgets expose a global API on the host page so you can drive them from your own code. The surfaces don't overlap — Phone exposes telephony events, Chat exposes messaging events.
+
+|  | Phone (`PolyphoneAPI`) | Chat (`WebchatAPI`) |
+| --- | --- | --- |
+| Lifecycle | `onReady` | `onReady`, `destroy` |
+| Open / close | – (launcher only) | `openWidget`, `closeWidget`, `endSession`, `onOpen`, `onClosed`, `onSessionEnded` |
+| Connection | `connect`, `disconnect`, `connectAndCall`, `isConnected`, `onConnecting`, `onConnected`, `onDisconnected` | n/a (session managed automatically) |
+| Call control | `startCall`, `endCall`, `mute`, `unmute`, `getCurrentSession`, `onAnswered`, `onEnded`, `onFailed`, `onMuted`, `onUnmuted`, `onTranscription` | n/a |
+| Messaging | n/a | `onMessageSent`, `onMessageReceived` |
+| Launcher | n/a (the widget renders its own phone button) | `showIcon`, `hideIcon`, `animateIcon`, `showBubble` |
+| Errors | `onError` | (surfaces via `onSessionEnded` / fallback page) |
+| Script-tag config | – | `data-platform`, `data-render-mode`, `data-auto-open`, `data-show-icon`, `data-show-header` |
 
 The **Configure widget** and **Install on your site** pages cover both types in one walkthrough — Phone-specific and Chat-specific bits are called out inline.
 
