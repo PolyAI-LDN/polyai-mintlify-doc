@@ -9,8 +9,11 @@ noindex: true
 import { Quiz } from '/snippets/quiz.jsx'
 import { FillBlank } from '/snippets/fill-blank.jsx'
 import { ProgressTracker } from '/snippets/progress-tracker.jsx'
+import { LessonMeta } from '/snippets/lesson-meta.jsx'
 
-**Level 2 – Lesson 2 of 8** – This lesson explains what [tools](/tools/introduction) are, why they exist, and how the LLM uses them. By the end you will understand the full request-response loop and be able to create and reference a tool correctly.
+**Level 2 – Lesson 2 of 8** – This lesson explains what [tools](/tools/introduction) are, why they exist, and how the LLM uses them.
+
+<LessonMeta level={2} difficulty="Intermediate" time="20 min" /> By the end you will understand the full request-response loop and be able to create and reference a tool correctly.
 
 <Note>In Agent Studio, tools are defined as Python `function`s – "tool" is the UI name and "function" is the code identifier. This lesson uses both interchangeably.</Note>
 
@@ -43,10 +46,18 @@ An LLM can produce two kinds of output:
 
 The LLM **mediates** between the user and the system. It takes a user request, decides whether it needs to call a tool to answer it, calls that tool, receives a result, and then reports the result back to the user as text.
 
-```
-User → LLM → tool call → system
-                           ↓
-User ← LLM ← result ← system
+```mermaid
+sequenceDiagram
+    actor User
+    participant LLM
+    participant Fn as Python Function
+
+    User->>LLM: "What are your opening hours?"
+    Note over LLM: Request 1 – decides to call a tool
+    LLM->>Fn: call get_store_hours()
+    Fn-->>LLM: "Open Mon–Fri, 9am–6pm"
+    Note over LLM: Request 2 – formulates response
+    LLM->>User: "We're open Monday to Friday, 9am to 6pm."
 ```
 
 This is the core loop that powers almost everything beyond basic FAQ responses.
