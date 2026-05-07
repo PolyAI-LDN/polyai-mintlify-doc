@@ -5,8 +5,10 @@
   // mode" via the floating pill or the landing page button.
   //
   // In free trial mode:
-  //  - Sidebar entries stay fully clickable. Free-trial users can browse
-  //    anywhere; they can read everything that's documented.
+  //  - Sidebar entries for enterprise/developer content are visually dimmed
+  //    so the user can see at a glance what's part of the free trial and
+  //    what isn't — but they remain fully clickable. No inline "Enterprise"
+  //    pill; the dim state alone is the signal.
   //  - When the user lands on an enterprise/developer page (via sidebar,
   //    search, deep-link, or URL bar), the page renders with a sticky banner
   //    pinned to the top of the content area, and the rest of the page
@@ -22,6 +24,28 @@
   var STORAGE_KEY = 'polyai-simplified-mode';
   var POSITION_KEY = 'polyai-simplified-pill-position';
   var DRAG_THRESHOLD = 4; // px — movement before we treat a pointerdown as a drag
+
+  // Sidebar group names to dim in free trial mode.
+  var ENTERPRISE_GROUPS = ['Developer tools', 'Secrets', 'Code-driven flows'];
+
+  // Collapsed sub-group button labels to dim in free trial mode.
+  // SMS, Call handoffs, and Flows are intentionally excluded — their intro
+  // pages are visible in free trial mode with developer content behind an
+  // accordion, and Flows contains a No-code sub-group that must stay visible.
+  var ENTERPRISE_SUBGROUPS = [
+    'Tools', 'Configuration builder',
+    'Speech recognition', 'Response control', 'Audio management',
+    'Variant management',
+    'Test suite',
+    'APIs', 'API and export',
+    'PolyAcademy level 2', 'PolyAcademy level 3',
+    'Managed services',
+    'Amazon Connect',
+    'CRM',
+    'Hospitality',
+    'Healthcare',
+    'Knowledge base'
+  ];
 
   // Top-nav tab labels — these stay hidden (a greyed-out tab looks broken).
   var HIDDEN_TABS = ['Developer', 'API reference', 'Advanced'];
@@ -136,6 +160,45 @@
     btn.classList.toggle('simplify-toggle--active', !!simplified);
   }
 
+  // Mark sidebar section headers, sub-groups, tagged items, and path-matched
+  // items so the stylesheet can dim them. This is purely a visual hint —
+  // the items remain fully clickable. Runs after each navigation since
+  // Mintlify re-renders the sidebar.
+  function markSidebarGroups() {
+    document.querySelectorAll('.sidebar-group-header').forEach(function (header) {
+      var h5 = header.querySelector('h5');
+      if (!h5) return;
+      var name = h5.textContent.trim();
+      if (ENTERPRISE_GROUPS.indexOf(name) !== -1) {
+        header.dataset.simplifiedEnterprise = 'true';
+        var sibling = header.nextElementSibling;
+        if (sibling) sibling.dataset.simplifiedEnterprise = 'true';
+      }
+    });
+
+    // Collapsed sub-group buttons — strip tag pill text before matching,
+    // since tag spans are children of the button element.
+    document.querySelectorAll('.sidebar-group li > button').forEach(function (btn) {
+      var clone = btn.cloneNode(true);
+      clone.querySelectorAll('[data-nav-tag]').forEach(function (el) { el.remove(); });
+      var name = clone.textContent.trim();
+      if (ENTERPRISE_SUBGROUPS.indexOf(name) !== -1) {
+        var li = btn.closest('li');
+        if (li) li.dataset.simplifiedEnterprise = 'true';
+      }
+    });
+
+    // Expanded individual page items — dim by path prefix or Code/Advanced tag.
+    document.querySelectorAll('li[id]').forEach(function (li) {
+      var id = li.id;
+      var pathMatch = isEnterprisePath(id);
+      var tagEl = li.querySelector('[data-nav-tag="Code"], [data-nav-tag="Advanced"]');
+      if (pathMatch || tagEl) {
+        li.dataset.simplifiedEnterprise = 'true';
+      }
+    });
+  }
+
   // Mark top-nav tab links (Developer, API reference) for hiding.
   function markNavbarTabs() {
     document.querySelectorAll('a[class*="nav-tabs-item"]').forEach(function (a) {
@@ -202,6 +265,7 @@
         document.querySelectorAll('.simplify-toggle').forEach(function (b) {
           updateButton(b, false);
         });
+        markSidebarGroups();
         markNavbarTabs();
         applyDeveloperContent();
         applyEnterpriseBanner();
@@ -266,6 +330,7 @@
       document.querySelectorAll('.simplify-toggle').forEach(function (b) {
         updateButton(b, next);
       });
+      markSidebarGroups();
       markNavbarTabs();
       applyDeveloperContent();
       applyEnterpriseBanner();
@@ -445,6 +510,7 @@
         document.querySelectorAll('.simplify-toggle').forEach(function (b) {
           updateButton(b, false);
         });
+        markSidebarGroups();
         markNavbarTabs();
         applyDeveloperContent();
         applyEnterpriseBanner();
@@ -457,6 +523,7 @@
   function onNav() {
     setTimeout(function () {
       injectToggle();
+      markSidebarGroups();
       markNavbarTabs();
       applyDeveloperContent();
       applyEnterpriseBanner();
@@ -476,6 +543,7 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
       injectToggle();
+      markSidebarGroups();
       markNavbarTabs();
       applyDeveloperContent();
       applyEnterpriseBanner();
@@ -483,6 +551,7 @@
     });
   } else {
     injectToggle();
+    markSidebarGroups();
     markNavbarTabs();
     applyDeveloperContent();
     applyEnterpriseBanner();
