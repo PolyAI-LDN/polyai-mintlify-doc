@@ -5,13 +5,13 @@
   // mode" via the floating pill or the landing page button.
   //
   // In free trial mode:
-  //  - Sidebar entries for enterprise-only or developer-only content are
-  //    greyed out, badged "Enterprise", and made non-interactive — so users
-  //    can still see what exists but understand it isn't part of the free
-  //    trial.
-  //  - Browsing directly to an enterprise/developer page (e.g. via search,
-  //    deep-link, or the URL bar) shows the page with an enterprise upsell
-  //    banner prepended to the body explaining the gating.
+  //  - Sidebar entries stay fully clickable. Free-trial users can browse
+  //    anywhere; they can read everything that's documented.
+  //  - When the user lands on an enterprise/developer page (via sidebar,
+  //    search, deep-link, or URL bar), the page renders with a sticky banner
+  //    pinned to the top of the content area, and the rest of the page
+  //    content is greyed out and pointer-events: none — readable and
+  //    scrollable, but not interactive.
   //  - Top-nav tabs that are wholly developer/API focused are still hidden
   //    (greying a tab looks broken).
   //  - .developer-only sections inside otherwise-mixed pages are wrapped in
@@ -23,35 +23,11 @@
   var POSITION_KEY = 'polyai-simplified-pill-position';
   var DRAG_THRESHOLD = 4; // px — movement before we treat a pointerdown as a drag
 
-  // Sidebar group names to grey out / badge in free trial mode.
-  var ENTERPRISE_GROUPS = ['Developer tools', 'Secrets', 'Code-driven flows'];
-
-  // Collapsed sub-group button labels to grey out in free trial mode.
-  // SMS, Call handoffs, and Flows are intentionally excluded here — their intro
-  // pages are visible in free trial mode with developer content behind an
-  // accordion, and Flows contains a No-code sub-group that must stay visible.
-  var ENTERPRISE_SUBGROUPS = [
-    'Tools', 'Configuration builder',
-    'Speech recognition', 'Response control', 'Audio management',
-    'Variant management',
-    'Test suite',
-    'APIs', 'API and export',
-    'PolyAcademy level 2', 'PolyAcademy level 3',
-    // Managed-service integration groups
-    'Managed services',
-    // Non-UI integration sidebar groups
-    'Amazon Connect',
-    'CRM',
-    'Hospitality',
-    'Healthcare',
-    'Knowledge base'
-  ];
-
   // Top-nav tab labels — these stay hidden (a greyed-out tab looks broken).
   var HIDDEN_TABS = ['Developer', 'API reference', 'Advanced'];
 
   // Path prefixes for "enterprise/developer" pages. Visiting one in free trial
-  // mode shows the page with an enterprise upsell banner prepended.
+  // mode shows the page with the content greyed out behind a sticky banner.
   // Note: /extend/, /secrets/, /tools/, and /studio-assistant/ are
   // intentionally NOT in this list — the ADK, personal access tokens, the
   // Secrets Vault, custom Python tools/functions, and Studio Assistant are all
@@ -103,7 +79,7 @@
 
   // These intro pages are "mixed" — they appear in free trial mode with
   // developer content tucked behind an accordion. They must NOT trigger the
-  // enterprise banner.
+  // enterprise banner/greyout.
   var SIMPLIFIED_INTROS = ['/call-handoff/introduction', '/sms/introduction', '/flows/introduction'];
 
   function isEnterprisePath(pathname) {
@@ -153,50 +129,11 @@
     btn.setAttribute('aria-pressed', simplified);
     btn.title = simplified
       ? 'Exit free trial mode (show all docs)'
-      : 'Enter free trial mode (grey out enterprise and developer content)';
+      : 'Enter free trial mode (lock enterprise pages behind a banner)';
     btn.innerHTML = simplified
-      ? '<span class="simplify-toggle__icon">\u2726</span><span class="simplify-toggle__label">Free trial \u2014 exit</span>'
-      : '<span class="simplify-toggle__icon">\u2726</span><span class="simplify-toggle__label">Free trial mode</span>';
+      ? '<span class="simplify-toggle__icon">✦</span><span class="simplify-toggle__label">Free trial — exit</span>'
+      : '<span class="simplify-toggle__icon">✦</span><span class="simplify-toggle__label">Free trial mode</span>';
     btn.classList.toggle('simplify-toggle--active', !!simplified);
-  }
-
-  // Mark sidebar section headers, sub-groups, tagged items, and path-matched items.
-  // Runs after each navigation since Mintlify re-renders the sidebar.
-  function markSidebarGroups() {
-    // Top-level section headers
-    document.querySelectorAll('.sidebar-group-header').forEach(function (header) {
-      var h5 = header.querySelector('h5');
-      if (!h5) return;
-      var name = h5.textContent.trim();
-      if (ENTERPRISE_GROUPS.indexOf(name) !== -1) {
-        header.dataset.simplifiedEnterprise = 'true';
-        var sibling = header.nextElementSibling;
-        if (sibling) sibling.dataset.simplifiedEnterprise = 'true';
-      }
-    });
-
-    // Collapsed sub-group buttons — strip tag pill text (e.g. "ToolsCode" → "Tools")
-    // before matching, since tag spans are children of the button element.
-    document.querySelectorAll('.sidebar-group li > button').forEach(function (btn) {
-      var clone = btn.cloneNode(true);
-      clone.querySelectorAll('[data-nav-tag]').forEach(function (el) { el.remove(); });
-      var name = clone.textContent.trim();
-      if (ENTERPRISE_SUBGROUPS.indexOf(name) !== -1) {
-        var li = btn.closest('li');
-        if (li) li.dataset.simplifiedEnterprise = 'true';
-      }
-    });
-
-    // Expanded individual page items — grey out by path prefix or Code/Advanced tag.
-    // isEnterprisePath() already handles the SIMPLIFIED_INTROS exclusion.
-    document.querySelectorAll('li[id]').forEach(function (li) {
-      var id = li.id;
-      var pathMatch = isEnterprisePath(id);
-      var tagEl = li.querySelector('[data-nav-tag="Code"], [data-nav-tag="Advanced"]');
-      if (pathMatch || tagEl) {
-        li.dataset.simplifiedEnterprise = 'true';
-      }
-    });
   }
 
   // Mark top-nav tab links (Developer, API reference) for hiding.
@@ -211,8 +148,11 @@
     });
   }
 
-  // Inject an upsell banner at the top of an enterprise page when the user
-  // is in free trial mode. Idempotent — won't double-insert across SPA navs.
+  // Inject a sticky upsell banner at the top of an enterprise page when the
+  // user is in free trial mode. Sets data-on-enterprise-page on <html> so the
+  // stylesheet can grey out and disable pointer events on everything in the
+  // main content area except the banner itself. Idempotent — won't double-
+  // insert across SPA navs.
   function applyEnterpriseBanner() {
     var existing = document.getElementById('free-trial-enterprise-banner');
     var simplified = document.documentElement.dataset.simplified === 'true';
@@ -232,11 +172,11 @@
     banner.className = 'free-trial-enterprise-banner';
     banner.setAttribute('role', 'note');
     banner.innerHTML =
-      '<div class="free-trial-enterprise-banner__icon" aria-hidden="true">\u2726</div>' +
+      '<div class="free-trial-enterprise-banner__icon" aria-hidden="true">✦</div>' +
       '<div class="free-trial-enterprise-banner__body">' +
         '<p class="free-trial-enterprise-banner__title"><strong>This is an Enterprise feature.</strong></p>' +
         '<p class="free-trial-enterprise-banner__text">' +
-          'You\u2019re viewing the docs in <strong>free trial mode</strong>. This page documents functionality that isn\u2019t included in the self-serve free trial \u2014 it requires an Enterprise plan.' +
+          'You’re viewing the docs in <strong>free trial mode</strong>. This page is documented in full so you can plan for it, but the feature isn’t available on the self-serve free trial.' +
         '</p>' +
         '<p class="free-trial-enterprise-banner__actions">' +
           '<a href="https://poly.ai/contact-us" class="free-trial-enterprise-banner__cta" target="_blank" rel="noopener">Talk to sales</a>' +
@@ -245,7 +185,8 @@
       '</div>';
 
     // Insert at top of main content. Mintlify uses #content-area / main; fall
-    // back to body if neither exists yet.
+    // back to body if neither exists yet. The CSS pins the banner to the top
+    // of its scroll container with position: sticky.
     var mount = document.querySelector('main') || document.querySelector('#content-area') || document.body;
     if (mount && mount.firstChild) {
       mount.insertBefore(banner, mount.firstChild);
@@ -261,7 +202,6 @@
         document.querySelectorAll('.simplify-toggle').forEach(function (b) {
           updateButton(b, false);
         });
-        markSidebarGroups();
         markNavbarTabs();
         applyDeveloperContent();
         applyEnterpriseBanner();
@@ -305,25 +245,6 @@
     }
   }
 
-  // Intercept clicks on enterprise sidebar links while in free trial mode.
-  // CSS already sets pointer-events: none on the greyed-out items, but we
-  // double-up here defensively for any link that slips through (e.g. inline
-  // links inside body content on a free-trial page that point to an
-  // enterprise destination).
-  document.addEventListener('click', function (e) {
-    if (document.documentElement.dataset.simplified !== 'true') return;
-    var a = e.target.closest('a[href]');
-    if (!a) return;
-    // If the link is inside a greyed-out sidebar item, swallow the click.
-    var greyed = a.closest('[data-simplified-enterprise="true"]');
-    if (greyed) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    // Otherwise let the navigation proceed; the destination page will render
-    // the enterprise banner if applicable.
-  }, true);
-
   function createToggleButton() {
     var btn = document.createElement('button');
     btn.className = 'simplify-toggle';
@@ -345,7 +266,6 @@
       document.querySelectorAll('.simplify-toggle').forEach(function (b) {
         updateButton(b, next);
       });
-      markSidebarGroups();
       markNavbarTabs();
       applyDeveloperContent();
       applyEnterpriseBanner();
@@ -525,7 +445,6 @@
         document.querySelectorAll('.simplify-toggle').forEach(function (b) {
           updateButton(b, false);
         });
-        markSidebarGroups();
         markNavbarTabs();
         applyDeveloperContent();
         applyEnterpriseBanner();
@@ -538,7 +457,6 @@
   function onNav() {
     setTimeout(function () {
       injectToggle();
-      markSidebarGroups();
       markNavbarTabs();
       applyDeveloperContent();
       applyEnterpriseBanner();
@@ -558,7 +476,6 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
       injectToggle();
-      markSidebarGroups();
       markNavbarTabs();
       applyDeveloperContent();
       applyEnterpriseBanner();
@@ -566,7 +483,6 @@
     });
   } else {
     injectToggle();
-    markSidebarGroups();
     markNavbarTabs();
     applyDeveloperContent();
     applyEnterpriseBanner();
@@ -611,4 +527,4 @@
   applyTabClass();
   document.addEventListener('DOMContentLoaded', applyTabClass);
   window.addEventListener('popstate', applyTabClass);
-}());
+})();

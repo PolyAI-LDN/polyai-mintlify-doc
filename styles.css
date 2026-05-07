@@ -363,57 +363,50 @@ html.dark .simplify-toggle {
   display: none !important;
 }
 
-/* Grey out enterprise / developer sidebar entries in free trial mode.
-   JS marks them with data-simplified-enterprise="true" — covers section
-   headers, collapsed sub-groups, and individual expanded page items.
-   They stay visible but disabled, with an "Enterprise" badge. */
-[data-simplified="true"] [data-simplified-enterprise="true"] {
-  opacity: 0.45;
+/* In free trial mode the sidebar stays fully interactive — every entry is
+   clickable and there is no inline "Enterprise" pill. The gating is enforced
+   on the destination page itself: the banner pins to the top of the content
+   area and the rest of main is greyed out and pointer-events: none, so the
+   page is readable and scrollable but not interactive. The block below
+   targets only main's content; the sidebar, navbar, and free-trial pill are
+   unaffected. */
+[data-simplified="true"][data-on-enterprise-page="true"] main > *:not(.free-trial-enterprise-banner) {
+  opacity: 0.5;
   pointer-events: none;
-  cursor: not-allowed;
-  position: relative;
+  user-select: none;
+  filter: saturate(0.6);
 }
 
-[data-simplified="true"] [data-simplified-enterprise="true"] a,
-[data-simplified="true"] [data-simplified-enterprise="true"] button {
+/* Belt-and-braces: any focusable descendant inside the greyed area should
+   not steal tab focus or respond to clicks. */
+[data-simplified="true"][data-on-enterprise-page="true"] main > *:not(.free-trial-enterprise-banner) :is(a, button, input, select, textarea, [tabindex]) {
   pointer-events: none;
-  cursor: not-allowed;
-}
-
-/* "Enterprise" badge appended after the label of any greyed sidebar item.
-   We use a CSS pseudo-element so we don't need to mutate the DOM further. */
-[data-simplified="true"] [data-simplified-enterprise="true"] > a::after,
-[data-simplified="true"] [data-simplified-enterprise="true"] > button::after,
-[data-simplified="true"] .sidebar-group-header[data-simplified-enterprise="true"] h5::after {
-  content: "Enterprise";
-  display: inline-block;
-  margin-left: 0.5rem;
-  padding: 0.05rem 0.4rem;
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: #6366f1;
-  background: rgba(99, 102, 241, 0.12);
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  border-radius: 4px;
-  vertical-align: middle;
-  line-height: 1.2;
 }
 
 /* Enterprise upsell banner injected at the top of any enterprise/developer
-   page when free trial mode is on. */
+   page when free trial mode is on. position: sticky pins it to the top of
+   the content area while the user scrolls the greyed-out body underneath. */
 .free-trial-enterprise-banner {
   display: flex;
   gap: 1rem;
   align-items: flex-start;
+  position: sticky;
+  top: 0;
+  z-index: 50;
   margin: 0 0 1.75rem 0;
   padding: 1rem 1.25rem;
   border: 1px solid rgba(99, 102, 241, 0.35);
   border-left: 4px solid #6366f1;
   border-radius: 8px;
-  background: rgba(99, 102, 241, 0.06);
+  background: rgba(255, 255, 255, 0.97);
   color: inherit;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  backdrop-filter: saturate(1.2);
+}
+
+html.dark .free-trial-enterprise-banner {
+  background: rgba(22, 22, 23, 0.97);
+  border-color: rgba(99, 102, 241, 0.45);
 }
 
 .free-trial-enterprise-banner__icon {
