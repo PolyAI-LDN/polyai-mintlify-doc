@@ -1,33 +1,43 @@
 (function () {
   // ── Free trial mode toggle ────────────────────────────────────────────────
-  // Persistent "Free trial mode" view (formerly "No code mode") backed by
-  // localStorage. Once on, it stays on across page loads and sessions until
-  // the user clicks "Exit free trial mode" or navigates to a page that's
-  // flagged as enterprise-only / complex (in which case it auto-exits and
-  // takes them there in full-docs view).
+  // Persistent "Free trial mode" view backed by localStorage. Once on, it stays
+  // on across page loads and sessions until the user clicks "Exit free trial
+  // mode" via the floating pill or the landing page button.
   //
-  // ?view=simplified is still honoured as a one-shot entry point (e.g. from
-  // the /platform/free-trial-mode landing page link or an external share),
-  // and is mirrored back into the URL on navigations so links can be shared.
+  // In free trial mode:
+  //  - Sidebar entries for enterprise-only or developer-only content are
+  //    greyed out, badged "Enterprise", and made non-interactive — so users
+  //    can still see what exists but understand it isn't part of the free
+  //    trial.
+  //  - Browsing directly to an enterprise/developer page (e.g. via search,
+  //    deep-link, or the URL bar) shows the page with an enterprise upsell
+  //    banner prepended to the body explaining the gating.
+  //  - Top-nav tabs that are wholly developer/API focused are still hidden
+  //    (greying a tab looks broken).
+  //  - .developer-only sections inside otherwise-mixed pages are wrapped in
+  //    a collapsed accordion so the page stays readable without code.
+  //
+  // ?view=simplified is still honoured as a one-shot entry point and is
+  // mirrored back into the URL on navigations so links can be shared.
   var STORAGE_KEY = 'polyai-simplified-mode';
   var POSITION_KEY = 'polyai-simplified-pill-position';
   var DRAG_THRESHOLD = 4; // px — movement before we treat a pointerdown as a drag
 
-  // Sidebar group names to hide entirely in simplified mode.
-  var HIDDEN_GROUPS = ['Developer tools', 'Secrets', 'Code-driven flows'];
+  // Sidebar group names to grey out / badge in free trial mode.
+  var ENTERPRISE_GROUPS = ['Developer tools', 'Secrets', 'Code-driven flows'];
 
-  // Collapsed sub-group button labels to hide in simplified mode.
+  // Collapsed sub-group button labels to grey out in free trial mode.
   // SMS, Call handoffs, and Flows are intentionally excluded here — their intro
-  // pages are visible in simplified mode with developer content behind an
+  // pages are visible in free trial mode with developer content behind an
   // accordion, and Flows contains a No-code sub-group that must stay visible.
-  var HIDDEN_SUBGROUPS = [
+  var ENTERPRISE_SUBGROUPS = [
     'Tools', 'Configuration builder',
     'Speech recognition', 'Response control', 'Audio management',
     'Variant management',
     'Test suite',
     'APIs', 'API and export',
     'PolyAcademy level 2', 'PolyAcademy level 3',
-    // Managed-service integration groups (hidden in simplified mode)
+    // Managed-service integration groups
     'Managed services',
     // Non-UI integration sidebar groups
     'Amazon Connect',
@@ -37,12 +47,12 @@
     'Knowledge base'
   ];
 
-  // Top-nav tab labels to hide in simplified mode.
+  // Top-nav tab labels — these stay hidden (a greyed-out tab looks broken).
   var HIDDEN_TABS = ['Developer', 'API reference', 'Advanced'];
 
-  // Path prefixes that are "complex" — clicking a link to these exits simplified mode.
-  // Must stay in sync with the li[id] checks in markSidebarGroups().
-  var COMPLEX_PREFIXES = [
+  // Path prefixes for "enterprise/developer" pages. Visiting one in free trial
+  // mode shows the page with an enterprise upsell banner prepended.
+  var ENTERPRISE_PREFIXES = [
     '/tools/', '/secrets/', '/extend/', '/configuration-builder/',
     '/speech-recognition/', '/response-control/', '/audio-management/', '/variant-management/',
     '/telephony/twilio/',
@@ -50,7 +60,7 @@
     '/analytics/test-suite/',
     '/api-reference/', '/api/'
   ];
-  var COMPLEX_EXACT = [
+  var ENTERPRISE_EXACT = [
     '/call-data/s3-to-s3',
     // Code-driven flow pages — the no-code subdirectory stays visible.
     '/flows/triggering-flows',
@@ -83,16 +93,17 @@
     '/integrations/snapcall'
   ];
 
-  // These intro pages are "mixed" — they appear in simplified mode with developer
-  // content tucked behind an accordion. They must not trigger exit from simplified mode.
+  // These intro pages are "mixed" — they appear in free trial mode with
+  // developer content tucked behind an accordion. They must NOT trigger the
+  // enterprise banner.
   var SIMPLIFIED_INTROS = ['/call-handoff/introduction', '/sms/introduction', '/flows/introduction'];
 
-  function isComplexPath(pathname) {
+  function isEnterprisePath(pathname) {
     if (SIMPLIFIED_INTROS.indexOf(pathname) !== -1) return false;
-    if (COMPLEX_EXACT.indexOf(pathname) !== -1) return true;
-    // Sub-pages of call-handoff and sms (other than introduction) are still complex
+    if (ENTERPRISE_EXACT.indexOf(pathname) !== -1) return true;
+    // Sub-pages of call-handoff and sms (other than introduction) are still gated
     if (pathname.startsWith('/call-handoff/') || pathname.startsWith('/sms/')) return true;
-    return COMPLEX_PREFIXES.some(function (p) { return pathname.startsWith(p); });
+    return ENTERPRISE_PREFIXES.some(function (p) { return pathname.startsWith(p); });
   }
 
   function readStoredPreference() {
@@ -134,7 +145,7 @@
     btn.setAttribute('aria-pressed', simplified);
     btn.title = simplified
       ? 'Exit free trial mode (show all docs)'
-      : 'Enter free trial mode (hide enterprise, developer, and API content)';
+      : 'Enter free trial mode (grey out enterprise and developer content)';
     btn.innerHTML = simplified
       ? '<span class="simplify-toggle__icon">\u2726</span><span class="simplify-toggle__label">Free trial \u2014 exit</span>'
       : '<span class="simplify-toggle__icon">\u2726</span><span class="simplify-toggle__label">Free trial mode</span>';
@@ -149,10 +160,10 @@
       var h5 = header.querySelector('h5');
       if (!h5) return;
       var name = h5.textContent.trim();
-      if (HIDDEN_GROUPS.indexOf(name) !== -1) {
-        header.dataset.simplifiedHide = 'true';
+      if (ENTERPRISE_GROUPS.indexOf(name) !== -1) {
+        header.dataset.simplifiedEnterprise = 'true';
         var sibling = header.nextElementSibling;
-        if (sibling) sibling.dataset.simplifiedHide = 'true';
+        if (sibling) sibling.dataset.simplifiedEnterprise = 'true';
       }
     });
 
@@ -162,20 +173,20 @@
       var clone = btn.cloneNode(true);
       clone.querySelectorAll('[data-nav-tag]').forEach(function (el) { el.remove(); });
       var name = clone.textContent.trim();
-      if (HIDDEN_SUBGROUPS.indexOf(name) !== -1) {
+      if (ENTERPRISE_SUBGROUPS.indexOf(name) !== -1) {
         var li = btn.closest('li');
-        if (li) li.dataset.simplifiedHide = 'true';
+        if (li) li.dataset.simplifiedEnterprise = 'true';
       }
     });
 
-    // Expanded individual page items — hide by path prefix or Code/Advanced tag.
-    // isComplexPath() already handles the SIMPLIFIED_INTROS exclusion.
+    // Expanded individual page items — grey out by path prefix or Code/Advanced tag.
+    // isEnterprisePath() already handles the SIMPLIFIED_INTROS exclusion.
     document.querySelectorAll('li[id]').forEach(function (li) {
       var id = li.id;
-      var pathMatch = isComplexPath(id);
+      var pathMatch = isEnterprisePath(id);
       var tagEl = li.querySelector('[data-nav-tag="Code"], [data-nav-tag="Advanced"]');
       if (pathMatch || tagEl) {
-        li.dataset.simplifiedHide = 'true';
+        li.dataset.simplifiedEnterprise = 'true';
       }
     });
   }
@@ -192,7 +203,66 @@
     });
   }
 
-  // Wrap .developer-only sections in a <details> accordion in simplified mode.
+  // Inject an upsell banner at the top of an enterprise page when the user
+  // is in free trial mode. Idempotent — won't double-insert across SPA navs.
+  function applyEnterpriseBanner() {
+    var existing = document.getElementById('free-trial-enterprise-banner');
+    var simplified = document.documentElement.dataset.simplified === 'true';
+    var enterprise = isEnterprisePath(window.location.pathname);
+
+    if (!simplified || !enterprise) {
+      if (existing) existing.remove();
+      document.documentElement.removeAttribute('data-on-enterprise-page');
+      return;
+    }
+    if (existing) return;
+
+    document.documentElement.setAttribute('data-on-enterprise-page', 'true');
+
+    var banner = document.createElement('aside');
+    banner.id = 'free-trial-enterprise-banner';
+    banner.className = 'free-trial-enterprise-banner';
+    banner.setAttribute('role', 'note');
+    banner.innerHTML =
+      '<div class="free-trial-enterprise-banner__icon" aria-hidden="true">\u2726</div>' +
+      '<div class="free-trial-enterprise-banner__body">' +
+        '<p class="free-trial-enterprise-banner__title"><strong>This is an Enterprise feature.</strong></p>' +
+        '<p class="free-trial-enterprise-banner__text">' +
+          'You\u2019re viewing the docs in <strong>free trial mode</strong>. This page documents functionality that isn\u2019t included in the self-serve free trial \u2014 it requires an Enterprise plan.' +
+        '</p>' +
+        '<p class="free-trial-enterprise-banner__actions">' +
+          '<a href="https://poly.ai/contact-us" class="free-trial-enterprise-banner__cta" target="_blank" rel="noopener">Talk to sales</a>' +
+          '<button type="button" class="free-trial-enterprise-banner__exit" id="free-trial-enterprise-banner-exit">Exit free trial mode</button>' +
+        '</p>' +
+      '</div>';
+
+    // Insert at top of main content. Mintlify uses #content-area / main; fall
+    // back to body if neither exists yet.
+    var mount = document.querySelector('main') || document.querySelector('#content-area') || document.body;
+    if (mount && mount.firstChild) {
+      mount.insertBefore(banner, mount.firstChild);
+    } else if (mount) {
+      mount.appendChild(banner);
+    }
+
+    var exitBtn = banner.querySelector('#free-trial-enterprise-banner-exit');
+    if (exitBtn) {
+      exitBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        setSimplified(false);
+        document.querySelectorAll('.simplify-toggle').forEach(function (b) {
+          updateButton(b, false);
+        });
+        markSidebarGroups();
+        markNavbarTabs();
+        applyDeveloperContent();
+        applyEnterpriseBanner();
+        updateLandingPageStatus();
+      });
+    }
+  }
+
+  // Wrap .developer-only sections in a <details> accordion in free trial mode.
   // Unwrap them in full-docs mode.
   function applyDeveloperContent() {
     var simplified = document.documentElement.dataset.simplified === 'true';
@@ -227,31 +297,23 @@
     }
   }
 
-  // Intercept clicks on links to complex pages while in simplified mode —
-  // exit simplified mode and navigate to the page in full-docs view.
+  // Intercept clicks on enterprise sidebar links while in free trial mode.
+  // CSS already sets pointer-events: none on the greyed-out items, but we
+  // double-up here defensively for any link that slips through (e.g. inline
+  // links inside body content on a free-trial page that point to an
+  // enterprise destination).
   document.addEventListener('click', function (e) {
     if (document.documentElement.dataset.simplified !== 'true') return;
     var a = e.target.closest('a[href]');
     if (!a) return;
-    var href = a.getAttribute('href');
-    if (!href || href.startsWith('#')) return;
-    var destPath;
-    try {
-      var destUrl = new URL(href, window.location.origin);
-      if (destUrl.origin !== window.location.origin) return; // external
-      destPath = destUrl.pathname;
-    } catch (err) { return; }
-    if (isComplexPath(destPath)) {
+    // If the link is inside a greyed-out sidebar item, swallow the click.
+    var greyed = a.closest('[data-simplified-enterprise="true"]');
+    if (greyed) {
       e.preventDefault();
       e.stopPropagation();
-      setSimplified(false);
-      document.querySelectorAll('.simplify-toggle').forEach(function (b) {
-        updateButton(b, false);
-      });
-      markNavbarTabs();
-      updateLandingPageStatus();
-      window.location.href = destPath;
     }
+    // Otherwise let the navigation proceed; the destination page will render
+    // the enterprise banner if applicable.
   }, true);
 
   function createToggleButton() {
@@ -270,21 +332,15 @@
         return;
       }
       var next = document.documentElement.dataset.simplified !== 'true';
-      // If switching INTO simplified mode while on a complex page, redirect home.
-      // localStorage persistence means we don't need the sessionStorage flag,
-      // but we still redirect so the user lands somewhere the mode makes sense.
-      if (next && isComplexPath(window.location.pathname)) {
-        writeStoredPreference(true);
-        window.location.href = '/';
-        return;
-      }
       setSimplified(next);
       // Sync all toggle buttons on the page.
       document.querySelectorAll('.simplify-toggle').forEach(function (b) {
         updateButton(b, next);
       });
+      markSidebarGroups();
       markNavbarTabs();
       applyDeveloperContent();
+      applyEnterpriseBanner();
       updateLandingPageStatus();
     });
 
@@ -296,7 +352,7 @@
   // The pill lives at a fixed top-right position by default. Users can drag
   // it anywhere in the viewport; the position is stored in localStorage and
   // restored on reload. A small movement threshold ensures a plain click still
-  // toggles simplified mode without being swallowed by the drag handler.
+  // toggles free trial mode without being swallowed by the drag handler.
 
   function readStoredPosition() {
     try {
@@ -447,7 +503,7 @@
       enter.addEventListener('click', function (e) {
         e.preventDefault();
         writeStoredPreference(true);
-        // Land on the home page in simplified mode so the user sees the
+        // Land on the home page in free trial mode so the user sees the
         // filtered experience immediately.
         window.location.href = '/?view=simplified';
       });
@@ -461,8 +517,10 @@
         document.querySelectorAll('.simplify-toggle').forEach(function (b) {
           updateButton(b, false);
         });
+        markSidebarGroups();
         markNavbarTabs();
         applyDeveloperContent();
+        applyEnterpriseBanner();
         updateLandingPageStatus();
       });
     }
@@ -475,6 +533,7 @@
       markSidebarGroups();
       markNavbarTabs();
       applyDeveloperContent();
+      applyEnterpriseBanner();
       wireLandingPageButtons();
     }, 150);
   }
@@ -494,6 +553,7 @@
       markSidebarGroups();
       markNavbarTabs();
       applyDeveloperContent();
+      applyEnterpriseBanner();
       wireLandingPageButtons();
     });
   } else {
@@ -501,6 +561,7 @@
     markSidebarGroups();
     markNavbarTabs();
     applyDeveloperContent();
+    applyEnterpriseBanner();
     wireLandingPageButtons();
   }
 
@@ -510,11 +571,10 @@
     if (url && document.documentElement.dataset.simplified === 'true') {
       try {
         var u = new URL(url, window.location.origin);
-        // Don't inject ?view=simplified when navigating to a complex page
-        if (!isComplexPath(u.pathname)) {
-          u.searchParams.set('view', 'simplified');
-          url = u.pathname + u.search + u.hash;
-        }
+        // Always preserve the flag — even on enterprise pages, since the user
+        // stays in free trial mode and just sees the upsell banner.
+        u.searchParams.set('view', 'simplified');
+        url = u.pathname + u.search + u.hash;
       } catch (e) {}
     }
     _push.call(history, state, title, url);
