@@ -162,9 +162,33 @@
 
   // Mark sidebar section headers, sub-groups, tagged items, and path-matched
   // items so the stylesheet can dim them. This is purely a visual hint —
-  // the items remain fully clickable. Runs after each navigation since
-  // Mintlify re-renders the sidebar.
+  // the items remain fully clickable. The opacity cascade dims every
+  // descendant of a marked element, so we deliberately skip marking
+  // descendants of an already-marked ancestor (otherwise opacity multiplies
+  // and sub-pages end up unreadable).
+  //
+  // Runs after each navigation since Mintlify re-renders the sidebar.
   function markSidebarGroups() {
+    function clearAll() {
+      document.querySelectorAll('[data-simplified-enterprise="true"]').forEach(function (el) {
+        delete el.dataset.simplifiedEnterprise;
+      });
+    }
+    function hasMarkedAncestor(el) {
+      var p = el.parentElement;
+      while (p) {
+        if (p.dataset && p.dataset.simplifiedEnterprise === 'true') return true;
+        p = p.parentElement;
+      }
+      return false;
+    }
+
+    // Re-mark from a clean slate on every nav. Mintlify re-renders the
+    // sidebar but may keep some nodes; clearing first prevents stale marks.
+    clearAll();
+
+    // 1. Top-level section headers — dim header + sibling list (which
+    //    cascades to every sub-page in the group).
     document.querySelectorAll('.sidebar-group-header').forEach(function (header) {
       var h5 = header.querySelector('h5');
       if (!h5) return;
@@ -176,20 +200,23 @@
       }
     });
 
-    // Collapsed sub-group buttons — strip tag pill text before matching,
-    // since tag spans are children of the button element.
+    // 2. Collapsed sub-group buttons — strip tag pill text before matching,
+    //    since tag spans are children of the button element.
     document.querySelectorAll('.sidebar-group li > button').forEach(function (btn) {
+      var li = btn.closest('li');
+      if (!li || hasMarkedAncestor(li)) return;
       var clone = btn.cloneNode(true);
       clone.querySelectorAll('[data-nav-tag]').forEach(function (el) { el.remove(); });
       var name = clone.textContent.trim();
       if (ENTERPRISE_SUBGROUPS.indexOf(name) !== -1) {
-        var li = btn.closest('li');
-        if (li) li.dataset.simplifiedEnterprise = 'true';
+        li.dataset.simplifiedEnterprise = 'true';
       }
     });
 
-    // Expanded individual page items — dim by path prefix or Code/Advanced tag.
+    // 3. Expanded individual page items — dim by path prefix or Code/Advanced
+    //    tag. Skip if an ancestor is already marked.
     document.querySelectorAll('li[id]').forEach(function (li) {
+      if (hasMarkedAncestor(li)) return;
       var id = li.id;
       var pathMatch = isEnterprisePath(id);
       var tagEl = li.querySelector('[data-nav-tag="Code"], [data-nav-tag="Advanced"]');

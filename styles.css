@@ -364,40 +364,55 @@ html.dark .simplify-toggle {
 }
 
 /* Visual hint on enterprise/developer sidebar entries in free trial mode.
-   JS marks them with data-simplified-enterprise="true". They stay fully
-   clickable — the dim is just so the user can see at a glance which
-   entries aren't part of the free trial. The gating itself is enforced on
-   the destination page (see the [data-on-enterprise-page] rule below). */
-[data-simplified="true"] [data-simplified-enterprise="true"] > a,
-[data-simplified="true"] [data-simplified-enterprise="true"] > button,
-[data-simplified="true"] .sidebar-group-header[data-simplified-enterprise="true"] h5 {
+   JS marks the section header, the section's sibling list, and any
+   individual page item with data-simplified-enterprise="true". The opacity
+   cascade dims every descendant — so a marked group header dims all its
+   sub-pages too. Items stay fully clickable; the dim is just a "this
+   isn't in your trial" signal. The gating itself is enforced on the
+   destination page (see the [data-on-enterprise-page] rule below). */
+[data-simplified="true"] [data-simplified-enterprise="true"] {
   opacity: 0.55;
   filter: saturate(0.7);
   transition: opacity 140ms ease, filter 140ms ease;
 }
 
-[data-simplified="true"] [data-simplified-enterprise="true"] > a:hover,
-[data-simplified="true"] [data-simplified-enterprise="true"] > button:hover,
-[data-simplified="true"] [data-simplified-enterprise="true"]:hover > a,
-[data-simplified="true"] [data-simplified-enterprise="true"]:hover > button {
-  opacity: 0.85;
+[data-simplified="true"] [data-simplified-enterprise="true"]:hover {
+  opacity: 0.9;
   filter: none;
 }
 
-/* Page content greyout when the user lands on an enterprise page in free
-   trial mode. Targets only main's content; the sidebar, navbar, and
-   free-trial pill are unaffected. */
-[data-simplified="true"][data-on-enterprise-page="true"] main > *:not(.free-trial-enterprise-banner) {
-  opacity: 0.5;
+/* Page content greyout + lock when the user lands on an enterprise page
+   in free trial mode. We target everything that follows the banner inside
+   its container, so this works regardless of whether Mintlify wraps
+   content in <main>, #content-area, or something else. The sidebar,
+   navbar, and free-trial pill (none of which are siblings of the banner)
+   are unaffected. */
+[data-simplified="true"][data-on-enterprise-page="true"] .free-trial-enterprise-banner ~ * {
+  opacity: 0.45;
   pointer-events: none;
   user-select: none;
-  filter: saturate(0.6);
+  filter: saturate(0.55) blur(0.3px);
 }
 
 /* Belt-and-braces: any focusable descendant inside the greyed area should
    not steal tab focus or respond to clicks. */
-[data-simplified="true"][data-on-enterprise-page="true"] main > *:not(.free-trial-enterprise-banner) :is(a, button, input, select, textarea, [tabindex]) {
+[data-simplified="true"][data-on-enterprise-page="true"] .free-trial-enterprise-banner ~ * :is(a, button, input, select, textarea, [tabindex]) {
   pointer-events: none;
+}
+
+/* Lock cursor — make it obvious the content isn't interactive. */
+[data-simplified="true"][data-on-enterprise-page="true"] .free-trial-enterprise-banner ~ *,
+[data-simplified="true"][data-on-enterprise-page="true"] .free-trial-enterprise-banner ~ * * {
+  cursor: not-allowed !important;
+}
+
+/* Banner stays sharp/saturated on top of the locked content. */
+[data-simplified="true"][data-on-enterprise-page="true"] .free-trial-enterprise-banner,
+[data-simplified="true"][data-on-enterprise-page="true"] .free-trial-enterprise-banner * {
+  cursor: auto !important;
+}
+[data-simplified="true"][data-on-enterprise-page="true"] .free-trial-enterprise-banner :is(a, button) {
+  cursor: pointer !important;
 }
 
 /* Enterprise upsell banner injected at the top of any enterprise/developer
