@@ -9,10 +9,27 @@ noindex: true
 import { Quiz } from '/snippets/quiz.jsx'
 import { FillBlank } from '/snippets/fill-blank.jsx'
 import { ProgressTracker } from '/snippets/progress-tracker.jsx'
+import { Challenge } from '/snippets/challenge.jsx'
+import { LessonMeta } from '/snippets/lesson-meta.jsx'
 
 <Info>
   **Level 2 – Lesson 3 of 8** – This lesson covers the different values a tool can return and when to use each one. Understanding [return values](/tools/return-values) gives you precise control over what the agent says and when.
 </Info>
+
+<LessonMeta level={2} difficulty="Intermediate" time="15 min" />
+
+## Choosing a return type
+
+```mermaid
+flowchart TD
+    A[Function needs to return something] --> B{Need exact\nphrasing control?}
+    B -->|No – LLM can word it| C[Return a string\nLLM generates the response]
+    B -->|Yes – exact words matter| D{Also end\nthe interaction?}
+    D -->|End call| E["Return {utterance, hangup: True}"]
+    D -->|Transfer caller| F["Return {utterance, handoff: True}"]
+    D -->|Context for next turn| G["Return {utterance, content}"]
+    D -->|Neither| H["Return {utterance: '...'}"]
+```
 
 ## The two valid return types
 
@@ -209,6 +226,16 @@ The LLM generates the phrasing; the function controls execution.
 <Tip>
   This pattern also works for handoff functions, where you want the LLM to generate a context-appropriate transfer message rather than using a fixed phrase.
 </Tip>
+
+<Challenge
+  scenario="You're building a function that retrieves a caller's account balance. If the balance is above £500, you must say the exact phrase 'Your balance is above the threshold' (compliance requirement). If it's below £500, you want the LLM to generate a natural, empathetic response. How do you structure the return value for each case?"
+  hints={[
+    "Think about which return type gives you precise control over the exact words spoken.",
+    "For the low-balance case, the LLM needs to see the data so it can generate a response — not hear a hard-coded phrase.",
+    "One case needs `utterance`; the other needs a plain string."
+  ]}
+  solution="High balance: return {&quot;utterance&quot;: &quot;Your balance is above the threshold&quot;} — this plays the exact phrase without any LLM involvement. Low balance: return f&quot;The caller's balance is £{balance}.&quot; — the LLM reads this and generates a natural, empathetic response. Using utterance for the low-balance case would mean you have to write every possible phrasing yourself, which removes the LLM's main advantage."
+/>
 
 ## Quick reference
 
