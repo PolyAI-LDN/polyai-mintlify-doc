@@ -269,7 +269,7 @@
           'You’re viewing the docs in <strong>free trial mode</strong>. This page is documented in full so you can plan for it, but the feature isn’t available on the self-serve free trial.' +
         '</p>' +
         '<p class="free-trial-enterprise-banner__actions">' +
-          '<a href="https://poly.ai/contact-us" class="free-trial-enterprise-banner__cta" target="_blank" rel="noopener">Talk to sales</a>' +
+          '<a href="https://poly.ai/request-a-demo" class="free-trial-enterprise-banner__cta" target="_blank" rel="noopener">Talk to sales</a>' +
           '<button type="button" class="free-trial-enterprise-banner__exit" id="free-trial-enterprise-banner-exit">Exit free trial mode</button>' +
         '</p>' +
       '</div>';
