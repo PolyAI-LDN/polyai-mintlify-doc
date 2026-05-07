@@ -12,7 +12,7 @@ keywords:
 
 Use custom metrics to measure the outcomes that matter to your business – whether callers are being authenticated, bookings completed, or issues resolved without escalation. Without custom metrics, you are limited to generic call statistics and cannot track whether the agent is achieving its actual purpose.
 
-Custom metrics are defined in **Configure > Metrics**. Once created, they are evaluated per conversation and flow into [Dashboards](/analytics/dashboards/introduction), [Smart Analyst](/smart-analyst/introduction), and the [Conversations API](/api-reference/conversations/introduction).
+Custom metrics are defined in **Configure > Metrics**. A metric is recorded against a conversation only when your function logic calls [`conv.write_metric`](/tools/classes/conv-object#write-metric) – the agent does not write metrics on its own. Once written, metric values flow into [Dashboards](/analytics/dashboards/introduction), [Smart Analyst](/smart-analyst/introduction), and the [Conversations API](/api-reference/conversations/introduction).
 
 ![Metrics list view](/images/configuration-builder/metrics-list.png)
 
@@ -54,7 +54,7 @@ Consistent naming makes metrics easier to find, compare, and reference across da
 
 ## Writing effective definitions
 
-The metric definition tells the system how to evaluate each conversation. Clear, specific definitions produce more consistent results and directly improve the quality of insights from [Smart Analyst](/smart-analyst/introduction), which can sample and analyze conversations based on your custom metrics.
+The metric definition is a note for whoever is building or maintaining the project. It is **not** seen by the agent at runtime and is **not** used by [Smart Analyst](/smart-analyst/introduction) when evaluating conversations – metric values are recorded only via [`conv.write_metric`](/tools/classes/conv-object#write-metric). A clear definition still matters because it gives builders a shared, unambiguous understanding of what the metric represents and when it should be written.
 
 ### Be specific about the outcome
 
@@ -66,7 +66,7 @@ The metric definition tells the system how to evaluate each conversation. Clear,
 
 ### Define success and failure
 
-Where relevant, define what does **not** count as a success alongside what does. This reduces ambiguity for edge cases and partial outcomes.
+Where relevant, define what does **not** count as a success alongside what does. This reduces ambiguity for builders writing the function logic that calls `write_metric`.
 
 For example, an authentication metric might specify:
 - **Success**: the caller provided their name and date of birth, and the system confirmed a match
@@ -75,27 +75,23 @@ For example, an authentication metric might specify:
 
 ### Specify when the metric applies
 
-A metric should define the point in the conversation where it becomes relevant. This matters when a metric depends on a specific flow being reached.
+The definition should make clear at what point in the conversation the metric is meant to be written, so builders know where in the flow to call `write_metric`.
 
 For example:
-- "This metric applies only after the agent determines the caller is eligible for the loyalty program" – not from the start of every call
-- "Evaluate this metric once the booking flow has been initiated" – not based on whether the caller mentioned a booking
-
-<Warning>
-If a metric is evaluated too early (before the relevant flow starts) or too broadly (on calls where the flow was never triggered), results will be noisy and unreliable.
-</Warning>
+- "Write this metric only after the agent determines the caller is eligible for the loyalty program" – not from the start of every call
+- "Write this metric once the booking flow has completed" – not based on whether the caller mentioned a booking
 
 ### Additional tips
 
 - If the metric depends on a specific flow or function, mention it by name in the definition
-- For boolean metrics, state the exact condition that makes the metric `true`
+- For boolean metrics, state the exact condition that should make the metric `true`
 - Keep definitions self-contained – avoid referencing other metric definitions
 
 ## Metrics and Smart Analyst
 
-[Smart Analyst](/smart-analyst/introduction) can sample conversations based on your custom metrics and use metric values when answering natural-language questions. The quality of your metric definitions directly affects the quality of Smart Analyst's insights.
+[Smart Analyst](/smart-analyst/introduction) can sample conversations based on the metric values you have written via `write_metric` and use those values when answering natural-language questions. Smart Analyst does not see the metric definition itself – the quality of its insights depends on whether the right metrics are being written, with the right values, at the right point in the conversation.
 
-Well-defined metrics enable you to:
+Once metrics are being written reliably, you can:
 - Sample conversations where a specific metric succeeded or failed, rather than relying on random sampling
 - Ask questions like *"Why are calls failing the authentication metric?"* and get targeted answers
 - Track metric trends across recent conversations without writing queries
@@ -104,14 +100,14 @@ See [Smart Analyst](/smart-analyst/introduction) for more on deep sampling and e
 
 ## Logging metrics from functions
 
-You can also log metrics programmatically from [functions](/tools/introduction) using the conversation object. This is useful when a metric depends on function output – for example, confirming that an API call succeeded or a payment was processed.
+Custom metrics are not written automatically by the agent at runtime. They are only recorded when you explicitly call [`conv.write_metric`](/tools/classes/conv-object#write-metric) from a [function](/tools/introduction). This is useful when a metric depends on function output – for example, confirming that an API call succeeded or a payment was processed.
 
-The conversation object provides two properties for this:
+```python
+conv.write_metric("booking_completed", True)
+conv.write_metric("call_outcome", "resolved", write_once=True)
+```
 
-- `conv.metrics_queue` – queue custom metrics for analytics
-- `conv.metric_events` – queue metric event objects with name/value pairs
-
-See the [conversation object reference](/tools/classes/conv-object) for details.
+See the [conversation object reference](/tools/classes/conv-object#write-metric) for the full parameter list.
 
 ## Where metrics appear
 
