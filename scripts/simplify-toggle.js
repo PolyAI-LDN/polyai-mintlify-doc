@@ -52,8 +52,13 @@
 
   // Path prefixes for "enterprise/developer" pages. Visiting one in free trial
   // mode shows the page with an enterprise upsell banner prepended.
+  // Note: /extend/, /secrets/, /tools/, and /studio-assistant/ are
+  // intentionally NOT in this list — the ADK, personal access tokens, the
+  // Secrets Vault, custom Python tools/functions, and Studio Assistant are all
+  // available to free-trial users. Specific sub-pages that are enterprise-only
+  // (e.g. /secrets/api-keys) are listed in ENTERPRISE_EXACT below.
   var ENTERPRISE_PREFIXES = [
-    '/tools/', '/secrets/', '/extend/', '/configuration-builder/',
+    '/configuration-builder/',
     '/speech-recognition/', '/response-control/', '/audio-management/', '/variant-management/',
     '/telephony/twilio/',
     '/call-data/conversations-api/',
@@ -62,6 +67,9 @@
   ];
   var ENTERPRISE_EXACT = [
     '/call-data/s3-to-s3',
+    // Workspace-scoped API keys are enterprise-only — free-trial users use
+    // personal access tokens (/secrets/personal-access-tokens) instead.
+    '/secrets/api-keys',
     // Code-driven flow pages — the no-code subdirectory stays visible.
     '/flows/triggering-flows',
     '/flows/example',
