@@ -1,12 +1,13 @@
 (function () {
-  // ── Simplify view toggle ──────────────────────────────────────────────────
-  // Persistent simplified mode backed by localStorage.
-  // Once on, it stays on across page loads and sessions until the user clicks
-  // "Exit simplified mode" or navigates to a page that's flagged as complex
-  // (in which case it auto-exits and takes them there in full-docs view).
+  // ── Free trial mode toggle ────────────────────────────────────────────────
+  // Persistent "Free trial mode" view (formerly "No code mode") backed by
+  // localStorage. Once on, it stays on across page loads and sessions until
+  // the user clicks "Exit free trial mode" or navigates to a page that's
+  // flagged as enterprise-only / complex (in which case it auto-exits and
+  // takes them there in full-docs view).
   //
   // ?view=simplified is still honoured as a one-shot entry point (e.g. from
-  // the /platform/simplified-mode landing page link or an external share),
+  // the /platform/free-trial-mode landing page link or an external share),
   // and is mirrored back into the URL on navigations so links can be shared.
   var STORAGE_KEY = 'polyai-simplified-mode';
   var POSITION_KEY = 'polyai-simplified-pill-position';
@@ -132,11 +133,11 @@
   function updateButton(btn, simplified) {
     btn.setAttribute('aria-pressed', simplified);
     btn.title = simplified
-      ? 'Exit no code mode (show all docs)'
-      : 'Enter no code mode (hide developer and API content)';
+      ? 'Exit free trial mode (show all docs)'
+      : 'Enter free trial mode (hide enterprise, developer, and API content)';
     btn.innerHTML = simplified
-      ? '<span class="simplify-toggle__icon">\u2726</span><span class="simplify-toggle__label">No code \u2014 exit</span>'
-      : '<span class="simplify-toggle__icon">\u2726</span><span class="simplify-toggle__label">No code mode</span>';
+      ? '<span class="simplify-toggle__icon">\u2726</span><span class="simplify-toggle__label">Free trial \u2014 exit</span>'
+      : '<span class="simplify-toggle__icon">\u2726</span><span class="simplify-toggle__label">Free trial mode</span>';
     btn.classList.toggle('simplify-toggle--active', !!simplified);
   }
 
@@ -426,8 +427,8 @@
     applyStoredPosition(btn);
   }
 
-  // Wires up the explicit Enter / Exit buttons on the /platform/simplified-mode
-  // landing page. Shows a confirmation panel once the user is in simplified mode.
+  // Wires up the explicit Enter / Exit buttons on the /platform/free-trial-mode
+  // landing page. Shows a confirmation panel once the user is in free trial mode.
   function updateLandingPageStatus() {
     var active = document.documentElement.dataset.simplified === 'true';
     var status = document.getElementById('simplified-mode-status');
