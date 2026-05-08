@@ -1,61 +1,106 @@
 ---
 title: "Review"
-description: "View transcripts, metadata, and diagnostics for each call."
+description: "Browse, filter, and inspect voice and webchat conversations from a single workspace."
 keywords:
   - conversation review
   - transcripts
   - call review
   - diagnostics
   - metadata
+  - views
+  - voice
+  - webchat
 ---
 
-Use Conversation Review to inspect what happened on a specific call – the full transcript, which topics matched, what functions ran, and what the caller experienced. This is the primary tool for debugging agent behavior and auditing call quality.
+Use **Conversation Review** to browse and inspect what happened on every voice call and webchat session – the full transcript, which topics matched, what tools ran, and how the agent handled each turn. It is the primary tool for debugging agent behavior and auditing call quality.
 
 ![conversations-review](/images/analytics/conv-review.png)
 
 <Note>
-For workflows, see [QA and analytics](/learn/maintain/qa-analytics). For export, see [Call Data](/call-data/introduction).
+For workflows, see [QA and analytics](/learn/maintain/qa-analytics). For programmatic export, see [Call Data](/call-data/introduction).
 </Note>
 
-## Page overview
+## Page layout
 
-- **Conversation tabs**: Switch between *Live*, *Ended*, and *All* to focus on active or completed calls.
-- **Conversation turns**: Shows agent and user utterances in chronological order. Live calls will appear here and they will update automatically as new turns arrive. Each turn may display matched [Knowledge](/managed-topics/introduction) topics where relevant.
-- **Caller identity**: Displays the user email address if available (for [Webchat](/webchat/introduction)), or phone number if applicable. Personally identifiable details are shown only to users with [PII-level access](/tools/classes/conv-log#pii).
-- **Environment and metadata**: Includes information such as [variant name](/variant-management/introduction), timezone, timestamp, [environment](/environments-and-versions/introduction) (e.g. Sandbox or Production), and version ID.
-  Active calls display a **live duration indicator** beside the environment label.
-- **Matched topics**: When topics from the Knowledge area are referenced or triggered, they are shown as tags beneath the corresponding utterance.
-- **Sources**: When the agent retrieves content from [Connected Knowledge](/connected-knowledge/introduction) sources, a **Sources** tag appears beneath the turn. Click a source name to open an inline preview panel showing the retrieved content. Enable this layer from the **Diagnosis** dropdown.
+The Conversations page is split by **channel scope** and a configurable **Views system**, with an integrated review panel that opens over the table.
+
+### Channel scopes
+
+Conversations are scoped by channel. Switch between scopes from the header tabs:
+
+- **Voice** – calls placed through the voice channel (`VOICE-SIP` or in-app `CHAT` voice). Default columns: contact, summary, direction, [PolyScore](/analytics/polyscore).
+- **Webchat** – sessions on the [Webchat](/webchat/introduction) channel. Default columns: contact, summary, duration, PolyScore.
+
+<Info>
+Voice-only columns (direction, outbound call status, CSAT) are hidden on the Webchat scope. Each scope keeps its own saved [Views](/analytics/conversations/views).
+</Info>
+
+### Views
+
+Each scope opens with a **System View** by default. System Views are immutable – you cannot rename or delete them:
+
+- **Production** – live conversations only (`environment = live`).
+- **Test** – sandbox, draft, and pre-release conversations.
+
+Build your own pinned tabs by saving a filter and column combination as a **Custom View**. See [Views](/analytics/conversations/views) for the full Views system, including share-via-link, set-as-default, and keyboard shortcuts.
+
+### Conversations table
+
+Each row shows one conversation with its key metadata (contact, summary, duration, PolyScore, environment, version). Columns are configurable per view.
+
+- **Live calls** appear at the top with a live duration indicator and refresh automatically as new turns arrive.
+- **Sort** any sortable column ascending or descending.
+- **Select rows** to create a [test case](/analytics/test-suite/introduction) batch from the toolbar.
+- **Click a row** to open the conversation in the review side panel without leaving the table.
+
+### Review side panel
+
+Selecting a conversation opens a side panel with four tabs:
+
+| Tab | What you see |
+|---|---|
+| **Transcription** | Full turn-by-turn transcript, audio waveform (voice), matched topics, retrieved sources, intents, user-perceived latency, annotation icons (missing topic / wrong transcription / wrong information / interruption / high latency), and the **Diagnosis** toggle group |
+| **Scores** | [PolyScore](/analytics/polyscore) and [CSAT](/analytics/csat/introduction) badges in one place, with per-dimension breakdowns |
+| **Details** | Call info (status, environment, version), pre-built metrics (handoff reason and target, function call, SMS events, A/B group assignment, group ID, QA), and links (latency visualization, data logs, outbound calls) |
+| **Custom metrics** | Searchable, sortable list of any [custom metrics](/settings/metrics) configured for the project |
+
+Use the **Copy Call SID** button in the panel header to share a deep link to the conversation. Press **Esc** or click the close icon to dismiss the panel and return to the table.
+
+## Caller identity and PII
+
+The panel header displays the caller email (Webchat) or phone number (Voice) when available. Personally identifiable details are shown only to users with [PII-level access](/tools/classes/conv-log#pii). When PII masking is enabled for your account, contact details are redacted in both the table and the panel.
+
+## Matched topics and sources
+
+When the agent matches [Knowledge](/managed-topics/introduction) topics or retrieves content from [Connected Knowledge](/connected-knowledge/introduction) sources, both surfaces appear under the relevant turn:
+
+- **Matched topics** – tags listing the topics most relevant to the user's utterance.
+- **Sources** – clickable source names. Clicking a source opens an inline preview panel; use **Open in Knowledge** to jump to the source file.
 
 ![sources-conversation-review](/images/release-notes/2603/sources-conversation-review.png)
-- **Diagnosis panel**: Toggle to view system-level debugging tools and any structured [function logs](/tools/classes/conv-log).
-- **Category tagging**: Use the dropdown at the bottom of the screen to assign categories for reporting or follow-up.
-- **Conversation status**: The end of the conversation is visually marked (e.g. "Ended conversation"). Live calls show an **"In progress"** badge until they close automatically.
 
-## Key functionality
-
-- **Browse and filter**: Navigate and filter through past or live conversations using metadata, time filters, duration, tags, or flows.
-- **Monitor live calls**: Observe ongoing conversations in real time without affecting the call. Live visibility depends on your permission level.
-- **Drill into specific calls**: View a complete transcript, inspect decision logic (if exposed), and assess how the agent handled the interaction.
-- **Assign categories**: Manually label or tag calls for downstream use (e.g. QA review, escalation, training).
-- **Export data**: Export transcripts and metadata for analysis, compliance, or reporting workflows.
+Enable both layers from the **Diagnosis** toggle group on the Transcription tab. See [Diagnosis](/analytics/conversations/diagnosis) for every available layer.
 
 ## PolyScore
 
-Eligible voice conversations display a [PolyScore](/analytics/polyscore) badge at the top of the transcript – a 0–10 quality rating generated automatically by AI. The badge is color-coded (green for 7–10, amber for 4–6, red for 0–3) and expands to show per-dimension breakdowns for **Agent Quality** and **Task Success**.
+Eligible conversations display a [PolyScore](/analytics/polyscore) badge in the **Scores** tab and as a column in the table – a 0–10 quality rating generated automatically by AI. The badge is color-coded (green for 7–10, amber for 4–6, red for 0–3) and expands to show per-dimension breakdowns.
 
 Use PolyScore in Conversation Review to:
-- **Prioritize review** – sort or filter the conversations table by PolyScore to surface the lowest-quality calls first
-- **Understand failure modes** – expand the dimension breakdown to see whether a low score reflects poor conversation flow, an unresolved task, or caller frustration
-- **Spot-check high scores** – confirm that well-scored calls followed the correct process before using them as benchmarks
+- **Prioritize review** – sort or filter the conversations table by PolyScore to surface the lowest-quality calls first.
+- **Understand failure modes** – expand the dimension breakdown to see whether a low score reflects poor conversation flow, an unresolved task, or caller frustration.
+- **Spot-check high scores** – confirm that well-scored calls followed the correct process before using them as benchmarks.
 
 <Tip>
-Filter conversations by a low PolyScore to build a focused QA queue. See [PolyScore](/analytics/polyscore#interpreting-scores) for scoring guidance.
+Save a Custom View filtered by low PolyScore to build a focused QA queue. See [PolyScore](/analytics/polyscore#interpreting-scores) for scoring guidance.
 </Tip>
+
+## Conversation status
+
+The end of the conversation is visually marked (e.g., **"Ended conversation"**). Live calls show an **"In progress"** badge until they close automatically.
 
 ## Default filters
 
-Conversations defaults to showing **Live environment** calls within a **recent date range**. If you are working in Sandbox or have not yet deployed to production, create a **saved view** with your preferred filters (e.g., Sandbox environment, last 7 days) and set it as your default.
+Each scope opens on the **Production** System View. If you are working in Sandbox or have not yet deployed to production, switch to the **Test** System View, or save a Custom View with your preferred filters and **set it as your default**.
 
 ## Data retention
 
@@ -63,16 +108,25 @@ Conversations defaults to showing **Live environment** calls within a **recent d
 Transcripts older than **90 days** are automatically removed in accordance with PII retention policies. Plan exports accordingly if you need to retain conversation data beyond this window.
 </Warning>
 
+## Known limitations
+
+- **Empty turns** are sometimes hidden in the transcript while the underlying issue is being worked on.
+- **Draft and branch conversations** may currently surface with a `sandbox` version tag rather than the originating branch ID.
+- **Voice agent v2 (Raven Omni)** flow events ("Entered Flow") and function-call events are still being rolled out across all calls; RAG matched topics are now visible.
+
 ## Related pages
 
 <CardGroup cols={3}>
-  <Card title="PolyScore" icon="star" href="/analytics/polyscore">
-    Understand how conversations are scored and what each dimension measures.
+  <Card title="Views" icon="layer-group" href="/analytics/conversations/views">
+    Save filter and column combinations as pinned tabs and share them across your team.
   </Card>
   <Card title="Diagnosis" icon="stethoscope" href="/analytics/conversations/diagnosis">
-    Inspect function calls, flows, latency, and topic citations for a specific turn.
+    Inspect tool calls, flows, latency, and topic citations for a specific turn.
   </Card>
   <Card title="Annotations" icon="tag" href="/analytics/conversations/annotations">
     Flag transcription errors and missing topics to drive continuous improvement.
+  </Card>
+  <Card title="PolyScore" icon="star" href="/analytics/polyscore">
+    Understand how conversations are scored and what each dimension measures.
   </Card>
 </CardGroup>
