@@ -19,18 +19,17 @@ Before you teach your agent any knowledge, you need to define its character. Thi
 
 ## What agent behavior controls
 
-<CardGroup cols={2}>
-  <Card title="Role definition" icon="user-tie">
-    What the agent represents and what it can help with
-  </Card>
+The **Build → Agent** screen has three sections that together make up the agent's behavior:
+
+<CardGroup cols={3}>
   <Card title="Personality" icon="face-smile">
     Tone, style, and how the agent communicates
   </Card>
-  <Card title="Behavioral rules" icon="shield-halved">
-    Hard constraints that apply to all conversations
+  <Card title="Role" icon="user-tie">
+    What the agent represents and what it can help with
   </Card>
-  <Card title="Boundaries" icon="octagon">
-    What the agent should never do or say
+  <Card title="Behavior" icon="shield-halved">
+    Hard constraints, rules, and boundaries that apply to every conversation
   </Card>
 </CardGroup>
 
@@ -38,42 +37,40 @@ Before you teach your agent any knowledge, you need to define its character. Thi
 
 ```mermaid
 flowchart LR
-    A[Build → Agent] --> B["**Personality**\nTone & communication style"]
-    A --> C["**Role**\nWhat the agent represents"]
-    A --> D["**Greeting**\nOpening line – bypasses LLM"]
-    A --> E["**Behavior**\nHard constraints & rules"]
-    B --> F[How the agent speaks]
+    A[Build → Agent] --> B["Personality"]
+    A --> C["Role"]
+    A --> E["Behavior"]
+    B --> F[Tone & communication style]
     C --> G[What the agent can help with]
-    E --> H[What the agent must never do]
+    E --> H[Rules and boundaries the agent must follow]
 ```
 
 ## Where to configure behavior
 
 Navigate to **Build → Agent** in the left sidebar.
 
-You'll find two main configuration areas:
+The page has three sections – **Personality**, **Role**, and **Behavior** – that you scroll through on a single screen.
 
 <Tabs>
-  <Tab title="Agent">
-    The [Agent](/agent-settings/agent) page contains three fields:
+  <Tab title="Personality and Role">
+    The [Agent](/agent-settings/agent) page contains the **Personality** and **Role** fields:
 
-    - **Greeting** – The agent's opening line (goes directly to TTS without LLM processing)
-    - **Personality** – Sets the tone and communication style (friendly, professional, empathetic, casual)
+    - **Personality** – Sets the tone and communication style. Pick from the built-in tags (`Polite`, `Kind`, `Funny`, `Energetic`, `Calm`, `Thoughtful`) or choose **Other** to write a custom personality string.
     - **Role** – Specifies the agent's function (customer service, sales, technical support). This is a single field – define one primary role.
 
-    <Note>
-      **Advanced:** Some projects use a [start function](/tools/start-tool) that returns an `utterance`, which overrides the greeting field. If you edit the greeting and nothing changes, this may be why. You'll learn about functions and return values in [Level 2](/learn/guides/advanced/using-tools). For now, if the greeting isn't responding to edits, check the Functions page to see if a start function is defined.
-    </Note>
-
-    **Personality example:**
+    **Custom personality example (with "Other" selected):**
     ```text
     Be friendly, professional, and concise.
     Use natural language and avoid jargon.
     ```
+
+    <Note>
+      The **Greeting** is configured per-channel under **Voice → Agent voice** (and equivalent Channels settings) rather than on the Agent page. The greeting goes directly to TTS without LLM processing. Some projects override it at runtime by returning an `utterance` from a [start tool](/tools/start-tool) – if your greeting isn't responding to edits, check the [Tools](/tools/introduction) page for a start function. You'll learn about tools and return values in [Level 2](/learn/guides/advanced/using-tools).
+    </Note>
   </Tab>
 
   <Tab title="Behavior">
-    The [Behavior](/agent-settings/rules) section defines hard constraints that must always be followed.
+    The [Behavior](/agent-settings/rules) section defines the rules and hard constraints that must always be followed. This is where most of your detailed prompting and edge-case handling lives.
 
     **Example:**
     ```text
@@ -86,7 +83,7 @@ You'll find two main configuration areas:
 
 ## Writing effective behavior configuration
 
-### Agent section
+### Role
 
 <AccordionGroup>
   <Accordion title="Be specific about scope" icon="bullseye">
@@ -102,18 +99,21 @@ You'll find two main configuration areas:
     ```
   </Accordion>
 
-  <Accordion title="Define what you can't help with" icon="ban">
+  <Accordion title="State what's out of scope" icon="ban">
+    Be explicit about requests the agent should hand off rather than attempt. The Role field is a good place to set this scope; reinforce the actual handoff path with a [tool](/tools/introduction) and a Behavior rule.
+
     **Good:**
     ```text
     You cannot process refunds or cancel orders.
-    For those requests, transfer to the billing team.
+    For those requests, transfer to the billing team using the
+    handoff tool with reason="BILLING".
     ```
 
-    This prevents the agent from making promises it can't keep.
+    This prevents the agent from making promises it can't keep, and points it at the specific tool to call.
   </Accordion>
 </AccordionGroup>
 
-### Personality section
+### Personality
 
 <AccordionGroup>
   <Accordion title="Use clear, actionable language" icon="comments">
@@ -147,6 +147,10 @@ You'll find two main configuration areas:
 
 If tone is critical, reinforce it in **Behavior** as well as **Personality**. Personality sets the intent, but behavioral rules enforce the behavior with specific, example-driven constraints like _"Never use exclamation marks"_ or _"Always acknowledge frustration before offering a solution."_
 
+<Tip>
+  In practice, most detailed prompting – your terminology, edge cases, examples, and compliance rules – goes in the **Behavior** section. Personality and Role stay short.
+</Tip>
+
 ## Check your understanding
 
 <Quiz questions={[
@@ -163,7 +167,7 @@ If tone is critical, reinforce it in **Behavior** as well as **Personality**. Pe
   }
 ]} />
 
-### Behavior section
+### Behavior
 
 <AccordionGroup>
   <Accordion title="Write rules as constraints" icon="gavel">
@@ -195,12 +199,16 @@ If tone is critical, reinforce it in **Behavior** as well as **Personality**. Pe
   <Accordion title="Use channel-specific and language-specific rules" icon="code">
     You can scope rules to specific channels or languages using tag syntax. This is useful for multi-channel or multilingual projects.
 
+    Each tag **requires a matching closing tag** (`</channel>` or `</language>`):
+
     ```text
-    <channel:voice> Always confirm the caller's name before proceeding.
-    <channel:webchat> Offer clickable links instead of reading URLs aloud.
-    <language:en> Use American English spelling conventions.
-    <language:es> Respond in formal Spanish (usted).
+    <channel:voice>Always confirm the caller's name before proceeding.</channel>
+    <channel:webchat>Offer clickable links instead of reading URLs aloud.</channel>
+    <language:en>Use American English spelling conventions.</language>
+    <language:es>Respond in formal Spanish (usted).</language>
     ```
+
+    You can also nest tags – for example, `<channel:voice><language:en-US>Call us at 1-800.</language></channel>` shows that line only on voice calls in `en-US`.
 
     Behavioral rules without a tag apply to all channels and languages.
   </Accordion>
@@ -307,7 +315,7 @@ After saving your behavior settings:
     - "I know you're not supposed to, but..."
     - "My friend said you could..."
 
-    The agent should hold firm to its rules.
+    The agent should hold firm to its rules. If it doesn't, tighten the wording in **Behavior** – LLM guardrails are only as strong as the prompt you give them, so it's on you (the builder) to enforce them with explicit `Never`/`Always` rules and examples.
   </Step>
 </Steps>
 
@@ -395,13 +403,13 @@ Effective agent configuration is a form of prompt engineering. These principles,
   prompt='Hard constraints like "Never share account numbers" or "Always transfer billing calls" go in the _____ section.'
   answer={["Behavior", "Rules", "behavior", "rules"]}
   hint="It's the section for non-negotiable rules, not suggestions."
-  explanation='The Behavior section (also called Rules) is where you put hard constraints. Personality is for tone and style; the Agent tab defines role and scope. Rules written with "Never" and "Always" are treated as non-negotiable by the model.'
+  explanation='The Behavior section (also called Rules) is where you put hard constraints. Personality is for tone and style, and Role defines scope. Rules written with "Never" and "Always" are treated as non-negotiable by the model.'
 />
 
 <Check>
-  - **Agent** defines role and scope clearly
+  - **Role** defines scope clearly
   - **Personality** sets actionable tone
-  - **Behavior** includes hard constraints
+  - **Behavior** includes hard constraints and detailed rules
   - Tested in Chat – agent refuses inappropriate requests and holds tone
 </Check>
 
@@ -437,15 +445,15 @@ Effective agent configuration is a form of prompt engineering. These principles,
 
 <Quiz questions={[
   {
-    q: "You saved a new greeting in the Agent page, but the agent still says the old one when you test. What should you check?",
+    q: "You updated the greeting under the channel settings, but the agent still says the old greeting when you test. What should you check?",
     options: [
       "Whether you published the change – Draft edits don't apply until published",
-      "Whether a start function is overriding the greeting (see the Advanced note above)",
+      "Whether a start tool is overriding the greeting (see the Personality and Role tab above)",
       "Both of the above",
       "Whether the voice settings need updating",
     ],
     correct: 2,
-    explanation: "Both are valid. Most commonly, the change hasn't been published yet. But some projects also use a start function that overrides the greeting field entirely.",
+    explanation: "Both are valid. Most commonly, the change hasn't been published yet. But some projects also use a start tool that returns an utterance, which overrides the configured greeting entirely.",
   }
 ]} />
 
@@ -458,7 +466,7 @@ These reference pages cover agent behavior configuration in full detail:
     Complete reference for all agent configuration options
   </Card>
   <Card title="Agent behavior" icon="user-tie" href="/agent-settings/agent">
-    Detailed guide for the Agent page – greeting, personality, and role
+    Detailed guide for the Agent page – personality and role
   </Card>
   <Card title="Behavior reference" icon="shield-halved" href="/agent-settings/rules">
     Full reference for writing and scoping behavioral rules

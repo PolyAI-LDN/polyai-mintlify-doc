@@ -1,10 +1,16 @@
 ---
 title: 'Trigger an outbound call'
-api: 'POST /v1/outbound-calling/trigger'
+api: 'POST /v1/outbound-calling'
 description: 'Initiate an outbound call to a phone number'
 ---
 
-Triggers a new outbound call to the specified phone number. The call will be queued and processed by the outbound calling system.
+Triggers a new outbound call to the specified phone number. When the request is accepted, the call is placed close to immediately.
+
+The API should only be called to make a call. The call is always attempted, and the [start tool](/tools/start-tool) (`start_function`) is executed **after** the call connects.
+
+<Warning>
+It is your responsibility to ensure that calls are placed in compliance with applicable laws and regulations.
+</Warning>
 
 ## Request
 
@@ -24,9 +30,25 @@ Triggers a new outbound call to the specified phone number. The call will be que
   Phone number to call in E.164 format (e.g., `+14155552671`)
 </ParamField>
 
+<ParamField body="metadata" type="object">
+  Arbitrary key/value pairs to attach to the call. Values must be strings.
+
+  Metadata is delivered to the agent as SIP headers and can be read inside the agent with:
+
+  ```python
+  conv.sip_headers.get('key_name')
+  ```
+</ParamField>
+
+<ParamField body="encryption" type="string" default="UDP/RTP">
+  Telephony encryption type. One of:
+  - `UDP/RTP` (default)
+  - `TLS/SRTP`
+</ParamField>
+
 ## Response
 
-<ResponseField name="callSid" type="string">
+<ResponseField name="call_sid" type="string">
   Unique identifier for the triggered call. Use this to check call status.
 </ResponseField>
 
@@ -35,34 +57,54 @@ Triggers a new outbound call to the specified phone number. The call will be que
 <CodeGroup>
 
 ```bash cURL
-curl -X POST https://api.us-1.platform.polyai.app/v1/outbound-calling/trigger \
+curl -X POST https://api.us-1.platform.polyai.app/v1/outbound-calling \
   -H "X-PolyAi-Auth-Token: YOUR_AUTH_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "to_number": "+14155552671"
+    "to_number": "+16176451984",
+    "metadata": {
+      "patient_first_name": "Paul",
+      "patient_last_name": "Glynn",
+      "patient_dob": "1981-August-26",
+      "referred_by_name": "Dr. Alex Deerman",
+      "variant": "Inpatient at St Charles",
+      "patient_address_street": "13 Main Street",
+      "patient_city_state": "Colonia, New Jersey",
+      "patient_zip_code": "07676"
+    }
   }'
 ```
 
 ```python Python
 import requests
 
-url = "https://api.us-1.platform.polyai.app/v1/outbound-calling/trigger"
+url = "https://api.us-1.platform.polyai.app/v1/outbound-calling"
 headers = {
     "X-PolyAi-Auth-Token": "YOUR_AUTH_TOKEN",
     "Content-Type": "application/json"
 }
 payload = {
-    "to_number": "+14155552671"
+    "to_number": "+16176451984",
+    "metadata": {
+        "patient_first_name": "Paul",
+        "patient_last_name": "Glynn",
+        "patient_dob": "1981-August-26",
+        "referred_by_name": "Dr. Alex Deerman",
+        "variant": "Inpatient at St Charles",
+        "patient_address_street": "13 Main Street",
+        "patient_city_state": "Colonia, New Jersey",
+        "patient_zip_code": "07676"
+    }
 }
 
 response = requests.post(url, json=payload, headers=headers)
-call_sid = response.json()["callSid"]
+call_sid = response.json()["call_sid"]
 print(f"Call triggered: {call_sid}")
 ```
 
 ```javascript JavaScript
 const response = await fetch(
-  'https://api.us-1.platform.polyai.app/v1/outbound-calling/trigger',
+  'https://api.us-1.platform.polyai.app/v1/outbound-calling',
   {
     method: 'POST',
     headers: {
@@ -70,13 +112,18 @@ const response = await fetch(
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      to_number: '+14155552671'
+      to_number: '+16176451984',
+      metadata: {
+        patient_first_name: 'Paul',
+        patient_last_name: 'Glynn',
+        patient_dob: '1981-August-26'
+      }
     })
   }
 );
 
 const data = await response.json();
-console.log('Call triggered:', data.callSid);
+console.log('Call triggered:', data.call_sid);
 ```
 
 </CodeGroup>
@@ -85,14 +132,14 @@ console.log('Call triggered:', data.callSid);
 
 ```json
 {
-  "callSid": "550e8400-e29b-41d4-a716-446655440000"
+  "call_sid": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
 ## Error responses
 
 <ResponseField name="400 Bad Request">
-  Invalid request parameters. Check phone number format.
+  Invalid request parameters. Check phone number format and that all metadata values are strings.
 </ResponseField>
 
 <ResponseField name="401 Unauthorized">
@@ -100,11 +147,12 @@ console.log('Call triggered:', data.callSid);
 </ResponseField>
 
 <ResponseField name="500 Internal Server Error">
-  Failed to queue the outbound call. Retry with exponential backoff.
+  Failed to place the outbound call. Retry with exponential backoff.
 </ResponseField>
 
 ## Notes
 
-- Phone numbers must be in E.164 format (international format with + prefix)
-- Use the [Get call status](/api-reference/outbound/endpoint/get-call-status) endpoint to monitor call progress
-- Call status data is retained for approximately 2 hours after the call ends
+- Phone numbers must be in E.164 format (international format with `+` prefix).
+- All `metadata` values must be strings.
+- Use the [Get call status](/api-reference/outbound/endpoint/get-call-status) endpoint to monitor call progress.
+- Call status data is retained for approximately 2 hours after the call ends.
