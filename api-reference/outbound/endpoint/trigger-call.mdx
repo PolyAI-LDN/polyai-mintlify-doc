@@ -27,29 +27,35 @@ It is your responsibility to ensure that calls are placed in compliance with app
 ### Body
 
 <ParamField body="to_number" type="string" required>
-  Phone number to call in E.164 format (e.g., `+14155552671`)
+  Phone number to call. Provide it in E.164 format (e.g., `+14155552671`), or supply `country_code` and pass a national-format number for that country.
+</ParamField>
+
+<ParamField body="country_code" type="string">
+  Optional ISO 3166-1 alpha-2 country code (e.g., `US`, `GB`) used to parse a non-E.164 `to_number`. Leave unset when `to_number` is already in E.164 format.
 </ParamField>
 
 <ParamField body="metadata" type="object">
-  Arbitrary key/value pairs to attach to the call. Values must be strings.
+  Arbitrary key/value pairs to attach to the call. **All values must be strings.** The base64 representation of the metadata must be less than 26 KB.
 
-  Metadata is delivered to the agent as SIP headers and can be read inside the agent with:
+  Each key is delivered to the agent as a SIP header and can be read inside `start_function` (or any tool) with:
 
   ```python
   conv.sip_headers.get('key_name')
   ```
 </ParamField>
 
-<ParamField body="encryption" type="string" default="UDP/RTP">
-  Telephony encryption type. One of:
-  - `UDP/RTP` (default)
-  - `TLS/SRTP`
+<ParamField body="encryption" type="string" default="TLS/SRTP">
+  Telephony encryption type for the outbound leg. One of:
+  - `TLS/SRTP` (default)
+  - `TLS/RTP`
+  - `UDP/SRTP`
+  - `UDP/RTP`
 </ParamField>
 
 ## Response
 
 <ResponseField name="call_sid" type="string">
-  Unique identifier for the triggered call. Use this to check call status.
+  Unique identifier for the triggered call. Always prefixed with `OUT-`. Use this to check call status.
 </ResponseField>
 
 ## Example
@@ -132,18 +138,18 @@ console.log('Call triggered:', data.call_sid);
 
 ```json
 {
-  "call_sid": "550e8400-e29b-41d4-a716-446655440000"
+  "call_sid": "OUT-550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
 ## Error responses
 
 <ResponseField name="400 Bad Request">
-  Invalid request parameters. Check phone number format and that all metadata values are strings.
+  Invalid request parameters – for example, an unparseable `to_number`, a metadata value that isn't a string, or metadata that exceeds the 26 KB base64 size limit.
 </ResponseField>
 
 <ResponseField name="401 Unauthorized">
-  Invalid or missing authentication token.
+  Invalid or missing authentication token, or the connector behind the token is not configured for outbound calling.
 </ResponseField>
 
 <ResponseField name="500 Internal Server Error">
@@ -152,7 +158,7 @@ console.log('Call triggered:', data.call_sid);
 
 ## Notes
 
-- Phone numbers must be in E.164 format (international format with `+` prefix).
-- All `metadata` values must be strings.
+- Phone numbers must be in E.164 format unless you also pass `country_code`.
+- All `metadata` values must be strings; nested objects, numbers, and booleans are rejected.
 - Use the [Get call status](/api-reference/outbound/endpoint/get-call-status) endpoint to monitor call progress.
 - Call status data is retained for approximately 2 hours after the call ends.
