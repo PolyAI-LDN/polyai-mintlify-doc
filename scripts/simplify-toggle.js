@@ -29,11 +29,16 @@
   var ENTERPRISE_GROUPS = ['Developer tools', 'Secrets', 'Code-driven flows'];
 
   // Collapsed sub-group button labels to dim in free trial mode.
-  // SMS, Call handoffs, and Flows are intentionally excluded — their intro
-  // pages are visible in free trial mode with developer content behind an
-  // accordion, and Flows contains a No-code sub-group that must stay visible.
+  //
+  // Intentionally excluded:
+  //  - SMS, Call handoffs, Flows — intro pages are visible with developer
+  //    content behind an accordion; Flows contains a No-code sub-group that
+  //    must stay visible.
+  //  - Tools, Knowledge — both are part of the Open Platform Build sidebar
+  //    (per platform_ui tier-rules); custom Python tools and managed-topic
+  //    knowledge bases are first-class self-serve features.
   var ENTERPRISE_SUBGROUPS = [
-    'Tools', 'Configuration builder',
+    'Configuration builder',
     'Speech recognition', 'Response control', 'Audio management',
     'Variant management',
     'Test suite',
@@ -44,7 +49,11 @@
     'CRM',
     'Hospitality',
     'Healthcare',
-    'Knowledge base'
+    // Analytics sub-groups gated behind enterprise on the Open Platform.
+    // Smart Analyst, Agent Analysis, and PolyScore stay visible in the nav
+    // but their underlying services aren't deployed on the PLG cluster
+    // at launch.
+    'Smart analyst', 'Agent analysis', 'PolyScore'
   ];
 
   // Top-nav tab labels — these stay hidden (a greyed-out tab looks broken).
@@ -52,10 +61,11 @@
 
   // Path prefixes for "enterprise/developer" pages. Visiting one in free trial
   // mode shows the page with the content greyed out behind a sticky banner.
-  // Note: /extend/, /secrets/, /tools/, and /studio-assistant/ are
-  // intentionally NOT in this list — the ADK, personal access tokens, the
-  // Secrets Vault, custom Python tools/functions, and Studio Assistant are all
-  // available to free-trial users. Specific sub-pages that are enterprise-only
+  // Note: /extend/, /secrets/, /tools/, /studio-assistant/, and
+  // /managed-topics/ are intentionally NOT in this list — the ADK, personal
+  // access tokens, the Secrets Vault, custom Python tools/functions, Studio
+  // Assistant, and managed-topic knowledge bases are all available to
+  // free-trial users. Specific sub-pages that are enterprise-only
   // (e.g. /secrets/api-keys) are listed in ENTERPRISE_EXACT below.
   var ENTERPRISE_PREFIXES = [
     '/configuration-builder/',
@@ -63,13 +73,19 @@
     '/telephony/twilio/',
     '/call-data/conversations-api/',
     '/analytics/test-suite/',
-    '/api-reference/', '/api/'
+    '/api-reference/', '/api/',
+    // Analytics features that aren't deployed on the Open Platform cluster.
+    '/smart-analyst/',
+    '/agent-analysis/'
   ];
   var ENTERPRISE_EXACT = [
     '/call-data/s3-to-s3',
     // Workspace-scoped API keys are enterprise-only — free-trial users use
     // personal access tokens (/secrets/personal-access-tokens) instead.
     '/secrets/api-keys',
+    // PolyScore is a single page; the underlying scoring service isn't
+    // deployed on the Open Platform cluster.
+    '/analytics/polyscore',
     // Code-driven flow pages — the no-code subdirectory stays visible.
     '/flows/triggering-flows',
     '/flows/example',
