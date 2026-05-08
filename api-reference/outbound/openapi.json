@@ -25,10 +25,10 @@
     }
   ],
   "paths": {
-    "/v1/outbound-calling/trigger": {
+    "/v1/outbound-calling": {
       "post": {
         "summary": "Trigger an outbound call",
-        "description": "Initiates a new outbound call to the specified phone number. The call will be queued and processed by the outbound calling system.",
+        "description": "Initiates a new outbound call to the specified phone number. When the request is accepted, the call is placed close to immediately. The start tool (start_function) executes after the call connects. It is the caller's responsibility to ensure that calls are placed lawfully.",
         "operationId": "triggerOutboundCall",
         "tags": ["Outbound Calling"],
         "requestBody": {
@@ -41,8 +41,31 @@
                 "properties": {
                   "to_number": {
                     "type": "string",
-                    "description": "Phone number to call in E.164 format (e.g., +14155552671)",
+                    "description": "Phone number to call in E.164 format (e.g., +14155552671). If country_code is supplied, this can also be a national-format number for that country.",
                     "example": "+14155552671"
+                  },
+                  "country_code": {
+                    "type": "string",
+                    "description": "Optional ISO 3166-1 alpha-2 country code (e.g., US, GB) used to parse a non-E.164 to_number. Leave unset when to_number is already in E.164 format.",
+                    "example": "US"
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "description": "Arbitrary key/value pairs delivered to the agent as SIP headers and accessible via conv.sip_headers.get('key_name'). All values must be strings. The base64 representation of the metadata must be less than 26 KB.",
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "example": {
+                      "patient_first_name": "Paul",
+                      "patient_last_name": "Glynn",
+                      "appointment_date": "2026-08-26"
+                    }
+                  },
+                  "encryption": {
+                    "type": "string",
+                    "description": "Telephony encryption type for the outbound leg.",
+                    "enum": ["UDP/RTP", "UDP/SRTP", "TLS/RTP", "TLS/SRTP"],
+                    "default": "TLS/SRTP"
                   }
                 }
               }
@@ -51,16 +74,16 @@
         },
         "responses": {
           "200": {
-            "description": "Call successfully queued",
+            "description": "Call accepted",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "callSid": {
+                    "call_sid": {
                       "type": "string",
-                      "description": "Unique identifier for the triggered call. Use this to check call status.",
-                      "example": "550e8400-e29b-41d4-a716-446655440000"
+                      "description": "Unique identifier for the triggered call (prefixed with `OUT-`). Use this to check call status.",
+                      "example": "OUT-550e8400-e29b-41d4-a716-446655440000"
                     }
                   }
                 }
@@ -68,7 +91,7 @@
             }
           },
           "400": {
-            "description": "Bad Request - Invalid request parameters",
+            "description": "Bad Request - Invalid request parameters (e.g. malformed phone number, metadata too large, non-string metadata value)",
             "content": {
               "application/json": {
                 "schema": {
@@ -78,7 +101,7 @@
             }
           },
           "401": {
-            "description": "Unauthorized - Invalid or missing authentication token",
+            "description": "Unauthorized - Invalid or missing authentication token, or the connector is not configured for outbound calling",
             "content": {
               "application/json": {
                 "schema": {
@@ -88,7 +111,7 @@
             }
           },
           "500": {
-            "description": "Internal Server Error - Failed to queue the outbound call",
+            "description": "Internal Server Error - Failed to place the outbound call",
             "content": {
               "application/json": {
                 "schema": {
@@ -100,7 +123,7 @@
         }
       }
     },
-    "/v1/outbound-calling/{callSid}/status": {
+    "/v1/outbound-calling/{call_sid}/status": {
       "get": {
         "summary": "Get call status",
         "description": "Retrieves the current status for an outbound call. Use this endpoint to monitor call progress after triggering a call. Note: Call status data is retained for approximately 2 hours after the call ends.",
@@ -108,13 +131,13 @@
         "tags": ["Outbound Calling"],
         "parameters": [
           {
-            "name": "callSid",
+            "name": "call_sid",
             "in": "path",
             "required": true,
             "description": "The unique call identifier returned from the trigger endpoint",
             "schema": {
               "type": "string",
-              "example": "550e8400-e29b-41d4-a716-446655440000"
+              "example": "OUT-550e8400-e29b-41d4-a716-446655440000"
             }
           }
         ],
@@ -126,10 +149,6 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "callSid": {
-                      "type": "string",
-                      "description": "The call identifier"
-                    },
                     "status": {
                       "type": "string",
                       "description": "Current status of the call",
@@ -141,15 +160,10 @@
                       ],
                       "example": "success"
                     },
-                    "created_at": {
+                    "reason": {
                       "type": "string",
-                      "format": "date-time",
-                      "description": "When the call was created"
-                    },
-                    "last_updated": {
-                      "type": "string",
-                      "format": "date-time",
-                      "description": "When the status was last updated"
+                      "description": "Human-readable reason for the current status (typically populated for terminal failure states; empty otherwise).",
+                      "example": ""
                     }
                   }
                 }
