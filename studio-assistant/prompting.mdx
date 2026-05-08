@@ -1,0 +1,173 @@
+---
+title: "Prompting Studio Assistant"
+sidebarTitle: Prompting guide
+description: "Practical patterns for getting consistently good results from Studio Assistant – with real prompt examples for building, testing, asking, and analyzing."
+keywords:
+  - studio assistant prompts
+  - prompt examples
+  - prompting guide
+  - copilot best practices
+---
+
+Studio Assistant performs best when your messages are **specific**, **scoped**, and **grounded in business rules**. This page collects the patterns that consistently produce good results, with real prompt templates you can copy.
+
+## Four prompt categories
+
+Studio Assistant's quick-start templates group prompts into four intents. Use them as a mental model when phrasing your own requests – the home screen surfaces a rotating set of suggestions for each one.
+
+<CardGroup cols={2}>
+  <Card title="Build" icon="hammer">
+    Add or change agent configuration – flows, topics, entities, functions, handoffs.
+  </Card>
+  <Card title="Test" icon="flask">
+    Run conversations and validation against the current draft.
+  </Card>
+  <Card title="Ask" icon="circle-question">
+    Get answers about your agent or about PolyAI concepts.
+  </Card>
+  <Card title="Analyze" icon="chart-line">
+    Inspect performance, behavior patterns, and what callers are asking about.
+  </Card>
+</CardGroup>
+
+### Build
+
+For creating or modifying agent configuration. The home screen suggests:
+
+- *Help my agent **\[task\]*** – e.g. *book appointments*, *qualify leads*, *answer FAQs*, *verify identity*, *process payments*, *schedule callbacks*, *collect feedback*.
+- *Add a new topic to the knowledge base.*
+- *Handle call transfers to a human agent.*
+
+Stretch from the templates with grounded specifics:
+
+- *Add a refund flow. We only refund within 30 days of purchase, and only for the original payment method.*
+- *Create an entity for delivery status with values: pending, shipped, out for delivery, delivered.*
+
+#### Build topics from a website
+
+The assistant can fetch and read public pages, which makes it useful for bootstrapping the knowledge base from an existing site:
+
+- *Add topics from `https://example.com/faq`. Translate them into English and format them as managed topics.*
+- *Read `https://example.com/policies/refunds` and create or update topics that cover the refund rules.*
+
+The **Agent wizard** entry under the Build templates is a separate guided builder that bootstraps a brand-new agent from a single company URL. Use it when you're starting from scratch; for incremental additions to an existing agent, prompt directly.
+
+### Test
+
+For exercising the agent against scripted scenarios. The home screen suggests:
+
+- *Test my agent with a sample conversation.*
+- *Check if my agent handles **\[scenario\]*** – e.g. *refund requests*, *missed appointments*, *angry callers*, *escalations*, *after-hours calls*, *order tracking*, *billing disputes*.
+- *Run a full validation on recent changes.*
+
+### Ask
+
+For learning, exploration, and understanding. The home screen suggests:
+
+- *What can my agent do right now?*
+- *How do I improve my agent's responses?*
+- *Explain how **\[feature\]** works* – e.g. *tools*, *knowledge*, *test suite*.
+
+You can also ask about your own configuration. This is the fastest way to understand an agent you've inherited or haven't touched in a while:
+
+- *Explain what the **booking** flow does.*
+- *Which flows reference the `account_lookup` function?*
+- *What functions are called during identity verification?*
+- *Summarize the personality and role defined in agent settings.*
+
+### Analyze
+
+For inspecting performance and patterns in real conversations. The home screen suggests:
+
+- *What's causing handoffs?*
+- *How did my agent perform this week?*
+- *What are customers asking about most?*
+
+## Patterns that work well
+
+### State the business rule, not just the action
+
+The assistant does not know your business policies. Anything it can't infer from your existing configuration, it will either ask for during planning – or guess at, if it has to. Stating the rule up front saves a round-trip.
+
+<Columns cols={2}>
+  <Card title="Don't" icon="xmark" iconType="solid">
+    *Add a refund flow.*
+  </Card>
+  <Card title="Do" icon="check" iconType="solid">
+    *Add a refund flow. Refund window is 30 days from purchase. Refunds always go to the original payment method. Final-sale items can't be refunded – the agent should explain this and offer a 10% discount on the next order instead.*
+  </Card>
+</Columns>
+
+### Scope each request to one unit of work
+
+One flow, one topic, one set of related changes. This keeps plans focused and review easy.
+
+<Columns cols={2}>
+  <Card title="Don't" icon="xmark" iconType="solid">
+    *Build me a full restaurant agent.*
+  </Card>
+  <Card title="Do" icon="check" iconType="solid">
+    A sequence of focused requests:
+
+    1. *Set up the agent's personality and role for a casual neighborhood Italian restaurant.*
+    2. *Add a flow that books a table. Collect party size, date, time, and name. Confirm before booking.*
+    3. *Add a topic for opening hours: open 5pm–10pm Tuesday to Sunday, closed Mondays.*
+    4. *Add a flow for special dietary requests that hands off to a human if it can't be answered.*
+  </Card>
+</Columns>
+
+### Anchor changes to existing elements by name
+
+When you're modifying something that already exists, name it. The assistant resolves names against your project state.
+
+- *Update the **opening-hours** topic – we're now open until 8pm on weekdays.*
+- *Change the **booking flow** so it asks for a phone number before confirming.*
+- *Make the **refund flow** transfer to a human if the order is older than 30 days.*
+
+### Ask for a plan before non-trivial changes
+
+For multi-flow changes, restructures, or new integrations, ask for a plan first – for example, *"Plan the refund flow before making any changes"*. You'll get:
+
+- A summary of what already exists and what would change.
+- A list of business-specific information the assistant still needs.
+- The proposed implementation steps.
+
+The plan is presented in chat with **Approve** and **Reject** buttons. Nothing is written to the branch until you click **Approve**. Reject with feedback (e.g. *"only update the payments step, leave the rest"*) and the assistant will revise.
+
+### Be specific about what to keep
+
+For requests that touch existing content – *"rewrite this flow"*, *"clean up the knowledge base"*, *"simplify the booking experience"* – call out anything that should stay. The assistant may otherwise remove elements it infers are redundant.
+
+<Columns cols={2}>
+  <Card title="Don't" icon="xmark" iconType="solid">
+    *Clean up the booking flow.*
+  </Card>
+  <Card title="Do" icon="check" iconType="solid">
+    *Tidy the booking flow's prompts to be more concise. Keep all existing steps, the confirmation logic, and the SMS handoff – I just want the wording shortened.*
+  </Card>
+</Columns>
+
+When in doubt, ask for a plan first so you can see what will be removed before it happens.
+
+### Iterate – don't restart
+
+If a result isn't quite right, follow up in the same conversation rather than starting over. The assistant has the full context of what it just built.
+
+- *Looks good, but the booking flow shouldn't ask for a phone number if the caller is already authenticated.*
+- *Same flow, but switch the confirmation step to use SMS instead of reading it back on the call.*
+
+### Start a new chat for unrelated work
+
+Each chat carries its full history as context. That's what makes follow-ups work – but it also means very long chats slow responses, dilute focus, and can trigger automatic summarization. When you switch to a different area of the agent (a new flow, a different topic, or unrelated analysis), open a new chat from the **History** panel. Old chats stay archived and can be resumed.
+
+## What the assistant won't do
+
+- **Invent business knowledge.** Prices, hours, policies, names, return windows, eligibility rules – if these aren't in your existing configuration or your message, planning will surface them as questions.
+- **Edit anything other than your draft.** It never publishes or promotes between [environments](/environments-and-versions/introduction).
+- **Share its system prompt or internal architecture.** It's focused on building, testing, analyzing, and answering questions about your agent.
+
+## Disclaimer
+
+> AI can make mistakes. Please review all responses.
+
+Every change Studio Assistant makes appears on your draft just like a manual edit. Inspect it, tweak it, or revert it before promoting to a higher environment.
