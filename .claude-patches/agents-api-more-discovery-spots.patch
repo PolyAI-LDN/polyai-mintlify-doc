@@ -1,0 +1,133 @@
+From 798e165b8b331d9e75586f489b3b9dd966a6fef2 Mon Sep 17 00:00:00 2001
+From: Aaron Forinton <aaron.forinton@poly-ai.com>
+Date: Wed, 22 Apr 2026 16:06:34 +0100
+Subject: [PATCH] docs: add more Agents API references in natural discovery
+ spots
+
+Crawled through the rest of the docs for moments where the Agents API
+is a genuine fit and added subtle, collapsed accordions (or replaced
+stale API tables with linked references).
+
+- configuration-builder: linked the existing API table to the Agents
+  API real-time-configs endpoints; added a small sync-from-source
+  accordion.
+- learn/maintain/version-management: CI/CD automation accordion.
+- learn/maintain/knowledge-base: sync-from-external-source accordion.
+- variant-management/csv-imports: sync-instead-of-CSV accordion.
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+---
+ configuration-builder/introduction.mdx | 35 ++++++++++++++++++++++----
+ learn/maintain/knowledge-base.mdx      |  6 +++++
+ learn/maintain/version-management.mdx  |  8 ++++++
+ variant-management/csv-imports.mdx     |  6 +++++
+ 4 files changed, 50 insertions(+), 5 deletions(-)
+
+diff --git a/configuration-builder/introduction.mdx b/configuration-builder/introduction.mdx
+index 7a4595d..eaf4802 100644
+--- a/configuration-builder/introduction.mdx
++++ b/configuration-builder/introduction.mdx
+@@ -176,17 +176,42 @@ first_site_hours = sites[0]["hours"] if sites else None
+ 
+ ## Programmatic management via API
+ 
+-For deployments managing configuration across many locations, you can also manage real-time config programmatically through the API. The following endpoints are available:
++For deployments managing configuration across many locations, the [Agents API](/api-reference/agents/introduction) exposes the same real-time config surface the UI uses:
+ 
+ | Method | Endpoint | Description |
+ |--------|----------|-------------|
+-| `GET` | `/real-time-configs` | List all real-time configs |
+-| `GET` | `/real-time-configs/:clientEnv` | Get config for a specific environment |
+-| `PATCH` | `/real-time-configs/:clientEnv/variables` | Update config variables |
+-| `PUT` | `/real-time-configs/:clientEnv/schema` | Update the config schema |
++| `GET` | [`/v1/agents/{agentId}/real-time-configs`](/api-reference/agents/endpoint/real-time-configs/list-real-time-configs) | List configs across environments |
++| `GET` | [`/v1/agents/{agentId}/real-time-configs/{clientEnv}`](/api-reference/agents/endpoint/real-time-configs/get-a-real-time-config) | Get config for a specific environment |
++| `PATCH` | [`/v1/agents/{agentId}/real-time-configs/{clientEnv}/variables`](/api-reference/agents/endpoint/real-time-configs/update-real-time-config-variables) | Update config variables |
++| `PUT` | [`/v1/agents/{agentId}/real-time-configs/{clientEnv}/schema`](/api-reference/agents/endpoint/real-time-configs/update-real-time-config-schema) | Update the config schema |
+ 
+ This is especially useful when customers need to update settings themselves at scale, rather than editing values manually in the UI.
+ 
++<AccordionGroup>
++  <Accordion title="Example: sync real-time config from an external source of truth" icon="code">
++    ```python Python
++    import os, requests
++
++    BASE = "https://api.us.poly.ai"
++    HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
++
++    # Push the latest opening hours from your internal scheduling system
++    requests.patch(
++        f"{BASE}/v1/agents/{AGENT_ID}/real-time-configs/live/variables",
++        headers=HEADERS,
++        json={
++            "variables": {
++                "opening_hours": scheduling.get_hours_for_today(),
++                "after_hours_enabled": scheduling.is_out_of_hours(),
++            }
++        },
++    )
++    ```
++
++    Changes take effect immediately in the target environment — no promotion required.
++  </Accordion>
++</AccordionGroup>
++
+ ## Best practices
+ 
+ <Icon icon="check" iconType="solid" color="#2D8C66" /> Design schemas for clarity. Labels help non-technical users navigate the configuration UI.
+diff --git a/learn/maintain/knowledge-base.mdx b/learn/maintain/knowledge-base.mdx
+index b5db7bd..08141a5 100644
+--- a/learn/maintain/knowledge-base.mdx
++++ b/learn/maintain/knowledge-base.mdx
+@@ -101,6 +101,12 @@ Keep column headers exactly as exported. New rows (without an ID) create new top
+ 
+ **Total time:** ~25 minutes
+ 
++<AccordionGroup>
++  <Accordion title="Sync topics from an external source via the Agents API" icon="code">
++    If your source of truth lives elsewhere — a help center, CMS, or spreadsheet — the [Agents API](/api-reference/agents/introduction) has full CRUD for [knowledge base topics](/api-reference/agents/endpoint/knowledge-base/list-knowledge-base-topics-for-a-project), so you can run the sync on a schedule rather than exporting and importing CSVs by hand.
++  </Accordion>
++</AccordionGroup>
++
+ ## Related pages
+ 
+ - [Connected knowledge](/learn/maintain/knowledge-connected-knowledge) - Sync external sources
+diff --git a/learn/maintain/version-management.mdx b/learn/maintain/version-management.mdx
+index 12aa151..9eda583 100644
+--- a/learn/maintain/version-management.mdx
++++ b/learn/maintain/version-management.mdx
+@@ -104,6 +104,14 @@ After rolling back, investigate the issue, fix it in Sandbox, and re-promote whe
+ - **Be ready to rollback** – know which version to revert to before promoting
+ - **Use consistent descriptions** – consider tags like `[HOTFIX]`, `[FEATURE]`, `[SEASONAL]`
+ 
++<AccordionGroup>
++  <Accordion title="Automate the deployment pipeline via the Agents API" icon="code">
++    If you promote agents as part of a broader release — alongside backend services or infrastructure — the [Agents API](/api-reference/agents/introduction) exposes [publish](/api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment), [promote](/api-reference/agents/endpoint/deployments/promote-a-deployment-to-the-next-environment), and [rollback](/api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment) so the same steps can run from CI.
++
++    A typical CI job publishes to Sandbox, runs your [test suite](/analytics/test-suite/introduction), promotes to Pre-release on success, and blocks promotion to Live behind a manual approval gate.
++  </Accordion>
++</AccordionGroup>
++
+ ## Related pages
+ 
+ - [Environments and versions](/environments-and-versions/introduction) – technical reference
+diff --git a/variant-management/csv-imports.mdx b/variant-management/csv-imports.mdx
+index 9b80f60..f252a0d 100644
+--- a/variant-management/csv-imports.mdx
++++ b/variant-management/csv-imports.mdx
+@@ -134,6 +134,12 @@ To control which variant is active, use `conv.set_variant()` in your [start func
+ 
+ For larger imports or complex migrations, contact your PolyAI representative for assistance.
+ 
++<AccordionGroup>
++  <Accordion title="Sync variants from code instead of CSV" icon="code">
++    If you already have a structured source of truth — a locations database, a CRM, or your own provisioning system — the [Agents API](/api-reference/agents/introduction) has CRUD for [attributes](/api-reference/agents/endpoint/variants/list-attributes) and [variants](/api-reference/agents/endpoint/variants/list-variants), which usually fits the job better than CSV round-tripping.
++  </Accordion>
++</AccordionGroup>
++
+ ## Related pages
+ 
+ <CardGroup cols={2}>
+-- 
+2.34.1
+

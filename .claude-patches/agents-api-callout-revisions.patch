@@ -1,0 +1,647 @@
+From 36c88b79e676dbc9f1298feb6679e48a96b43c10 Mon Sep 17 00:00:00 2001
+From: Aaron Forinton <aaron.forinton@poly-ai.com>
+Date: Wed, 22 Apr 2026 15:57:15 +0100
+Subject: [PATCH] docs: soften Agents API callouts into collapsible accordions
+
+Replaces large top-of-page <Info> blocks in feature docs with subtle
+<Accordion> components placed lower on each page. Collapsed by default
+so they don't interrupt reading flow for UI-first users, but remain
+discoverable for anyone building automation.
+
+Also:
+- Add an Agents API card to extend/introduction.mdx
+- Include Agents API in the api-keys.mdx API list
+- Add an Agents API entry to the April 2026 release notes
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+---
+ agent-settings/introduction.mdx            |  38 ++++----
+ agent-settings/rules.mdx                   |  78 ++++++++--------
+ environments-and-versions/introduction.mdx |  80 +++++++++--------
+ extend/introduction.mdx                    |   3 +
+ managed-topics/introduction.mdx            |  78 ++++++++--------
+ releases/notes/26.04.mdx                   |  18 +++-
+ secrets/api-keys.mdx                       |   2 +-
+ telephony/introduction.mdx                 |  74 +++++++--------
+ variant-management/introduction.mdx        | 100 +++++++++++----------
+ 9 files changed, 253 insertions(+), 218 deletions(-)
+
+diff --git a/agent-settings/introduction.mdx b/agent-settings/introduction.mdx
+index 4b1cea9..355f882 100644
+--- a/agent-settings/introduction.mdx
++++ b/agent-settings/introduction.mdx
+@@ -17,24 +17,6 @@ Configure your agent's greeting, personality, model, and rules in **Build > Agen
+ 
+ ![Build > Agent overview](/images/agent-settings/agent-overview.png)
+ 
+-<Info>
+-**Prefer to script agent creation?** The [Agents API](/api-reference/agents/introduction) lets you [create](/api-reference/agents/endpoint/agents/create-agent), [duplicate](/api-reference/agents/endpoint/agents/duplicate-agent), and [configure](/api-reference/agents/endpoint/behavior/update-agent-behavior-rules) agents programmatically — useful for templating new agents from a reference implementation.
+-
+-```bash
+-# Create a new agent from scratch
+-curl -X POST https://api.us.poly.ai/v1/agents \
+-  -H "x-api-key: $POLYAI_API_KEY" \
+-  -H "Content-Type: application/json" \
+-  -d '{ "name": "Support Agent", "description": "Tier 1 support, US" }'
+-
+-# Duplicate an existing agent as a starting point
+-curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/duplicate \
+-  -H "x-api-key: $POLYAI_API_KEY" \
+-  -H "Content-Type: application/json" \
+-  -d '{ "name": "Support Agent - UK" }'
+-```
+-</Info>
+-
+ ## When to configure each setting
+ 
+ | Setting | When to use | Impact |
+@@ -57,3 +39,23 @@ curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/duplicate \
+   </Card>
+ </CardGroup>
+ 
++<AccordionGroup>
++  <Accordion title="Script agent creation via the Agents API" icon="code">
++    If you spin up new agents from a reference template — for example, one agent per client or market — the [Agents API](/api-reference/agents/introduction) can [create](/api-reference/agents/endpoint/agents/create-agent) and [duplicate](/api-reference/agents/endpoint/agents/duplicate-agent) agents for you.
++
++    ```bash
++    # Create a new agent from scratch
++    curl -X POST https://api.us.poly.ai/v1/agents \
++      -H "x-api-key: $POLYAI_API_KEY" \
++      -H "Content-Type: application/json" \
++      -d '{ "name": "Support Agent", "description": "Tier 1 support, US" }'
++
++    # Duplicate an existing agent as a starting point
++    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/duplicate \
++      -H "x-api-key: $POLYAI_API_KEY" \
++      -H "Content-Type: application/json" \
++      -d '{ "name": "Support Agent - UK" }'
++    ```
++  </Accordion>
++</AccordionGroup>
++
+diff --git a/agent-settings/rules.mdx b/agent-settings/rules.mdx
+index ec8e452..db5f5e4 100644
+--- a/agent-settings/rules.mdx
++++ b/agent-settings/rules.mdx
+@@ -16,44 +16,6 @@ Use behavioral rules to enforce consistency across every conversation – includ
+ 
+ Define your agent's behavior by going to **[Build > Agent](/agent-settings/introduction)** and then scrolling to the **Behavior** section.
+ 
+-<Info>
+-**Driving behavior from code?** The [Agents API](/api-reference/agents/introduction) has GET and PATCH endpoints for the same behavior text — useful for templating rules across many agents, A/B testing prompts on branches, or syncing rules from a source of truth in your CMS.
+-
+-<CodeGroup>
+-```bash curl
+-# Read the current behavior on a branch
+-curl https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/behavior \
+-  -H "x-api-key: $POLYAI_API_KEY"
+-
+-# Update the behavior on a branch
+-curl -X PATCH https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/behavior \
+-  -H "x-api-key: $POLYAI_API_KEY" \
+-  -H "Content-Type: application/json" \
+-  -d '{
+-    "behavior": "Always refer to artworks as exhibits. Use a warm, curious tone."
+-  }'
+-```
+-
+-```python Python
+-import os, requests
+-
+-BASE = "https://api.us.poly.ai"
+-HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
+-
+-# Apply the same behavior rules across a fleet of agents
+-AGENT_IDS = [...]
+-BEHAVIOR = open("rules/support-agent.md").read()
+-
+-for agent_id in AGENT_IDS:
+-    requests.patch(
+-        f"{BASE}/v1/agents/{agent_id}/branches/main/behavior",
+-        headers=HEADERS,
+-        json={"behavior": BEHAVIOR},
+-    )
+-```
+-</CodeGroup>
+-</Info>
+-
+ **Example:**
+ 
+ For a museum agent that always refers to "exhibits" instead of "artworks":
+@@ -255,6 +217,46 @@ LLMs tend to end every output with a question. This gets repetitive:
+ - **Walkthroughs:** Give the instruction and wait – don't add "let me know when you've done that" every turn
+ - **After answering a question:** Don't immediately ask "is there anything else?" – give the user a chance to acknowledge or follow up
+ 
++<AccordionGroup>
++  <Accordion title="Manage behavior rules via the Agents API" icon="code">
++    Rules are just text, which makes them easy to template, diff, and sync. The [Agents API](/api-reference/agents/introduction) exposes the same behavior field that the UI edits — useful for applying a shared rule set across many agents, or keeping rules in a source-controlled file.
++
++    <CodeGroup>
++    ```bash curl
++    # Read the current behavior on a branch
++    curl https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/behavior \
++      -H "x-api-key: $POLYAI_API_KEY"
++
++    # Update the behavior on a branch
++    curl -X PATCH https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/behavior \
++      -H "x-api-key: $POLYAI_API_KEY" \
++      -H "Content-Type: application/json" \
++      -d '{
++        "behavior": "Always refer to artworks as exhibits. Use a warm, curious tone."
++      }'
++    ```
++
++    ```python Python
++    import os, requests
++
++    BASE = "https://api.us.poly.ai"
++    HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
++
++    # Apply the same behavior rules across a fleet of agents
++    AGENT_IDS = [...]
++    BEHAVIOR = open("rules/support-agent.md").read()
++
++    for agent_id in AGENT_IDS:
++        requests.patch(
++            f"{BASE}/v1/agents/{agent_id}/branches/main/behavior",
++            headers=HEADERS,
++            json={"behavior": BEHAVIOR},
++        )
++    ```
++    </CodeGroup>
++  </Accordion>
++</AccordionGroup>
++
+ ## Related pages
+ 
+ <CardGroup cols={3}>
+diff --git a/environments-and-versions/introduction.mdx b/environments-and-versions/introduction.mdx
+index fbe8c4c..2f592c8 100644
+--- a/environments-and-versions/introduction.mdx
++++ b/environments-and-versions/introduction.mdx
+@@ -22,45 +22,6 @@ Test agent changes before they reach live callers. Draft → Sandbox → Pre-rel
+ **Saving is not the same as going live.** Saved changes are drafts. Drafts must be **published** to Sandbox, then **promoted** through Pre-release to Live. Unpublished changes don't appear in any environment.
+ </Warning>
+ 
+-<Info>
+-**Prefer to script this?** The [Agents API](/api-reference/agents/introduction) exposes the same deployment pipeline — [publish](/api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment), [promote](/api-reference/agents/endpoint/deployments/promote-a-deployment-to-the-next-environment), and [rollback](/api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment) — so you can wire deployments into CI or your own tooling.
+-
+-<CodeGroup>
+-```bash curl
+-# Publish the current draft to sandbox
+-curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/deployments/publish \
+-  -H "x-api-key: $POLYAI_API_KEY" \
+-  -H "Content-Type: application/json" \
+-  -d '{ "environment": "sandbox" }'
+-
+-# Promote a sandbox deployment to pre-release
+-curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/deployments/DEPLOYMENT_ID/promote \
+-  -H "x-api-key: $POLYAI_API_KEY"
+-```
+-
+-```python Python
+-import os, requests
+-
+-BASE = "https://api.us.poly.ai"
+-HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
+-
+-# Publish the current draft to sandbox
+-resp = requests.post(
+-    f"{BASE}/v1/agents/{AGENT_ID}/deployments/publish",
+-    headers=HEADERS,
+-    json={"environment": "sandbox"},
+-)
+-deployment_id = resp.json()["id"]
+-
+-# Promote to pre-release once sandbox checks pass
+-requests.post(
+-    f"{BASE}/v1/agents/{AGENT_ID}/deployments/{deployment_id}/promote",
+-    headers=HEADERS,
+-)
+-```
+-</CodeGroup>
+-</Info>
+-
+ ```mermaid
+ stateDiagram-v2
+     [*] --> Draft: Make changes
+@@ -188,6 +149,47 @@ Assign phone numbers and SIP headers per version.
+ 
+ ![assign version phone numbers](/images/deployment/assign-number.png)
+ 
++<AccordionGroup>
++  <Accordion title="Deploy via the Agents API" icon="code">
++    The same pipeline is available programmatically via the [Agents API](/api-reference/agents/introduction) — useful for wiring deployments into CI or orchestrating releases across many agents. The relevant endpoints are [publish](/api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment), [promote](/api-reference/agents/endpoint/deployments/promote-a-deployment-to-the-next-environment), and [rollback](/api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment).
++
++    <CodeGroup>
++    ```bash curl
++    # Publish the current draft to sandbox
++    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/deployments/publish \
++      -H "x-api-key: $POLYAI_API_KEY" \
++      -H "Content-Type: application/json" \
++      -d '{ "environment": "sandbox" }'
++
++    # Promote a sandbox deployment to pre-release
++    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/deployments/DEPLOYMENT_ID/promote \
++      -H "x-api-key: $POLYAI_API_KEY"
++    ```
++
++    ```python Python
++    import os, requests
++
++    BASE = "https://api.us.poly.ai"
++    HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
++
++    # Publish the current draft to sandbox
++    resp = requests.post(
++        f"{BASE}/v1/agents/{AGENT_ID}/deployments/publish",
++        headers=HEADERS,
++        json={"environment": "sandbox"},
++    )
++    deployment_id = resp.json()["id"]
++
++    # Promote to pre-release once sandbox checks pass
++    requests.post(
++        f"{BASE}/v1/agents/{AGENT_ID}/deployments/{deployment_id}/promote",
++        headers=HEADERS,
++    )
++    ```
++    </CodeGroup>
++  </Accordion>
++</AccordionGroup>
++
+ ## Related pages
+ 
+ <CardGroup cols={3}>
+diff --git a/extend/introduction.mdx b/extend/introduction.mdx
+index 6d9a2a0..7f6f12a 100644
+--- a/extend/introduction.mdx
++++ b/extend/introduction.mdx
+@@ -131,6 +131,9 @@ Access conversation data and built-in utilities in your functions.
+   <Card title="Code-driven flows" icon="diagram-project" href="/flows/transition-functions">
+     Build flows with transition functions and programmatic control
+   </Card>
++  <Card title="Script agent configuration" icon="wand-magic-sparkles" href="/api-reference/agents/introduction">
++    Use the Agents API to create, configure, and deploy agents from code
++  </Card>
+   <Card title="API reference" icon="square-terminal" href="/api-reference/introduction">
+     Integrate with PolyAI REST APIs for chat, conversations, alerts, and more
+   </Card>
+diff --git a/managed-topics/introduction.mdx b/managed-topics/introduction.mdx
+index cf51e01..5db3753 100644
+--- a/managed-topics/introduction.mdx
++++ b/managed-topics/introduction.mdx
+@@ -16,43 +16,6 @@ Managed Topics define what your agent knows and how it responds. Each topic has
+ 
+ Managed Topics are found under **Build > Knowledge > Managed Topics tab**.
+ 
+-<Info>
+-**Seeding topics from an existing knowledge base?** The [Agents API](/api-reference/agents/introduction) exposes CRUD for knowledge base topics, so you can bulk-create, update, or sync from an external CMS.
+-
+-<CodeGroup>
+-```bash curl
+-# Create a knowledge base topic on the main branch
+-curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/knowledge-base/topics \
+-  -H "x-api-key: $POLYAI_API_KEY" \
+-  -H "Content-Type: application/json" \
+-  -d '{
+-    "name": "Password reset",
+-    "sampleQuestions": ["How do I reset my password?", "I forgot my password"],
+-    "content": "To reset your password, visit the account portal..."
+-  }'
+-```
+-
+-```python Python
+-import os, requests
+-
+-BASE = "https://api.us.poly.ai"
+-HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
+-
+-# Sync all FAQ entries from your CMS into PolyAI topics
+-for faq in cms.list_faqs():
+-    requests.post(
+-        f"{BASE}/v1/agents/{AGENT_ID}/branches/main/knowledge-base/topics",
+-        headers=HEADERS,
+-        json={
+-            "name": faq["title"],
+-            "sampleQuestions": faq["variants"],
+-            "content": faq["answer"],
+-        },
+-    )
+-```
+-</CodeGroup>
+-</Info>
+-
+ <Note>
+ **Use Managed Topics when** you need precise control over what the agent says, or when the answer should trigger an action (SMS, handoff, tool call). **Use [Connected Knowledge](/connected-knowledge/introduction) instead** when you want to expose large volumes of external content (help articles, PDFs, FAQs) without curating individual topics.
+ </Note>
+@@ -288,6 +251,47 @@ Not every topic needs to be available all the time. You can temporarily **deacti
+ 
+ This is useful for seasonal articles, phased rollouts, A/B tests, or hiding content that is not ready for production.
+ 
++<AccordionGroup>
++  <Accordion title="Seed or sync topics via the Agents API" icon="code">
++    If you already have a knowledge base somewhere else — a help center, CMS, or intents list — the [Agents API](/api-reference/agents/introduction) lets you bulk-create topics programmatically rather than clicking through the UI. This is especially handy for the initial migration.
++
++    <CodeGroup>
++    ```bash curl
++    # Create a knowledge base topic on the main branch
++    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/knowledge-base/topics \
++      -H "x-api-key: $POLYAI_API_KEY" \
++      -H "Content-Type: application/json" \
++      -d '{
++        "name": "Password reset",
++        "sampleQuestions": ["How do I reset my password?", "I forgot my password"],
++        "content": "To reset your password, visit the account portal..."
++      }'
++    ```
++
++    ```python Python
++    import os, requests
++
++    BASE = "https://api.us.poly.ai"
++    HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
++
++    # Sync all FAQ entries from your CMS into PolyAI topics
++    for faq in cms.list_faqs():
++        requests.post(
++            f"{BASE}/v1/agents/{AGENT_ID}/branches/main/knowledge-base/topics",
++            headers=HEADERS,
++            json={
++                "name": faq["title"],
++                "sampleQuestions": faq["variants"],
++                "content": faq["answer"],
++            },
++        )
++    ```
++    </CodeGroup>
++
++    See [Knowledge base endpoints](/api-reference/agents/endpoint/knowledge-base/list-knowledge-base-topics-for-a-project) for the full list.
++  </Accordion>
++</AccordionGroup>
++
+ ## Resources
+ 
+ <CardGroup cols={3}>
+diff --git a/releases/notes/26.04.mdx b/releases/notes/26.04.mdx
+index 80fbaa5..264bf8a 100644
+--- a/releases/notes/26.04.mdx
++++ b/releases/notes/26.04.mdx
+@@ -3,7 +3,7 @@ title: 04.2026
+ description: April 2026 release notes.
+ ---
+ 
+-The **April 2026** PolyAI Agent Studio release introduces first-class multi-language support – configure multilingual agents entirely from the UI, manage translations in a dedicated page, and connect external tools with MCP integrations.
++The **April 2026** PolyAI Agent Studio release introduces first-class multi-language support – configure multilingual agents entirely from the UI, manage translations in a dedicated page, connect external tools with MCP integrations, and script agent configuration through the new Agents API.
+ 
+ Expand the items below for details:
+ 
+@@ -44,6 +44,22 @@ See [Translations](/response-control/translations) for setup instructions.
+ 
+ </Accordion>
+ 
++<Accordion title="Agents API" icon="wand-magic-sparkles" id="agents-api">
++
++Script agent configuration and deployment through a new public REST API. The **Agents API** covers the same surface as Agent Studio's build pipeline — create agents, edit behavior, manage the knowledge base, configure variants, and promote deployments — all from code.
++
++**What's new:**
++- **Full CRUD for agent configuration** – create, update, duplicate, and delete agents; read and update behavior rules on any branch.
++- **Knowledge base management** – list, create, update, and delete knowledge base topics programmatically, making bulk migrations and CMS sync straightforward.
++- **Variants and attributes** – sync multi-site variants from a source of truth (locations database, CRM) instead of editing them by hand.
++- **Deployment pipeline** – publish drafts to Sandbox, promote through Pre-release to Live, and roll back from CI.
++- **Telephony plumbing** – import phone numbers, reassign them to different connectors, and look up which connector serves a given number.
++- **Branches and real-time configs** – manage branches and real-time configuration values alongside the rest of the agent.
++
++See the [Agents API reference](/api-reference/agents/introduction) for the full endpoint list.
++
++</Accordion>
++
+ <Accordion title="MCP integrations" icon="plug" id="mcp-integrations">
+ 
+ ![source-hub-file-preview](/images/release-notes/2604/mcp.png)
+diff --git a/secrets/api-keys.mdx b/secrets/api-keys.mdx
+index bde1a95..f1d9c23 100644
+--- a/secrets/api-keys.mdx
++++ b/secrets/api-keys.mdx
+@@ -11,7 +11,7 @@ keywords:
+ 
+ ![API keys page in Agent Studio](/images/secrets/api-keys-overview.png)
+ 
+-API keys control access to PolyAI's external APIs – including the [Conversations API](/api-reference/conversations/introduction), [Handoff API](/api-reference/handoff/introduction), and [External Events API](/api-reference/external-events/introduction). Create and manage keys from the **API Keys** page in Agent Studio.
++API keys control access to PolyAI's external APIs – including the [Agents API](/api-reference/agents/introduction), [Conversations API](/api-reference/conversations/introduction), [Handoff API](/api-reference/handoff/introduction), and [External Events API](/api-reference/external-events/introduction). Create and manage keys from the **API Keys** page in Agent Studio.
+ 
+ <Note>
+ API keys require the [Conversations API v3](/api-reference/conversations/introduction). If you are using v1, [migrate to v3](/api-reference/conversations/migrate-v1-to-v3) first.
+diff --git a/telephony/introduction.mdx b/telephony/introduction.mdx
+index d3def8d..72f3830 100644
+--- a/telephony/introduction.mdx
++++ b/telephony/introduction.mdx
+@@ -24,41 +24,6 @@ Connect phone numbers to your agent. Manage in **Configure > Numbers**.
+ You can also connect through other contact center platforms like [Genesys](/integrations/voice/sip/genesys), [Five9](/integrations/voice/sip/five9), or [NICE CXone](/integrations/voice/sip/NICECXone) with SIP. See [Integrations](/integrations/introduction) for the full list.
+ </Note>
+ 
+-<Info>
+-**Provisioning numbers at scale?** The [Agents API](/api-reference/agents/introduction) covers phone numbers and connectors. Connectors bind phone numbers to voice infrastructure; phone numbers are E.164 strings routed through a connector. See [Connectors](/api-reference/agents/endpoint/connectors/list-all-connectors-for-a-project) and [Phone numbers](/api-reference/agents/endpoint/phone-numbers/list-all-phone-numbers-for-a-project).
+-
+-<CodeGroup>
+-```bash curl
+-# Import a phone number onto an existing connector
+-curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/telephony/phone-numbers/+442071234567 \
+-  -H "x-api-key: $POLYAI_API_KEY" \
+-  -H "Content-Type: application/json" \
+-  -d '{ "connectorId": "conn_abc123" }'
+-
+-# Reassign a number to a different connector (e.g. to move to a new variant)
+-curl -X PATCH https://api.us.poly.ai/v1/agents/AGENT_ID/telephony/phone-numbers/+442071234567 \
+-  -H "x-api-key: $POLYAI_API_KEY" \
+-  -H "Content-Type: application/json" \
+-  -d '{ "connectorId": "conn_new456" }'
+-```
+-
+-```python Python
+-import os, requests
+-
+-BASE = "https://api.us.poly.ai"
+-HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
+-
+-# Look up which connector serves a given number
+-resp = requests.post(
+-    f"{BASE}/v1/agents/{AGENT_ID}/telephony/connectors/lookup",
+-    headers=HEADERS,
+-    json={"phoneNumber": "+442071234567"},
+-)
+-connector = resp.json()
+-```
+-</CodeGroup>
+-</Info>
+-
+ ## Integration options
+ 
+ <CardGroup cols={2}>
+@@ -93,6 +58,45 @@ Agent-initiated calls for reminders, follow-ups, and notifications.
+ 
+ </div>
+ 
++<AccordionGroup>
++  <Accordion title="Provision numbers and connectors via the Agents API" icon="code">
++    For bulk provisioning — or to reshape telephony as part of a broader deployment script — use the [Agents API](/api-reference/agents/introduction). Connectors bind phone numbers to voice infrastructure; phone numbers are E.164 strings routed through a connector.
++
++    <CodeGroup>
++    ```bash curl
++    # Import a phone number onto an existing connector
++    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/telephony/phone-numbers/+442071234567 \
++      -H "x-api-key: $POLYAI_API_KEY" \
++      -H "Content-Type: application/json" \
++      -d '{ "connectorId": "conn_abc123" }'
++
++    # Reassign a number to a different connector
++    curl -X PATCH https://api.us.poly.ai/v1/agents/AGENT_ID/telephony/phone-numbers/+442071234567 \
++      -H "x-api-key: $POLYAI_API_KEY" \
++      -H "Content-Type: application/json" \
++      -d '{ "connectorId": "conn_new456" }'
++    ```
++
++    ```python Python
++    import os, requests
++
++    BASE = "https://api.us.poly.ai"
++    HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
++
++    # Look up which connector serves a given number
++    resp = requests.post(
++        f"{BASE}/v1/agents/{AGENT_ID}/telephony/connectors/lookup",
++        headers=HEADERS,
++        json={"phoneNumber": "+442071234567"},
++    )
++    connector = resp.json()
++    ```
++    </CodeGroup>
++
++    See [Connectors](/api-reference/agents/endpoint/connectors/list-all-connectors-for-a-project) and [Phone numbers](/api-reference/agents/endpoint/phone-numbers/list-all-phone-numbers-for-a-project) for the full endpoint list.
++  </Accordion>
++</AccordionGroup>
++
+ ## Related pages
+ 
+ <CardGroup cols={3}>
+diff --git a/variant-management/introduction.mdx b/variant-management/introduction.mdx
+index 2b428d0..9751193 100644
+--- a/variant-management/introduction.mdx
++++ b/variant-management/introduction.mdx
+@@ -29,55 +29,6 @@ Variant management is found under **Build > Variant management** in Agent Studio
+ 
+ To bulk update or create variants, use the [CSV import guide](/variant-management/csv-imports).
+ 
+-<Info>
+-**Managing variants programmatically?** The [Agents API](/api-reference/agents/introduction) exposes full CRUD for [attributes](/api-reference/agents/endpoint/variants/list-attributes) (the dimensions) and [variants](/api-reference/agents/endpoint/variants/list-variants) (the per-site combinations), so you can sync a live locations database into PolyAI without manual edits.
+-
+-<CodeGroup>
+-```bash curl
+-# Create an attribute (a variant dimension)
+-curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/attributes \
+-  -H "x-api-key: $POLYAI_API_KEY" \
+-  -H "Content-Type: application/json" \
+-  -d '{ "name": "location_id" }'
+-
+-# Create a variant with attribute values
+-curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/variants \
+-  -H "x-api-key: $POLYAI_API_KEY" \
+-  -H "Content-Type: application/json" \
+-  -d '{
+-    "name": "London Flagship",
+-    "attributes": {
+-      "location_id": "LON-01",
+-      "address": "12 Regent Street",
+-      "hours": "9am - 10pm"
+-    }
+-  }'
+-```
+-
+-```python Python
+-import os, requests
+-
+-BASE = "https://api.us.poly.ai"
+-HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
+-
+-# Sync many sites in one pass
+-for site in load_locations_from_crm():
+-    requests.post(
+-        f"{BASE}/v1/agents/{AGENT_ID}/branches/main/variants",
+-        headers=HEADERS,
+-        json={
+-            "name": site["name"],
+-            "attributes": {
+-                "location_id": site["id"],
+-                "address": site["address"],
+-                "hours": site["hours"],
+-            },
+-        },
+-    )
+-```
+-</CodeGroup>
+-</Info>
+-
+ ## Key capabilities
+ 
+ ### Multi-site configurations
+@@ -97,6 +48,57 @@ You can select a specific variant when making in-app test calls. The variant sel
+ 
+ <Warning> The first variant created is used as the default for the agent. If this variant is deleted, the next variant in the list automatically becomes the new default. To control which variant is active, use `conv.set_variant()` in your [start function](/tools/start-function).  </Warning>
+ 
++<AccordionGroup>
++  <Accordion title="Manage variants via the Agents API" icon="code">
++    For larger deployments — or when you want to sync variants from a source of truth like a locations database — use the [Agents API](/api-reference/agents/introduction). It exposes full CRUD for both [attributes](/api-reference/agents/endpoint/variants/list-attributes) (the dimensions) and [variants](/api-reference/agents/endpoint/variants/list-variants) (the per-site combinations).
++
++    <CodeGroup>
++    ```bash curl
++    # Create an attribute (a variant dimension)
++    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/attributes \
++      -H "x-api-key: $POLYAI_API_KEY" \
++      -H "Content-Type: application/json" \
++      -d '{ "name": "location_id" }'
++
++    # Create a variant with attribute values
++    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/variants \
++      -H "x-api-key: $POLYAI_API_KEY" \
++      -H "Content-Type: application/json" \
++      -d '{
++        "name": "London Flagship",
++        "attributes": {
++          "location_id": "LON-01",
++          "address": "12 Regent Street",
++          "hours": "9am - 10pm"
++        }
++      }'
++    ```
++
++    ```python Python
++    import os, requests
++
++    BASE = "https://api.us.poly.ai"
++    HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
++
++    # Sync many sites in one pass
++    for site in load_locations_from_crm():
++        requests.post(
++            f"{BASE}/v1/agents/{AGENT_ID}/branches/main/variants",
++            headers=HEADERS,
++            json={
++                "name": site["name"],
++                "attributes": {
++                    "location_id": site["id"],
++                    "address": site["address"],
++                    "hours": site["hours"],
++                },
++            },
++        )
++    ```
++    </CodeGroup>
++  </Accordion>
++</AccordionGroup>
++
+ ## Real-life use case
+ 
+ A hotel chain with multiple branches worldwide uses Variant Management to manage its agent. Each branch (e.g., "London" and "New York") has a variant configured with attributes like phone numbers, addresses, and check-in hours. When a guest contacts the agent, the branch is identified based on the user's context–phone number for voice, URL parameters for webchat–and the response is tailored accordingly.
+-- 
+2.34.1
+

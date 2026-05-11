@@ -1,0 +1,4274 @@
+From 9ce36dddd5df3f7dfbdc9c73380fc0e43e2e5e5d Mon Sep 17 00:00:00 2001
+From: Aaron Forinton <aaron.forinton@poly-ai.com>
+Date: Wed, 22 Apr 2026 15:39:37 +0100
+Subject: [PATCH] docs: add Agents API reference with full endpoint scaffolding
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Introduces the new Agents API (aka builder / Agent Studio APIs) — the
+write-side REST surface for creating, configuring, and deploying agents
+programmatically.
+
+What's in this PR:
+
+- api-reference/agents/: new openapi.json (47 endpoints across 9 tags)
+  and introduction.mdx explaining the resource model, base URL, auth,
+  quick-start, and how the API differs from the Conversations API.
+- api-reference/agents/endpoint/: one MDX per endpoint, organized into
+  subfolders by resource (agents, branches, behavior, knowledge-base,
+  variants, deployments, connectors, phone-numbers, real-time-configs).
+- docs.json: new 'Agents API' group in the API reference tab with nine
+  nested subgroups for clean sidebar navigation.
+- api-reference/introduction.mdx: rewritten top section to frame the
+  three API families (build & deploy, runtime & data, monitoring) and
+  draw a clear Agents-vs-Conversations distinction.
+- Feature-doc cross-references with curl + Python examples in:
+  environments-and-versions, variant-management, telephony,
+  managed-topics, agent-settings/introduction, agent-settings/rules,
+  telephony/how-to-buy-number, api/introduction.
+
+Debug Chat is out of scope for this PR (no spec yet). Will land in a
+follow-up when the OpenAPI definition is available.
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+---
+ agent-settings/introduction.mdx               |   18 +
+ agent-settings/rules.mdx                      |   38 +
+ .../agents/endpoint/agents/create-agent.mdx   |    4 +
+ .../agents/endpoint/agents/delete-agent.mdx   |    4 +
+ .../endpoint/agents/duplicate-agent.mdx       |    4 +
+ .../agents/endpoint/agents/list-agents.mdx    |    4 +
+ .../behavior/get-agent-behavior-rules.mdx     |    4 +
+ .../behavior/update-agent-behavior-rules.mdx  |    4 +
+ .../endpoint/branches/create-branch.mdx       |    4 +
+ .../endpoint/branches/delete-branch.mdx       |    4 +
+ .../endpoint/branches/list-branches.mdx       |    4 +
+ .../agents/endpoint/branches/merge-branch.mdx |    4 +
+ .../connectors/batch-get-connectors-by-id.mdx |    4 +
+ .../connectors/batch-update-connectors.mdx    |    4 +
+ ...lete-a-connector-and-its-phone-numbers.mdx |    4 +
+ .../connectors/get-a-connector-by-id.mdx      |    4 +
+ .../list-all-connectors-for-a-project.mdx     |    4 +
+ .../look-up-connector-by-phone-number.mdx     |    4 +
+ .../connectors/update-a-connector.mdx         |    4 +
+ .../get-active-deployment-per-environment.mdx |    4 +
+ .../list-deployments-for-an-environment.mdx   |    4 +
+ ...e-a-deployment-to-the-next-environment.mdx |    4 +
+ ...sh-the-current-draft-to-an-environment.mdx |    4 +
+ .../rollback-to-a-previous-deployment.mdx     |    4 +
+ .../create-knowledge-base-topic.mdx           |    4 +
+ .../delete-knowledge-base-topic.mdx           |    4 +
+ .../get-knowledge-base-topic.mdx              |    4 +
+ .../list-knowledge-base-topics.mdx            |    4 +
+ .../update-knowledge-base-topic.mdx           |    4 +
+ .../phone-numbers/batch-get-phone-numbers.mdx |    4 +
+ .../delete-a-single-phone-number.mdx          |    4 +
+ .../delete-phone-numbers-from-a-project.mdx   |    4 +
+ .../get-a-specific-phone-number.mdx           |    4 +
+ .../import-a-single-phone-number.mdx          |    4 +
+ .../import-phone-numbers-into-a-project.mdx   |    4 +
+ .../list-all-phone-numbers-for-a-project.mdx  |    4 +
+ ...-phone-number-to-a-different-connector.mdx |    4 +
+ .../get-a-config-page-by-environment.mdx      |    4 +
+ .../list-all-config-pages.mdx                 |    4 +
+ ...te-config-variables-for-an-environment.mdx |    4 +
+ ...sert-the-json-schema-for-a-config-page.mdx |    4 +
+ .../endpoint/variants/create-attribute.mdx    |    4 +
+ .../endpoint/variants/create-variant.mdx      |    4 +
+ .../endpoint/variants/delete-attribute.mdx    |    4 +
+ .../endpoint/variants/delete-variant.mdx      |    4 +
+ .../endpoint/variants/list-attributes.mdx     |    4 +
+ .../endpoint/variants/list-variants.mdx       |    4 +
+ .../endpoint/variants/update-attribute.mdx    |    4 +
+ .../endpoint/variants/update-variant.mdx      |    4 +
+ api-reference/agents/introduction.mdx         |  223 ++
+ api-reference/agents/openapi.json             | 2924 +++++++++++++++++
+ api-reference/introduction.mdx                |   43 +-
+ api/introduction.mdx                          |    2 +-
+ docs.json                                     |  101 +
+ environments-and-versions/introduction.mdx    |   39 +
+ managed-topics/introduction.mdx               |   37 +
+ telephony/how-to-buy-number.mdx               |    4 +
+ telephony/introduction.mdx                    |   35 +
+ variant-management/introduction.mdx           |   49 +
+ 59 files changed, 3691 insertions(+), 10 deletions(-)
+ create mode 100644 api-reference/agents/endpoint/agents/create-agent.mdx
+ create mode 100644 api-reference/agents/endpoint/agents/delete-agent.mdx
+ create mode 100644 api-reference/agents/endpoint/agents/duplicate-agent.mdx
+ create mode 100644 api-reference/agents/endpoint/agents/list-agents.mdx
+ create mode 100644 api-reference/agents/endpoint/behavior/get-agent-behavior-rules.mdx
+ create mode 100644 api-reference/agents/endpoint/behavior/update-agent-behavior-rules.mdx
+ create mode 100644 api-reference/agents/endpoint/branches/create-branch.mdx
+ create mode 100644 api-reference/agents/endpoint/branches/delete-branch.mdx
+ create mode 100644 api-reference/agents/endpoint/branches/list-branches.mdx
+ create mode 100644 api-reference/agents/endpoint/branches/merge-branch.mdx
+ create mode 100644 api-reference/agents/endpoint/connectors/batch-get-connectors-by-id.mdx
+ create mode 100644 api-reference/agents/endpoint/connectors/batch-update-connectors.mdx
+ create mode 100644 api-reference/agents/endpoint/connectors/delete-a-connector-and-its-phone-numbers.mdx
+ create mode 100644 api-reference/agents/endpoint/connectors/get-a-connector-by-id.mdx
+ create mode 100644 api-reference/agents/endpoint/connectors/list-all-connectors-for-a-project.mdx
+ create mode 100644 api-reference/agents/endpoint/connectors/look-up-connector-by-phone-number.mdx
+ create mode 100644 api-reference/agents/endpoint/connectors/update-a-connector.mdx
+ create mode 100644 api-reference/agents/endpoint/deployments/get-active-deployment-per-environment.mdx
+ create mode 100644 api-reference/agents/endpoint/deployments/list-deployments-for-an-environment.mdx
+ create mode 100644 api-reference/agents/endpoint/deployments/promote-a-deployment-to-the-next-environment.mdx
+ create mode 100644 api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment.mdx
+ create mode 100644 api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment.mdx
+ create mode 100644 api-reference/agents/endpoint/knowledge-base/create-knowledge-base-topic.mdx
+ create mode 100644 api-reference/agents/endpoint/knowledge-base/delete-knowledge-base-topic.mdx
+ create mode 100644 api-reference/agents/endpoint/knowledge-base/get-knowledge-base-topic.mdx
+ create mode 100644 api-reference/agents/endpoint/knowledge-base/list-knowledge-base-topics.mdx
+ create mode 100644 api-reference/agents/endpoint/knowledge-base/update-knowledge-base-topic.mdx
+ create mode 100644 api-reference/agents/endpoint/phone-numbers/batch-get-phone-numbers.mdx
+ create mode 100644 api-reference/agents/endpoint/phone-numbers/delete-a-single-phone-number.mdx
+ create mode 100644 api-reference/agents/endpoint/phone-numbers/delete-phone-numbers-from-a-project.mdx
+ create mode 100644 api-reference/agents/endpoint/phone-numbers/get-a-specific-phone-number.mdx
+ create mode 100644 api-reference/agents/endpoint/phone-numbers/import-a-single-phone-number.mdx
+ create mode 100644 api-reference/agents/endpoint/phone-numbers/import-phone-numbers-into-a-project.mdx
+ create mode 100644 api-reference/agents/endpoint/phone-numbers/list-all-phone-numbers-for-a-project.mdx
+ create mode 100644 api-reference/agents/endpoint/phone-numbers/reassign-a-phone-number-to-a-different-connector.mdx
+ create mode 100644 api-reference/agents/endpoint/real-time-configs/get-a-config-page-by-environment.mdx
+ create mode 100644 api-reference/agents/endpoint/real-time-configs/list-all-config-pages.mdx
+ create mode 100644 api-reference/agents/endpoint/real-time-configs/update-config-variables-for-an-environment.mdx
+ create mode 100644 api-reference/agents/endpoint/real-time-configs/upsert-the-json-schema-for-a-config-page.mdx
+ create mode 100644 api-reference/agents/endpoint/variants/create-attribute.mdx
+ create mode 100644 api-reference/agents/endpoint/variants/create-variant.mdx
+ create mode 100644 api-reference/agents/endpoint/variants/delete-attribute.mdx
+ create mode 100644 api-reference/agents/endpoint/variants/delete-variant.mdx
+ create mode 100644 api-reference/agents/endpoint/variants/list-attributes.mdx
+ create mode 100644 api-reference/agents/endpoint/variants/list-variants.mdx
+ create mode 100644 api-reference/agents/endpoint/variants/update-attribute.mdx
+ create mode 100644 api-reference/agents/endpoint/variants/update-variant.mdx
+ create mode 100644 api-reference/agents/introduction.mdx
+ create mode 100644 api-reference/agents/openapi.json
+
+diff --git a/agent-settings/introduction.mdx b/agent-settings/introduction.mdx
+index 28c1990..4b1cea9 100644
+--- a/agent-settings/introduction.mdx
++++ b/agent-settings/introduction.mdx
+@@ -17,6 +17,24 @@ Configure your agent's greeting, personality, model, and rules in **Build > Agen
+ 
+ ![Build > Agent overview](/images/agent-settings/agent-overview.png)
+ 
++<Info>
++**Prefer to script agent creation?** The [Agents API](/api-reference/agents/introduction) lets you [create](/api-reference/agents/endpoint/agents/create-agent), [duplicate](/api-reference/agents/endpoint/agents/duplicate-agent), and [configure](/api-reference/agents/endpoint/behavior/update-agent-behavior-rules) agents programmatically — useful for templating new agents from a reference implementation.
++
++```bash
++# Create a new agent from scratch
++curl -X POST https://api.us.poly.ai/v1/agents \
++  -H "x-api-key: $POLYAI_API_KEY" \
++  -H "Content-Type: application/json" \
++  -d '{ "name": "Support Agent", "description": "Tier 1 support, US" }'
++
++# Duplicate an existing agent as a starting point
++curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/duplicate \
++  -H "x-api-key: $POLYAI_API_KEY" \
++  -H "Content-Type: application/json" \
++  -d '{ "name": "Support Agent - UK" }'
++```
++</Info>
++
+ ## When to configure each setting
+ 
+ | Setting | When to use | Impact |
+diff --git a/agent-settings/rules.mdx b/agent-settings/rules.mdx
+index 71823a8..ec8e452 100644
+--- a/agent-settings/rules.mdx
++++ b/agent-settings/rules.mdx
+@@ -16,6 +16,44 @@ Use behavioral rules to enforce consistency across every conversation – includ
+ 
+ Define your agent's behavior by going to **[Build > Agent](/agent-settings/introduction)** and then scrolling to the **Behavior** section.
+ 
++<Info>
++**Driving behavior from code?** The [Agents API](/api-reference/agents/introduction) has GET and PATCH endpoints for the same behavior text — useful for templating rules across many agents, A/B testing prompts on branches, or syncing rules from a source of truth in your CMS.
++
++<CodeGroup>
++```bash curl
++# Read the current behavior on a branch
++curl https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/behavior \
++  -H "x-api-key: $POLYAI_API_KEY"
++
++# Update the behavior on a branch
++curl -X PATCH https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/behavior \
++  -H "x-api-key: $POLYAI_API_KEY" \
++  -H "Content-Type: application/json" \
++  -d '{
++    "behavior": "Always refer to artworks as exhibits. Use a warm, curious tone."
++  }'
++```
++
++```python Python
++import os, requests
++
++BASE = "https://api.us.poly.ai"
++HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
++
++# Apply the same behavior rules across a fleet of agents
++AGENT_IDS = [...]
++BEHAVIOR = open("rules/support-agent.md").read()
++
++for agent_id in AGENT_IDS:
++    requests.patch(
++        f"{BASE}/v1/agents/{agent_id}/branches/main/behavior",
++        headers=HEADERS,
++        json={"behavior": BEHAVIOR},
++    )
++```
++</CodeGroup>
++</Info>
++
+ **Example:**
+ 
+ For a museum agent that always refers to "exhibits" instead of "artworks":
+diff --git a/api-reference/agents/endpoint/agents/create-agent.mdx b/api-reference/agents/endpoint/agents/create-agent.mdx
+new file mode 100644
+index 0000000..0d45583
+--- /dev/null
++++ b/api-reference/agents/endpoint/agents/create-agent.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Create agent"
++openapi: "POST /v1/agents"
++---
+diff --git a/api-reference/agents/endpoint/agents/delete-agent.mdx b/api-reference/agents/endpoint/agents/delete-agent.mdx
+new file mode 100644
+index 0000000..dcc52ca
+--- /dev/null
++++ b/api-reference/agents/endpoint/agents/delete-agent.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Delete agent"
++openapi: "DELETE /v1/agents/{agentId}"
++---
+diff --git a/api-reference/agents/endpoint/agents/duplicate-agent.mdx b/api-reference/agents/endpoint/agents/duplicate-agent.mdx
+new file mode 100644
+index 0000000..b996712
+--- /dev/null
++++ b/api-reference/agents/endpoint/agents/duplicate-agent.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Duplicate agent"
++openapi: "POST /v1/agents/{agentId}/duplicate"
++---
+diff --git a/api-reference/agents/endpoint/agents/list-agents.mdx b/api-reference/agents/endpoint/agents/list-agents.mdx
+new file mode 100644
+index 0000000..32166ef
+--- /dev/null
++++ b/api-reference/agents/endpoint/agents/list-agents.mdx
+@@ -0,0 +1,4 @@
++---
++title: "List agents"
++openapi: "GET /v1/agents"
++---
+diff --git a/api-reference/agents/endpoint/behavior/get-agent-behavior-rules.mdx b/api-reference/agents/endpoint/behavior/get-agent-behavior-rules.mdx
+new file mode 100644
+index 0000000..93bc225
+--- /dev/null
++++ b/api-reference/agents/endpoint/behavior/get-agent-behavior-rules.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Get agent behavior rules"
++openapi: "GET /v1/agents/{agentId}/branches/{branchId}/behavior"
++---
+diff --git a/api-reference/agents/endpoint/behavior/update-agent-behavior-rules.mdx b/api-reference/agents/endpoint/behavior/update-agent-behavior-rules.mdx
+new file mode 100644
+index 0000000..4b43770
+--- /dev/null
++++ b/api-reference/agents/endpoint/behavior/update-agent-behavior-rules.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Update agent behavior rules"
++openapi: "PATCH /v1/agents/{agentId}/branches/{branchId}/behavior"
++---
+diff --git a/api-reference/agents/endpoint/branches/create-branch.mdx b/api-reference/agents/endpoint/branches/create-branch.mdx
+new file mode 100644
+index 0000000..347ee12
+--- /dev/null
++++ b/api-reference/agents/endpoint/branches/create-branch.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Create branch"
++openapi: "POST /v1/agents/{agentId}/branches"
++---
+diff --git a/api-reference/agents/endpoint/branches/delete-branch.mdx b/api-reference/agents/endpoint/branches/delete-branch.mdx
+new file mode 100644
+index 0000000..61b24d2
+--- /dev/null
++++ b/api-reference/agents/endpoint/branches/delete-branch.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Delete branch"
++openapi: "DELETE /v1/agents/{agentId}/branches/{branchId}"
++---
+diff --git a/api-reference/agents/endpoint/branches/list-branches.mdx b/api-reference/agents/endpoint/branches/list-branches.mdx
+new file mode 100644
+index 0000000..396a073
+--- /dev/null
++++ b/api-reference/agents/endpoint/branches/list-branches.mdx
+@@ -0,0 +1,4 @@
++---
++title: "List branches"
++openapi: "GET /v1/agents/{agentId}/branches"
++---
+diff --git a/api-reference/agents/endpoint/branches/merge-branch.mdx b/api-reference/agents/endpoint/branches/merge-branch.mdx
+new file mode 100644
+index 0000000..36b2f71
+--- /dev/null
++++ b/api-reference/agents/endpoint/branches/merge-branch.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Merge branch"
++openapi: "POST /v1/agents/{agentId}/branches/{branchId}/merge"
++---
+diff --git a/api-reference/agents/endpoint/connectors/batch-get-connectors-by-id.mdx b/api-reference/agents/endpoint/connectors/batch-get-connectors-by-id.mdx
+new file mode 100644
+index 0000000..a5d34db
+--- /dev/null
++++ b/api-reference/agents/endpoint/connectors/batch-get-connectors-by-id.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Batch get connectors by ID"
++openapi: "POST /v1/agents/{agentId}/telephony/connectors/batch"
++---
+diff --git a/api-reference/agents/endpoint/connectors/batch-update-connectors.mdx b/api-reference/agents/endpoint/connectors/batch-update-connectors.mdx
+new file mode 100644
+index 0000000..6bf97d8
+--- /dev/null
++++ b/api-reference/agents/endpoint/connectors/batch-update-connectors.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Batch update connectors"
++openapi: "PATCH /v1/agents/{agentId}/telephony/connectors/batch"
++---
+diff --git a/api-reference/agents/endpoint/connectors/delete-a-connector-and-its-phone-numbers.mdx b/api-reference/agents/endpoint/connectors/delete-a-connector-and-its-phone-numbers.mdx
+new file mode 100644
+index 0000000..76c75cb
+--- /dev/null
++++ b/api-reference/agents/endpoint/connectors/delete-a-connector-and-its-phone-numbers.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Delete a connector and its phone numbers"
++openapi: "DELETE /v1/agents/{agentId}/telephony/connectors/{connectorId}"
++---
+diff --git a/api-reference/agents/endpoint/connectors/get-a-connector-by-id.mdx b/api-reference/agents/endpoint/connectors/get-a-connector-by-id.mdx
+new file mode 100644
+index 0000000..93846cb
+--- /dev/null
++++ b/api-reference/agents/endpoint/connectors/get-a-connector-by-id.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Get a connector by ID"
++openapi: "GET /v1/agents/{agentId}/telephony/connectors/{connectorId}"
++---
+diff --git a/api-reference/agents/endpoint/connectors/list-all-connectors-for-a-project.mdx b/api-reference/agents/endpoint/connectors/list-all-connectors-for-a-project.mdx
+new file mode 100644
+index 0000000..c8c9493
+--- /dev/null
++++ b/api-reference/agents/endpoint/connectors/list-all-connectors-for-a-project.mdx
+@@ -0,0 +1,4 @@
++---
++title: "List all connectors for a project"
++openapi: "GET /v1/agents/{agentId}/telephony/connectors"
++---
+diff --git a/api-reference/agents/endpoint/connectors/look-up-connector-by-phone-number.mdx b/api-reference/agents/endpoint/connectors/look-up-connector-by-phone-number.mdx
+new file mode 100644
+index 0000000..5cbec50
+--- /dev/null
++++ b/api-reference/agents/endpoint/connectors/look-up-connector-by-phone-number.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Look up connector by phone number"
++openapi: "POST /v1/agents/{agentId}/telephony/connectors/lookup"
++---
+diff --git a/api-reference/agents/endpoint/connectors/update-a-connector.mdx b/api-reference/agents/endpoint/connectors/update-a-connector.mdx
+new file mode 100644
+index 0000000..d81d9f9
+--- /dev/null
++++ b/api-reference/agents/endpoint/connectors/update-a-connector.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Update a connector"
++openapi: "PATCH /v1/agents/{agentId}/telephony/connectors/{connectorId}"
++---
+diff --git a/api-reference/agents/endpoint/deployments/get-active-deployment-per-environment.mdx b/api-reference/agents/endpoint/deployments/get-active-deployment-per-environment.mdx
+new file mode 100644
+index 0000000..aa85d34
+--- /dev/null
++++ b/api-reference/agents/endpoint/deployments/get-active-deployment-per-environment.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Get active deployment per environment"
++openapi: "GET /v1/agents/{agentId}/deployments/active"
++---
+diff --git a/api-reference/agents/endpoint/deployments/list-deployments-for-an-environment.mdx b/api-reference/agents/endpoint/deployments/list-deployments-for-an-environment.mdx
+new file mode 100644
+index 0000000..ac9bf64
+--- /dev/null
++++ b/api-reference/agents/endpoint/deployments/list-deployments-for-an-environment.mdx
+@@ -0,0 +1,4 @@
++---
++title: "List deployments for an environment"
++openapi: "GET /v1/agents/{agentId}/deployments"
++---
+diff --git a/api-reference/agents/endpoint/deployments/promote-a-deployment-to-the-next-environment.mdx b/api-reference/agents/endpoint/deployments/promote-a-deployment-to-the-next-environment.mdx
+new file mode 100644
+index 0000000..36579de
+--- /dev/null
++++ b/api-reference/agents/endpoint/deployments/promote-a-deployment-to-the-next-environment.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Promote a deployment to the next environment"
++openapi: "POST /v1/agents/{agentId}/deployments/{deploymentId}/promote"
++---
+diff --git a/api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment.mdx b/api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment.mdx
+new file mode 100644
+index 0000000..78c0f7e
+--- /dev/null
++++ b/api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Publish the current draft to an environment"
++openapi: "POST /v1/agents/{agentId}/deployments/publish"
++---
+diff --git a/api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment.mdx b/api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment.mdx
+new file mode 100644
+index 0000000..2ad724d
+--- /dev/null
++++ b/api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Rollback to a previous deployment"
++openapi: "POST /v1/agents/{agentId}/deployments/{deploymentId}/rollback"
++---
+diff --git a/api-reference/agents/endpoint/knowledge-base/create-knowledge-base-topic.mdx b/api-reference/agents/endpoint/knowledge-base/create-knowledge-base-topic.mdx
+new file mode 100644
+index 0000000..6f1e357
+--- /dev/null
++++ b/api-reference/agents/endpoint/knowledge-base/create-knowledge-base-topic.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Create knowledge base topic"
++openapi: "POST /v1/agents/{agentId}/branches/{branchId}/knowledge-base/topics"
++---
+diff --git a/api-reference/agents/endpoint/knowledge-base/delete-knowledge-base-topic.mdx b/api-reference/agents/endpoint/knowledge-base/delete-knowledge-base-topic.mdx
+new file mode 100644
+index 0000000..42765d1
+--- /dev/null
++++ b/api-reference/agents/endpoint/knowledge-base/delete-knowledge-base-topic.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Delete knowledge base topic"
++openapi: "DELETE /v1/agents/{agentId}/branches/{branchId}/knowledge-base/topics/{topicId}"
++---
+diff --git a/api-reference/agents/endpoint/knowledge-base/get-knowledge-base-topic.mdx b/api-reference/agents/endpoint/knowledge-base/get-knowledge-base-topic.mdx
+new file mode 100644
+index 0000000..7086072
+--- /dev/null
++++ b/api-reference/agents/endpoint/knowledge-base/get-knowledge-base-topic.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Get knowledge base topic"
++openapi: "GET /v1/agents/{agentId}/branches/{branchId}/knowledge-base/topics/{topicId}"
++---
+diff --git a/api-reference/agents/endpoint/knowledge-base/list-knowledge-base-topics.mdx b/api-reference/agents/endpoint/knowledge-base/list-knowledge-base-topics.mdx
+new file mode 100644
+index 0000000..5b6ce3a
+--- /dev/null
++++ b/api-reference/agents/endpoint/knowledge-base/list-knowledge-base-topics.mdx
+@@ -0,0 +1,4 @@
++---
++title: "List knowledge base topics"
++openapi: "GET /v1/agents/{agentId}/branches/{branchId}/knowledge-base/topics"
++---
+diff --git a/api-reference/agents/endpoint/knowledge-base/update-knowledge-base-topic.mdx b/api-reference/agents/endpoint/knowledge-base/update-knowledge-base-topic.mdx
+new file mode 100644
+index 0000000..498f03e
+--- /dev/null
++++ b/api-reference/agents/endpoint/knowledge-base/update-knowledge-base-topic.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Update knowledge base topic"
++openapi: "PATCH /v1/agents/{agentId}/branches/{branchId}/knowledge-base/topics/{topicId}"
++---
+diff --git a/api-reference/agents/endpoint/phone-numbers/batch-get-phone-numbers.mdx b/api-reference/agents/endpoint/phone-numbers/batch-get-phone-numbers.mdx
+new file mode 100644
+index 0000000..7e07a54
+--- /dev/null
++++ b/api-reference/agents/endpoint/phone-numbers/batch-get-phone-numbers.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Batch get phone numbers"
++openapi: "POST /v1/agents/{agentId}/telephony/phone-numbers/batch"
++---
+diff --git a/api-reference/agents/endpoint/phone-numbers/delete-a-single-phone-number.mdx b/api-reference/agents/endpoint/phone-numbers/delete-a-single-phone-number.mdx
+new file mode 100644
+index 0000000..8a89de7
+--- /dev/null
++++ b/api-reference/agents/endpoint/phone-numbers/delete-a-single-phone-number.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Delete a single phone number"
++openapi: "DELETE /v1/agents/{agentId}/telephony/phone-numbers/{phoneNumber}"
++---
+diff --git a/api-reference/agents/endpoint/phone-numbers/delete-phone-numbers-from-a-project.mdx b/api-reference/agents/endpoint/phone-numbers/delete-phone-numbers-from-a-project.mdx
+new file mode 100644
+index 0000000..3b7f2ba
+--- /dev/null
++++ b/api-reference/agents/endpoint/phone-numbers/delete-phone-numbers-from-a-project.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Delete phone numbers from a project"
++openapi: "DELETE /v1/agents/{agentId}/telephony/phone-numbers"
++---
+diff --git a/api-reference/agents/endpoint/phone-numbers/get-a-specific-phone-number.mdx b/api-reference/agents/endpoint/phone-numbers/get-a-specific-phone-number.mdx
+new file mode 100644
+index 0000000..4c5ca6f
+--- /dev/null
++++ b/api-reference/agents/endpoint/phone-numbers/get-a-specific-phone-number.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Get a specific phone number"
++openapi: "GET /v1/agents/{agentId}/telephony/phone-numbers/{phoneNumber}"
++---
+diff --git a/api-reference/agents/endpoint/phone-numbers/import-a-single-phone-number.mdx b/api-reference/agents/endpoint/phone-numbers/import-a-single-phone-number.mdx
+new file mode 100644
+index 0000000..d9b6d86
+--- /dev/null
++++ b/api-reference/agents/endpoint/phone-numbers/import-a-single-phone-number.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Import a single phone number"
++openapi: "POST /v1/agents/{agentId}/telephony/phone-numbers/{phoneNumber}"
++---
+diff --git a/api-reference/agents/endpoint/phone-numbers/import-phone-numbers-into-a-project.mdx b/api-reference/agents/endpoint/phone-numbers/import-phone-numbers-into-a-project.mdx
+new file mode 100644
+index 0000000..f3e692a
+--- /dev/null
++++ b/api-reference/agents/endpoint/phone-numbers/import-phone-numbers-into-a-project.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Import phone numbers into a project"
++openapi: "POST /v1/agents/{agentId}/telephony/phone-numbers"
++---
+diff --git a/api-reference/agents/endpoint/phone-numbers/list-all-phone-numbers-for-a-project.mdx b/api-reference/agents/endpoint/phone-numbers/list-all-phone-numbers-for-a-project.mdx
+new file mode 100644
+index 0000000..b25c529
+--- /dev/null
++++ b/api-reference/agents/endpoint/phone-numbers/list-all-phone-numbers-for-a-project.mdx
+@@ -0,0 +1,4 @@
++---
++title: "List all phone numbers for a project"
++openapi: "GET /v1/agents/{agentId}/telephony/phone-numbers"
++---
+diff --git a/api-reference/agents/endpoint/phone-numbers/reassign-a-phone-number-to-a-different-connector.mdx b/api-reference/agents/endpoint/phone-numbers/reassign-a-phone-number-to-a-different-connector.mdx
+new file mode 100644
+index 0000000..57ff67e
+--- /dev/null
++++ b/api-reference/agents/endpoint/phone-numbers/reassign-a-phone-number-to-a-different-connector.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Reassign a phone number to a different connector"
++openapi: "PATCH /v1/agents/{agentId}/telephony/phone-numbers/{phoneNumber}"
++---
+diff --git a/api-reference/agents/endpoint/real-time-configs/get-a-config-page-by-environment.mdx b/api-reference/agents/endpoint/real-time-configs/get-a-config-page-by-environment.mdx
+new file mode 100644
+index 0000000..c20cacf
+--- /dev/null
++++ b/api-reference/agents/endpoint/real-time-configs/get-a-config-page-by-environment.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Get a config page by environment"
++openapi: "GET /v1/agents/{agentId}/real-time-configs/{clientEnv}"
++---
+diff --git a/api-reference/agents/endpoint/real-time-configs/list-all-config-pages.mdx b/api-reference/agents/endpoint/real-time-configs/list-all-config-pages.mdx
+new file mode 100644
+index 0000000..6773efd
+--- /dev/null
++++ b/api-reference/agents/endpoint/real-time-configs/list-all-config-pages.mdx
+@@ -0,0 +1,4 @@
++---
++title: "List all config pages"
++openapi: "GET /v1/agents/{agentId}/real-time-configs"
++---
+diff --git a/api-reference/agents/endpoint/real-time-configs/update-config-variables-for-an-environment.mdx b/api-reference/agents/endpoint/real-time-configs/update-config-variables-for-an-environment.mdx
+new file mode 100644
+index 0000000..f4499da
+--- /dev/null
++++ b/api-reference/agents/endpoint/real-time-configs/update-config-variables-for-an-environment.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Update config variables for an environment"
++openapi: "PATCH /v1/agents/{agentId}/real-time-configs/{clientEnv}/variables"
++---
+diff --git a/api-reference/agents/endpoint/real-time-configs/upsert-the-json-schema-for-a-config-page.mdx b/api-reference/agents/endpoint/real-time-configs/upsert-the-json-schema-for-a-config-page.mdx
+new file mode 100644
+index 0000000..bf0c181
+--- /dev/null
++++ b/api-reference/agents/endpoint/real-time-configs/upsert-the-json-schema-for-a-config-page.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Upsert the JSON Schema for a config page"
++openapi: "PUT /v1/agents/{agentId}/real-time-configs/{clientEnv}/schema"
++---
+diff --git a/api-reference/agents/endpoint/variants/create-attribute.mdx b/api-reference/agents/endpoint/variants/create-attribute.mdx
+new file mode 100644
+index 0000000..07a6c95
+--- /dev/null
++++ b/api-reference/agents/endpoint/variants/create-attribute.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Create attribute"
++openapi: "POST /v1/agents/{agentId}/branches/{branchId}/attributes"
++---
+diff --git a/api-reference/agents/endpoint/variants/create-variant.mdx b/api-reference/agents/endpoint/variants/create-variant.mdx
+new file mode 100644
+index 0000000..1fbb5f4
+--- /dev/null
++++ b/api-reference/agents/endpoint/variants/create-variant.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Create variant"
++openapi: "POST /v1/agents/{agentId}/branches/{branchId}/variants"
++---
+diff --git a/api-reference/agents/endpoint/variants/delete-attribute.mdx b/api-reference/agents/endpoint/variants/delete-attribute.mdx
+new file mode 100644
+index 0000000..00d3ef0
+--- /dev/null
++++ b/api-reference/agents/endpoint/variants/delete-attribute.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Delete attribute"
++openapi: "DELETE /v1/agents/{agentId}/branches/{branchId}/attributes/{attributeId}"
++---
+diff --git a/api-reference/agents/endpoint/variants/delete-variant.mdx b/api-reference/agents/endpoint/variants/delete-variant.mdx
+new file mode 100644
+index 0000000..8041454
+--- /dev/null
++++ b/api-reference/agents/endpoint/variants/delete-variant.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Delete variant"
++openapi: "DELETE /v1/agents/{agentId}/branches/{branchId}/variants/{variantId}"
++---
+diff --git a/api-reference/agents/endpoint/variants/list-attributes.mdx b/api-reference/agents/endpoint/variants/list-attributes.mdx
+new file mode 100644
+index 0000000..6af6353
+--- /dev/null
++++ b/api-reference/agents/endpoint/variants/list-attributes.mdx
+@@ -0,0 +1,4 @@
++---
++title: "List attributes"
++openapi: "GET /v1/agents/{agentId}/branches/{branchId}/attributes"
++---
+diff --git a/api-reference/agents/endpoint/variants/list-variants.mdx b/api-reference/agents/endpoint/variants/list-variants.mdx
+new file mode 100644
+index 0000000..78378e3
+--- /dev/null
++++ b/api-reference/agents/endpoint/variants/list-variants.mdx
+@@ -0,0 +1,4 @@
++---
++title: "List variants"
++openapi: "GET /v1/agents/{agentId}/branches/{branchId}/variants"
++---
+diff --git a/api-reference/agents/endpoint/variants/update-attribute.mdx b/api-reference/agents/endpoint/variants/update-attribute.mdx
+new file mode 100644
+index 0000000..803e89b
+--- /dev/null
++++ b/api-reference/agents/endpoint/variants/update-attribute.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Update attribute"
++openapi: "PATCH /v1/agents/{agentId}/branches/{branchId}/attributes/{attributeId}"
++---
+diff --git a/api-reference/agents/endpoint/variants/update-variant.mdx b/api-reference/agents/endpoint/variants/update-variant.mdx
+new file mode 100644
+index 0000000..ccf8604
+--- /dev/null
++++ b/api-reference/agents/endpoint/variants/update-variant.mdx
+@@ -0,0 +1,4 @@
++---
++title: "Update variant"
++openapi: "PATCH /v1/agents/{agentId}/branches/{branchId}/variants/{variantId}"
++---
+diff --git a/api-reference/agents/introduction.mdx b/api-reference/agents/introduction.mdx
+new file mode 100644
+index 0000000..b8f3158
+--- /dev/null
++++ b/api-reference/agents/introduction.mdx
+@@ -0,0 +1,223 @@
++---
++title: "Agents API"
++sidebarTitle: "Overview"
++description: "Build, configure, and deploy PolyAI agents programmatically. Manage agents, branches, knowledge bases, telephony, and deployments from your own systems."
++---
++
++The Agents API is a set of REST endpoints for building and shipping PolyAI agents without the UI. It covers the full agent lifecycle: create the agent, branch for parallel work, edit behavior and knowledge, provision telephony, publish through environments, and tweak runtime values after launch.
++
++Use it when you want to automate agent setup from your own tooling — CRM workflows, CCaaS provisioning, internal platforms, or coding agents — instead of clicking through Agent Studio.
++
++<Note>
++Also known as the **builder APIs** or **Agent Studio APIs**. This reference covers the same surface area.
++</Note>
++
++## How it differs from the Conversations API
++
++The Agents API is the **build and deploy** layer. The [Conversations API](/api-reference/conversations/introduction) is the **read and analyze** layer. They're separate services with separate base URLs, auth, and audiences.
++
++|                | Agents API                          | Conversations API                         |
++| -------------- | ----------------------------------- | ----------------------------------------- |
++| **Purpose**    | Build and deploy agents             | Read call data and transcripts            |
++| **Direction**  | Write (create, update, deploy)      | Read (query, retrieve)                    |
++| **Base URL**   | `api.{region}.poly.ai/v1/agents/…`  | `api.{region}.platform.polyai.app/v3/…`   |
++| **Auth**       | API key (workspace-scoped)          | API key (project-scoped)                  |
++| **Who uses it**| Developers automating agent builds  | Analysts, integrations pulling call data  |
++
++If you want to ship an agent change, use the Agents API. If you want to know what happened in a call, use the Conversations API. See [Getting started](/api-reference/introduction) for the full distinction across all API families.
++
++## Resource model
++
++The Agents API is organized around a small set of nested resources:
++
++```
++agent
++ ├── branch                 # isolated working copy
++ │    ├── behavior          # system prompt and interaction rules
++ │    ├── knowledge-base    # topics and RAG
++ │    ├── attributes        # variant dimensions
++ │    └── variants          # site-specific overrides
++ ├── deployment             # published version per environment
++ ├── telephony
++ │    ├── connector         # voice-infra binding
++ │    └── phone-number      # E.164 number routed to a connector
++ └── real-time-config       # runtime values editable without publishing
++```
++
++Everything except deployments, telephony, and real-time configs is scoped to a **branch**. The default branch is `main`; create additional branches for parallel development and merge them back.
++
++## Base URL
++
++The Agents API uses the same regional base URL family as [Alerts](/api-reference/alerts/introduction) and [Webhooks](/api-reference/webhooks/introduction):
++
++| Region | Base URL                 |
++| ------ | ------------------------ |
++| US     | `https://api.us.poly.ai` |
++| UK     | `https://api.uk.poly.ai` |
++| EU     | `https://api.eu.poly.ai` |
++
++All Agents API paths are prefixed with `/v1/agents`.
++
++<Warning>
++Do not use `https://api.poly.ai` without a region prefix — it returns an error. Always include the region.
++</Warning>
++
++## Authentication
++
++All endpoints authenticate with an API key sent in the `x-api-key` header. Keys are scoped to a workspace.
++
++```bash
++curl https://api.us.poly.ai/v1/agents \
++  -H "x-api-key: YOUR_API_KEY"
++```
++
++<Note>
++API keys for the Agents API are not yet available through self-service. Email [developers@poly.ai](mailto:developers@poly.ai) to request access.
++</Note>
++
++## Quick start
++
++### 1. Create an agent
++
++```bash
++curl -X POST https://api.us.poly.ai/v1/agents \
++  -H "x-api-key: YOUR_API_KEY" \
++  -H "Content-Type: application/json" \
++  -d '{
++    "name": "Support Agent",
++    "description": "Handles Tier 1 support for the US market"
++  }'
++```
++
++The response includes an `agentId` and a default `main` branch.
++
++### 2. Update the agent's behavior
++
++```bash
++curl -X PATCH https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/behavior \
++  -H "x-api-key: YOUR_API_KEY" \
++  -H "Content-Type: application/json" \
++  -d '{
++    "behavior": "You are a friendly, concise support agent..."
++  }'
++```
++
++### 3. Add a knowledge base topic
++
++```bash
++curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/knowledge-base/topics \
++  -H "x-api-key: YOUR_API_KEY" \
++  -H "Content-Type: application/json" \
++  -d '{
++    "name": "Password reset",
++    "content": "Users can reset their password by..."
++  }'
++```
++
++### 4. Publish to sandbox
++
++```bash
++curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/deployments/publish \
++  -H "x-api-key: YOUR_API_KEY" \
++  -H "Content-Type: application/json" \
++  -d '{ "environment": "sandbox" }'
++```
++
++### 5. Promote to pre-release, then live
++
++```bash
++curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/deployments/DEPLOYMENT_ID/promote \
++  -H "x-api-key: YOUR_API_KEY"
++```
++
++## Environments
++
++Deployments run in one of three environments:
++
++| Environment   | Purpose                                                   |
++| ------------- | --------------------------------------------------------- |
++| `sandbox`     | Safe space for testing without affecting production calls |
++| `pre-release` | Staging for final validation before going live            |
++| `live`        | Production — serves real customer traffic                 |
++
++Use `publish` to push a draft into `sandbox`, then `promote` to move through `pre-release` and `live`. Use `rollback` to revert a deployment. See [Environments and versions](/environments-and-versions/introduction) for the full model.
++
++## Branches
++
++Branches are isolated working copies of an agent. Create a branch for any non-trivial change:
++
++```bash
++curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches \
++  -H "x-api-key: YOUR_API_KEY" \
++  -H "Content-Type: application/json" \
++  -d '{ "name": "experiment-new-greeting" }'
++```
++
++Merge back to `main` when you're ready:
++
++```bash
++curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/BRANCH_ID/merge \
++  -H "x-api-key: YOUR_API_KEY"
++```
++
++## Real-time configs
++
++Real-time configs let you change runtime values (opening hours, seasonal messaging, holiday flags) without a publish cycle. Updates take effect immediately.
++
++Define a JSON Schema for a config page, then PATCH variables against it:
++
++```bash
++curl -X PATCH https://api.us.poly.ai/v1/agents/AGENT_ID/real-time-configs/live/variables \
++  -H "x-api-key: YOUR_API_KEY" \
++  -H "Content-Type: application/json" \
++  -d '{ "variables": { "open_hour": 8, "close_hour": 22 } }'
++```
++
++## Variants
++
++Variants let you run one agent across many sites — hotel chains, restaurant groups, franchises — with site-specific values (phone number, address, hours). Define attributes (dimensions), then create variants (combinations).
++
++See [Variant management](/variant-management/introduction) for the conceptual model.
++
++## Error responses
++
++| Status | Description                                            |
++| ------ | ------------------------------------------------------ |
++| 400    | Validation error - check request body or parameters    |
++| 401    | Missing or invalid API key                             |
++| 403    | API key lacks permission for the workspace or resource |
++| 404    | Resource not found                                     |
++| 409    | Conflict - e.g. merging a branch with diverged state   |
++| 422    | Malformed ID or schema validation error                |
++| 500    | Internal server error                                  |
++
++### Example error response
++
++```json
++{
++  "message": "Validation failed",
++  "errors": [
++    {
++      "field": "name",
++      "message": "must be between 1 and 128 characters"
++    }
++  ]
++}
++```
++
++## Related
++
++<CardGroup cols={2}>
++  <Card title="Environments and versions" icon="rocket" href="/environments-and-versions/introduction">
++    How sandbox, pre-release, and live environments fit together.
++  </Card>
++  <Card title="Variant management" icon="sitemap" href="/variant-management/introduction">
++    Run one agent across many sites with attribute-driven variants.
++  </Card>
++  <Card title="Telephony" icon="phone" href="/telephony/introduction">
++    Provision phone numbers and route them to connectors.
++  </Card>
++  <Card title="Managed topics" icon="book" href="/managed-topics/introduction">
++    How knowledge base topics power retrieval and actions.
++  </Card>
++</CardGroup>
+diff --git a/api-reference/agents/openapi.json b/api-reference/agents/openapi.json
+new file mode 100644
+index 0000000..8f41c12
+--- /dev/null
++++ b/api-reference/agents/openapi.json
+@@ -0,0 +1,2924 @@
++{
++  "openapi": "3.1.0",
++  "info": {
++    "title": "PolyAI Agents API",
++    "version": "1.0.3",
++    "description": "Build and deploy PolyAI agents programmatically. Create agents, manage branches, update behavior rules, configure knowledge bases, provision telephony, publish deployments, and update real-time configs."
++  },
++  "servers": [
++    {
++      "url": "https://api.us.poly.ai",
++      "description": "US region"
++    },
++    {
++      "url": "https://api.uk.poly.ai",
++      "description": "UK region"
++    },
++    {
++      "url": "https://api.eu.poly.ai",
++      "description": "EU region"
++    }
++  ],
++  "security": [
++    {
++      "ApiKeyAuth": []
++    }
++  ],
++  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
++  "components": {
++    "securitySchemes": {
++      "ApiKeyAuth": {
++        "type": "apiKey",
++        "in": "header",
++        "name": "x-api-key"
++      }
++    },
++    "schemas": {
++      "ActiveDeploymentsResponse": {
++        "description": "The latest deployment for each environment (sandbox, pre-release,\nlive). Entries are null when no deployment exists for an environment.",
++        "type": "object",
++        "properties": {
++          "activeDeployments": {
++            "description": "Latest deployment per environment (sandbox, pre-release, live). Value is null if no deployment exists for that environment.",
++            "type": "object",
++            "additionalProperties": {
++              "$ref": "#/components/schemas/DeploymentResponse"
++            }
++          }
++        },
++        "required": [
++          "activeDeployments"
++        ]
++      },
++      "AgentRulesResponse": {
++        "type": "object",
++        "properties": {
++          "behavior": {
++            "type": "string"
++          }
++        },
++        "required": [
++          "behavior"
++        ],
++        "additionalProperties": false,
++        "title": "AgentRulesResponse"
++      },
++      "AttributeResponse": {
++        "type": "object",
++        "properties": {
++          "id": {
++            "type": "string"
++          },
++          "name": {
++            "type": "string"
++          }
++        },
++        "required": [
++          "id",
++          "name"
++        ],
++        "additionalProperties": false,
++        "title": "AttributeResponse"
++      },
++      "BatchGetConnectorsBody": {
++        "description": "Set of connector IDs to retrieve in a single call.",
++        "type": "object",
++        "properties": {
++          "connectorIds": {
++            "description": "List of connector IDs to retrieve",
++            "minItems": 1,
++            "type": "array",
++            "items": {
++              "type": "string"
++            }
++          }
++        },
++        "required": [
++          "connectorIds"
++        ]
++      },
++      "BatchGetConnectorsResponse": {
++        "description": "Result of a batch connector lookup, partitioned into connectors that\nwere found and IDs that weren't.",
++        "type": "object",
++        "properties": {
++          "found": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/ConnectorResponse"
++            }
++          },
++          "notFound": {
++            "type": "array",
++            "items": {
++              "type": "string"
++            }
++          }
++        },
++        "required": [
++          "found",
++          "notFound"
++        ]
++      },
++      "BatchGetPhoneNumbersBody": {
++        "description": "Set of E.164 phone numbers to retrieve in a single call.",
++        "type": "object",
++        "properties": {
++          "phoneNumbers": {
++            "description": "List of phone numbers to retrieve",
++            "minItems": 1,
++            "type": "array",
++            "items": {
++              "type": "string"
++            }
++          }
++        },
++        "required": [
++          "phoneNumbers"
++        ]
++      },
++      "BatchGetPhoneNumbersResponse": {
++        "description": "Result of a batch phone-number lookup, partitioned into numbers that\nwere found and numbers that weren't.",
++        "type": "object",
++        "properties": {
++          "found": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/PhoneNumberResponse"
++            }
++          },
++          "notFound": {
++            "type": "array",
++            "items": {
++              "type": "string"
++            }
++          }
++        },
++        "required": [
++          "found",
++          "notFound"
++        ]
++      },
++      "BatchUpdateConnectorItem": {
++        "description": "A single connector update within a batch update request.",
++        "type": "object",
++        "properties": {
++          "connectorId": {
++            "description": "Connector ID to update",
++            "type": "string"
++          },
++          "variantId": {
++            "description": "Variant ID to assign, or null to unassign",
++            "type": "string"
++          },
++          "asrLangCode": {
++            "description": "ASR language code",
++            "type": "string"
++          },
++          "voiceName": {
++            "description": "Google TTS voice name",
++            "type": "string"
++          },
++          "projectId": {
++            "description": "Move connector to a different project",
++            "type": "string"
++          }
++        },
++        "required": [
++          "connectorId"
++        ]
++      },
++      "BatchUpdateConnectorsBody": {
++        "description": "Ordered list of connector updates.\n\nEach update is applied independently \u2014 partial success is possible.",
++        "type": "object",
++        "properties": {
++          "updates": {
++            "description": "List of connector updates",
++            "minItems": 1,
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/BatchUpdateConnectorItem"
++            }
++          }
++        },
++        "required": [
++          "updates"
++        ]
++      },
++      "BatchUpdateConnectorsResponse": {
++        "description": "Per-connector results from a batch update.\n\nEach entry reports success or failure independently.",
++        "type": "object",
++        "properties": {
++          "results": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/BatchUpdateResultItem"
++            }
++          }
++        },
++        "required": [
++          "results"
++        ]
++      },
++      "BatchUpdateResultItem": {
++        "description": "Result of a single connector update within a batch.",
++        "type": "object",
++        "properties": {
++          "connectorId": {
++            "type": "string"
++          },
++          "success": {
++            "type": "boolean"
++          },
++          "data": {
++            "description": "Updated connector (present when success=True)",
++            "allOf": [
++              {
++                "$ref": "#/components/schemas/ConnectorResponse"
++              }
++            ]
++          },
++          "error": {
++            "description": "Error message (present when success=False)",
++            "type": "string"
++          }
++        },
++        "required": [
++          "connectorId",
++          "success"
++        ]
++      },
++      "ConfigPageResponse": {
++        "description": "A real-time config page for one environment: its JSON Schema\ndefinition plus the current variable values.",
++        "type": "object",
++        "properties": {
++          "clientEnv": {
++            "description": "Environment (sandbox, pre-release, live)",
++            "type": "string"
++          },
++          "variables": {
++            "description": "Config key-value pairs",
++            "type": "object"
++          },
++          "schema": {
++            "description": "JSON Schema (Draft 7) definition",
++            "type": "object"
++          },
++          "lastUpdated": {
++            "description": "ISO 8601 timestamp of last update",
++            "type": "string"
++          }
++        },
++        "required": [
++          "clientEnv"
++        ]
++      },
++      "ConnectorResponse": {
++        "description": "A connector: the voice, language, variant, and environment bundle\nthat handles incoming calls. Multiple phone numbers can share one\nconnector.",
++        "type": "object",
++        "properties": {
++          "connectorId": {
++            "description": "Unique connector identifier",
++            "type": "string"
++          },
++          "name": {
++            "description": "Connector display name",
++            "type": "string"
++          },
++          "accountId": {
++            "description": "Account this connector belongs to",
++            "type": "string"
++          },
++          "projectId": {
++            "description": "Project this connector belongs to",
++            "type": "string"
++          },
++          "clientEnv": {
++            "description": "Client environment (sandbox, pre-release, live)",
++            "type": "string"
++          },
++          "variantId": {
++            "description": "Assigned variant ID (empty string if unassigned)",
++            "type": "string"
++          },
++          "asrLangCode": {
++            "description": "ASR language code (e.g. en-US)",
++            "type": "string"
++          },
++          "ttsLangCode": {
++            "description": "TTS language code (e.g. en-US)",
++            "type": "string"
++          },
++          "voiceName": {
++            "description": "Google TTS voice name (e.g. en-US-Neural2-A)",
++            "type": "string"
++          },
++          "disableHandoff": {
++            "description": "Whether call handoff is disabled",
++            "type": "boolean"
++          }
++        },
++        "required": [
++          "connectorId",
++          "name",
++          "accountId",
++          "projectId",
++          "clientEnv",
++          "variantId",
++          "asrLangCode",
++          "ttsLangCode",
++          "voiceName",
++          "disableHandoff"
++        ]
++      },
++      "CreateAgentBody": {
++        "type": "object",
++        "properties": {
++          "name": {
++            "type": "string",
++            "minLength": 1,
++            "maxLength": 100
++          },
++          "agentId": {
++            "type": "string",
++            "pattern": "^[a-zA-Z0-9-]+$"
++          },
++          "responseSettings": {
++            "type": "object",
++            "properties": {
++              "greeting": {
++                "type": "string",
++                "minLength": 1
++              },
++              "languageCode": {
++                "type": "string",
++                "minLength": 1,
++                "default": "en-GB"
++              }
++            },
++            "required": [
++              "greeting"
++            ],
++            "additionalProperties": false
++          },
++          "voiceSettings": {
++            "type": "object",
++            "properties": {
++              "voiceId": {
++                "type": "string",
++                "minLength": 1
++              }
++            },
++            "required": [
++              "voiceId"
++            ],
++            "additionalProperties": false
++          },
++          "llmSettings": {
++            "type": "object",
++            "properties": {
++              "modelId": {
++                "type": "string"
++              }
++            },
++            "additionalProperties": false
++          },
++          "experimentalConfig": {
++            "type": "object",
++            "properties": {
++              "configs": {
++                "type": "array",
++                "items": {
++                  "type": "object",
++                  "properties": {
++                    "id": {
++                      "type": "string"
++                    },
++                    "features": {
++                      "type": "object",
++                      "additionalProperties": {}
++                    },
++                    "createdAt": {
++                      "type": "string"
++                    },
++                    "createdBy": {
++                      "type": "string"
++                    },
++                    "updatedAt": {
++                      "type": "string"
++                    },
++                    "updatedBy": {
++                      "type": "string"
++                    },
++                    "active": {
++                      "type": "boolean"
++                    }
++                  },
++                  "required": [
++                    "id",
++                    "features",
++                    "createdAt",
++                    "createdBy",
++                    "updatedAt",
++                    "updatedBy",
++                    "active"
++                  ],
++                  "additionalProperties": false
++                }
++              }
++            },
++            "required": [
++              "configs"
++            ],
++            "additionalProperties": false
++          }
++        },
++        "required": [
++          "name",
++          "responseSettings",
++          "voiceSettings"
++        ],
++        "additionalProperties": false,
++        "title": "CreateAgentBody"
++      },
++      "CreateAgentResponse": {
++        "type": "object",
++        "properties": {
++          "accountId": {
++            "type": "string"
++          },
++          "agentId": {
++            "type": "string"
++          },
++          "agentName": {
++            "type": "string"
++          },
++          "createdAt": {
++            "type": "string"
++          },
++          "updatedAt": {
++            "type": "string"
++          },
++          "branchCount": {
++            "type": "number"
++          }
++        },
++        "required": [
++          "accountId",
++          "agentId",
++          "agentName",
++          "createdAt",
++          "updatedAt",
++          "branchCount"
++        ],
++        "additionalProperties": false,
++        "title": "CreateAgentResponse"
++      },
++      "CreateAttributeBody": {
++        "type": "object",
++        "properties": {
++          "name": {
++            "type": "string",
++            "minLength": 1
++          }
++        },
++        "required": [
++          "name"
++        ],
++        "additionalProperties": false,
++        "title": "CreateAttributeBody"
++      },
++      "CreateBranchBody": {
++        "type": "object",
++        "properties": {
++          "branchName": {
++            "type": "string",
++            "minLength": 1,
++            "maxLength": 100
++          }
++        },
++        "required": [
++          "branchName"
++        ],
++        "additionalProperties": false,
++        "title": "CreateBranchBody"
++      },
++      "CreateKnowledgeBaseTopicBody": {
++        "type": "object",
++        "properties": {
++          "name": {
++            "type": "string",
++            "minLength": 1
++          },
++          "content": {
++            "type": "string",
++            "minLength": 1
++          },
++          "actions": {
++            "type": "string"
++          },
++          "exampleQueries": {
++            "type": "object",
++            "properties": {
++              "queries": {
++                "type": "array",
++                "items": {
++                  "type": "string"
++                },
++                "maxItems": 100
++              }
++            },
++            "required": [
++              "queries"
++            ],
++            "additionalProperties": false
++          },
++          "isActive": {
++            "type": "boolean"
++          }
++        },
++        "required": [
++          "name",
++          "content"
++        ],
++        "additionalProperties": false,
++        "title": "CreateKnowledgeBaseTopicBody"
++      },
++      "CreateVariantBody": {
++        "type": "object",
++        "properties": {
++          "name": {
++            "type": "string",
++            "minLength": 1
++          },
++          "attributeValues": {
++            "type": "object",
++            "properties": {
++              "values": {
++                "type": "object",
++                "additionalProperties": {
++                  "type": "string"
++                },
++                "default": {}
++              }
++            },
++            "additionalProperties": false,
++            "default": {
++              "values": {}
++            }
++          },
++          "isDefault": {
++            "type": "boolean"
++          }
++        },
++        "required": [
++          "name"
++        ],
++        "additionalProperties": false,
++        "title": "CreateVariantBody"
++      },
++      "DeleteConnectorResponse": {
++        "description": "Summary of a connector deletion, including every phone number that\nwas released by the cascade.",
++        "type": "object",
++        "properties": {
++          "deletedConnector": {
++            "description": "ID of the deleted connector",
++            "type": "string"
++          },
++          "deletedPhoneNumbers": {
++            "description": "Phone numbers that were associated with the connector",
++            "type": "array",
++            "items": {
++              "type": "string"
++            }
++          }
++        },
++        "required": [
++          "deletedConnector",
++          "deletedPhoneNumbers"
++        ]
++      },
++      "DeletePhoneNumberErrorItem": {
++        "description": "An error encountered while deleting a phone number in a batch.",
++        "type": "object",
++        "properties": {
++          "phoneNumber": {
++            "type": "string"
++          },
++          "error": {
++            "type": "string"
++          }
++        },
++        "required": [
++          "phoneNumber",
++          "error"
++        ]
++      },
++      "DeletePhoneNumberResponse": {
++        "description": "The phone number that was released.",
++        "type": "object",
++        "properties": {
++          "deleted": {
++            "description": "The deleted phone number",
++            "type": "string"
++          }
++        },
++        "required": [
++          "deleted"
++        ]
++      },
++      "DeletePhoneNumbersBody": {
++        "description": "Phone numbers to release in a single call.\n\nReleases are processed independently; see the response for per-number results.",
++        "type": "object",
++        "properties": {
++          "phoneNumbers": {
++            "description": "List of phone numbers to delete",
++            "minItems": 1,
++            "type": "array",
++            "items": {
++              "type": "string"
++            }
++          }
++        },
++        "required": [
++          "phoneNumbers"
++        ]
++      },
++      "DeletePhoneNumbersResponse": {
++        "description": "Per-number results of a batch release \u2014 phone numbers that were\nsuccessfully released, plus any that couldn't be and why.",
++        "type": "object",
++        "properties": {
++          "deleted": {
++            "description": "Successfully deleted phone numbers",
++            "type": "array",
++            "items": {
++              "type": "string"
++            }
++          },
++          "errors": {
++            "description": "Per-number errors (omitted when empty)",
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/DeletePhoneNumberErrorItem"
++            }
++          }
++        },
++        "required": [
++          "deleted"
++        ]
++      },
++      "DeploymentResponse": {
++        "description": "A deployment of an agent version to a specific environment, plus\nwho created it and when.",
++        "type": "object",
++        "properties": {
++          "id": {
++            "description": "Unique deployment identifier",
++            "type": "string"
++          },
++          "accountId": {
++            "description": "Account this deployment belongs to",
++            "type": "string"
++          },
++          "agentId": {
++            "description": "Agent (project) this deployment belongs to",
++            "type": "string"
++          },
++          "environment": {
++            "description": "Environment (sandbox, pre-release, live)",
++            "type": "string"
++          },
++          "artifactVersion": {
++            "description": "Artifact version reference",
++            "type": "string"
++          },
++          "version": {
++            "description": "Version hash linking deployments across environments",
++            "type": "string"
++          },
++          "createdBy": {
++            "description": "Email of user who created the deployment",
++            "type": "string"
++          },
++          "createdAt": {
++            "description": "ISO 8601 timestamp of when the deployment was created",
++            "type": "string"
++          },
++          "metadata": {
++            "description": "Deployment metadata (e.g. deployment_message)",
++            "type": "object"
++          }
++        },
++        "required": [
++          "id",
++          "accountId",
++          "agentId",
++          "environment",
++          "artifactVersion",
++          "version",
++          "createdBy",
++          "createdAt"
++        ]
++      },
++      "DuplicateAgentBody": {
++        "type": "object",
++        "properties": {
++          "newAgentId": {
++            "type": "string",
++            "pattern": "^[a-zA-Z0-9-]+$"
++          },
++          "newAgentName": {
++            "type": "string",
++            "minLength": 1,
++            "maxLength": 100
++          }
++        },
++        "required": [
++          "newAgentName"
++        ],
++        "additionalProperties": false,
++        "title": "DuplicateAgentBody"
++      },
++      "GetAgentsResponse": {
++        "type": "array",
++        "items": {
++          "type": "object",
++          "properties": {
++            "accountId": {
++              "type": "string"
++            },
++            "agentId": {
++              "type": "string"
++            },
++            "agentName": {
++              "type": "string"
++            },
++            "createdAt": {
++              "type": "string"
++            },
++            "updatedAt": {
++              "type": "string"
++            },
++            "branchCount": {
++              "type": "number"
++            }
++          },
++          "required": [
++            "accountId",
++            "agentId",
++            "agentName",
++            "createdAt",
++            "updatedAt",
++            "branchCount"
++          ],
++          "additionalProperties": false
++        },
++        "title": "GetAgentsResponse"
++      },
++      "GetAttributesResponse": {
++        "type": "object",
++        "properties": {
++          "attributes": {
++            "type": "array",
++            "items": {
++              "type": "object",
++              "properties": {
++                "id": {
++                  "type": "string"
++                },
++                "name": {
++                  "type": "string"
++                }
++              },
++              "required": [
++                "id",
++                "name"
++              ],
++              "additionalProperties": false
++            }
++          }
++        },
++        "required": [
++          "attributes"
++        ],
++        "additionalProperties": false,
++        "title": "GetAttributesResponse"
++      },
++      "GetConfigPageResponse": {
++        "description": "A single config page for one environment.",
++        "type": "object",
++        "properties": {
++          "clientEnv": {
++            "description": "Environment (sandbox, pre-release, live)",
++            "type": "string"
++          },
++          "variables": {
++            "description": "Config key-value pairs",
++            "type": "object"
++          },
++          "schema": {
++            "description": "JSON Schema (Draft 7) definition",
++            "type": "object"
++          },
++          "lastUpdated": {
++            "description": "ISO 8601 timestamp of last update",
++            "type": "string"
++          }
++        },
++        "required": [
++          "clientEnv"
++        ]
++      },
++      "GetConfigPagesResponse": {
++        "description": "One config page per environment (sandbox, pre-release, live).",
++        "type": "object",
++        "properties": {
++          "configPages": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/ConfigPageResponse"
++            }
++          }
++        },
++        "required": [
++          "configPages"
++        ]
++      },
++      "GetConnectorsResponse": {
++        "description": "Every connector in the project.",
++        "type": "object",
++        "properties": {
++          "connectors": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/ConnectorResponse"
++            }
++          }
++        },
++        "required": [
++          "connectors"
++        ]
++      },
++      "GetDeploymentsResponse": {
++        "description": "Deployments for the requested environment, ordered newest first.",
++        "type": "object",
++        "properties": {
++          "deployments": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/DeploymentResponse"
++            }
++          }
++        },
++        "required": [
++          "deployments"
++        ]
++      },
++      "GetPhoneNumbersResponse": {
++        "description": "Every phone number in the project, optionally filtered by connector.",
++        "type": "object",
++        "properties": {
++          "phoneNumbers": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/PhoneNumberResponse"
++            }
++          }
++        },
++        "required": [
++          "phoneNumbers"
++        ]
++      },
++      "GetVariantsResponse": {
++        "type": "object",
++        "properties": {
++          "variants": {
++            "type": "array",
++            "items": {
++              "type": "object",
++              "properties": {
++                "id": {
++                  "type": "string"
++                },
++                "name": {
++                  "type": "string"
++                },
++                "isDefault": {
++                  "type": "boolean"
++                },
++                "attributeValues": {
++                  "type": "object",
++                  "properties": {
++                    "values": {
++                      "type": "object",
++                      "additionalProperties": {
++                        "type": "string"
++                      }
++                    }
++                  },
++                  "required": [
++                    "values"
++                  ],
++                  "additionalProperties": false
++                }
++              },
++              "required": [
++                "id",
++                "name",
++                "isDefault",
++                "attributeValues"
++              ],
++              "additionalProperties": false
++            }
++          }
++        },
++        "required": [
++          "variants"
++        ],
++        "additionalProperties": false,
++        "title": "GetVariantsResponse"
++      },
++      "ImportPhoneNumberBody": {
++        "description": "Import settings for a single phone number, including which environment it routes to.",
++        "type": "object",
++        "properties": {
++          "clientEnv": {
++            "description": "Client environment (sandbox, pre-release, live)",
++            "default": "live",
++            "type": "string"
++          }
++        }
++      },
++      "ImportPhoneNumberResponse": {
++        "description": "The phone number that was imported.",
++        "type": "object",
++        "properties": {
++          "imported": {
++            "description": "The imported phone number",
++            "type": "string"
++          }
++        },
++        "required": [
++          "imported"
++        ]
++      },
++      "ImportPhoneNumbersBody": {
++        "description": "A batch of phone numbers to import, all sharing the same environment assignment.",
++        "type": "object",
++        "properties": {
++          "phoneNumbers": {
++            "description": "List of phone numbers to import",
++            "minItems": 1,
++            "type": "array",
++            "items": {
++              "type": "string"
++            }
++          },
++          "clientEnv": {
++            "description": "Client environment (sandbox, pre-release, live)",
++            "default": "live",
++            "type": "string"
++          }
++        },
++        "required": [
++          "phoneNumbers"
++        ]
++      },
++      "ImportPhoneNumbersResponse": {
++        "description": "The set of phone numbers that were imported.",
++        "type": "object",
++        "properties": {
++          "imported": {
++            "description": "List of successfully imported phone numbers",
++            "type": "array",
++            "items": {
++              "type": "string"
++            }
++          }
++        },
++        "required": [
++          "imported"
++        ]
++      },
++      "LookupConnectorBody": {
++        "description": "Lookup payload for finding the connector that serves a given E.164 phone number.",
++        "type": "object",
++        "properties": {
++          "phoneNumber": {
++            "description": "Phone number to look up (E.164 format)",
++            "type": "string"
++          }
++        },
++        "required": [
++          "phoneNumber"
++        ]
++      },
++      "MergeBranchBody": {
++        "type": "object",
++        "properties": {
++          "deploymentMessage": {
++            "type": "string",
++            "default": ""
++          },
++          "conflictResolutions": {
++            "type": "array",
++            "items": {
++              "type": "object",
++              "properties": {
++                "path": {
++                  "type": "array",
++                  "items": {
++                    "type": "string"
++                  }
++                },
++                "strategy": {
++                  "type": "string",
++                  "enum": [
++                    "ours",
++                    "theirs",
++                    "base"
++                  ]
++                },
++                "value": {}
++              },
++              "required": [
++                "path",
++                "strategy"
++              ],
++              "additionalProperties": false
++            }
++          }
++        },
++        "additionalProperties": false,
++        "title": "MergeBranchBody"
++      },
++      "MutationDeploymentResponse": {
++        "description": "The resulting deployment from a promote / rollback / publish action,\nplus any test runs it triggered.",
++        "type": "object",
++        "properties": {
++          "deployment": {
++            "$ref": "#/components/schemas/DeploymentResponse"
++          },
++          "testRunIds": {
++            "description": "IDs of test runs triggered by this deployment action",
++            "type": "array",
++            "items": {
++              "type": "string"
++            }
++          }
++        },
++        "required": [
++          "deployment"
++        ]
++      },
++      "PhoneNumberResponse": {
++        "description": "A phone number owned by the project, plus the connector it routes incoming calls to.",
++        "type": "object",
++        "properties": {
++          "number": {
++            "description": "Phone number in E.164 format",
++            "type": "string"
++          },
++          "projectId": {
++            "description": "Project this number belongs to",
++            "type": "string"
++          },
++          "accountId": {
++            "description": "Account this number belongs to",
++            "type": "string"
++          },
++          "clientEnv": {
++            "description": "Client environment (sandbox, pre-release, live)",
++            "type": "string"
++          },
++          "connectorId": {
++            "description": "Connector this number is routed to",
++            "type": "string"
++          }
++        },
++        "required": [
++          "number",
++          "projectId",
++          "accountId",
++          "clientEnv"
++        ]
++      },
++      "PromoteDeploymentBody": {
++        "description": "Metadata attached to a promote action: an optional message and an\nexplicit target environment override.",
++        "type": "object",
++        "properties": {
++          "deploymentMessage": {
++            "description": "Message describing this promotion",
++            "default": "",
++            "type": "string"
++          },
++          "targetEnvironment": {
++            "description": "Target environment to promote to. If omitted, promotes to the next environment in sequence (sandbox->pre-release->live).",
++            "type": "string"
++          }
++        }
++      },
++      "PublishDeploymentBody": {
++        "description": "Metadata attached to a publish action, with an optional target environment.",
++        "type": "object",
++        "properties": {
++          "deploymentMessage": {
++            "description": "Message describing this publish",
++            "default": "",
++            "type": "string"
++          },
++          "environment": {
++            "description": "Environment to publish to (defaults to sandbox)",
++            "type": "string"
++          }
++        }
++      },
++      "ReassignPhoneNumberBody": {
++        "description": "Target connector for reassigning a phone number.",
++        "type": "object",
++        "properties": {
++          "connectorId": {
++            "description": "Target connector ID to reassign the phone number to",
++            "type": "string"
++          }
++        },
++        "required": [
++          "connectorId"
++        ]
++      },
++      "RollbackDeploymentBody": {
++        "description": "Metadata attached to a rollback action.",
++        "type": "object",
++        "properties": {
++          "deploymentMessage": {
++            "description": "Message describing this rollback",
++            "default": "",
++            "type": "string"
++          }
++        }
++      },
++      "UpdateAgentRulesBody": {
++        "type": "object",
++        "properties": {
++          "behavior": {
++            "type": "string",
++            "minLength": 1
++          }
++        },
++        "required": [
++          "behavior"
++        ],
++        "additionalProperties": false,
++        "title": "UpdateAgentRulesBody"
++      },
++      "UpdateAttributeBody": {
++        "type": "object",
++        "properties": {
++          "name": {
++            "type": "string",
++            "minLength": 1
++          }
++        },
++        "required": [
++          "name"
++        ],
++        "additionalProperties": false,
++        "title": "UpdateAttributeBody"
++      },
++      "UpdateConfigSchemaBody": {
++        "description": "The JSON Schema definition to apply to a config page.",
++        "type": "object",
++        "properties": {
++          "schema": {
++            "description": "JSON Schema (Draft 7) definition",
++            "type": "object"
++          }
++        },
++        "required": [
++          "schema"
++        ]
++      },
++      "UpdateConfigVariablesBody": {
++        "description": "Variables to shallow-merge into an environment's config page.",
++        "type": "object",
++        "properties": {
++          "variables": {
++            "description": "Key-value pairs to merge into the existing config",
++            "type": "object"
++          }
++        },
++        "required": [
++          "variables"
++        ]
++      },
++      "UpdateConnectorBody": {
++        "description": "Partial update to a connector.\n\nOnly fields present in the request body are changed; absent fields are\nleft alone. Pass ``null`` to clear a value explicitly.",
++        "type": "object",
++        "properties": {
++          "variantId": {
++            "description": "Variant ID to assign, or null to unassign",
++            "type": "string"
++          },
++          "asrLangCode": {
++            "description": "ASR language code (e.g. en-US)",
++            "type": "string"
++          },
++          "voiceName": {
++            "description": "Google TTS voice name (e.g. en-US-Neural2-A). tts_lang_code is auto-derived from the voice name prefix. Validated via TTS probe.",
++            "type": "string"
++          },
++          "projectId": {
++            "description": "Move connector to a different project. API key must have access to both projects.",
++            "type": "string"
++          }
++        }
++      },
++      "UpdateKnowledgeBaseTopicBody": {
++        "type": "object",
++        "properties": {
++          "name": {
++            "type": "string",
++            "minLength": 1
++          },
++          "content": {
++            "type": "string"
++          },
++          "actions": {
++            "type": "string"
++          },
++          "exampleQueries": {
++            "type": "object",
++            "properties": {
++              "queries": {
++                "type": "array",
++                "items": {
++                  "type": "string"
++                },
++                "maxItems": 100
++              }
++            },
++            "required": [
++              "queries"
++            ],
++            "additionalProperties": false
++          },
++          "isActive": {
++            "type": "boolean"
++          }
++        },
++        "additionalProperties": false,
++        "title": "UpdateKnowledgeBaseTopicBody"
++      },
++      "UpdateVariantBody": {
++        "type": "object",
++        "properties": {
++          "name": {
++            "type": "string",
++            "minLength": 1
++          },
++          "attributeValues": {
++            "type": "object",
++            "properties": {
++              "values": {
++                "type": "object",
++                "additionalProperties": {
++                  "type": "string"
++                },
++                "default": {}
++              }
++            },
++            "additionalProperties": false
++          },
++          "isDefault": {
++            "type": "boolean"
++          }
++        },
++        "additionalProperties": false,
++        "title": "UpdateVariantBody"
++      },
++      "VariantResponse": {
++        "type": "object",
++        "properties": {
++          "id": {
++            "type": "string"
++          },
++          "name": {
++            "type": "string"
++          },
++          "isDefault": {
++            "type": "boolean"
++          },
++          "attributeValues": {
++            "type": "object",
++            "properties": {
++              "values": {
++                "type": "object",
++                "additionalProperties": {
++                  "type": "string"
++                }
++              }
++            },
++            "required": [
++              "values"
++            ],
++            "additionalProperties": false
++          }
++        },
++        "required": [
++          "id",
++          "name",
++          "isDefault",
++          "attributeValues"
++        ],
++        "additionalProperties": false,
++        "title": "VariantResponse"
++      }
++    }
++  },
++  "paths": {
++    "/v1/agents": {
++      "get": {
++        "responses": {
++          "200": {
++            "description": "List of agents for the current account",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/GetAgentsResponse"
++                }
++              }
++            }
++          }
++        },
++        "summary": "List agents",
++        "tags": [
++          "Agents"
++        ]
++      },
++      "post": {
++        "responses": {
++          "200": {
++            "description": "Created agent",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/CreateAgentResponse"
++                }
++              }
++            }
++          }
++        },
++        "summary": "Create agent",
++        "tags": [
++          "Agents"
++        ],
++        "requestBody": {
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/CreateAgentBody"
++              }
++            }
++          }
++        }
++      }
++    },
++    "/v1/agents/{agentId}": {
++      "delete": {
++        "responses": {
++          "204": {
++            "description": "Agent deleted"
++          }
++        },
++        "summary": "Delete agent",
++        "tags": [
++          "Agents"
++        ]
++      }
++    },
++    "/v1/agents/{agentId}/branches": {
++      "get": {
++        "responses": {
++          "200": {
++            "description": "List of branches"
++          }
++        },
++        "summary": "List branches",
++        "tags": [
++          "Branches"
++        ]
++      },
++      "post": {
++        "responses": {
++          "201": {
++            "description": "Branch created"
++          }
++        },
++        "summary": "Create branch",
++        "tags": [
++          "Branches"
++        ],
++        "requestBody": {
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/CreateBranchBody"
++              }
++            }
++          }
++        }
++      }
++    },
++    "/v1/agents/{agentId}/branches/{branchId}": {
++      "delete": {
++        "responses": {
++          "200": {
++            "description": "Branch deleted"
++          }
++        },
++        "summary": "Delete branch",
++        "tags": [
++          "Branches"
++        ]
++      }
++    },
++    "/v1/agents/{agentId}/branches/{branchId}/attributes": {
++      "get": {
++        "responses": {
++          "200": {
++            "description": "List of attributes for the agent branch",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/GetAttributesResponse"
++                }
++              }
++            }
++          }
++        },
++        "summary": "List attributes",
++        "tags": [
++          "Variants"
++        ]
++      },
++      "post": {
++        "responses": {
++          "201": {
++            "description": "Created attribute",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/AttributeResponse"
++                }
++              }
++            }
++          }
++        },
++        "summary": "Create attribute",
++        "tags": [
++          "Variants"
++        ],
++        "requestBody": {
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/CreateAttributeBody"
++              }
++            }
++          }
++        }
++      }
++    },
++    "/v1/agents/{agentId}/branches/{branchId}/attributes/{attributeId}": {
++      "delete": {
++        "responses": {
++          "200": {
++            "description": "Attribute deleted"
++          }
++        },
++        "summary": "Delete attribute",
++        "tags": [
++          "Variants"
++        ]
++      },
++      "patch": {
++        "responses": {
++          "200": {
++            "description": "Updated attribute",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/AttributeResponse"
++                }
++              }
++            }
++          }
++        },
++        "summary": "Update attribute",
++        "tags": [
++          "Variants"
++        ],
++        "requestBody": {
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/UpdateAttributeBody"
++              }
++            }
++          }
++        }
++      }
++    },
++    "/v1/agents/{agentId}/branches/{branchId}/behavior": {
++      "get": {
++        "responses": {
++          "200": {
++            "description": "Current behavior rules for the agent branch",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/AgentRulesResponse"
++                }
++              }
++            }
++          },
++          "404": {
++            "description": "Rules not found"
++          }
++        },
++        "summary": "Get agent behavior rules",
++        "tags": [
++          "Agent Behavior"
++        ]
++      },
++      "patch": {
++        "responses": {
++          "200": {
++            "description": "Updated behavior rules",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/AgentRulesResponse"
++                }
++              }
++            }
++          }
++        },
++        "summary": "Update agent behavior rules",
++        "tags": [
++          "Agent Behavior"
++        ],
++        "requestBody": {
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/UpdateAgentRulesBody"
++              }
++            }
++          }
++        }
++      }
++    },
++    "/v1/agents/{agentId}/branches/{branchId}/knowledge-base/topics": {
++      "get": {
++        "responses": {
++          "200": {
++            "description": "List of knowledge base topics"
++          }
++        },
++        "summary": "List knowledge base topics",
++        "tags": [
++          "Knowledge Base"
++        ]
++      },
++      "post": {
++        "responses": {
++          "201": {
++            "description": "Created topic"
++          }
++        },
++        "summary": "Create knowledge base topic",
++        "tags": [
++          "Knowledge Base"
++        ],
++        "requestBody": {
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/CreateKnowledgeBaseTopicBody"
++              }
++            }
++          }
++        }
++      }
++    },
++    "/v1/agents/{agentId}/branches/{branchId}/knowledge-base/topics/{topicId}": {
++      "get": {
++        "responses": {
++          "200": {
++            "description": "Knowledge base topic"
++          },
++          "404": {
++            "description": "Topic not found"
++          }
++        },
++        "summary": "Get knowledge base topic",
++        "tags": [
++          "Knowledge Base"
++        ]
++      },
++      "delete": {
++        "responses": {
++          "204": {
++            "description": "Topic deleted"
++          }
++        },
++        "summary": "Delete knowledge base topic",
++        "tags": [
++          "Knowledge Base"
++        ]
++      },
++      "patch": {
++        "responses": {
++          "204": {
++            "description": "Topic updated"
++          },
++          "404": {
++            "description": "Topic not found"
++          }
++        },
++        "summary": "Update knowledge base topic",
++        "tags": [
++          "Knowledge Base"
++        ],
++        "requestBody": {
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/UpdateKnowledgeBaseTopicBody"
++              }
++            }
++          }
++        }
++      }
++    },
++    "/v1/agents/{agentId}/branches/{branchId}/merge": {
++      "post": {
++        "responses": {
++          "200": {
++            "description": "Branch merged"
++          }
++        },
++        "summary": "Merge branch",
++        "tags": [
++          "Branches"
++        ],
++        "requestBody": {
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/MergeBranchBody"
++              }
++            }
++          }
++        }
++      }
++    },
++    "/v1/agents/{agentId}/branches/{branchId}/variants": {
++      "get": {
++        "responses": {
++          "200": {
++            "description": "List of variants",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/GetVariantsResponse"
++                }
++              }
++            }
++          }
++        },
++        "summary": "List variants",
++        "tags": [
++          "Variants"
++        ]
++      },
++      "post": {
++        "responses": {
++          "201": {
++            "description": "Created variant",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/VariantResponse"
++                }
++              }
++            }
++          }
++        },
++        "summary": "Create variant",
++        "tags": [
++          "Variants"
++        ],
++        "requestBody": {
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/CreateVariantBody"
++              }
++            }
++          }
++        }
++      }
++    },
++    "/v1/agents/{agentId}/branches/{branchId}/variants/{variantId}": {
++      "delete": {
++        "responses": {
++          "200": {
++            "description": "Variant deleted"
++          }
++        },
++        "summary": "Delete variant",
++        "tags": [
++          "Variants"
++        ]
++      },
++      "patch": {
++        "responses": {
++          "200": {
++            "description": "Updated variant",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/VariantResponse"
++                }
++              }
++            }
++          }
++        },
++        "summary": "Update variant",
++        "tags": [
++          "Variants"
++        ],
++        "requestBody": {
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/UpdateVariantBody"
++              }
++            }
++          }
++        }
++      }
++    },
++    "/v1/agents/{agentId}/deployments": {
++      "get": {
++        "summary": "List deployments for an environment",
++        "tags": [
++          "Deployments"
++        ],
++        "parameters": [
++          {
++            "name": "environment",
++            "in": "query",
++            "required": true,
++            "schema": {
++              "enum": [
++                "sandbox",
++                "pre-release",
++                "live"
++              ],
++              "type": "string"
++            },
++            "description": "Environment to list deployments for (sandbox, pre-release, live)"
++          },
++          {
++            "name": "limit",
++            "in": "query",
++            "required": false,
++            "schema": {
++              "type": "integer"
++            },
++            "description": "Max number of deployments to return"
++          }
++        ],
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/GetDeploymentsResponse"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Validation error"
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          }
++        }
++      },
++      "parameters": [
++        {
++          "name": "agentId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        }
++      ]
++    },
++    "/v1/agents/{agentId}/deployments/active": {
++      "get": {
++        "summary": "Get active deployment per environment",
++        "tags": [
++          "Deployments"
++        ],
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ActiveDeploymentsResponse"
++                }
++              }
++            }
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          }
++        }
++      },
++      "parameters": [
++        {
++          "name": "agentId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        }
++      ]
++    },
++    "/v1/agents/{agentId}/deployments/publish": {
++      "post": {
++        "summary": "Publish the current draft to an environment",
++        "tags": [
++          "Deployments"
++        ],
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/PublishDeploymentBody"
++              }
++            }
++          }
++        },
++        "responses": {
++          "201": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/MutationDeploymentResponse"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Validation error"
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          }
++        }
++      },
++      "parameters": [
++        {
++          "name": "agentId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        }
++      ]
++    },
++    "/v1/agents/{agentId}/deployments/{deploymentId}/promote": {
++      "post": {
++        "summary": "Promote a deployment to the next environment",
++        "tags": [
++          "Deployments"
++        ],
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/PromoteDeploymentBody"
++              }
++            }
++          }
++        },
++        "responses": {
++          "201": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/MutationDeploymentResponse"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Validation error"
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          },
++          "404": {
++            "description": "Resource not found"
++          }
++        }
++      },
++      "parameters": [
++        {
++          "name": "agentId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        },
++        {
++          "name": "deploymentId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        }
++      ]
++    },
++    "/v1/agents/{agentId}/deployments/{deploymentId}/rollback": {
++      "post": {
++        "summary": "Rollback to a previous deployment",
++        "tags": [
++          "Deployments"
++        ],
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/RollbackDeploymentBody"
++              }
++            }
++          }
++        },
++        "responses": {
++          "201": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/MutationDeploymentResponse"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Validation error"
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          },
++          "404": {
++            "description": "Resource not found"
++          }
++        }
++      },
++      "parameters": [
++        {
++          "name": "agentId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        },
++        {
++          "name": "deploymentId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        }
++      ]
++    },
++    "/v1/agents/{agentId}/duplicate": {
++      "post": {
++        "responses": {
++          "200": {
++            "description": "Duplicated agent",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/CreateAgentResponse"
++                }
++              }
++            }
++          }
++        },
++        "summary": "Duplicate agent",
++        "tags": [
++          "Agents"
++        ],
++        "requestBody": {
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/DuplicateAgentBody"
++              }
++            }
++          }
++        }
++      }
++    },
++    "/v1/agents/{agentId}/real-time-configs": {
++      "get": {
++        "summary": "List all config pages",
++        "tags": [
++          "Real-Time Configs"
++        ],
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/GetConfigPagesResponse"
++                }
++              }
++            }
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          }
++        }
++      },
++      "parameters": [
++        {
++          "name": "agentId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        }
++      ]
++    },
++    "/v1/agents/{agentId}/real-time-configs/{clientEnv}": {
++      "get": {
++        "summary": "Get a config page by environment",
++        "tags": [
++          "Real-Time Configs"
++        ],
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/GetConfigPageResponse"
++                }
++              }
++            }
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          },
++          "404": {
++            "description": "Resource not found"
++          }
++        }
++      },
++      "parameters": [
++        {
++          "name": "agentId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        },
++        {
++          "name": "clientEnv",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        }
++      ]
++    },
++    "/v1/agents/{agentId}/real-time-configs/{clientEnv}/schema": {
++      "put": {
++        "summary": "Upsert the JSON Schema for a config page",
++        "tags": [
++          "Real-Time Configs"
++        ],
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/UpdateConfigSchemaBody"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/GetConfigPageResponse"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Validation error"
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          },
++          "404": {
++            "description": "Resource not found"
++          }
++        }
++      },
++      "parameters": [
++        {
++          "name": "agentId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        },
++        {
++          "name": "clientEnv",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        }
++      ]
++    },
++    "/v1/agents/{agentId}/real-time-configs/{clientEnv}/variables": {
++      "patch": {
++        "summary": "Update config variables for an environment",
++        "tags": [
++          "Real-Time Configs"
++        ],
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/UpdateConfigVariablesBody"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/GetConfigPageResponse"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Validation error"
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          },
++          "404": {
++            "description": "Resource not found"
++          }
++        }
++      },
++      "parameters": [
++        {
++          "name": "agentId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        },
++        {
++          "name": "clientEnv",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        }
++      ]
++    },
++    "/v1/agents/{agentId}/telephony/connectors": {
++      "get": {
++        "summary": "List all connectors for a project",
++        "tags": [
++          "Connectors"
++        ],
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/GetConnectorsResponse"
++                }
++              }
++            }
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          }
++        }
++      },
++      "parameters": [
++        {
++          "name": "agentId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        }
++      ]
++    },
++    "/v1/agents/{agentId}/telephony/connectors/batch": {
++      "post": {
++        "summary": "Batch get connectors by ID",
++        "tags": [
++          "Connectors"
++        ],
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/BatchGetConnectorsBody"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/BatchGetConnectorsResponse"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Validation error"
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          }
++        }
++      },
++      "patch": {
++        "summary": "Batch update connectors",
++        "tags": [
++          "Connectors"
++        ],
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/BatchUpdateConnectorsBody"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/BatchUpdateConnectorsResponse"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Validation error"
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          }
++        }
++      },
++      "parameters": [
++        {
++          "name": "agentId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        }
++      ]
++    },
++    "/v1/agents/{agentId}/telephony/connectors/lookup": {
++      "post": {
++        "summary": "Look up connector by phone number",
++        "tags": [
++          "Connectors"
++        ],
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/LookupConnectorBody"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ConnectorResponse"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Validation error"
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          }
++        }
++      },
++      "parameters": [
++        {
++          "name": "agentId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        }
++      ]
++    },
++    "/v1/agents/{agentId}/telephony/connectors/{connectorId}": {
++      "get": {
++        "summary": "Get a connector by ID",
++        "tags": [
++          "Connectors"
++        ],
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ConnectorResponse"
++                }
++              }
++            }
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          },
++          "404": {
++            "description": "Resource not found"
++          }
++        }
++      },
++      "delete": {
++        "summary": "Delete a connector and its phone numbers",
++        "tags": [
++          "Connectors"
++        ],
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/DeleteConnectorResponse"
++                }
++              }
++            }
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          },
++          "404": {
++            "description": "Resource not found"
++          }
++        }
++      },
++      "patch": {
++        "summary": "Update a connector",
++        "tags": [
++          "Connectors"
++        ],
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/UpdateConnectorBody"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ConnectorResponse"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Validation error"
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          },
++          "404": {
++            "description": "Resource not found"
++          }
++        }
++      },
++      "parameters": [
++        {
++          "name": "agentId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        },
++        {
++          "name": "connectorId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        }
++      ]
++    },
++    "/v1/agents/{agentId}/telephony/phone-numbers": {
++      "get": {
++        "summary": "List all phone numbers for a project",
++        "tags": [
++          "Phone Numbers"
++        ],
++        "parameters": [
++          {
++            "name": "connectorId",
++            "in": "query",
++            "required": false,
++            "schema": {
++              "type": "string"
++            },
++            "description": "Filter by connector ID"
++          }
++        ],
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/GetPhoneNumbersResponse"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Validation error"
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          }
++        }
++      },
++      "post": {
++        "summary": "Import phone numbers into a project",
++        "tags": [
++          "Phone Numbers"
++        ],
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/ImportPhoneNumbersBody"
++              }
++            }
++          }
++        },
++        "responses": {
++          "201": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ImportPhoneNumbersResponse"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Validation error"
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          }
++        }
++      },
++      "delete": {
++        "summary": "Delete phone numbers from a project",
++        "tags": [
++          "Phone Numbers"
++        ],
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/DeletePhoneNumbersBody"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/DeletePhoneNumbersResponse"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Validation error"
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          }
++        }
++      },
++      "parameters": [
++        {
++          "name": "agentId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        }
++      ]
++    },
++    "/v1/agents/{agentId}/telephony/phone-numbers/batch": {
++      "post": {
++        "summary": "Batch get phone numbers",
++        "tags": [
++          "Phone Numbers"
++        ],
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/BatchGetPhoneNumbersBody"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/BatchGetPhoneNumbersResponse"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Validation error"
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          }
++        }
++      },
++      "parameters": [
++        {
++          "name": "agentId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        }
++      ]
++    },
++    "/v1/agents/{agentId}/telephony/phone-numbers/{phoneNumber}": {
++      "get": {
++        "summary": "Get a specific phone number",
++        "tags": [
++          "Phone Numbers"
++        ],
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/PhoneNumberResponse"
++                }
++              }
++            }
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          },
++          "404": {
++            "description": "Resource not found"
++          }
++        }
++      },
++      "post": {
++        "summary": "Import a single phone number",
++        "tags": [
++          "Phone Numbers"
++        ],
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/ImportPhoneNumberBody"
++              }
++            }
++          }
++        },
++        "responses": {
++          "201": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ImportPhoneNumberResponse"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Validation error"
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          },
++          "404": {
++            "description": "Resource not found"
++          }
++        }
++      },
++      "delete": {
++        "summary": "Delete a single phone number",
++        "tags": [
++          "Phone Numbers"
++        ],
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/DeletePhoneNumberResponse"
++                }
++              }
++            }
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          },
++          "404": {
++            "description": "Resource not found"
++          }
++        }
++      },
++      "patch": {
++        "summary": "Reassign a phone number to a different connector",
++        "tags": [
++          "Phone Numbers"
++        ],
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/ReassignPhoneNumberBody"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Successful response",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/PhoneNumberResponse"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Validation error"
++          },
++          "401": {
++            "description": "Unauthorized \u2013 missing or invalid API key"
++          },
++          "403": {
++            "description": "Forbidden \u2013 insufficient permissions"
++          },
++          "404": {
++            "description": "Resource not found"
++          }
++        }
++      },
++      "parameters": [
++        {
++          "name": "agentId",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        },
++        {
++          "name": "phoneNumber",
++          "in": "path",
++          "required": true,
++          "schema": {
++            "type": "string"
++          }
++        }
++      ]
++    }
++  },
++  "tags": [
++    {
++      "name": "Agents",
++      "description": "Create, list, duplicate, and delete agents."
++    },
++    {
++      "name": "Branches",
++      "description": "Create isolated branches for parallel development and merge back to main."
++    },
++    {
++      "name": "Agent Behavior",
++      "description": "Read and update an agent's behavior rules (system prompt, interaction style, edge cases)."
++    },
++    {
++      "name": "Knowledge Base",
++      "description": "Manage knowledge base topics used for retrieval and tool invocation."
++    },
++    {
++      "name": "Variants",
++      "description": "Manage site-specific variations of an agent using attributes and variants."
++    },
++    {
++      "name": "Deployments",
++      "description": "Publish drafts, promote across environments, and roll back deployments."
++    },
++    {
++      "name": "Connectors",
++      "description": "Manage telephony connectors that bind phone numbers to voice infrastructure."
++    },
++    {
++      "name": "Phone Numbers",
++      "description": "Provision, reassign, and delete phone numbers on an agent's connectors."
++    },
++    {
++      "name": "Real-Time Configs",
++      "description": "Update runtime values (e.g. opening hours) outside the publish workflow."
++    }
++  ]
++}
+\ No newline at end of file
+diff --git a/api-reference/introduction.mdx b/api-reference/introduction.mdx
+index d204349..36a0835 100644
+--- a/api-reference/introduction.mdx
++++ b/api-reference/introduction.mdx
+@@ -1,15 +1,39 @@
+ ---
+ title: 'Getting started'
+-description: 'Regional API endpoints, authentication with API keys, and Conversations API versioning.'
++description: 'The three PolyAI API families, regional base URLs, authentication with API keys, and Conversations API versioning.'
+ ---
+ 
+-Set up your API integration with PolyAI. Learn about regional endpoints, API key authentication, and which API version to use for each integration.
++Set up your API integration with PolyAI. Learn which API family to use, how to authenticate, and which version to pick for each integration.
+ 
+-## Base URLs
++## API families at a glance
++
++PolyAI exposes three distinct API families, each with its own base URL pattern, auth model, and audience.
++
++| Family | What it's for | Base URL pattern | Examples |
++| ------ | ------------- | ---------------- | -------- |
++| **Build & deploy** | Programmatically build, configure, and ship agents | `api.{region}.poly.ai/v1/agents/…` | [Agents API](/api-reference/agents/introduction) |
++| **Runtime & data** | Runtime interaction with an agent and post-call data | `api.{region}.platform.polyai.app/{version}/…` | [Chat](/api-reference/chat/introduction), [Conversations](/api-reference/conversations/introduction), [Handoff](/api-reference/handoff/introduction), [Concurrent Calls](/api-reference/concurrent-calls/introduction), [DNI](/api-reference/dni/introduction), [External Events](/api-reference/external-events/introduction), [Outbound Calling](/api-reference/outbound/introduction) |
++| **Monitoring** | Observe, alert on, and receive events from running agents | `api.{region}.poly.ai/v1/…` | [Alerts](/api-reference/alerts/introduction), [Webhooks](/api-reference/webhooks/introduction) |
++
++The **build & deploy** and **monitoring** families share the `poly.ai` host. The **runtime & data** family lives on `platform.polyai.app`. They are separate services with separate API keys.
++
++### Agents API vs Conversations API
+ 
+-PolyAI exposes two distinct base URL patterns depending on which API you are using.
++The two are frequently confused. Use this table to pick the right one:
++
++|                | Agents API                          | Conversations API                         |
++| -------------- | ----------------------------------- | ----------------------------------------- |
++| **Purpose**    | Build and deploy agents             | Read call data and transcripts            |
++| **Direction**  | Write (create, update, deploy)      | Read (query, retrieve)                    |
++| **Base URL**   | `api.{region}.poly.ai/v1/agents/…`  | `api.{region}.platform.polyai.app/v3/…`   |
++| **Auth**       | API key (workspace-scoped)          | API key (project-scoped)                  |
++| **Who uses it**| Developers automating agent builds  | Analysts, integrations pulling call data  |
++
++In short: **Agents API creates and ships agents. Conversations API tells you what those agents did on calls.**
++
++## Base URLs
+ 
+-### Data and conversations APIs (regional)
++### Runtime and data APIs (regional)
+ 
+ The Conversations, Chat, Handoff, Concurrent Calls, DNI, External Events, and Outbound Calling APIs use regional base URLs:
+ 
+@@ -23,9 +47,9 @@ Most endpoints follow this pattern:
+ 
+ `https://api.{region}.platform.polyai.app/{version}/{account_id}/{project_id}/…`
+ 
+-### Agent Studio APIs
++### Agents API, Alerts, and Webhooks
+ 
+-The Alerts and Webhooks APIs use a separate set of regional base URLs:
++The [Agents API](/api-reference/agents/introduction), [Alerts API](/api-reference/alerts/introduction), and [Webhooks API](/api-reference/webhooks/introduction) use a separate set of regional base URLs:
+ 
+ | Region | Base URL |
+ | ------ | -------- |
+@@ -33,9 +57,10 @@ The Alerts and Webhooks APIs use a separate set of regional base URLs:
+ | UK     | `https://api.uk.poly.ai` |
+ | EU     | `https://api.eu.poly.ai` |
+ 
+-Endpoints follow this pattern:
++Endpoint patterns:
+ 
+-`https://api.{region}.poly.ai/v1/…`
++- Agents API: `https://api.{region}.poly.ai/v1/agents/…`
++- Alerts, Webhooks: `https://api.{region}.poly.ai/v1/…`
+ 
+ <Warning>
+ Do not use `https://api.poly.ai` without a region prefix – it will return an error. Always include the region (e.g. `api.us.poly.ai`).
+diff --git a/api/introduction.mdx b/api/introduction.mdx
+index f3ac60e..9840f8e 100644
+--- a/api/introduction.mdx
++++ b/api/introduction.mdx
+@@ -14,7 +14,7 @@ keywords:
+ You can define custom HTTP APIs in Agent Studio so your agent can fetch data, create records, and trigger downstream systems without hardcoding request logic in [tools](/tools/introduction). Configuration is centralized, environment-aware, and exposes a consistent runtime interface.
+ 
+ <Note>
+-This page covers custom API integrations configured in the **APIs** tab in Agent Studio. For PolyAI's public APIs (Chat, Conversations, Handoff, etc.), see the [API Reference](/api-reference/introduction). For pre-built third-party integrations (e.g., OpenTable, Salesforce, Zendesk), contact your PolyAI account manager to enable them via the **Integrations** tab.
++This page covers custom API integrations configured in the **APIs** tab in Agent Studio — that is, **outbound** HTTP calls your agent makes at runtime. For PolyAI's public APIs (Chat, Conversations, [Agents](/api-reference/agents/introduction), Handoff, etc.), see the [API Reference](/api-reference/introduction). For pre-built third-party integrations (e.g., OpenTable, Salesforce, Zendesk), contact your PolyAI account manager to enable them via the **Integrations** tab.
+ </Note>
+ 
+ ![api-tab](/images/api/api-tab-create.png)
+diff --git a/docs.json b/docs.json
+index 93c1097..87b4574 100644
+--- a/docs.json
++++ b/docs.json
+@@ -616,6 +616,107 @@
+               "api-reference/error-codes"
+             ]
+           },
++          {
++            "group": "Agents API",
++            "pages": [
++              "api-reference/agents/introduction",
++              {
++                "group": "Agents",
++                "pages": [
++                  "api-reference/agents/endpoint/agents/list-agents",
++                  "api-reference/agents/endpoint/agents/create-agent",
++                  "api-reference/agents/endpoint/agents/duplicate-agent",
++                  "api-reference/agents/endpoint/agents/delete-agent"
++                ]
++              },
++              {
++                "group": "Branches",
++                "pages": [
++                  "api-reference/agents/endpoint/branches/list-branches",
++                  "api-reference/agents/endpoint/branches/create-branch",
++                  "api-reference/agents/endpoint/branches/merge-branch",
++                  "api-reference/agents/endpoint/branches/delete-branch"
++                ]
++              },
++              {
++                "group": "Agent behavior",
++                "pages": [
++                  "api-reference/agents/endpoint/behavior/get-agent-behavior-rules",
++                  "api-reference/agents/endpoint/behavior/update-agent-behavior-rules"
++                ]
++              },
++              {
++                "group": "Knowledge base",
++                "pages": [
++                  "api-reference/agents/endpoint/knowledge-base/list-knowledge-base-topics",
++                  "api-reference/agents/endpoint/knowledge-base/create-knowledge-base-topic",
++                  "api-reference/agents/endpoint/knowledge-base/get-knowledge-base-topic",
++                  "api-reference/agents/endpoint/knowledge-base/update-knowledge-base-topic",
++                  "api-reference/agents/endpoint/knowledge-base/delete-knowledge-base-topic"
++                ]
++              },
++              {
++                "group": "Variants",
++                "expanded": false,
++                "pages": [
++                  "api-reference/agents/endpoint/variants/list-attributes",
++                  "api-reference/agents/endpoint/variants/create-attribute",
++                  "api-reference/agents/endpoint/variants/update-attribute",
++                  "api-reference/agents/endpoint/variants/delete-attribute",
++                  "api-reference/agents/endpoint/variants/list-variants",
++                  "api-reference/agents/endpoint/variants/create-variant",
++                  "api-reference/agents/endpoint/variants/update-variant",
++                  "api-reference/agents/endpoint/variants/delete-variant"
++                ]
++              },
++              {
++                "group": "Deployments",
++                "pages": [
++                  "api-reference/agents/endpoint/deployments/list-deployments-for-an-environment",
++                  "api-reference/agents/endpoint/deployments/get-active-deployment-per-environment",
++                  "api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment",
++                  "api-reference/agents/endpoint/deployments/promote-a-deployment-to-the-next-environment",
++                  "api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment"
++                ]
++              },
++              {
++                "group": "Connectors",
++                "expanded": false,
++                "pages": [
++                  "api-reference/agents/endpoint/connectors/list-all-connectors-for-a-project",
++                  "api-reference/agents/endpoint/connectors/get-a-connector-by-id",
++                  "api-reference/agents/endpoint/connectors/update-a-connector",
++                  "api-reference/agents/endpoint/connectors/delete-a-connector-and-its-phone-numbers",
++                  "api-reference/agents/endpoint/connectors/batch-get-connectors-by-id",
++                  "api-reference/agents/endpoint/connectors/batch-update-connectors",
++                  "api-reference/agents/endpoint/connectors/look-up-connector-by-phone-number"
++                ]
++              },
++              {
++                "group": "Phone numbers",
++                "expanded": false,
++                "pages": [
++                  "api-reference/agents/endpoint/phone-numbers/list-all-phone-numbers-for-a-project",
++                  "api-reference/agents/endpoint/phone-numbers/import-phone-numbers-into-a-project",
++                  "api-reference/agents/endpoint/phone-numbers/import-a-single-phone-number",
++                  "api-reference/agents/endpoint/phone-numbers/get-a-specific-phone-number",
++                  "api-reference/agents/endpoint/phone-numbers/reassign-a-phone-number-to-a-different-connector",
++                  "api-reference/agents/endpoint/phone-numbers/delete-a-single-phone-number",
++                  "api-reference/agents/endpoint/phone-numbers/delete-phone-numbers-from-a-project",
++                  "api-reference/agents/endpoint/phone-numbers/batch-get-phone-numbers"
++                ]
++              },
++              {
++                "group": "Real-time configs",
++                "pages": [
++                  "api-reference/agents/endpoint/real-time-configs/list-all-config-pages",
++                  "api-reference/agents/endpoint/real-time-configs/get-a-config-page-by-environment",
++                  "api-reference/agents/endpoint/real-time-configs/upsert-the-json-schema-for-a-config-page",
++                  "api-reference/agents/endpoint/real-time-configs/update-config-variables-for-an-environment"
++                ]
++              }
++            ]
++          },
+           {
+             "group": "Chat API",
+             "pages": [
+diff --git a/environments-and-versions/introduction.mdx b/environments-and-versions/introduction.mdx
+index 45ed4a2..fbe8c4c 100644
+--- a/environments-and-versions/introduction.mdx
++++ b/environments-and-versions/introduction.mdx
+@@ -22,6 +22,45 @@ Test agent changes before they reach live callers. Draft → Sandbox → Pre-rel
+ **Saving is not the same as going live.** Saved changes are drafts. Drafts must be **published** to Sandbox, then **promoted** through Pre-release to Live. Unpublished changes don't appear in any environment.
+ </Warning>
+ 
++<Info>
++**Prefer to script this?** The [Agents API](/api-reference/agents/introduction) exposes the same deployment pipeline — [publish](/api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment), [promote](/api-reference/agents/endpoint/deployments/promote-a-deployment-to-the-next-environment), and [rollback](/api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment) — so you can wire deployments into CI or your own tooling.
++
++<CodeGroup>
++```bash curl
++# Publish the current draft to sandbox
++curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/deployments/publish \
++  -H "x-api-key: $POLYAI_API_KEY" \
++  -H "Content-Type: application/json" \
++  -d '{ "environment": "sandbox" }'
++
++# Promote a sandbox deployment to pre-release
++curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/deployments/DEPLOYMENT_ID/promote \
++  -H "x-api-key: $POLYAI_API_KEY"
++```
++
++```python Python
++import os, requests
++
++BASE = "https://api.us.poly.ai"
++HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
++
++# Publish the current draft to sandbox
++resp = requests.post(
++    f"{BASE}/v1/agents/{AGENT_ID}/deployments/publish",
++    headers=HEADERS,
++    json={"environment": "sandbox"},
++)
++deployment_id = resp.json()["id"]
++
++# Promote to pre-release once sandbox checks pass
++requests.post(
++    f"{BASE}/v1/agents/{AGENT_ID}/deployments/{deployment_id}/promote",
++    headers=HEADERS,
++)
++```
++</CodeGroup>
++</Info>
++
+ ```mermaid
+ stateDiagram-v2
+     [*] --> Draft: Make changes
+diff --git a/managed-topics/introduction.mdx b/managed-topics/introduction.mdx
+index 84d15df..cf51e01 100644
+--- a/managed-topics/introduction.mdx
++++ b/managed-topics/introduction.mdx
+@@ -16,6 +16,43 @@ Managed Topics define what your agent knows and how it responds. Each topic has
+ 
+ Managed Topics are found under **Build > Knowledge > Managed Topics tab**.
+ 
++<Info>
++**Seeding topics from an existing knowledge base?** The [Agents API](/api-reference/agents/introduction) exposes CRUD for knowledge base topics, so you can bulk-create, update, or sync from an external CMS.
++
++<CodeGroup>
++```bash curl
++# Create a knowledge base topic on the main branch
++curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/knowledge-base/topics \
++  -H "x-api-key: $POLYAI_API_KEY" \
++  -H "Content-Type: application/json" \
++  -d '{
++    "name": "Password reset",
++    "sampleQuestions": ["How do I reset my password?", "I forgot my password"],
++    "content": "To reset your password, visit the account portal..."
++  }'
++```
++
++```python Python
++import os, requests
++
++BASE = "https://api.us.poly.ai"
++HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
++
++# Sync all FAQ entries from your CMS into PolyAI topics
++for faq in cms.list_faqs():
++    requests.post(
++        f"{BASE}/v1/agents/{AGENT_ID}/branches/main/knowledge-base/topics",
++        headers=HEADERS,
++        json={
++            "name": faq["title"],
++            "sampleQuestions": faq["variants"],
++            "content": faq["answer"],
++        },
++    )
++```
++</CodeGroup>
++</Info>
++
+ <Note>
+ **Use Managed Topics when** you need precise control over what the agent says, or when the answer should trigger an action (SMS, handoff, tool call). **Use [Connected Knowledge](/connected-knowledge/introduction) instead** when you want to expose large volumes of external content (help articles, PDFs, FAQs) without curating individual topics.
+ </Note>
+diff --git a/telephony/how-to-buy-number.mdx b/telephony/how-to-buy-number.mdx
+index a13f85d..7106f2d 100644
+--- a/telephony/how-to-buy-number.mdx
++++ b/telephony/how-to-buy-number.mdx
+@@ -10,6 +10,10 @@ keywords:
+ 
+ You can purchase a phone number directly from PolyAI without needing a third-party telephony provider like Twilio. PolyAI-provisioned numbers are preconfigured to route calls to your agent immediately.
+ 
++<Info>
++Managing many numbers? The [Agents API](/api-reference/agents/introduction) exposes bulk [import](/api-reference/agents/endpoint/phone-numbers/import-phone-numbers-into-a-project), [get](/api-reference/agents/endpoint/phone-numbers/batch-get-phone-numbers), and [reassign](/api-reference/agents/endpoint/phone-numbers/reassign-a-phone-number-to-a-different-connector) operations.
++</Info>
++
+ ## Purchase a number
+ 
+ <Steps>
+diff --git a/telephony/introduction.mdx b/telephony/introduction.mdx
+index d07a2fd..d3def8d 100644
+--- a/telephony/introduction.mdx
++++ b/telephony/introduction.mdx
+@@ -24,6 +24,41 @@ Connect phone numbers to your agent. Manage in **Configure > Numbers**.
+ You can also connect through other contact center platforms like [Genesys](/integrations/voice/sip/genesys), [Five9](/integrations/voice/sip/five9), or [NICE CXone](/integrations/voice/sip/NICECXone) with SIP. See [Integrations](/integrations/introduction) for the full list.
+ </Note>
+ 
++<Info>
++**Provisioning numbers at scale?** The [Agents API](/api-reference/agents/introduction) covers phone numbers and connectors. Connectors bind phone numbers to voice infrastructure; phone numbers are E.164 strings routed through a connector. See [Connectors](/api-reference/agents/endpoint/connectors/list-all-connectors-for-a-project) and [Phone numbers](/api-reference/agents/endpoint/phone-numbers/list-all-phone-numbers-for-a-project).
++
++<CodeGroup>
++```bash curl
++# Import a phone number onto an existing connector
++curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/telephony/phone-numbers/+442071234567 \
++  -H "x-api-key: $POLYAI_API_KEY" \
++  -H "Content-Type: application/json" \
++  -d '{ "connectorId": "conn_abc123" }'
++
++# Reassign a number to a different connector (e.g. to move to a new variant)
++curl -X PATCH https://api.us.poly.ai/v1/agents/AGENT_ID/telephony/phone-numbers/+442071234567 \
++  -H "x-api-key: $POLYAI_API_KEY" \
++  -H "Content-Type: application/json" \
++  -d '{ "connectorId": "conn_new456" }'
++```
++
++```python Python
++import os, requests
++
++BASE = "https://api.us.poly.ai"
++HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
++
++# Look up which connector serves a given number
++resp = requests.post(
++    f"{BASE}/v1/agents/{AGENT_ID}/telephony/connectors/lookup",
++    headers=HEADERS,
++    json={"phoneNumber": "+442071234567"},
++)
++connector = resp.json()
++```
++</CodeGroup>
++</Info>
++
+ ## Integration options
+ 
+ <CardGroup cols={2}>
+diff --git a/variant-management/introduction.mdx b/variant-management/introduction.mdx
+index b452c31..2b428d0 100644
+--- a/variant-management/introduction.mdx
++++ b/variant-management/introduction.mdx
+@@ -29,6 +29,55 @@ Variant management is found under **Build > Variant management** in Agent Studio
+ 
+ To bulk update or create variants, use the [CSV import guide](/variant-management/csv-imports).
+ 
++<Info>
++**Managing variants programmatically?** The [Agents API](/api-reference/agents/introduction) exposes full CRUD for [attributes](/api-reference/agents/endpoint/variants/list-attributes) (the dimensions) and [variants](/api-reference/agents/endpoint/variants/list-variants) (the per-site combinations), so you can sync a live locations database into PolyAI without manual edits.
++
++<CodeGroup>
++```bash curl
++# Create an attribute (a variant dimension)
++curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/attributes \
++  -H "x-api-key: $POLYAI_API_KEY" \
++  -H "Content-Type: application/json" \
++  -d '{ "name": "location_id" }'
++
++# Create a variant with attribute values
++curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/variants \
++  -H "x-api-key: $POLYAI_API_KEY" \
++  -H "Content-Type: application/json" \
++  -d '{
++    "name": "London Flagship",
++    "attributes": {
++      "location_id": "LON-01",
++      "address": "12 Regent Street",
++      "hours": "9am - 10pm"
++    }
++  }'
++```
++
++```python Python
++import os, requests
++
++BASE = "https://api.us.poly.ai"
++HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
++
++# Sync many sites in one pass
++for site in load_locations_from_crm():
++    requests.post(
++        f"{BASE}/v1/agents/{AGENT_ID}/branches/main/variants",
++        headers=HEADERS,
++        json={
++            "name": site["name"],
++            "attributes": {
++                "location_id": site["id"],
++                "address": site["address"],
++                "hours": site["hours"],
++            },
++        },
++    )
++```
++</CodeGroup>
++</Info>
++
+ ## Key capabilities
+ 
+ ### Multi-site configurations
+-- 
+2.34.1
+
