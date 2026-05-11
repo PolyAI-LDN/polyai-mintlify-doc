@@ -161,12 +161,21 @@
           {
             "name": "offset",
             "in": "query",
-            "description": "Offset within result set to fetch.",
+            "description": "Offset within result set to fetch. Prefer `cursor` for paginating through large result sets — offset-based pagination becomes progressively slower at scale and may drift when conversations are written concurrently.",
             "required": false,
             "schema": {
               "type": "integer",
               "minimum": 0,
               "default": 0
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque cursor for keyset pagination. Omit on the first request, then pass the `cursor` value returned by the previous response to fetch the next page. Cursors are URL-safe, encode the position within the result set, and remain stable as new conversations are written. Mutually preferable to `offset` for paginating through large result sets. Returns a 400 if the cursor value is malformed.",
+            "required": false,
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -234,7 +243,12 @@
                     },
                     "next_offset": {
                       "type": "integer",
-                      "description": "If present, the result is being paginated and requires another API call to fetch the next portion (pass the provided `next_offset` as the `offset` param for the next API call)."
+                      "description": "If present, the result is being paginated and requires another API call to fetch the next portion (pass the provided `next_offset` as the `offset` param for the next API call). For new integrations, prefer the `cursor` field for faster, drift-free pagination."
+                    },
+                    "cursor": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor pointing to the start of the next page. Pass this value as the `cursor` query parameter on the next request to fetch the following page. `null` when there are no more pages."
                     }
                   }
                 }
