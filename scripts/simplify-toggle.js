@@ -1,16 +1,16 @@
 (function () {
-  // ── Open Platform mode toggle ─────────────────────────────────────────────
-  // Persistent "Open Platform mode" view backed by localStorage. Once on, it
+  // ── Open platform mode toggle ─────────────────────────────────────────────
+  // Persistent "Open platform mode" view backed by localStorage. Once on, it
   // stays on across page loads and sessions until the user clicks
-  // "Exit Open Platform mode" via the floating pill or the landing page button.
+  // "Exit Open platform mode" via the floating pill or the landing page button.
   //
   // CSS class names and DOM ids keep their legacy "free-trial-enterprise-banner"
   // tokens so the styles.css selectors continue to match; only the visible
-  // labels read as "Open Platform" externally.
+  // labels read as "Open platform" externally.
   //
-  // In Open Platform mode:
+  // In Open platform mode:
   //  - Sidebar entries for enterprise/developer content are visually dimmed
-  //    so the user can see at a glance what's part of the Open Platform and
+  //    so the user can see at a glance what's part of the Open platform and
   //    what isn't — but they remain fully clickable. No inline "Enterprise"
   //    pill; the dim state alone is the signal.
   //  - When the user lands on an enterprise/developer page (via sidebar,
@@ -29,10 +29,10 @@
   var POSITION_KEY = 'polyai-simplified-pill-position';
   var DRAG_THRESHOLD = 4; // px — movement before we treat a pointerdown as a drag
 
-  // Sidebar group names to dim in Open Platform mode.
+  // Sidebar group names to dim in Open platform mode.
   var ENTERPRISE_GROUPS = ['Developer tools', 'Secrets', 'Code-driven flows'];
 
-  // Collapsed sub-group button labels to dim in Open Platform mode.
+  // Collapsed sub-group button labels to dim in Open platform mode.
   //
   // Derived from the live PLG sidebar component in platform_ui:
   //   apps/jupiter/src/components/organisms/ProjectSidebar/index.tsx (PlgContent)
@@ -48,7 +48,7 @@
   //  - SMS, Call handoffs, Flows — intro pages are visible with developer
   //    content behind an accordion; Flows contains a No-code sub-group that
   //    must stay visible.
-  //  - Tools, Knowledge — both are part of the Open Platform Build sidebar
+  //  - Tools, Knowledge — both are part of the Open platform Build sidebar
   //    (BuildSection.tsx renders these even when isPlgProd is true); custom
   //    Python tools and managed-topic knowledge bases are first-class
   //    self-serve features.
@@ -87,13 +87,13 @@
   var HIDDEN_TABS = ['Developer', 'API reference', 'Advanced'];
 
   // Path prefixes for "enterprise/developer" pages. Visiting one in
-  // Open Platform mode shows the page with the content greyed out behind a
+  // Open platform mode shows the page with the content greyed out behind a
   // sticky banner.
   // Note: /extend/, /secrets/, /tools/, /studio-assistant/, and
   // /managed-topics/ are intentionally NOT in this list — the ADK, personal
   // access tokens, the Secrets Vault, custom Python tools/functions, Studio
   // Assistant, and managed-topic knowledge bases are all available to
-  // Open Platform users. Specific sub-pages that are enterprise-only
+  // Open platform users. Specific sub-pages that are enterprise-only
   // (e.g. /secrets/api-keys) are listed in ENTERPRISE_EXACT below.
   var ENTERPRISE_PREFIXES = [
     // Build — enterprise-only sub-groups
@@ -110,19 +110,19 @@
     '/api-reference/', '/api/',
     '/analytics/csat/',
     '/user-management/',
-    // Analytics — services not deployed on the Open Platform cluster
+    // Analytics — services not deployed on the Open platform cluster
     '/smart-analyst/',
     '/agent-analysis/'
   ];
   var ENTERPRISE_EXACT = [
     '/call-data/s3-to-s3',
-    // Workspace-scoped API keys are enterprise-only — Open Platform users use
+    // Workspace-scoped API keys are enterprise-only — Open platform users use
     // personal access tokens (/secrets/personal-access-tokens) instead.
     '/secrets/api-keys',
     // PolyScore is a single page; the underlying scoring service isn't
-    // deployed on the Open Platform cluster.
+    // deployed on the Open platform cluster.
     '/analytics/polyscore',
-    // Dashboards: only the standard dashboard is part of the Open Platform
+    // Dashboards: only the standard dashboard is part of the Open platform
     // (per the PLG_ANALYTICS_DASHBOARD branch in PlgContent). The custom-
     // dashboard builder and the safety dashboard are enterprise-only.
     '/analytics/dashboards/custom',
@@ -158,7 +158,7 @@
     '/integrations/snapcall'
   ];
 
-  // These intro pages are "mixed" — they appear in Open Platform mode with
+  // These intro pages are "mixed" — they appear in Open platform mode with
   // developer content tucked behind an accordion. They must NOT trigger the
   // enterprise banner/greyout.
   var SIMPLIFIED_INTROS = ['/call-handoff/introduction', '/sms/introduction', '/flows/introduction'];
@@ -209,11 +209,11 @@
   function updateButton(btn, simplified) {
     btn.setAttribute('aria-pressed', simplified);
     btn.title = simplified
-      ? 'Exit Open Platform mode (show all docs)'
-      : 'Enter Open Platform mode (lock enterprise pages behind a banner)';
+      ? 'Exit Open platform mode (show all docs)'
+      : 'Enter Open platform mode (lock enterprise pages behind a banner)';
     btn.innerHTML = simplified
-      ? '<span class="simplify-toggle__icon">✦</span><span class="simplify-toggle__label">Open Platform — exit</span>'
-      : '<span class="simplify-toggle__icon">✦</span><span class="simplify-toggle__label">Open Platform</span>';
+      ? '<span class="simplify-toggle__icon">✦</span><span class="simplify-toggle__label">Open platform — exit</span>'
+      : '<span class="simplify-toggle__icon">✦</span><span class="simplify-toggle__label">Open platform</span>';
     btn.classList.toggle('simplify-toggle--active', !!simplified);
   }
 
@@ -296,7 +296,7 @@
   }
 
   // Inject a sticky upsell banner at the top of an enterprise page when the
-  // user is in Open Platform mode. Sets data-on-enterprise-page on <html> so the
+  // user is in Open platform mode. Sets data-on-enterprise-page on <html> so the
   // stylesheet can grey out and disable pointer events on everything in the
   // main content area except the banner itself. Idempotent — won't double-
   // insert across SPA navs.
@@ -323,11 +323,11 @@
       '<div class="free-trial-enterprise-banner__body">' +
         '<p class="free-trial-enterprise-banner__title"><strong>This is an Enterprise feature.</strong></p>' +
         '<p class="free-trial-enterprise-banner__text">' +
-          'You’re viewing the docs in <strong>Open Platform mode</strong>. This page is documented in full so you can plan for it, but the feature isn’t available on the Open Platform self-serve plan.' +
+          'You’re viewing the docs in <strong>Open platform mode</strong>. This page is documented in full so you can plan for it, but the feature isn’t available on the Open platform self-serve plan.' +
         '</p>' +
         '<p class="free-trial-enterprise-banner__actions">' +
           '<a href="https://poly.ai/request-a-demo" class="free-trial-enterprise-banner__cta" target="_blank" rel="noopener">Talk to sales</a>' +
-          '<button type="button" class="free-trial-enterprise-banner__exit" id="free-trial-enterprise-banner-exit">Exit Open Platform mode</button>' +
+          '<button type="button" class="free-trial-enterprise-banner__exit" id="free-trial-enterprise-banner-exit">Exit Open platform mode</button>' +
         '</p>' +
       '</div>';
 
@@ -358,7 +358,7 @@
     }
   }
 
-  // Wrap .developer-only sections in a <details> accordion in Open Platform mode.
+  // Wrap .developer-only sections in a <details> accordion in Open platform mode.
   // Unwrap them in full-docs mode.
   function applyDeveloperContent() {
     var simplified = document.documentElement.dataset.simplified === 'true';
@@ -429,7 +429,7 @@
   // The pill lives at a fixed top-right position by default. Users can drag
   // it anywhere in the viewport; the position is stored in localStorage and
   // restored on reload. A small movement threshold ensures a plain click still
-  // toggles Open Platform mode without being swallowed by the drag handler.
+  // toggles Open platform mode without being swallowed by the drag handler.
 
   function readStoredPosition() {
     try {
@@ -561,7 +561,7 @@
   }
 
   // Wires up the explicit Enter / Exit buttons on the /platform/open-platform
-  // landing page. Shows a confirmation panel once the user is in Open Platform mode.
+  // landing page. Shows a confirmation panel once the user is in Open platform mode.
   function updateLandingPageStatus() {
     var active = document.documentElement.dataset.simplified === 'true';
     var status = document.getElementById('simplified-mode-status');
@@ -580,7 +580,7 @@
       enter.addEventListener('click', function (e) {
         e.preventDefault();
         writeStoredPreference(true);
-        // Land on the home page in Open Platform mode so the user sees the
+        // Land on the home page in Open platform mode so the user sees the
         // filtered experience immediately.
         window.location.href = '/?view=simplified';
       });
@@ -649,7 +649,7 @@
       try {
         var u = new URL(url, window.location.origin);
         // Always preserve the flag — even on enterprise pages, since the user
-        // stays in Open Platform mode and just sees the upsell banner.
+        // stays in Open platform mode and just sees the upsell banner.
         u.searchParams.set('view', 'simplified');
         url = u.pathname + u.search + u.hash;
       } catch (e) {}
