@@ -1,12 +1,16 @@
 (function () {
-  // ── Free trial mode toggle ────────────────────────────────────────────────
-  // Persistent "Free trial mode" view backed by localStorage. Once on, it stays
-  // on across page loads and sessions until the user clicks "Exit free trial
-  // mode" via the floating pill or the landing page button.
+  // ── Open Platform mode toggle ─────────────────────────────────────────────
+  // Persistent "Open Platform mode" view backed by localStorage. Once on, it
+  // stays on across page loads and sessions until the user clicks
+  // "Exit Open Platform mode" via the floating pill or the landing page button.
   //
-  // In free trial mode:
+  // CSS class names and DOM ids keep their legacy "free-trial-enterprise-banner"
+  // tokens so the styles.css selectors continue to match; only the visible
+  // labels read as "Open Platform" externally.
+  //
+  // In Open Platform mode:
   //  - Sidebar entries for enterprise/developer content are visually dimmed
-  //    so the user can see at a glance what's part of the free trial and
+  //    so the user can see at a glance what's part of the Open Platform and
   //    what isn't — but they remain fully clickable. No inline "Enterprise"
   //    pill; the dim state alone is the signal.
   //  - When the user lands on an enterprise/developer page (via sidebar,
@@ -25,10 +29,10 @@
   var POSITION_KEY = 'polyai-simplified-pill-position';
   var DRAG_THRESHOLD = 4; // px — movement before we treat a pointerdown as a drag
 
-  // Sidebar group names to dim in free trial mode.
+  // Sidebar group names to dim in Open Platform mode.
   var ENTERPRISE_GROUPS = ['Developer tools', 'Secrets', 'Code-driven flows'];
 
-  // Collapsed sub-group button labels to dim in free trial mode.
+  // Collapsed sub-group button labels to dim in Open Platform mode.
   //
   // Intentionally excluded:
   //  - SMS, Call handoffs, Flows — intro pages are visible with developer
@@ -59,13 +63,14 @@
   // Top-nav tab labels — these stay hidden (a greyed-out tab looks broken).
   var HIDDEN_TABS = ['Developer', 'API reference', 'Advanced'];
 
-  // Path prefixes for "enterprise/developer" pages. Visiting one in free trial
-  // mode shows the page with the content greyed out behind a sticky banner.
+  // Path prefixes for "enterprise/developer" pages. Visiting one in
+  // Open Platform mode shows the page with the content greyed out behind a
+  // sticky banner.
   // Note: /extend/, /secrets/, /tools/, /studio-assistant/, and
   // /managed-topics/ are intentionally NOT in this list — the ADK, personal
   // access tokens, the Secrets Vault, custom Python tools/functions, Studio
   // Assistant, and managed-topic knowledge bases are all available to
-  // free-trial users. Specific sub-pages that are enterprise-only
+  // Open Platform users. Specific sub-pages that are enterprise-only
   // (e.g. /secrets/api-keys) are listed in ENTERPRISE_EXACT below.
   var ENTERPRISE_PREFIXES = [
     '/configuration-builder/',
@@ -80,7 +85,7 @@
   ];
   var ENTERPRISE_EXACT = [
     '/call-data/s3-to-s3',
-    // Workspace-scoped API keys are enterprise-only — free-trial users use
+    // Workspace-scoped API keys are enterprise-only — Open Platform users use
     // personal access tokens (/secrets/personal-access-tokens) instead.
     '/secrets/api-keys',
     // PolyScore is a single page; the underlying scoring service isn't
@@ -117,7 +122,7 @@
     '/integrations/snapcall'
   ];
 
-  // These intro pages are "mixed" — they appear in free trial mode with
+  // These intro pages are "mixed" — they appear in Open Platform mode with
   // developer content tucked behind an accordion. They must NOT trigger the
   // enterprise banner/greyout.
   var SIMPLIFIED_INTROS = ['/call-handoff/introduction', '/sms/introduction', '/flows/introduction'];
@@ -168,11 +173,11 @@
   function updateButton(btn, simplified) {
     btn.setAttribute('aria-pressed', simplified);
     btn.title = simplified
-      ? 'Exit free trial mode (show all docs)'
-      : 'Enter free trial mode (lock enterprise pages behind a banner)';
+      ? 'Exit Open Platform mode (show all docs)'
+      : 'Enter Open Platform mode (lock enterprise pages behind a banner)';
     btn.innerHTML = simplified
-      ? '<span class="simplify-toggle__icon">✦</span><span class="simplify-toggle__label">Free trial — exit</span>'
-      : '<span class="simplify-toggle__icon">✦</span><span class="simplify-toggle__label">Free trial mode</span>';
+      ? '<span class="simplify-toggle__icon">✦</span><span class="simplify-toggle__label">Open Platform — exit</span>'
+      : '<span class="simplify-toggle__icon">✦</span><span class="simplify-toggle__label">Open Platform</span>';
     btn.classList.toggle('simplify-toggle--active', !!simplified);
   }
 
@@ -255,7 +260,7 @@
   }
 
   // Inject a sticky upsell banner at the top of an enterprise page when the
-  // user is in free trial mode. Sets data-on-enterprise-page on <html> so the
+  // user is in Open Platform mode. Sets data-on-enterprise-page on <html> so the
   // stylesheet can grey out and disable pointer events on everything in the
   // main content area except the banner itself. Idempotent — won't double-
   // insert across SPA navs.
@@ -282,11 +287,11 @@
       '<div class="free-trial-enterprise-banner__body">' +
         '<p class="free-trial-enterprise-banner__title"><strong>This is an Enterprise feature.</strong></p>' +
         '<p class="free-trial-enterprise-banner__text">' +
-          'You’re viewing the docs in <strong>free trial mode</strong>. This page is documented in full so you can plan for it, but the feature isn’t available on the self-serve free trial.' +
+          'You’re viewing the docs in <strong>Open Platform mode</strong>. This page is documented in full so you can plan for it, but the feature isn’t available on the Open Platform self-serve plan.' +
         '</p>' +
         '<p class="free-trial-enterprise-banner__actions">' +
           '<a href="https://poly.ai/request-a-demo" class="free-trial-enterprise-banner__cta" target="_blank" rel="noopener">Talk to sales</a>' +
-          '<button type="button" class="free-trial-enterprise-banner__exit" id="free-trial-enterprise-banner-exit">Exit free trial mode</button>' +
+          '<button type="button" class="free-trial-enterprise-banner__exit" id="free-trial-enterprise-banner-exit">Exit Open Platform mode</button>' +
         '</p>' +
       '</div>';
 
@@ -317,7 +322,7 @@
     }
   }
 
-  // Wrap .developer-only sections in a <details> accordion in free trial mode.
+  // Wrap .developer-only sections in a <details> accordion in Open Platform mode.
   // Unwrap them in full-docs mode.
   function applyDeveloperContent() {
     var simplified = document.documentElement.dataset.simplified === 'true';
@@ -388,7 +393,7 @@
   // The pill lives at a fixed top-right position by default. Users can drag
   // it anywhere in the viewport; the position is stored in localStorage and
   // restored on reload. A small movement threshold ensures a plain click still
-  // toggles free trial mode without being swallowed by the drag handler.
+  // toggles Open Platform mode without being swallowed by the drag handler.
 
   function readStoredPosition() {
     try {
@@ -519,8 +524,8 @@
     applyStoredPosition(btn);
   }
 
-  // Wires up the explicit Enter / Exit buttons on the /platform/free-trial-mode
-  // landing page. Shows a confirmation panel once the user is in free trial mode.
+  // Wires up the explicit Enter / Exit buttons on the /platform/open-platform
+  // landing page. Shows a confirmation panel once the user is in Open Platform mode.
   function updateLandingPageStatus() {
     var active = document.documentElement.dataset.simplified === 'true';
     var status = document.getElementById('simplified-mode-status');
@@ -539,7 +544,7 @@
       enter.addEventListener('click', function (e) {
         e.preventDefault();
         writeStoredPreference(true);
-        // Land on the home page in free trial mode so the user sees the
+        // Land on the home page in Open Platform mode so the user sees the
         // filtered experience immediately.
         window.location.href = '/?view=simplified';
       });
@@ -608,7 +613,7 @@
       try {
         var u = new URL(url, window.location.origin);
         // Always preserve the flag — even on enterprise pages, since the user
-        // stays in free trial mode and just sees the upsell banner.
+        // stays in Open Platform mode and just sees the upsell banner.
         u.searchParams.set('view', 'simplified');
         url = u.pathname + u.search + u.hash;
       } catch (e) {}
