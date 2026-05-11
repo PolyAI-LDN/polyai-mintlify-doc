@@ -22,47 +22,79 @@ For end-to-end QA workflows, see [QA and analytics](/learn/maintain/qa-analytics
 
 ## How the page is organized
 
-The Conversations page has three layers: **channel scopes** at the top, your **saved views** below them, and the **conversations table** that opens an integrated **review side panel** when you select a row.
+The page has three layers: **channel scopes** at the top, your **views** below them, and the **conversations table** that opens an integrated **review side panel** when you select a row.
 
 ### Voice and webchat scopes
 
-Conversations are organized by channel. Switch scopes from the tabs at the top of the page:
+Conversations are split by channel. Switch between them using the navigation in the sidebar under **Analytics > Conversations**:
 
 - **Voice** – calls placed through the voice channel
-- **Webchat** – sessions on the [webchat](/webchat/introduction) channel
+- **Web chat** – sessions on the [webchat](/webchat/introduction) channel
 
-Each scope has its own default columns (webchat hides voice-only fields like direction, outbound call status, and CSAT) and its own set of saved views, so you can keep voice and webchat workflows completely separate.
+Each scope has its own column layout (webchat hides voice-only fields), its own set of views, and its own default view, so you can keep voice and webchat workflows completely separate.
 
 ### Views
 
 Each scope opens on a built-in **System View** by default:
 
-- **Production** – live conversations only
+- **Production** – live environment conversations only
 - **Test** – sandbox, draft, and pre-release conversations
 
 System Views can't be renamed or deleted. To save your own filter and column combinations as pinned tabs, use [Views](/analytics/conversations/views).
 
 ### Conversations table
 
-Each row in the table is one conversation. Columns are configurable per view and typically include contact, summary, duration, [PolyScore](/analytics/polyscore), environment, and version.
+Each row in the table is one conversation. Columns are configurable per view. Default visible columns are **Start time** (always visible), **Contact**, **Summary**, **Duration**, and **PolyScore**. Additional columns are hidden by default and can be shown from the **Columns** panel.
 
 - **Live calls** appear at the top with a duration indicator and update automatically as new turns arrive.
-- **Sort** any sortable column ascending or descending.
+- **Sort** any sortable column by clicking its header.
 - **Select rows** to create a [test case](/analytics/test-suite/introduction) batch from the toolbar.
 - **Click a row** to open the conversation in the review side panel without leaving the table.
 
 ### Review side panel
 
-Selecting a conversation opens a side panel with four tabs:
+Clicking a conversation row opens the **Conversation Review** side panel. The panel header shows the contact's email address or phone number, the conversation start time, the channel type, and the detected language — for example: `user@example.com • 28 Apr 14:59 • Agent chat • English (UK)`.
+
+The panel has four tabs:
 
 | Tab | What you see |
 |---|---|
-| **Transcription** | Turn-by-turn transcript, audio waveform (voice), matched topics, retrieved sources, intents, user-perceived latency, and the **Diagnosis** toggle group |
+| **Transcription** | Turn-by-turn transcript, audio waveform (voice only), matched topics, retrieved sources, and the **Diagnosis** toggle group |
 | **Scores** | [PolyScore](/analytics/polyscore) and [CSAT](/analytics/csat/introduction) badges with per-dimension breakdowns |
-| **Details** | Call info (status, environment, version), pre-built metrics (handoff reason and target, function call, SMS events, A/B group, group ID, QA), and quick links to latency visualization, data logs, and outbound calls |
+| **Details** | Call info (status, environment, version), pre-built metrics (handoff target and reason, function calls, SMS events, A/B group, group ID, QA), and quick links to latency visualization, data logs, and outbound calls |
 | **Custom metrics** | Searchable, sortable list of any [custom metrics](/settings/metrics) configured for the project |
 
-Use **Copy Call SID** in the panel header to share a deep link to the conversation. Press **Esc** or click the close icon to dismiss the panel and return to the table.
+Use the **link icon** next to "Conversation Review" in the panel header to copy a deep link to the conversation. Press **Esc** or click the close icon to dismiss the panel and return to the table.
+
+<Note>
+Webchat sessions do not have AI-generated voice summaries. Panels for webchat conversations display a "No summary due to conversation being via chat" notice where the summary would appear.
+</Note>
+
+## Columns
+
+Click **Column** in the table toolbar to open the Columns panel. It has two tabs:
+
+- **Visibility** – toggle individual columns on or off. **Start time** is always visible and cannot be hidden. All other columns can be shown or hidden. Columns are grouped under **Pre-built metrics**, which includes: Contact, PolyScore, Summary, Duration, Language, Call SID, Variant, QA, Handoff To, A/B Group, and Environment.
+- **Order** – drag columns into your preferred display order. Start time is locked as the first column.
+
+Changes apply to the active view only. You can save a view after adjusting columns to make the layout persistent.
+
+## Filters
+
+Click **Filter** to open the filter builder. You can add up to **10 filters** per view. Available filter types include:
+
+- **Start date** – date range picker (with timezone offset shown)
+- **PolyScore** – numeric comparison (less than, greater than, equals)
+- **Duration** – time-based comparison (more than, less than), set in hours, minutes, and seconds
+- **Environment** – include or exclude specific environments
+- **Function calls** – filter by whether any function ran, or by a specific function name (supports *exists*, *equals*, *contains*)
+- **SMS events** – filter by whether any SMS was sent, or by a specific SMS event name (supports *exists*, *equals*, *contains*)
+
+Active filters appear as chips above the table. Each chip shows a short summary of the condition (for example, **PolyScore < 5**, **Duration > 1m 0s**). Click the **×** on a chip to remove that filter.
+
+<Tip>
+Combine PolyScore and Duration filters to build a focused QA queue – for example, low-scoring calls that ran longer than a minute.
+</Tip>
 
 ## Caller identity and PII
 
@@ -94,30 +126,11 @@ Save a [view](/analytics/conversations/views) filtered by low PolyScore to build
 
 ## Conversation status
 
-The end of every conversation is visually marked (e.g. **"Ended conversation"**). Live calls show an **"In progress"** badge until they close automatically.
+The end of every conversation is visually marked with an **"Ended conversation"** indicator. Live calls show an **"In progress"** badge until they close automatically.
 
 ## Default filters
 
-Each scope opens on the **Production** System View. If you are working in Sandbox or have not yet deployed to production, switch to **Test**, or save a Custom View with your preferred filters and **set it as default**.
-
-## Filter by call activity
-
-In addition to metadata and time-based filters, you can narrow the conversations list by what happened during each call:
-
-- **Function calls** – find conversations where the agent invoked a [tool](/tools/introduction). Filter by whether any function ran, or by a specific function name.
-- **SMS events** – find conversations where the agent sent an [SMS](/sms/introduction). Filter by whether any SMS was sent, or by a specific SMS event name.
-
-Each filter supports the following operators:
-
-| Operator | Behavior |
-|----------|----------|
-| **exists** | Match conversations that did (or did not) include the activity. |
-| **equals** | Match conversations that include an exact function or SMS event name. |
-| **contains** | Match conversations where the function or SMS event name contains the given substring. |
-
-<Tip>
-Combine these filters with PolyScore or category tags to focus QA on calls that triggered a specific tool or SMS flow – for example, low-scoring calls where the booking confirmation SMS was sent.
-</Tip>
+Each scope opens on the **Production** System View. If you are working in Sandbox or have not yet deployed to production, switch to the **Test** System View, or save a Custom View with your preferred filters and set it as your default.
 
 ## Data retention
 
@@ -129,7 +142,7 @@ Transcripts older than **90 days** are automatically removed in line with PII re
 
 <CardGroup cols={3}>
   <Card title="Views" icon="layer-group" href="/analytics/conversations/views">
-    Save filter and column combinations as pinned tabs and share them across your team.
+    Save filter and column combinations as pinned tabs.
   </Card>
   <Card title="Diagnosis" icon="stethoscope" href="/analytics/conversations/diagnosis">
     Inspect tool calls, flows, latency, and topic citations for a specific turn.
