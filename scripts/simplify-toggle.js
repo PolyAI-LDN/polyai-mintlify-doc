@@ -34,30 +34,53 @@
 
   // Collapsed sub-group button labels to dim in Open Platform mode.
   //
+  // Derived from the live PLG sidebar component in platform_ui:
+  //   apps/jupiter/src/components/organisms/ProjectSidebar/index.tsx (PlgContent)
+  //   apps/jupiter/src/components/organisms/ProjectNavigation/components/{Build,Settings,Analytics}Section.tsx
+  // The actual PLG sidebar renders:
+  //   Home · Analytics (= standard Dashboard only) · Conversations ·
+  //   Build {Agent, Knowledge, Flows, Tools} ·
+  //   Configure {General, Agent voice, PolyPhone, Numbers, Integrations} ·
+  //   Operations (= Environments).
+  // Everything not in that list is dimmed in the docs sidebar below.
+  //
   // Intentionally excluded:
   //  - SMS, Call handoffs, Flows — intro pages are visible with developer
   //    content behind an accordion; Flows contains a No-code sub-group that
   //    must stay visible.
   //  - Tools, Knowledge — both are part of the Open Platform Build sidebar
-  //    (per platform_ui tier-rules); custom Python tools and managed-topic
-  //    knowledge bases are first-class self-serve features.
+  //    (BuildSection.tsx renders these even when isPlgProd is true); custom
+  //    Python tools and managed-topic knowledge bases are first-class
+  //    self-serve features.
+  //  - Conversations — surfaced as a top-level item in the PLG sidebar.
   var ENTERPRISE_SUBGROUPS = [
-    'Configuration builder',
-    'Speech recognition', 'Response control', 'Audio management',
+    // Build group — enterprise-only sub-groups (BuildSection.tsx gates these
+    // on !isPlgProd)
     'Variant management',
     'Test suite',
+    // Channels group — entirely absent from the PLG sidebar; voice settings
+    // move into Configure (Agent voice + PolyPhone).
+    'Chat', 'Widgets',
+    'Speech recognition', 'Response control', 'Audio management',
+    // Configure group — enterprise-only sub-groups (SettingsSection.tsx
+    // renders a stripped-down Configure for PLG with only General,
+    // Agent voice, PolyPhone, Numbers, Integrations).
     'APIs', 'API and export',
+    'Configuration builder',
+    'Metrics', 'Dashboards', 'CSAT',
+    'User management', 'API keys',
+    'Call data',
+    // Analytics group — only Conversations and the standard Dashboard appear
+    // in the PLG sidebar; everything else under Analytics is enterprise-only.
+    'Smart analyst', 'Agent analysis', 'PolyScore',
+    // PolyAcademy levels 2/3 are enterprise-tier training content.
     'PolyAcademy level 2', 'PolyAcademy level 3',
+    // Integration directories that only apply to enterprise managed services.
     'Managed services',
     'Amazon Connect',
     'CRM',
     'Hospitality',
-    'Healthcare',
-    // Analytics sub-groups gated behind enterprise on the Open Platform.
-    // Smart Analyst, Agent Analysis, and PolyScore stay visible in the nav
-    // but their underlying services aren't deployed on the PLG cluster
-    // at launch.
-    'Smart analyst', 'Agent analysis', 'PolyScore'
+    'Healthcare'
   ];
 
   // Top-nav tab labels — these stay hidden (a greyed-out tab looks broken).
@@ -73,13 +96,21 @@
   // Open Platform users. Specific sub-pages that are enterprise-only
   // (e.g. /secrets/api-keys) are listed in ENTERPRISE_EXACT below.
   var ENTERPRISE_PREFIXES = [
+    // Build — enterprise-only sub-groups
     '/configuration-builder/',
-    '/speech-recognition/', '/response-control/', '/audio-management/', '/variant-management/',
+    '/variant-management/',
+    '/analytics/test-suite/',
+    // Channels (entire group is absent from the PLG sidebar) — voice tuning
+    // pages, audio management, webchat, and widgets all land here
+    '/speech-recognition/', '/response-control/', '/audio-management/',
+    '/webchat/', '/widgets/',
+    // Configure — enterprise-only sub-groups
     '/telephony/twilio/',
     '/call-data/conversations-api/',
-    '/analytics/test-suite/',
     '/api-reference/', '/api/',
-    // Analytics features that aren't deployed on the Open Platform cluster.
+    '/analytics/csat/',
+    '/user-management/',
+    // Analytics — services not deployed on the Open Platform cluster
     '/smart-analyst/',
     '/agent-analysis/'
   ];
@@ -91,6 +122,11 @@
     // PolyScore is a single page; the underlying scoring service isn't
     // deployed on the Open Platform cluster.
     '/analytics/polyscore',
+    // Dashboards: only the standard dashboard is part of the Open Platform
+    // (per the PLG_ANALYTICS_DASHBOARD branch in PlgContent). The custom-
+    // dashboard builder and the safety dashboard are enterprise-only.
+    '/analytics/dashboards/custom',
+    '/analytics/dashboards/safety',
     // Code-driven flow pages — the no-code subdirectory stays visible.
     '/flows/triggering-flows',
     '/flows/example',
