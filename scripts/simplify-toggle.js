@@ -323,27 +323,29 @@
     });
   }
 
-  // Mark the global top-bar anchors (Home / Community / Blog from
+  // Mark the global anchors (Home / Community / Blog from
   // navigation.global.anchors in docs.json) for hiding in Open platform
   // mode, so the self-serve experience reads as a single-product surface
   // with no escape hatches into the broader docs / community.
+  //
+  // In the Maple theme these render at the top of the sidebar (not inside
+  // a <header> or top navbar), so we match by href pattern anywhere on the
+  // page and mark the link plus its enclosing <li>. The CSS rule is scoped
+  // to [data-simplified="true"], so marking links in body content is safe —
+  // they only hide for Open platform users.
   function markGlobalAnchors() {
-    // Mintlify renders global anchors as links inside the topbar. Selecting
-    // them defensively by href patterns from the docs.json so we don't
-    // accidentally hide other navbar links.
     var anchorHrefs = [
-      'https://docs.poly.ai/home',
+      'docs.poly.ai/home',
       'polyaijupiter-uki8686.slack.com',
       'poly.ai/resources'
     ];
     document.querySelectorAll('a[href]').forEach(function (a) {
-      // Only target links inside the top navbar / header region.
-      if (!a.closest('header, nav[role="navigation"]')) return;
       var href = a.getAttribute('href') || '';
       var match = anchorHrefs.some(function (frag) { return href.indexOf(frag) !== -1; });
-      if (match) {
-        a.dataset.openPlatformHidden = 'true';
-      }
+      if (!match) return;
+      a.dataset.openPlatformHidden = 'true';
+      var li = a.closest('li');
+      if (li) li.dataset.openPlatformHidden = 'true';
     });
   }
 
