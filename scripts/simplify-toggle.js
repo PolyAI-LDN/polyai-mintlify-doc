@@ -32,6 +32,19 @@
   // Sidebar group names to dim in Open platform mode.
   var ENTERPRISE_GROUPS = ['Developer tools', 'Secrets', 'Code-driven flows'];
 
+  // Sidebar groups that should render ONLY when Open platform mode is on,
+  // hidden completely otherwise. This is the dedicated "separate product"
+  // landing area — a curated path that becomes the entire sidebar for
+  // self-serve users so they don't see the rest of the enterprise IA.
+  // Marked with data-open-platform-only="true".
+  var OPEN_PLATFORM_ONLY_GROUPS = ['Open platform'];
+
+  // When Open platform mode is on, every sidebar group whose name is NOT in
+  // this list gets hidden. Keeping the list to just ['Open platform'] makes
+  // the experience a single focused group; add 'FAQ' / 'Glossary' here if we
+  // ever want to keep those visible to self-serve users.
+  var OPEN_PLATFORM_KEEP_GROUPS = ['Open platform'];
+
   // Collapsed sub-group button labels to dim in Open platform mode.
   //
   // Derived from the live PLG sidebar component in platform_ui:
@@ -236,6 +249,12 @@
       document.querySelectorAll('[data-simplified-enterprise="true"]').forEach(function (el) {
         delete el.dataset.simplifiedEnterprise;
       });
+      document.querySelectorAll('[data-open-platform-only="true"]').forEach(function (el) {
+        delete el.dataset.openPlatformOnly;
+      });
+      document.querySelectorAll('[data-open-platform-hidden="true"]').forEach(function (el) {
+        delete el.dataset.openPlatformHidden;
+      });
     }
     function hasMarkedAncestor(el) {
       var p = el.parentElement;
@@ -251,15 +270,30 @@
     clearAll();
 
     // 1. Top-level section headers — dim header + sibling list (which
-    //    cascades to every sub-page in the group).
+    //    cascades to every sub-page in the group). Also flag groups that
+    //    belong to the dedicated Open platform area (visible only when
+    //    Open platform mode is on) and groups that should be hidden when
+    //    Open platform mode is on.
     document.querySelectorAll('.sidebar-group-header').forEach(function (header) {
       var h5 = header.querySelector('h5');
       if (!h5) return;
       var name = h5.textContent.trim();
+      var sibling = header.nextElementSibling;
+
       if (ENTERPRISE_GROUPS.indexOf(name) !== -1) {
         header.dataset.simplifiedEnterprise = 'true';
-        var sibling = header.nextElementSibling;
         if (sibling) sibling.dataset.simplifiedEnterprise = 'true';
+      }
+
+      if (OPEN_PLATFORM_ONLY_GROUPS.indexOf(name) !== -1) {
+        // Hidden by default in styles.css; revealed inside [data-simplified="true"].
+        header.dataset.openPlatformOnly = 'true';
+        if (sibling) sibling.dataset.openPlatformOnly = 'true';
+      } else if (OPEN_PLATFORM_KEEP_GROUPS.indexOf(name) === -1) {
+        // Every other group gets hidden when Open platform mode is on, so
+        // the self-serve sidebar collapses down to just the dedicated area.
+        header.dataset.openPlatformHidden = 'true';
+        if (sibling) sibling.dataset.openPlatformHidden = 'true';
       }
     });
 
@@ -285,6 +319,30 @@
       var tagEl = li.querySelector('[data-nav-tag="Code"], [data-nav-tag="Advanced"]');
       if (pathMatch || tagEl) {
         li.dataset.simplifiedEnterprise = 'true';
+      }
+    });
+  }
+
+  // Mark the global top-bar anchors (Home / Community / Blog from
+  // navigation.global.anchors in docs.json) for hiding in Open platform
+  // mode, so the self-serve experience reads as a single-product surface
+  // with no escape hatches into the broader docs / community.
+  function markGlobalAnchors() {
+    // Mintlify renders global anchors as links inside the topbar. Selecting
+    // them defensively by href patterns from the docs.json so we don't
+    // accidentally hide other navbar links.
+    var anchorHrefs = [
+      'https://docs.poly.ai/home',
+      'polyaijupiter-uki8686.slack.com',
+      'poly.ai/resources'
+    ];
+    document.querySelectorAll('a[href]').forEach(function (a) {
+      // Only target links inside the top navbar / header region.
+      if (!a.closest('header, nav[role="navigation"]')) return;
+      var href = a.getAttribute('href') || '';
+      var match = anchorHrefs.some(function (frag) { return href.indexOf(frag) !== -1; });
+      if (match) {
+        a.dataset.openPlatformHidden = 'true';
       }
     });
   }
@@ -357,6 +415,7 @@
         });
         markSidebarGroups();
         markNavbarTabs();
+      markGlobalAnchors();
         applyDeveloperContent();
         applyEnterpriseBanner();
         updateLandingPageStatus();
@@ -422,6 +481,7 @@
       });
       markSidebarGroups();
       markNavbarTabs();
+      markGlobalAnchors();
       applyDeveloperContent();
       applyEnterpriseBanner();
       updateLandingPageStatus();
@@ -602,6 +662,7 @@
         });
         markSidebarGroups();
         markNavbarTabs();
+      markGlobalAnchors();
         applyDeveloperContent();
         applyEnterpriseBanner();
         updateLandingPageStatus();
@@ -615,6 +676,7 @@
       injectToggle();
       markSidebarGroups();
       markNavbarTabs();
+      markGlobalAnchors();
       applyDeveloperContent();
       applyEnterpriseBanner();
       wireLandingPageButtons();
@@ -635,6 +697,7 @@
       injectToggle();
       markSidebarGroups();
       markNavbarTabs();
+      markGlobalAnchors();
       applyDeveloperContent();
       applyEnterpriseBanner();
       wireLandingPageButtons();
@@ -643,6 +706,7 @@
     injectToggle();
     markSidebarGroups();
     markNavbarTabs();
+      markGlobalAnchors();
     applyDeveloperContent();
     applyEnterpriseBanner();
     wireLandingPageButtons();
