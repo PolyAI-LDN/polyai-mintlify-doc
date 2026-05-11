@@ -109,7 +109,8 @@ The Conversations API supports several query parameters for filtering and contro
 | `variant_name` | Filter by variant name (URL-encode spaces with `%20`) | – |
 | `in_progress` | Filter by conversation status: `true` for in-progress, `false` for finished | all |
 | `limit` | Max conversations per request (1–5000) | 5 |
-| `offset` | Pagination offset | 0 |
+| `offset` | Pagination offset. Prefer `cursor` for large result sets. | 0 |
+| `cursor` | Opaque [keyset pagination](#pagination) cursor returned by the previous response. v3 only. | – |
 
 ### Optional response fields
 
@@ -165,7 +166,96 @@ The Conversations API supports several query parameters for filtering and contro
 
 ## Pagination
 
-When results exceed the limit, the response includes `next_offset`. Use this value as the `offset` parameter in your next request to fetch the next page.
+The v3 endpoint supports two pagination strategies. Use **cursor-based pagination** for any new integration — it is faster on large result sets and stays consistent when new conversations are written between page requests.
+
+| Strategy | Request param | Response field | When to use |
+|----------|---------------|----------------|-------------|
+| Cursor (recommended, v3) | `cursor` | `cursor` | New integrations and any workload that walks more than a few pages. Performance stays constant as you advance through the result set, and pages do not drift when conversations are added concurrently. |
+| Offset (legacy) | `offset` | `next_offset` | Existing integrations that already rely on offsets. Available on all versions. |
+
+<Tip>You can only use one strategy per request. If both `cursor` and `offset` are present, `cursor` takes precedence.</Tip>
+
+### Cursor-based pagination
+
+On the first request, omit `cursor`. The response includes a `cursor` field — pass it as the `cursor` query parameter on the next request to fetch the following page. Keep all other filters (`start_time`, `end_time`, `client_env`, `limit`, etc.) identical between requests. When `cursor` is `null`, you have reached the end of the result set.
+
+Cursors are opaque, URL-safe strings — do not parse or generate them yourself. A malformed cursor returns a `400 Bad Request`.
+
+<CodeGroup>
+
+```bash curl
+# First page
+curl -X GET \
+  "https://api.us-1.platform.polyai.app/v3/ACCOUNT-xxx/PROJECT-xxx/conversations?start_time=2026-04-01T00:00:00Z&end_time=2026-04-02T00:00:00Z&limit=100" \
+  -H "x-api-key: YOUR_API_KEY"
+
+# Next page — pass the `cursor` returned above
+curl -X GET \
+  "https://api.us-1.platform.polyai.app/v3/ACCOUNT-xxx/PROJECT-xxx/conversations?start_time=2026-04-01T00:00:00Z&end_time=2026-04-02T00:00:00Z&limit=100&cursor=CURSOR_FROM_PREVIOUS_RESPONSE" \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+```python Python
+base_url = "https://api.us-1.platform.polyai.app"
+headers = {"x-api-key": "YOUR_API_KEY"}
+params = {
+    "start_time": "2026-04-01T00:00:00Z",
+    "end_time": "2026-04-02T00:00:00Z",
+    "limit": 100,
+}
+
+cursor = None
+while True:
+    if cursor:
+        params["cursor"] = cursor
+    response = requests.get(
+        f"{base_url}/v3/ACCOUNT-xxx/PROJECT-xxx/conversations",
+        headers=headers,
+        params=params,
+    )
+    response.raise_for_status()
+    page = response.json()
+
+    for conv in page["conversations"]:
+        print(conv["id"])
+
+    cursor = page.get("cursor")
+    if not cursor:
+        break
+```
+
+```typescript TypeScript
+const baseUrl = "https://api.us-1.platform.polyai.app";
+const headers = { "x-api-key": "YOUR_API_KEY" };
+
+let cursor: string | null = null;
+do {
+  const params = new URLSearchParams({
+    start_time: "2026-04-01T00:00:00Z",
+    end_time: "2026-04-02T00:00:00Z",
+    limit: "100",
+  });
+  if (cursor) params.set("cursor", cursor);
+
+  const res = await fetch(
+    `${baseUrl}/v3/ACCOUNT-xxx/PROJECT-xxx/conversations?${params}`,
+    { headers }
+  );
+  const page = await res.json();
+
+  for (const conv of page.conversations) {
+    console.log(conv.id);
+  }
+
+  cursor = page.cursor;
+} while (cursor);
+```
+
+</CodeGroup>
+
+### Offset-based pagination (legacy)
+
+When results exceed the limit, the response includes `next_offset`. Use this value as the `offset` parameter in your next request to fetch the next page. Offset pagination becomes slower as you advance deep into the result set and pages may shift if conversations are written between requests — use `cursor` instead where possible.
 
 ## Examples
 
