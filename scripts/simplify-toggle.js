@@ -63,8 +63,11 @@
     'Chat', 'Widgets',
     'Speech recognition', 'Response control', 'Audio management',
     // Configure group — enterprise-only sub-groups (SettingsSection.tsx
-    // renders a stripped-down Configure for PLG with only General,
-    // Agent voice, PolyPhone, Numbers, Integrations).
+    // renders a stripped-down Configure for PLG with General, Agent voice,
+    // PolyPhone, Numbers, and Integrations). Numbers is rendered but gated:
+    // the page opens with an enterprise banner because PSTN provisioning
+    // is contracted on the enterprise cluster.
+    'Numbers',
     'APIs', 'API and export',
     'Configuration builder',
     'Metrics', 'Dashboards', 'CSAT',
@@ -104,8 +107,11 @@
     // pages, audio management, webchat, and widgets all land here
     '/speech-recognition/', '/response-control/', '/audio-management/',
     '/webchat/', '/widgets/',
-    // Configure — enterprise-only sub-groups
-    '/telephony/twilio/',
+    // Configure — enterprise-only sub-groups. Numbers is rendered in the
+    // PLG sidebar but every telephony page (the Numbers landing page and
+    // its sub-pages, including the Twilio guide) opens with an enterprise
+    // banner because PSTN provisioning is enterprise-only.
+    '/telephony/',
     '/call-data/conversations-api/',
     '/api-reference/', '/api/',
     '/analytics/csat/',
