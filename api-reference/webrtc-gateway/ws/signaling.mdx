@@ -32,7 +32,15 @@ All messages are JSON objects with a common top-level structure.
 </ResponseField>
 
 <ResponseField name="mode" type="string">
-  Either `agent` (default) or `echo` (debug only – echoes audio back to the client).
+  Agent mode for the session. Defaults to `end-to-end` when omitted.
+
+  | Value | Description |
+  |-------|-------------|
+  | `end-to-end` | End-to-end mode. A single speech-to-speech model handles audio input and output. |
+  | `traditional` | Traditional mode. Audio cascades through separate ASR, LLM, and TTS stages. |
+  | `echo` | Debug only. Echoes audio back to the caller. |
+
+  Unknown values are rejected with an `INVALID_ARGUMENT` error. Legacy values (`agent`, `agent_v1`, `agent_v2`, `cascaded`, `normal`, `realtime`) are still accepted but resolve to a canonical value and may be removed in a future release. Update integrations to use the canonical names.
 </ResponseField>
 
 <ResponseField name="callSid" type="string">
@@ -203,6 +211,7 @@ The `data` field contains the error details:
 | Code | Description |
 |------|-------------|
 | `UNAUTHORIZED` | Invalid or missing authentication token |
+| `INVALID_ARGUMENT` | Request field has an invalid value (for example, an unknown `mode`) |
 | `INVALID_MESSAGE` | Malformed or unsupported message format |
 | `HANDLER_ERROR` | Error processing the signaling message |
 | `MEDIA_BRIDGE_FAILURE` | Failed to establish the media connection |
