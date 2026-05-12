@@ -29,7 +29,7 @@ Everything you need to build, test, and embed a voice agent on your own site.
     Build flows, topics, entities, and integrations from natural-language prompts. Drop in a URL, image, or document, and Studio Assistant scaffolds a fully configured voice agent.
   </Card>
   <Card title="PolyPhone voice widget" icon="phone" href="/polyphone/introduction">
-    A click-to-call voice widget you can embed on any website. WebRTC end-to-end – no number to dial, no app to install. The webchat widget is enterprise-only at launch.
+    A click-to-call voice widget you can embed on any website. WebRTC end-to-end – no number to dial, no app to install. Voice-only at launch (no handoffs, SMS, or simultaneous chat-and-voice in V1); the webchat widget is enterprise-only.
   </Card>
   <Card title="Knowledge base" icon="book" href="/managed-topics/introduction">
     Ground answers in your own content. Upload documents or point at URLs and the assistant builds the knowledge base for you.
@@ -64,7 +64,7 @@ The Open platform sidebar is a focused subset of the full Agent Studio sidebar. 
 | **Configure** | General · Agent voice · PolyPhone · Numbers · Integrations |
 | **Operations** | Environments |
 
-Build and Configure modules are visible and primarily read-only on the Open platform – you make changes through Studio Assistant rather than by editing flows, topics, or settings directly. **Numbers** stays in Configure but opens with an enterprise banner because PSTN telephony provisioning is contracted per-tenant on the enterprise cluster. Everything not in the table above – Smart Analyst, Agent Analysis, PolyScore, custom dashboards, safety analytics, CSAT, custom metrics, user management, workspace API keys, the Conversations API and S3 export, webchat and widgets, speech recognition and response control tuning, audio management, variant management, telephony routing, SMS, handoffs, the test suite, configuration builder, language hub – is enterprise-only and not surfaced in the Open platform sidebar at all. Those pages stay browseable in these docs; in the [Open platform docs view](#open-platform-docs-view) the page content greys out behind a banner so you can read it without acting on it.
+Build and Configure modules are visible and primarily read-only on the Open platform – you make changes through Studio Assistant rather than by editing flows, topics, or settings directly. **Numbers** stays in Configure but opens with an enterprise banner because PSTN telephony provisioning is contracted per-tenant on the enterprise cluster. Smart Analyst is folded into the Studio Assistant home as a chat panel rather than a standalone tab. Everything not in the table above – the standalone Smart Analyst tab, Agent Analysis, the full PolyScore breakdown, custom dashboards, safety analytics, CSAT, custom metrics, user management, workspace API keys, the Conversations API and S3 export, webchat and widgets, speech recognition and response control tuning, audio management, variant management, telephony routing, SMS, handoffs, the test suite, configuration builder, language hub – is enterprise-only and not surfaced in the Open platform sidebar at all. Those pages stay browseable in these docs; in the [Open platform docs view](#open-platform-docs-view) the page content greys out behind a banner so you can read it without acting on it.
 
 ### Integrations
 
@@ -96,7 +96,7 @@ This item stays in the nav but is dimmed and non-interactive on hover. Click it 
 
 | Capability | Why it's enterprise-only |
 |---|---|
-| **Smart Analyst, Agent Analysis, PolyScore, safety analytics** | The Analytics services aren't deployed on the Open platform cluster at launch. The standard dashboard is included; everything else under Analytics is enterprise-only. |
+| **Standalone Smart Analyst tab, Agent Analysis, full PolyScore breakdown, safety analytics** | Smart Analyst is folded into the Studio Assistant home as a chat panel on the Open platform; the standalone tab and the full PolyScore breakdown are enterprise-only. The standard dashboard (including PolyScore overview) is included. Everything else under Analytics is enterprise-only. |
 | **Custom dashboards, custom metrics, CSAT** | Bespoke analytics that need account-level configuration. The standard dashboard is included. |
 | **Conversations API and S3 export** | The Conversations API and S3-to-S3 sync are enterprise-only. Self-serve users read transcripts directly in Studio. |
 | **Workspace API keys** | Use [personal access tokens](/secrets/api-keys) and the [Agents API](/api-reference/agents/introduction) on the Open platform instead. |
@@ -142,9 +142,11 @@ When you need telephony, real-time configuration, contracted SLAs, or any of the
 - [Request a demo](https://poly.ai/request-a-demo) when you're ready to discuss an enterprise contract.
 - Existing enterprise contracts get the full sidebar with no dimmed entries.
 
-## Security
+## Security and hosting
 
-The Open platform sits behind AWS WAF and CloudFront. Every account is isolated – usage limits, conversation data, and credentials are scoped per-account, and tenant context is derived from the signed JWT issued at sign-in. There is no cross-account access.
+The Open platform runs on a dedicated cluster, separate from the enterprise infrastructure. It sits behind AWS WAF and CloudFront. Every account is isolated – usage limits, conversation data, and credentials are scoped per-account, and tenant context is derived from the signed JWT issued at sign-in. There is no cross-account access.
+
+The cluster is **US-only (`us-1`) at launch**. Multi-region availability (`euw-1`, `uk-1`) is part of the enterprise tier; carry your project across via `poly pull` → `poly push` when you need regional residency.
 
 Sensitive credentials (API keys, OAuth client secrets) belong in the [Secrets Vault](/secrets/introduction). Functions retrieve them at runtime; they never sit in code, logs, or version history.
 
@@ -160,7 +162,11 @@ Sensitive credentials (API keys, OAuth client secrets) belong in the [Secrets Va
   </Accordion>
 
   <Accordion title="Is this enterprise-grade, or a sandbox?" icon="circle-check">
-    It's the same platform. Every agent on the Open platform runs on [Raven](/agent-settings/raven), PolyAI's proprietary voice model, on the same infrastructure that handles enterprise deployments. There is no separate "sandbox" mode – what you build here is production-ready voice AI.
+    It's the same platform. Every agent on the Open platform runs on [Raven](/agent-settings/raven), PolyAI's proprietary voice model, on the same infrastructure that handles enterprise deployments. There is no separate "sandbox" mode – what you build here is production-ready voice AI. The Open platform launches in `us-1` only; multi-region (`euw-1`, `uk-1`) is enterprise at launch.
+  </Accordion>
+
+  <Accordion title="What about Smart Analyst, PolyScore, and the analytics tabs?" icon="chart-line">
+    Smart Analyst is integrated into the [Studio Assistant](/studio-assistant/introduction) home as a chat panel — ask things like *"why did containment drop on Tuesday?"* or *"summarise the failed calls"* and the assistant queries your conversation data directly. The standalone Smart Analyst, Agent Analysis, and the full PolyScore breakdown are enterprise-only at launch. PolyScore still appears as an overview metric on the standard dashboard.
   </Accordion>
 
   <Accordion title="Can I share my agent without an account?" icon="share-nodes">

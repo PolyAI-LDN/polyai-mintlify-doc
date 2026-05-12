@@ -191,6 +191,22 @@
   // paths are an explicit exception.
   var SIMPLIFIED_ALLOWED_TAGGED = ['/extend/adk'];
 
+  // Inverse of ENTERPRISE_PREFIXES: pages that are ONLY available on the
+  // Open platform tier (e.g. Studio Assistant during the May 2026 launch —
+  // rolling out to enterprise via an EAP ~2 weeks after Open platform GA).
+  // When an enterprise reader (not in Open platform mode) lands on one of
+  // these pages, we inject an Open-platform-only banner that mirrors the
+  // enterprise banner shown in the opposite direction.
+  var OPEN_PLATFORM_ONLY_PATHS = [
+    '/studio-assistant/introduction',
+    '/studio-assistant/prompting',
+    '/studio-assistant/usage-and-limits'
+  ];
+
+  function isOpenPlatformOnlyPath(pathname) {
+    return OPEN_PLATFORM_ONLY_PATHS.indexOf(pathname) !== -1;
+  }
+
   function isEnterprisePath(pathname) {
     if (SIMPLIFIED_INTROS.indexOf(pathname) !== -1) return false;
     if (ENTERPRISE_EXACT.indexOf(pathname) !== -1) return true;
@@ -432,6 +448,69 @@
       markGlobalAnchors();
         applyDeveloperContent();
         applyEnterpriseBanner();
+      applyOpenPlatformOnlyBanner();
+        updateLandingPageStatus();
+      });
+    }
+  }
+
+  // Inject a sticky banner at the top of an Open-platform-only page when the
+  // user is NOT in Open platform mode (the enterprise default). Mirrors
+  // applyEnterpriseBanner but in the opposite direction. Sets
+  // data-on-open-platform-only on <html> so the stylesheet can grey out the
+  // page body while keeping the banner readable.
+  function applyOpenPlatformOnlyBanner() {
+    var existing = document.getElementById('open-platform-only-banner');
+    var simplified = document.documentElement.dataset.simplified === 'true';
+    var opOnly = isOpenPlatformOnlyPath(window.location.pathname);
+
+    if (simplified || !opOnly) {
+      if (existing) existing.remove();
+      document.documentElement.removeAttribute('data-on-open-platform-only');
+      return;
+    }
+    if (existing) return;
+
+    document.documentElement.setAttribute('data-on-open-platform-only', 'true');
+
+    var banner = document.createElement('aside');
+    banner.id = 'open-platform-only-banner';
+    banner.className = 'free-trial-enterprise-banner open-platform-only-banner';
+    banner.setAttribute('role', 'note');
+    banner.innerHTML =
+      '<div class="free-trial-enterprise-banner__icon" aria-hidden="true">✦</div>' +
+      '<div class="free-trial-enterprise-banner__body">' +
+        '<p class="free-trial-enterprise-banner__title"><strong>This is an Open platform feature.</strong></p>' +
+        '<p class="free-trial-enterprise-banner__text">' +
+          'Studio Assistant is part of the Open platform launch. Enterprise rollout begins via an early-access program ~2 weeks after Open platform launch. To read these docs now, enter Open platform mode.' +
+        '</p>' +
+        '<p class="free-trial-enterprise-banner__actions">' +
+          '<button type="button" class="free-trial-enterprise-banner__cta" id="open-platform-only-banner-enter">Enter Open platform mode</button>' +
+          '<a href="https://poly.ai/request-a-demo" class="free-trial-enterprise-banner__exit" target="_blank" rel="noopener">Talk to sales about EAP</a>' +
+        '</p>' +
+      '</div>';
+
+    var mount = document.querySelector('main') || document.querySelector('#content-area') || document.body;
+    if (mount && mount.firstChild) {
+      mount.insertBefore(banner, mount.firstChild);
+    } else if (mount) {
+      mount.appendChild(banner);
+    }
+
+    var enterBtn = banner.querySelector('#open-platform-only-banner-enter');
+    if (enterBtn) {
+      enterBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        setSimplified(true);
+        document.querySelectorAll('.simplify-toggle').forEach(function (b) {
+          updateButton(b, true);
+        });
+        markSidebarGroups();
+        markNavbarTabs();
+        markGlobalAnchors();
+        applyDeveloperContent();
+        applyEnterpriseBanner();
+        applyOpenPlatformOnlyBanner();
         updateLandingPageStatus();
       });
     }
@@ -498,6 +577,7 @@
       markGlobalAnchors();
       applyDeveloperContent();
       applyEnterpriseBanner();
+      applyOpenPlatformOnlyBanner();
       updateLandingPageStatus();
     });
 
@@ -679,6 +759,7 @@
       markGlobalAnchors();
         applyDeveloperContent();
         applyEnterpriseBanner();
+      applyOpenPlatformOnlyBanner();
         updateLandingPageStatus();
       });
     }
@@ -693,6 +774,7 @@
       markGlobalAnchors();
       applyDeveloperContent();
       applyEnterpriseBanner();
+      applyOpenPlatformOnlyBanner();
       wireLandingPageButtons();
     }, 150);
   }
@@ -714,6 +796,7 @@
       markGlobalAnchors();
       applyDeveloperContent();
       applyEnterpriseBanner();
+      applyOpenPlatformOnlyBanner();
       wireLandingPageButtons();
     });
   } else {
@@ -723,6 +806,7 @@
       markGlobalAnchors();
     applyDeveloperContent();
     applyEnterpriseBanner();
+      applyOpenPlatformOnlyBanner();
     wireLandingPageButtons();
   }
 
