@@ -172,6 +172,41 @@ The second argument is the template **name** (the title from Build > SMS), not a
 
 </div>
 
+## Inbound rate limiting and abuse protection
+
+To protect your agent and downstream services, inbound SMS messages are throttled if a sender or project exceeds safe traffic thresholds. This applies automatically to all inbound SMS — you do not need to configure anything in the platform UI.
+
+When a message is throttled, the sender receives an automatic reply explaining what happened, and the inbound message is **not** forwarded to your agent. Twilio always receives an HTTP 200 response so it does not retry.
+
+### What gets checked
+
+Inbound messages are evaluated in this order:
+
+| Check | Trigger | Default threshold | Reply sent to sender |
+|---|---|---|---|
+| Temporary block | Sender was flagged by the abuse heuristic in the last 10 minutes | Block lasts 10 min | "Your messages have been temporarily paused. Please try again later." |
+| Per-sender rate limit | Same phone number sends too many messages | 10 messages per 60 seconds | "You're sending messages too quickly. Please wait a moment and try again." |
+| Abuse heuristic | Same sender sends the same message body repeatedly | 5 identical messages in 5 minutes | "Your messages have been temporarily paused. Please try again later." |
+| Per-project safeguard | Aggregate inbound volume across all senders for one project | 100 messages per 60 seconds | "This service is temporarily unavailable. Please try again shortly." |
+
+Thresholds are tuned for typical conversational traffic. Contact your PolyAI representative if your use case requires different limits.
+
+### Compliance keyword bypass
+
+The following carrier-compliance keywords always bypass rate limiting and reach your agent, even if the sender is currently throttled or blocked:
+
+`STOP`, `STOPALL`, `UNSUBSCRIBE`, `CANCEL`, `END`, `QUIT`, `HELP`, `INFO`, `START`, `RESET`
+
+Matching is case-insensitive and ignores surrounding whitespace. This guarantees opt-out and help requests are honored as required by US and Canadian carriers.
+
+### Troubleshooting throttled messages
+
+If a user reports that their messages are not reaching the agent:
+
+- Ask whether they received one of the automatic replies above — that confirms a rate-limit or abuse check fired.
+- Check the conversation logs for entries with a `reason` field of `rate_limit`, `abuse_heuristic`, `abuse_block`, or `tenant_limit`.
+- Temporary blocks clear automatically after 10 minutes.
+
 ## Delivery and logging
 
 - Successful SMS sends are logged in the conversation metadata.
