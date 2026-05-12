@@ -100,7 +100,10 @@
   ];
 
   // Top-nav tab labels — these stay hidden (a greyed-out tab looks broken).
-  var HIDDEN_TABS = ['Developer', 'API reference', 'Advanced'];
+  // Release notes is a documentation surface for monthly enterprise feature
+  // launches and tier-rollout milestones — none of which apply to a self-serve
+  // user mid-trial. Hidden in Open platform mode.
+  var HIDDEN_TABS = ['Developer', 'API reference', 'Advanced', 'Release notes'];
 
   // Path prefixes for "enterprise/developer" pages. Visiting one in
   // Open platform mode shows the page with the content greyed out behind a
@@ -181,6 +184,12 @@
   // developer content tucked behind an accordion. They must NOT trigger the
   // enterprise banner/greyout.
   var SIMPLIFIED_INTROS = ['/call-handoff/introduction', '/sms/introduction', '/flows/introduction'];
+
+  // Pages that carry a "Code" / "Advanced" tag pill in the docs but are
+  // first-class self-serve features on the Open platform. The sidebar
+  // dimmer normally flags anything with one of those tag pills, so these
+  // paths are an explicit exception.
+  var SIMPLIFIED_ALLOWED_TAGGED = ['/extend/adk'];
 
   function isEnterprisePath(pathname) {
     if (SIMPLIFIED_INTROS.indexOf(pathname) !== -1) return false;
@@ -311,10 +320,13 @@
     });
 
     // 3. Expanded individual page items — dim by path prefix or Code/Advanced
-    //    tag. Skip if an ancestor is already marked.
+    //    tag. Skip if an ancestor is already marked, or if the path is on the
+    //    Open-platform allowlist (so e.g. /extend/adk stays bright despite
+    //    carrying a "Code" tag pill).
     document.querySelectorAll('li[id]').forEach(function (li) {
       if (hasMarkedAncestor(li)) return;
       var id = li.id;
+      if (SIMPLIFIED_ALLOWED_TAGGED.indexOf(id) !== -1) return;
       var pathMatch = isEnterprisePath(id);
       var tagEl = li.querySelector('[data-nav-tag="Code"], [data-nav-tag="Advanced"]');
       if (pathMatch || tagEl) {
