@@ -164,6 +164,38 @@ def lambda_handler(event, context):
 2. Monitor analytics:
    - Use the Amazon Connect analytics dashboard to track call volume, routing efficiency, and agent handoffs.
 
+## Chat and messaging handoff
+
+For webchat and SMS conversations, PolyAI escalates to a live agent through the Amazon Connect [Chat API](https://docs.aws.amazon.com/connect/latest/APIReference/API_StartChatContact.html) instead of SIP. Configure this under **Configure > Integrations > Amazon Connect** in Agent Studio.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `instance_id` | Yes | The Amazon Connect instance ID. |
+| `contact_flow_id` | Yes | The contact flow that routes the chat to a queue. |
+| `role_arn` | Yes | IAM role PolyAI assumes to call `StartChatContact`. |
+| `aws_region` | No | Region of the Connect instance (for example, `eu-west-2`). Overrides the PolyAI worker's default region. |
+| `api_url` | No | Override for the Connect API endpoint. |
+| `headers` | No | Static headers to include on API calls. |
+
+### When to set `aws_region`
+
+PolyAI's messaging handoff worker uses a default AWS region. If your Amazon Connect instance is in a different region — for example, your worker defaults to `us-east-1` but your Connect instance lives in `eu-west-2` — set `aws_region` on the integration so `StartChatContact` targets the right region. Without this override, the handoff fails with a `ResourceNotFoundException`.
+
+Use the [region code](https://docs.aws.amazon.com/general/latest/gr/connect_region.html) shown in the Amazon Connect console URL (for example, `eu-west-2`, `us-west-2`, `ap-southeast-2`).
+
+```json
+{
+  "instance_id": "12345678-aaaa-bbbb-cccc-1234567890ab",
+  "contact_flow_id": "abcdef12-3456-7890-abcd-ef1234567890",
+  "role_arn": "arn:aws:iam::123456789012:role/PolyAIAccessConnect",
+  "aws_region": "eu-west-2"
+}
+```
+
+### IAM trust policy requirements
+
+PolyAI's handoff worker runs on EKS with [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html), which adds session tags to its credentials when chain-assuming your IAM role. Your `PolyAIAccessConnect` role's trust policy must therefore allow both `sts:AssumeRole` **and** `sts:TagSession` from the PolyAI worker account. If `sts:TagSession` is missing, the assume-role step fails before any Connect API call is made.
+
 ## Useful links
 
 - [Amazon Connect Documentation](https://aws.amazon.com/connect/)
