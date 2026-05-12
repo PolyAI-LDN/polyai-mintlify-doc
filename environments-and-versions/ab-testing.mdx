@@ -1,0 +1,119 @@
+---
+title: 'A/B testing'
+description: 'Compare two agent versions in production by splitting live traffic.'
+keywords:
+  - a/b test
+  - ab test
+  - experiment
+  - deployment
+  - live
+  - pre-release
+  - variant
+  - control
+---
+
+Run a controlled comparison between your current **Live** version and a candidate **Pre-release** version. Calls are split 50/50 between the two, so you can measure real-world performance before fully promoting the new version.
+
+<Note>
+A/B testing is gated by a feature flag. Contact your CSM or PSM to enable it for your account.
+</Note>
+
+## How it works
+
+When you start an A/B test:
+
+- Your current **Live** deployment becomes the **control (A)**.
+- The latest **Pre-release** deployment becomes the **variant (B)**.
+- Incoming calls are split **50/50** between the two versions.
+- Each caller is bucketed deterministically — the same caller hits the same version for the duration of the test (falls back to conversation ID when caller ID is unavailable).
+- Both versions receive **real live traffic** from your customers.
+
+Calls handled during the test are tagged with the metrics `AB_TEST_ID` and `AB_TEST_GROUP` (`control` or `variant`), so you can analyze results in your reporting dashboards.
+
+## Prerequisites
+
+- The `ab_tests` feature flag must be enabled on your account.
+- You must have an active **Live** deployment.
+- You must have at least one **Pre-release** deployment to test against.
+- No other A/B test can be running on this project (only one active test per project).
+
+## Start an A/B test
+
+1. Go to **Deployments > Environments** and open the **Pre-release** tab.
+2. Click the overflow menu (three vertical dots) on the Pre-release version you want to test and select **Start A/B test**.
+3. In the **Start A/B test** modal:
+    - Edit the test **name** if you want. The default is `{date} Test {HH:mm}` (test names must be unique within the project).
+    - Review the two cards:
+        - **Current live version (A)** — control, 50% traffic.
+        - **New version (B)** — variant, 50% traffic.
+    - Tick the consent checkbox confirming both versions will receive live customer traffic.
+4. Click **Start test**.
+
+The Live tab now shows both versions grouped under the test name with **Live A 50%** and **Live B 50%** tags.
+
+## While a test is running
+
+A few actions are locked until the test ends:
+
+- You **cannot promote** a new version to Live.
+- You **cannot roll back** the Live version.
+
+To do either, end the test first and pick a winner.
+
+The Promote-to-Live dropdown on Pre-release versions will be disabled with the message *"End A/B test before promoting a new version to live"*.
+
+## End an A/B test
+
+1. On the Live tab, find the active A/B test group and click **End A/B test**.
+2. In the **End A/B test** modal, select the version you want to keep in **Live**:
+    - Choose **Control (A)** to keep the existing Live version. The variant is discarded.
+    - Choose **Variant (B)** to promote the new version to Live. It replaces the existing Live version.
+3. Click **Confirm**.
+
+You will see a toast confirming **"A/B test ended"**. If you chose the variant, it is automatically promoted to Live.
+
+<Warning>
+If variant promotion fails after ending the test, you'll see *"A/B test ended but variant promotion failed. Promote the variant manually."* End-of-test history is recorded either way — promote the version from the Pre-release tab to recover.
+</Warning>
+
+## Analyzing results
+
+During and after a test, every call is tagged with:
+
+| Metric | Values | Meaning |
+| --- | --- | --- |
+| `AB_TEST_ID` | UUID | Identifies the specific A/B test. |
+| `AB_TEST_GROUP` | `control` or `variant` | Which version handled the call. |
+
+Use these metrics in your custom analytics dashboards (e.g. QuickSight) to compare outcomes such as containment, CSAT, escalation rates, or task success between the two groups. Speak to your PSM if you need help setting up a dashboard template.
+
+If your account also has the `conversation_review_version_filtering` flag enabled, you can filter the [Conversations review](/analytics/conversations/review) table by version to inspect individual transcripts per group.
+
+## Current limitations
+
+A/B testing is rolling out in stages. In this release:
+
+- **One active test per project** — start a second test only after ending the first.
+- **Fixed 50/50 split** — traffic share is not configurable from the UI.
+- **Two variants only** — you can't test three or more versions at once.
+- **No auto-promotion of the winner** beyond what the End modal does (control stays, variant promotes to Live).
+- **No native results dashboard** — analyze results in your custom analytics tooling using `AB_TEST_ID` and `AB_TEST_GROUP`.
+- **No branch-level A/B testing** — tests run at the deployment level.
+- **Ended-test history view is partial** — full history of past tests is being expanded in a follow-up release.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="The deployment pipeline" icon="rocket" href="/environments-and-versions/introduction">
+    Draft → Sandbox → Pre-release → Live, plus promote and rollback.
+  </Card>
+  <Card title="Compare versions" icon="code-compare" href="/environments-and-versions/diffs">
+    Side-by-side diff of any two versions before testing.
+  </Card>
+  <Card title="Conversation review" icon="comments" href="/analytics/conversations/review">
+    Inspect individual conversations from each test group.
+  </Card>
+  <Card title="Custom dashboards" icon="chart-line" href="/analytics/dashboards/custom">
+    Build QuickSight dashboards using `AB_TEST_ID` and `AB_TEST_GROUP`.
+  </Card>
+</CardGroup>
