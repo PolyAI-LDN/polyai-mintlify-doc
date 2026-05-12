@@ -102,8 +102,10 @@
   // Top-nav tab labels — these stay hidden (a grayed-out tab looks broken).
   // Release notes is a documentation surface for monthly enterprise feature
   // launches and tier-rollout milestones — none of which apply to a self-serve
-  // user mid-trial. Hidden in Open platform mode.
-  var HIDDEN_TABS = ['Developer', 'API reference', 'Advanced', 'Release notes'];
+  // user mid-trial. Academy is PolyAcademy training built around the
+  // enterprise IA (Level 2/3 are explicitly enterprise-tier content). Both
+  // hidden in Open platform mode.
+  var HIDDEN_TABS = ['Developer', 'API reference', 'Advanced', 'Release notes', 'Academy'];
 
   // Path prefixes for "enterprise/developer" pages. Visiting one in
   // Open platform mode shows the page with the content grayed out behind a
