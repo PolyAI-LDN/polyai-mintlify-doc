@@ -16,10 +16,10 @@
   //  - When the user lands on an enterprise/developer page (via sidebar,
   //    search, deep-link, or URL bar), the page renders with a sticky banner
   //    pinned to the top of the content area, and the rest of the page
-  //    content is greyed out and pointer-events: none — readable and
+  //    content is grayed out and pointer-events: none — readable and
   //    scrollable, but not interactive.
   //  - Top-nav tabs that are wholly developer/API focused are still hidden
-  //    (greying a tab looks broken).
+  //    (graying a tab looks broken).
   //  - .developer-only sections inside otherwise-mixed pages are wrapped in
   //    a collapsed accordion so the page stays readable without code.
   //
@@ -99,14 +99,14 @@
     'Healthcare'
   ];
 
-  // Top-nav tab labels — these stay hidden (a greyed-out tab looks broken).
+  // Top-nav tab labels — these stay hidden (a grayed-out tab looks broken).
   // Release notes is a documentation surface for monthly enterprise feature
   // launches and tier-rollout milestones — none of which apply to a self-serve
   // user mid-trial. Hidden in Open platform mode.
   var HIDDEN_TABS = ['Developer', 'API reference', 'Advanced', 'Release notes'];
 
   // Path prefixes for "enterprise/developer" pages. Visiting one in
-  // Open platform mode shows the page with the content greyed out behind a
+  // Open platform mode shows the page with the content grayed out behind a
   // sticky banner.
   // Note: /extend/, /secrets/, /tools/, /studio-assistant/, and
   // /managed-topics/ are intentionally NOT in this list — the ADK, personal
@@ -182,7 +182,7 @@
 
   // These intro pages are "mixed" — they appear in Open platform mode with
   // developer content tucked behind an accordion. They must NOT trigger the
-  // enterprise banner/greyout.
+  // enterprise banner/grayout.
   var SIMPLIFIED_INTROS = ['/call-handoff/introduction', '/sms/introduction', '/flows/introduction'];
 
   // Pages that carry a "Code" / "Advanced" tag pill in the docs but are
@@ -192,10 +192,10 @@
   var SIMPLIFIED_ALLOWED_TAGGED = ['/extend/adk'];
 
   // Inverse of ENTERPRISE_PREFIXES: pages that are ONLY available on the
-  // Open platform tier (e.g. Studio Assistant during the May 2026 launch —
-  // rolling out to enterprise via an EAP ~2 weeks after Open platform GA).
-  // When an enterprise reader (not in Open platform mode) lands on one of
-  // these pages, we inject an Open-platform-only banner that mirrors the
+  // Open platform tier (e.g. Studio Assistant, which ships on the Open
+  // platform and reaches enterprise via separate availability). When an
+  // enterprise reader (not in Open platform mode) lands on one of these
+  // pages, we inject an Open-platform-only banner that mirrors the
   // enterprise banner shown in the opposite direction.
   var OPEN_PLATFORM_ONLY_PATHS = [
     '/studio-assistant/introduction',
@@ -391,7 +391,7 @@
 
   // Inject a sticky upsell banner at the top of an enterprise page when the
   // user is in Open platform mode. Sets data-on-enterprise-page on <html> so the
-  // stylesheet can grey out and disable pointer events on everything in the
+  // stylesheet can gray out and disable pointer events on everything in the
   // main content area except the banner itself. Idempotent — won't double-
   // insert across SPA navs.
   function applyEnterpriseBanner() {
@@ -457,7 +457,7 @@
   // Inject a sticky banner at the top of an Open-platform-only page when the
   // user is NOT in Open platform mode (the enterprise default). Mirrors
   // applyEnterpriseBanner but in the opposite direction. Sets
-  // data-on-open-platform-only on <html> so the stylesheet can grey out the
+  // data-on-open-platform-only on <html> so the stylesheet can gray out the
   // page body while keeping the banner readable.
   function applyOpenPlatformOnlyBanner() {
     var existing = document.getElementById('open-platform-only-banner');
@@ -482,11 +482,11 @@
       '<div class="free-trial-enterprise-banner__body">' +
         '<p class="free-trial-enterprise-banner__title"><strong>This is an Open platform feature.</strong></p>' +
         '<p class="free-trial-enterprise-banner__text">' +
-          'Studio Assistant is part of the Open platform launch. Enterprise rollout begins via an early-access program ~2 weeks after Open platform launch. To read these docs now, enter Open platform mode.' +
+          'Studio Assistant is part of the PolyAI Open platform. Enter Open platform mode to read these docs in context, or talk to sales about availability on an enterprise plan.' +
         '</p>' +
         '<p class="free-trial-enterprise-banner__actions">' +
           '<button type="button" class="free-trial-enterprise-banner__cta" id="open-platform-only-banner-enter">Enter Open platform mode</button>' +
-          '<a href="https://poly.ai/request-a-demo" class="free-trial-enterprise-banner__exit" target="_blank" rel="noopener">Talk to sales about EAP</a>' +
+          '<a href="https://poly.ai/request-a-demo" class="free-trial-enterprise-banner__exit" target="_blank" rel="noopener">Talk to sales</a>' +
         '</p>' +
       '</div>';
 
