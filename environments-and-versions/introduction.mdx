@@ -15,15 +15,7 @@ keywords:
 
 <div className="simplified-only">
 
-Test agent changes before they reach live callers. Draft → Sandbox → Live.
-
-<Note>
-**New to environments?** Start with the [Environments tutorial](/learn/guides/get-started/environments) for a hands-on introduction.
-</Note>
-
-<Warning>
-**Saving is not the same as going live.** Saved changes are drafts. Drafts must be **published** to Sandbox before they can be **promoted** to Live. Unpublished changes don't appear in any environment.
-</Warning>
+Two environments on the Open platform: **Sandbox**, where your changes land for testing, and **Live**, where real callers reach your agent. You publish a version into Sandbox, test it, then promote it to Live when you're happy.
 
 ```mermaid
 stateDiagram-v2
@@ -33,14 +25,64 @@ stateDiagram-v2
 
     Live --> Sandbox: Rollback
 
-    note right of Draft: Development
+    note right of Draft: Edits in progress
     note right of Sandbox: Testing
     note right of Live: Production
 ```
 
-<Note>
-**Pre-release is enterprise-only.** Enterprise accounts get an extra UAT staging environment (Pre-release) between Sandbox and Live for user acceptance testing before production. On the Open platform you promote directly from Sandbox to Live.
-</Note>
+<Warning>
+**Publishing isn't the same as going live.** Drafts must be **published** to Sandbox first. They only reach your callers when you **promote** to Live.
+</Warning>
+
+## Publish a draft to Sandbox
+
+Whenever you make changes (via Studio Assistant or directly), a draft banner appears at the top of the page with two options:
+
+- **Delete** reverts to the most recent published version.
+- **Publish** saves the draft as a version. Add a short description if you want a note for future you.
+
+![delete-publish](/images/deployment/draft-line.png)
+
+Once published, the version becomes your active **Sandbox** deployment. Find it under **Deployments** in the sidebar.
+
+## Test in Sandbox
+
+Click **Test** in the top-right of any page to open the Agent Debugging panel. Choose **Call agent** or **Webchat**, pick **Sandbox** from the environment dropdown, and try the scenario you're worried about. Every test call lands in [Conversations](/analytics/conversations/introduction) with a transcript.
+
+If something looks off, the [iterate-after-a-call](/learn/iterate-open-platform) flow walks through fixing it.
+
+## Promote to Live
+
+When the Sandbox version handles real scenarios properly, promote it.
+
+1. Open **Deployments** in the sidebar.
+2. In the **Sandbox** tab, click the overflow menu (three dots) next to the version.
+3. Select **Promote to Live**.
+4. Tick the confirmation box and click **Promote**.
+
+[PLACEHOLDER - Promote to Live confirmation modal in Open platform mode: the modal showing the version name, a checkbox to confirm, and the Promote button]
+
+Once it's Live, every new caller (via PolyPhone, the shareable link, or anywhere else you've placed the agent) hits the promoted version immediately.
+
+## Roll back
+
+If a Live version is causing problems, roll back.
+
+1. Open **Deployments > Live** in the sidebar.
+2. Open the overflow menu on the version you want to roll back.
+3. Click **Rollback**, then confirm.
+
+The previous version becomes Live again. You can promote forward whenever you're ready.
+
+## Compare versions
+
+Side-by-side diffs let you check what changed between two versions before you promote. Open **Deployments** or **Project History**, select a version, and click **Compare**. Sorting is newest-first.
+
+[Tracking changes →](/environments-and-versions/diffs)
+
+## What's not here
+
+Enterprise plans get a third environment, **Pre-release**, that sits between Sandbox and Live for user-acceptance testing. They also get phone-number assignment per environment, the test suite for automated regression runs, and the Agents API for scripting deployments. None of those are on the Open platform; the [Open platform overview](/platform/open-platform) has the full picture.
 
 </div>
 
@@ -72,8 +114,6 @@ stateDiagram-v2
     note right of Live: Production
 ```
 
-</div>
-
 ## Creating a version
 
 A <Tooltip tip="The state between the latest published version and ongoing changes. Drafts become versions upon publishing.">draft</Tooltip> version
@@ -92,26 +132,6 @@ and you can access it from **Deployments > Environments** in the sidebar.
 ![active-publish](/images/deployment/publish.png)
 
 ## Promoting a version
-
-<div className="simplified-only">
-
-Promotion moves a version from Sandbox to <Tooltip tip="The production environment. This is where the agent handles live traffic.">Live</Tooltip>.
-
-### Live
-
-Production. Changes affect all active calls immediately.
-
-1. Go to **Deployments > Environments** in the sidebar.
-
-2. Click the overflow menu (three vertical dots) next to the version in the **Sandbox** tab.
-
-3. Select **Promote to Live**.
-
-4. Confirm your selection by checking the box and clicking **Promote**.
-
-</div>
-
-<div className="full-only">
 
 Promotion moves a version from one environment to the next. The environments include Sandbox,
 <Tooltip tip="A staging environment for user acceptance testing (UAT) before promoting to production.">Pre-release</Tooltip>,
@@ -139,24 +159,6 @@ Production. Changes affect all active calls immediately.
 
 4. Confirm your selection by checking the box and clicking **Promote**.
 
-</div>
-
-<div className="simplified-only">
-
-<Tabs>
-  <Tab title="Confirm">
-    [PLACEHOLDER - Promote to Live confirmation modal in Open platform mode: confirmation checkbox, version name, and Promote button; promoting from Sandbox to Live]
-  </Tab>
-
-  <Tab title="Complete">
-    [PLACEHOLDER - Deployments page in Open platform mode after a Promote to Live succeeds: version now appears in the Live tab with a green status indicator]
-  </Tab>
-</Tabs>
-
-</div>
-
-<div className="full-only">
-
 <Tabs>
   <Tab title="Confirm">
     ![initiate release](/images/deployment/initiate-release.png)
@@ -167,15 +169,13 @@ Production. Changes affect all active calls immediately.
   </Tab>
 </Tabs>
 
-</div>
-
 ## Comparing versions and environments
 
 Before promoting changes, you can compare versions across environments using a side-by-side diff view.
 
 1. Go to the **Deployments** section and open **Environments** or **Project History**.
 
-2. Select a version and click **Compare** to view differences between environments. <span className="full-only">Compare across **Sandbox**, **Pre-release**, and **Live**.</span><span className="simplified-only">Compare across **Sandbox** and **Live**.</span>
+2. Select a version and click **Compare** to view differences between **Sandbox**, **Pre-release**, and **Live**.
 
 3. Versions appear in **reverse chronological order** (newest first) for easier navigation.
 
@@ -215,8 +215,6 @@ Test your agent in any environment:
 
 2. Select the environment containing the version you want to test.
 
-<div className="full-only">
-
 ## Assigning phone numbers
 
 Each environment can have its own phone number. To assign:
@@ -226,8 +224,6 @@ Each environment can have its own phone number. To assign:
 Assign phone numbers and SIP headers per version.
 
 ![assign version phone numbers](/images/deployment/assign-number.png)
-
-</div>
 
 <div className="developer-only">
 
@@ -287,13 +283,12 @@ The same pipeline is available programmatically, which is useful for wiring depl
   <Card title="Project history" icon="clock-rotate-left" href="/environments-and-versions/project-history">
     Audit trail of all published versions and changes.
   </Card>
-  <div className="full-only">
   <Card title="Test suite" icon="flask-vial" href="/analytics/test-suite/introduction">
     Run regression tests against Draft or Sandbox.
   </Card>
   <Card title="Deployments endpoints" icon="square-terminal" href="/api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment">
     Publish, promote, and rollback from the Agents API.
   </Card>
-  </div>
 </CardGroup>
 
+</div>
