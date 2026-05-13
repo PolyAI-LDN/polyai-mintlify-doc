@@ -132,15 +132,11 @@
     // banner because PSTN provisioning is enterprise-only.
     '/telephony/',
     '/call-data/conversations-api/',
-    // API reference: lock the enterprise-only APIs by sub-prefix so the
-    // Agents API (OP-available, used by PATs) stays open. /api/ is the
-    // older custom-integration doc set, all enterprise.
-    '/api-reference/conversations/',
-    '/api-reference/chat/',
-    '/api-reference/concurrent-calls/',
-    '/api-reference/dni/',
-    '/api-reference/handoff/',
-    '/api-reference/alerts/',
+    // API reference: lock the whole tree. PATs authenticate the Agents API
+    // for OP users from the CLI, but the API reference pages themselves are
+    // documentation we don't want self-serve users acting on directly.
+    // /api/ is the older custom-integration doc set, also all enterprise.
+    '/api-reference/',
     '/api/',
     '/analytics/csat/',
     '/user-management/',
