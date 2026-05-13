@@ -272,6 +272,102 @@
           }
         }
       }
+    },
+    "/v3/{account_id}/{project_id}/conversations/{conversation_id}/audio": {
+      "get": {
+        "summary": "Get audio recording for a conversation",
+        "description": "Returns the audio recording for a conversation as a WAV file.\n\n**PII access enforcement.** Users without PII access always receive the redacted recording, regardless of the `redacted` query parameter. Users with PII access receive the raw recording by default and can opt into the redacted version by passing `redacted=true`. PII access is granted through your account's role and permission configuration in Agent Studio.",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Account ID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "description": "Unique conversation ID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CAabcd1234567abcdef1250065d4fc7389"
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "description": "Which side of the call to return. `combined` returns the full mixed recording. `user` returns only the caller audio. `agent` returns only the agent audio.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "combined",
+                "user",
+                "agent"
+              ],
+              "default": "combined"
+            }
+          },
+          {
+            "name": "redacted",
+            "in": "query",
+            "description": "If `true`, returns the redacted recording with personally identifiable information (PII) muted. If `false`, returns the raw recording. **Users without PII access always receive the redacted recording, regardless of this parameter.**",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "WAV audio recording for the conversation.",
+            "content": {
+              "audio/wav": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Recording not found for the given conversation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
     }
   },
   "components": {
