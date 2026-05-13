@@ -1,0 +1,121 @@
+---
+title: "MCP server"
+sidebarTitle: "Overview"
+description: "Connect coding agents like Claude Code to PolyAI's REST APIs over the Model Context Protocol (MCP) developer preview endpoint."
+---
+
+The PolyAI MCP server exposes the public REST APIs — Agents, Supervisor Alerts, and agent stream — as [Model Context Protocol](https://modelcontextprotocol.io) tools. Connect an MCP client like Claude Code, Cursor, or your own agent and call PolyAI directly from a conversation instead of writing HTTP code.
+
+<Note>
+The MCP server is a **developer preview** running on the dev environment. It is intended for prototyping and exploration. Tool names, paths, and the endpoint URL may change before the production launch.
+</Note>
+
+## What you can do with it
+
+- **Drive Agent Studio from a coding assistant.** Ask Claude Code to create an agent, add a knowledge base topic, publish to sandbox, or roll back a deployment — without leaving your editor.
+- **Inspect supervisor alerts.** Pull active alerts and alert rules into the conversation for triage.
+- **Query agent activity.** Use the agent stream tools to read runtime data while you debug.
+
+Every tool maps one-to-one to a [REST endpoint](/api-reference/introduction), so anything you can do with the REST APIs is available through MCP.
+
+## Endpoint
+
+| Environment | Transport | URL |
+| ----------- | --------- | --- |
+| Dev preview | HTTP / SSE | `https://api.dev.poly.ai/mcp-dev` |
+
+The endpoint speaks the standard MCP JSON-RPC protocol over HTTP and Server-Sent Events.
+
+## Authentication
+
+Authenticate with the same API key you use for the REST APIs. Send it in the `X-API-KEY` header on every request.
+
+<Note>
+API keys for the MCP server are not yet available through self-service. Email [developers@poly.ai](mailto:developers@poly.ai) to request a developer preview key.
+</Note>
+
+## Quick start with Claude Code
+
+Add the PolyAI MCP server to Claude Code with a single command:
+
+```bash
+claude mcp add --transport sse polyai-dev https://api.dev.poly.ai/mcp-dev \
+  --header "X-API-KEY: $POLY_ADK_KEY"
+```
+
+Export your key first:
+
+```bash
+export POLY_ADK_KEY="your-api-key"
+```
+
+Once added, Claude Code discovers every tool the server exposes. Ask it to use one:
+
+> "Use the PolyAI MCP server to list all agents in my workspace."
+
+Claude Code will pick the matching tool (for example, `list-agents`), call it with the right arguments, and stream the result back into the conversation.
+
+## Other MCP clients
+
+Any client that supports the HTTP or SSE transport works. Point it at the endpoint and include the `X-API-KEY` header.
+
+### Smoke test with `curl`
+
+List every tool the server advertises:
+
+```bash
+curl -X POST https://api.dev.poly.ai/mcp-dev \
+  -H 'Content-Type: application/json' \
+  -H "X-API-KEY: $POLY_ADK_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+The response contains a `result.tools` array. Each entry has a `name`, `description`, and JSON-Schema `parameters` block describing what the tool accepts.
+
+## Available tools
+
+The MCP server aggregates tools from three PolyAI services:
+
+| Service | What it covers |
+| ------- | -------------- |
+| Agents API | Create, configure, and deploy agents. See [Agents API](/api-reference/agents/introduction). |
+| Supervisor alerts | Manage alert rules and read active alerts. See [Alerts API](/api-reference/alerts/introduction). |
+| Agent stream | Read runtime data and activity from running agents. |
+
+Tool names are derived from each REST operation's `operationId` (kebab-cased). For example:
+
+- `list-agents` → `GET /v1/agents`
+- `create-agent` → `POST /v1/agents`
+- `publish-the-current-draft-to-an-environment` → `POST /v1/agents/{agentId}/deployments/publish`
+- `list-alert-rules` → `GET /v1/alert-rules`
+
+Call `tools/list` against the endpoint to see the full, current list.
+
+## Choosing between MCP and the REST APIs
+
+Use the MCP server when you want a conversational interface — pair it with a coding assistant to script multi-step changes from natural language.
+
+Use the [REST APIs](/api-reference/introduction) directly when you are building production automation, CI/CD pipelines, or anything that needs deterministic, scripted behavior.
+
+## Limitations
+
+- **Dev preview only.** The endpoint runs on `api.dev.poly.ai` and is not covered by a production SLA.
+- **No streaming responses.** Tools return the same payloads as the underlying REST endpoints; long-running operations are not yet streamed back through MCP.
+- **Tool list may change.** As new public-API endpoints ship, the tool list expands. Treat the tool catalogue as discoverable via `tools/list` rather than hard-coded.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Agents API" icon="robot" href="/api-reference/agents/introduction">
+    The REST surface exposed by most MCP tools.
+  </Card>
+  <Card title="Alerts API" icon="bell" href="/api-reference/alerts/introduction">
+    Supervisor alert rules and active alerts.
+  </Card>
+  <Card title="Getting started" icon="play" href="/api-reference/introduction">
+    API families, base URLs, and authentication.
+  </Card>
+  <Card title="Model Context Protocol" icon="link" href="https://modelcontextprotocol.io">
+    Learn the MCP specification.
+  </Card>
+</CardGroup>
