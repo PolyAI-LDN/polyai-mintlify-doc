@@ -1,0 +1,98 @@
+---
+title: "Zoom screen pop app"
+description: "Install the PolyAI screen pop app in Zoom to surface live call context for your agents."
+---
+
+The PolyAI screen pop app for Zoom shows agents the context of a PolyAI conversation when a call is handed off, so they can pick up where the voice agent left off without asking the caller to repeat themselves.
+
+<Note>
+The screen pop app is separate from the [Zoom Contact Center](/integrations/zoom) SIP integration. You can use them together: PolyAI handles the call through the SIP trunk and the screen pop app delivers the conversation context to the agent's Zoom client.
+</Note>
+
+## How it works
+
+1. A caller speaks to your PolyAI voice agent.
+2. PolyAI hands the call off to a Zoom agent and writes a [handoff state](/api-reference/handoff/introduction) containing the conversation context.
+3. The screen pop app, installed in the agent's Zoom client, retrieves that state and displays it alongside the incoming call.
+
+To link your Zoom organization to the correct PolyAI project, you register your Zoom account once during install. PolyAI stores the mapping from your Zoom account ID to a PolyAI account, project, and Handoff API key, and uses it to look up the right handoff state for each call.
+
+## Prerequisites
+
+Before you install the screen pop app, gather:
+
+- Your **PolyAI account ID** and **project ID**. You can find these in the Studio URL — see [Find your account and project IDs](/api-reference/introduction).
+- A **Handoff API key** for the project. Contact your PolyAI representative if you don't have one — see the [Handoff API introduction](/api-reference/handoff/introduction) for details.
+- **Admin access** to your Zoom organization to install third-party apps.
+
+## Install the app
+
+1. In the Zoom App Marketplace, find the **PolyAI screen pop** app and click **Install**.
+2. Authorize the app for your Zoom organization.
+3. On the PolyAI login page, enter your PolyAI account ID, project ID, and Handoff API key, then click **Connect**.
+
+The app registers your Zoom organization with PolyAI by calling the tenant registration endpoint. After registration, every call that hands off to a Zoom agent in your organization automatically resolves to the correct PolyAI project.
+
+<Warning>
+If you change your Handoff API key, re-run the connect step to update the stored credentials. The screen pop app uses the credentials registered at install time for every call.
+</Warning>
+
+## Tenant registration API
+
+The connect step calls a single endpoint. You only need to use it directly if you are building a custom installer or scripting the setup for multiple Zoom organizations.
+
+**Endpoint**
+
+```http
+PUT https://api.{region}.platform.polyai.app/v1/zoom/{zoom_account_id}/tenant
+```
+
+**Path parameters**
+
+| Parameter | Description |
+| --- | --- |
+| `zoom_account_id` | The account ID of the Zoom organization being registered. |
+
+**Request body**
+
+```json
+{
+  "account_id": "ACCOUNT-xxx",
+  "project_id": "PROJECT-xxx",
+  "handoff_api_key": "your-handoff-api-key"
+}
+```
+
+**Example request**
+
+```bash
+curl -X PUT \
+  "https://api.us-1.platform.polyai.app/v1/zoom/KdYhG5gQSjKdKEjKL_NLmA/tenant" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "account_id": "ACCOUNT-xxx",
+    "project_id": "PROJECT-xxx",
+    "handoff_api_key": "your-handoff-api-key"
+  }'
+```
+
+**Responses**
+
+| Status | Meaning |
+| --- | --- |
+| `200` | Tenant registered. The Zoom account is now mapped to the supplied PolyAI project. |
+| `400` | `PolyAI project not found`. The account ID, project ID, or Handoff API key is invalid. |
+| `502` | The PolyAI Handoff API could not be reached. Retry the request. |
+
+PolyAI validates the credentials before storing them by calling the [Handoff API](/api-reference/handoff/endpoint/get-handoff) on your behalf. Invalid credentials are rejected immediately, so a `200` response means the screen pop app can fetch handoff state for future calls.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Handoff API" href="/api-reference/handoff/introduction" icon="phone-arrow-right">
+    Reference for the API the screen pop app uses to fetch conversation context.
+  </Card>
+  <Card title="Zoom Contact Center" href="/integrations/zoom" icon="headset">
+    SIP trunk integration for handling Zoom calls with a PolyAI voice agent.
+  </Card>
+</CardGroup>
