@@ -51,6 +51,26 @@ if turn["user_input"]:
     process(turn["user_input"])
 ```
 
+### Turn-level `is_ood` and `is_silence`
+
+The `is_ood` and `is_silence` fields on each turn are now always returned as boolean values (`true` or `false`) on both v1 and v3. Historically, v1 could return `null` for these fields when the underlying value was not set.
+
+If your v1 integration treats `null` and `false` differently for these fields, update your parsing to handle both cases the same way:
+
+```python
+# Old v1 behaviour (null possible)
+if turn.get("is_ood") is True:
+    flag_out_of_domain(turn)
+
+# Current behaviour (always boolean)
+if turn["is_ood"]:
+    flag_out_of_domain(turn)
+```
+
+<Note>
+A `false` value is strictly more informative than `null` – it confirms the turn was evaluated and was not out-of-domain or silent. No action is required unless your code explicitly checks for `null`.
+</Note>
+
 ### Timestamps
 
 v3 uses consistent **ISO 8601** timestamps throughout. v1 had inconsistent formatting across some fields.
