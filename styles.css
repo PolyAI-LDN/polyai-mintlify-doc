@@ -467,47 +467,91 @@ html[data-on-open-platform-only="true"]:not([data-simplified="true"]) .open-plat
 }
 
 /* ── Lock banners ─────────────────────────────────────────────────────────────
-   Two flavours of sticky lock banner, both built on the same shell:
+   Two flavours of floating lock card, both built on the same shell:
      - .free-trial-enterprise-banner — shown on enterprise pages when in OP mode
      - .open-platform-only-banner    — shown on OP pages when in enterprise mode
-   Same compact pill-like shape as the floating .simplify-toggle; uses the
-   studio palette (ink + paper + lime) for visual consistency. The two flavours
-   differ only in accent colour to signal direction. */
+   Studio palette throughout. Floats top-center over the page, draggable
+   via the ⋮⋮ handle on the left edge. Position persists in localStorage
+   (handled in scripts/simplify-toggle.js). */
 .free-trial-enterprise-banner {
   display: flex;
-  gap: 0.65rem;
-  align-items: center;
-  position: sticky;
-  top: 0.75rem;
+  gap: 0.75rem;
+  align-items: flex-start;
+  position: fixed;
+  top: 5rem;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 50;
-  margin: 0 0 1.25rem 0;
-  padding: 0.55rem 0.85rem 0.55rem 0.75rem;
+  width: min(380px, calc(100vw - 2rem));
+  padding: 0.85rem 1rem 0.85rem 0.5rem;
   border: 1px solid rgba(22, 22, 23, 0.1);
-  border-radius: 999px;
+  border-radius: 14px;
   background: var(--studio-paper);
   color: var(--studio-ink);
-  font-size: 0.82rem;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+  font-size: 0.85rem;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.06);
+  user-select: none;
 }
 
 html.dark .free-trial-enterprise-banner {
   background: var(--studio-ink);
   color: #f5f5f5;
   border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.free-trial-enterprise-banner--dragging {
+  cursor: grabbing !important;
+  transition: none !important;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18), 0 3px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Drag handle on the left edge — small ⋮⋮ icon, only the handle initiates
+   drag so the banner body and buttons remain clickable. */
+.free-trial-enterprise-banner__handle {
+  flex: 0 0 auto;
+  width: 0.9rem;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(22, 22, 23, 0.35);
+  font-size: 0.7rem;
+  letter-spacing: -0.1em;
+  cursor: grab;
+  touch-action: none;
+  transition: color 140ms ease;
+}
+
+.free-trial-enterprise-banner__handle:hover {
+  color: var(--studio-ink);
+}
+
+.free-trial-enterprise-banner--dragging .free-trial-enterprise-banner__handle {
+  cursor: grabbing;
+}
+
+html.dark .free-trial-enterprise-banner__handle {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+html.dark .free-trial-enterprise-banner__handle:hover {
+  color: #f5f5f5;
 }
 
 .free-trial-enterprise-banner__icon {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   line-height: 1;
   color: var(--studio-ink);
   flex: 0 0 auto;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.65rem;
+  height: 1.65rem;
   border-radius: 999px;
   background: var(--studio-lime-22);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  margin-top: 0.05rem;
 }
 
 html.dark .free-trial-enterprise-banner__icon {
@@ -517,28 +561,36 @@ html.dark .free-trial-enterprise-banner__icon {
 
 .free-trial-enterprise-banner__body {
   flex: 1 1 auto;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .free-trial-enterprise-banner__title {
-  margin: 0;
-  font-size: 0.82rem;
-  font-weight: 400;
-  letter-spacing: 0.005em;
+  margin: 0 0 0.4rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .free-trial-enterprise-banner__title strong {
   font-weight: 600;
 }
 
+.free-trial-enterprise-banner__text {
+  margin: 0 0 0.7rem 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: rgba(22, 22, 23, 0.78);
+}
+
+html.dark .free-trial-enterprise-banner__text {
+  color: rgba(245, 245, 245, 0.78);
+}
+
 .free-trial-enterprise-banner__actions {
   margin: 0;
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.4rem;
   align-items: center;
 }
 
@@ -546,8 +598,8 @@ html.dark .free-trial-enterprise-banner__icon {
 .free-trial-enterprise-banner__exit {
   display: inline-flex;
   align-items: center;
-  padding: 0.3rem 0.75rem;
-  font-size: 0.78rem;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
   text-decoration: none;
   border-radius: 999px;
@@ -640,32 +692,59 @@ html.dark .open-platform-only-banner .free-trial-enterprise-banner__cta {
 /* ── Developer content accordion (simplified mode only) ──────────────────── */
 
 .dev-accordion {
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  border-radius: 8px;
-  margin: 1.5rem 0;
+  border: 1px solid rgba(22, 22, 23, 0.1);
+  border-radius: 12px;
+  margin: 1.25rem 0;
   overflow: hidden;
+  background: var(--studio-paper);
+}
+
+html.dark .dev-accordion {
+  background: rgba(22, 22, 23, 0.4);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .dev-accordion-summary {
-  padding: 0.75rem 1rem;
+  padding: 0.55rem 0.95rem;
   cursor: pointer;
   font-weight: 500;
-  font-size: 0.9rem;
-  color: #6366f1;
-  background: rgba(99, 102, 241, 0.05);
+  font-size: 0.82rem;
+  color: var(--studio-ink);
+  background: var(--studio-lime-12);
   list-style: none;
   user-select: none;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.55rem;
+  transition: background 140ms ease;
+}
+
+html.dark .dev-accordion-summary {
+  color: #f5f5f5;
+  background: rgba(217, 238, 80, 0.06);
+}
+
+.dev-accordion-summary:hover {
+  background: var(--studio-lime-22);
+}
+
+html.dark .dev-accordion-summary:hover {
+  background: var(--studio-lime-12);
 }
 
 .dev-accordion-summary::-webkit-details-marker { display: none; }
 
 .dev-accordion-summary::before {
   content: '▸';
-  font-size: 0.75em;
+  font-size: 0.7em;
+  color: var(--studio-ink);
+  opacity: 0.6;
   transition: transform 140ms ease;
+}
+
+html.dark .dev-accordion-summary::before {
+  color: var(--studio-lime);
+  opacity: 0.9;
 }
 
 .dev-accordion[open] > .dev-accordion-summary::before {
@@ -673,8 +752,12 @@ html.dark .open-platform-only-banner .free-trial-enterprise-banner__cta {
 }
 
 .dev-accordion > .developer-only {
-  padding: 0 1rem 1rem;
-  border-top: 1px solid rgba(99, 102, 241, 0.1);
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid rgba(22, 22, 23, 0.06);
+}
+
+html.dark .dev-accordion > .developer-only {
+  border-top-color: rgba(255, 255, 255, 0.06);
 }
 
 @media (prefers-reduced-motion: reduce) {

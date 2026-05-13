@@ -27,6 +27,7 @@
   // mirrored back into the URL on navigations so links can be shared.
   var STORAGE_KEY = 'polyai-simplified-mode';
   var POSITION_KEY = 'polyai-simplified-pill-position';
+  var BANNER_POSITION_KEY = 'polyai-lock-banner-position';
   var DRAG_THRESHOLD = 4; // px — movement before we treat a pointerdown as a drag
 
   // Sidebar group names to dim in Open platform mode.
@@ -153,23 +154,23 @@
     // Telephony providers under /integrations/voice/ — same gating as
     // /telephony/ (PSTN provisioning is contracted). Sub-pages under
     // amazon-connect/, sip/, etc. all locked by this prefix.
-    '/integrations/voice/'
+    '/integrations/voice/',
+    // Agent settings: on the Open platform you change personality, rules,
+    // model, etc. through Studio Assistant rather than the direct config
+    // pages. The pages themselves are enterprise-flavoured (model picker,
+    // BYOM, Language Hub, Agents API automation), so the whole directory
+    // is locked. The Raven page is allowlisted below in SIMPLIFIED_INTROS
+    // because it appears in the OP sidebar as 'What model does PolyAI use?'.
+    '/agent-settings/'
   ];
   var ENTERPRISE_EXACT = [
     '/call-data/s3-to-s3',
     // Workspace-scoped API keys are enterprise-only — Open platform users use
     // personal access tokens (/secrets/personal-access-tokens) instead.
     '/secrets/api-keys',
-    // Model selection (Raven vs. GPT vs. Claude vs. bring-your-own) is
-    // enterprise. On the Open platform every agent runs on Raven; there's
-    // no model picker. The Raven page itself stays available because OP
-    // users still want to know what's running.
-    '/agent-settings/model-use',
-    '/agent-settings/byom',
-    // Language Hub (multi-language agent variants with shared content) is
-    // enterprise. The Open platform supports single-language agents and
-    // basic multilingual responses; the hub-style configuration is gated.
-    '/agent-settings/multilingual',
+    // (Model selection, BYOM, Language Hub, and the rest of /agent-settings/
+    // are now covered by the /agent-settings/ prefix above. Raven stays open
+    // via SIMPLIFIED_INTROS.)
     // PolyScore is a single page; the underlying scoring service isn't
     // deployed on the Open platform cluster.
     '/analytics/polyscore',
@@ -206,10 +207,19 @@
     '/integrations/snapcall'
   ];
 
-  // These intro pages are "mixed" — they appear in Open platform mode with
-  // developer content tucked behind an accordion. They must NOT trigger the
-  // enterprise banner/grayout.
-  var SIMPLIFIED_INTROS = ['/call-handoff/introduction', '/sms/introduction', '/flows/introduction'];
+  // Paths the lock check should treat as Open-platform-safe even if they'd
+  // match an ENTERPRISE_PREFIXES prefix. Two kinds of entries:
+  //   - "Mixed" intros that show in Open platform mode with developer content
+  //     tucked behind an accordion (call-handoff, sms, flows).
+  //   - Allowlisted pages under an otherwise-locked prefix (Raven, which is
+  //     surfaced in the OP sidebar as 'What model does PolyAI use?' even
+  //     though the parent /agent-settings/ directory is locked).
+  var SIMPLIFIED_INTROS = [
+    '/call-handoff/introduction',
+    '/sms/introduction',
+    '/flows/introduction',
+    '/agent-settings/raven'
+  ];
 
   // Pages that carry a "Code" / "Advanced" tag pill in the docs but are
   // first-class self-serve features on the Open platform. The sidebar
@@ -439,9 +449,11 @@
     banner.className = 'free-trial-enterprise-banner';
     banner.setAttribute('role', 'note');
     banner.innerHTML =
+      '<div class="free-trial-enterprise-banner__handle" aria-hidden="true" title="Drag to move">⋮⋮</div>' +
       '<div class="free-trial-enterprise-banner__icon" aria-hidden="true">✦</div>' +
       '<div class="free-trial-enterprise-banner__body">' +
-        '<p class="free-trial-enterprise-banner__title"><strong>Enterprise feature.</strong> Not on the Open platform.</p>' +
+        '<p class="free-trial-enterprise-banner__title"><strong>Enterprise feature</strong></p>' +
+        '<p class="free-trial-enterprise-banner__text">This page is here for reference, but it isn\'t part of the Open platform self-serve trial. When you\'re ready to use it, talk to sales about an enterprise plan.</p>' +
         '<p class="free-trial-enterprise-banner__actions">' +
           '<a href="https://poly.ai/request-a-demo" class="free-trial-enterprise-banner__cta" target="_blank" rel="noopener">Talk to sales</a>' +
           '<button type="button" class="free-trial-enterprise-banner__exit" id="free-trial-enterprise-banner-exit">Open platform — exit</button>' +
@@ -461,6 +473,12 @@
     var exitBtn = banner.querySelector('#free-trial-enterprise-banner-exit');
     if (exitBtn) {
       exitBtn.addEventListener('click', function (e) {
+        if (banner.dataset.dragSuppressClick === '1') {
+          banner.dataset.dragSuppressClick = '';
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
         e.preventDefault();
         setSimplified(false);
         document.querySelectorAll('.simplify-toggle').forEach(function (b) {
@@ -468,13 +486,16 @@
         });
         markSidebarGroups();
         markNavbarTabs();
-      markGlobalAnchors();
+        markGlobalAnchors();
         applyDeveloperContent();
         applyEnterpriseBanner();
-      applyOpenPlatformOnlyBanner();
+        applyOpenPlatformOnlyBanner();
         updateLandingPageStatus();
       });
     }
+
+    applyStoredBannerPosition(banner);
+    makeBannerDraggable(banner);
   }
 
   // Inject a sticky banner at the top of an Open-platform-only page when the
@@ -501,9 +522,11 @@
     banner.className = 'free-trial-enterprise-banner open-platform-only-banner';
     banner.setAttribute('role', 'note');
     banner.innerHTML =
+      '<div class="free-trial-enterprise-banner__handle" aria-hidden="true" title="Drag to move">⋮⋮</div>' +
       '<div class="free-trial-enterprise-banner__icon" aria-hidden="true">✦</div>' +
       '<div class="free-trial-enterprise-banner__body">' +
-        '<p class="free-trial-enterprise-banner__title"><strong>Open platform feature.</strong> Enter Open platform mode to read in context.</p>' +
+        '<p class="free-trial-enterprise-banner__title"><strong>Open platform feature</strong></p>' +
+        '<p class="free-trial-enterprise-banner__text">This is part of the PolyAI Open platform — the self-serve, 60-day free trial of Agent Studio. Switch on Open platform mode to read these docs in context, or talk to sales about getting it on enterprise.</p>' +
         '<p class="free-trial-enterprise-banner__actions">' +
           '<button type="button" class="free-trial-enterprise-banner__cta" id="open-platform-only-banner-enter">Enter Open platform mode</button>' +
           '<a href="https://poly.ai/request-a-demo" class="free-trial-enterprise-banner__exit" target="_blank" rel="noopener">Talk to sales</a>' +
@@ -520,6 +543,12 @@
     var enterBtn = banner.querySelector('#open-platform-only-banner-enter');
     if (enterBtn) {
       enterBtn.addEventListener('click', function (e) {
+        if (banner.dataset.dragSuppressClick === '1') {
+          banner.dataset.dragSuppressClick = '';
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
         e.preventDefault();
         setSimplified(true);
         document.querySelectorAll('.simplify-toggle').forEach(function (b) {
@@ -534,6 +563,9 @@
         updateLandingPageStatus();
       });
     }
+
+    applyStoredBannerPosition(banner);
+    makeBannerDraggable(banner);
   }
 
   // Wrap .developer-only sections in a <details> accordion in Open platform mode.
@@ -707,8 +739,106 @@
     btn.addEventListener('pointercancel', endDrag);
   }
 
+  // ── Banner drag support ─────────────────────────────────────────────────
+  // The lock banner uses the same drag mechanism as the pill but with its own
+  // localStorage key and a wider clamp footprint. Defaults to a centered-top
+  // position (set in CSS); after the first drag the explicit left/top win.
+
+  function readStoredBannerPosition() {
+    try {
+      var raw = window.localStorage.getItem(BANNER_POSITION_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (typeof parsed.left !== 'number' || typeof parsed.top !== 'number') return null;
+      return parsed;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function writeStoredBannerPosition(pos) {
+    try {
+      window.localStorage.setItem(BANNER_POSITION_KEY, JSON.stringify(pos));
+    } catch (e) {}
+  }
+
+  function applyStoredBannerPosition(el) {
+    var pos = readStoredBannerPosition();
+    if (!pos) return;
+    var rect = el.getBoundingClientRect();
+    var clamped = clampPosition(pos.left, pos.top, rect.width || 340, rect.height || 110);
+    el.style.left = clamped.left + 'px';
+    el.style.top = clamped.top + 'px';
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
+    el.style.transform = 'none';
+  }
+
+  function makeBannerDraggable(el) {
+    // Only the handle initiates drags; clicks inside the body/buttons don't.
+    var handle = el.querySelector('.free-trial-enterprise-banner__handle');
+    if (!handle) return;
+
+    var startX = 0, startY = 0;
+    var originLeft = 0, originTop = 0;
+    var dragging = false;
+    var pointerId = null;
+
+    handle.addEventListener('pointerdown', function (e) {
+      if (e.button !== undefined && e.button !== 0) return;
+      var rect = el.getBoundingClientRect();
+      startX = e.clientX;
+      startY = e.clientY;
+      originLeft = rect.left;
+      originTop = rect.top;
+      pointerId = e.pointerId;
+      dragging = false;
+    });
+
+    handle.addEventListener('pointermove', function (e) {
+      if (pointerId === null || e.pointerId !== pointerId) return;
+      var dx = e.clientX - startX;
+      var dy = e.clientY - startY;
+      if (!dragging && Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
+      if (!dragging) {
+        dragging = true;
+        el.classList.add('free-trial-enterprise-banner--dragging');
+        try { handle.setPointerCapture(pointerId); } catch (err) {}
+      }
+      var rect = el.getBoundingClientRect();
+      var next = clampPosition(originLeft + dx, originTop + dy, rect.width, rect.height);
+      el.style.left = next.left + 'px';
+      el.style.top = next.top + 'px';
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+      el.style.transform = 'none';
+      e.preventDefault();
+    });
+
+    function endDrag(e) {
+      if (pointerId === null) return;
+      if (e && e.pointerId !== pointerId) return;
+      try { handle.releasePointerCapture(pointerId); } catch (err) {}
+      pointerId = null;
+      if (dragging) {
+        el.classList.remove('free-trial-enterprise-banner--dragging');
+        var rect = el.getBoundingClientRect();
+        writeStoredBannerPosition({ left: rect.left, top: rect.top });
+        // Swallow the click that would otherwise hit any nested button after
+        // a drag — banner buttons (Talk to sales, Exit, Enter) check this.
+        el.dataset.dragSuppressClick = '1';
+        setTimeout(function () { el.dataset.dragSuppressClick = ''; }, 0);
+      }
+      dragging = false;
+    }
+
+    handle.addEventListener('pointerup', endDrag);
+    handle.addEventListener('pointercancel', endDrag);
+  }
+
   // Re-clamp saved position into view on resize (e.g. orientation change,
-  // browser window shrunk) so the pill can never end up off-screen.
+  // browser window shrunk) so the pill and lock banner can never end up
+  // off-screen.
   window.addEventListener('resize', function () {
     document.querySelectorAll('.simplify-toggle').forEach(function (btn) {
       var pos = readStoredPosition();
@@ -721,6 +851,20 @@
       btn.style.bottom = 'auto';
       if (clamped.left !== pos.left || clamped.top !== pos.top) {
         writeStoredPosition(clamped);
+      }
+    });
+    document.querySelectorAll('.free-trial-enterprise-banner').forEach(function (el) {
+      var pos = readStoredBannerPosition();
+      if (!pos) return;
+      var rect = el.getBoundingClientRect();
+      var clamped = clampPosition(pos.left, pos.top, rect.width, rect.height);
+      el.style.left = clamped.left + 'px';
+      el.style.top = clamped.top + 'px';
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+      el.style.transform = 'none';
+      if (clamped.left !== pos.left || clamped.top !== pos.top) {
+        writeStoredBannerPosition(clamped);
       }
     });
   });
