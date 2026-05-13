@@ -12,19 +12,67 @@ keywords:
 noindex: true
 ---
 
-Studio Assistant is the AI copilot built into PolyAI Studio. Describe what you want, and it reads your project, plans the work, and, with your approval, makes the changes on a branch you can review before merging back to `Main`.
+Studio Assistant is the chat panel on the home screen. You tell it what you want, it reads your project, and it proposes a plan. You read the plan. If it looks right, you click Approve. If not, you say what to change and it tries again.
 
-<Note>
-Studio Assistant uses the same building blocks you'd use manually: flows, topics, entities, functions, handoffs, and agent settings. Every edit goes onto a **branch**, not directly to `Main`.
-</Note>
+The agent doesn't change until you approve. Every edit lands on a branch, not on your live agent.
 
 <Warning>
 **Screenshots on this page use internal test agents (Bella Vista, Bella Noches) and internal branch names.** Replace each one with an external-facing capture before the Open platform launch.
 </Warning>
 
-## A typical session
+## How to ask
 
-The steps you'll repeat for most work:
+Three patterns matter most:
+
+- **State the business rule, not just the action.** *"Add a refund flow with a 30-day window, original payment method only"* beats *"Add a refund flow"*.
+- **One unit of work per request.** One flow, one topic, one set of related changes. Easier to review, faster to iterate.
+- **Be specific about what to keep.** When you ask for a rewrite or a cleanup, name anything that should stay. Or ask for a plan first so you can see what's about to go.
+
+The [prompting guide](/studio-assistant/prompting) has more patterns and copy-paste examples.
+
+## What it can change
+
+Studio Assistant operates on the same building blocks you'd edit by hand: flows, topics, entities, functions, integrations, handoffs, and agent settings. For any of these, it can read your current config, propose changes, and write them to a branch.
+
+| Building block | Examples of what the assistant can do |
+|----------------|----------------------------------------|
+| **Flows** | Create new flows; restructure steps, transitions, and conditions; rewrite step prompts |
+| **Topics** | Create knowledge-base topics from a description; update wording or scope |
+| **Entities** | Define entities and their values; update entity definitions used by flows |
+| **Functions** | Wire flows to existing functions; describe and create new function specs |
+| **Integrations** | Configure integrations and connect them to flows |
+| **Handoffs** | Add transfer-to-human steps with the right conditions and metadata |
+| **Agent settings** | Set or update purpose, role, and personality |
+
+Heavy requests get broken down into smaller reasoning steps under the hood. You don't manage those directly; they appear inline in the conversation log.
+
+## Modes
+
+The chat panel has three modes:
+
+- **Agent** changes your project. This is the default for build work.
+- **Plan** proposes a plan but doesn't apply it. Useful for exploring options without touching anything.
+- **Ask** answers questions about your project. Read-only and cheap. Good for "what does this flow do?" and "why did containment drop yesterday?"
+
+## What to expect
+
+- **Branches only.** Studio Assistant edits the branch you're on. It never publishes or promotes between [environments](/environments-and-versions/introduction) on its own.
+- **Business knowledge comes from you.** The assistant won't invent prices, hours, policies, or names. If those are missing, planning will surface them as questions.
+- **Everything is reviewable.** Every change appears on a branch with a tracked-changes summary, so you can inspect, tweak, or revert it before merging.
+
+## Limits
+
+Studio Assistant has a fair-use limit so usage stays predictable. The size and reset cadence are managed by PolyAI on your account. Current usage shows next to the message input.
+
+When you hit the limit, the assistant pauses until the next reset. A rest card replaces the input, and manual editing in Studio still works normally.
+
+[Usage and limits →](/studio-assistant/usage-and-limits)
+
+## A full session, step by step
+
+<Accordion title="The full tour: chat → ask → branch → plan → approve → merge">
+
+The steps you'll repeat for most build work, with screenshots from a real session.
 
 <Steps>
   <Step title="Start from the home screen">
@@ -46,80 +94,41 @@ The steps you'll repeat for most work:
   </Step>
 
   <Step title="Answer any clarifying questions">
-    If your request is ambiguous, the assistant asks a clarifying multiple-choice question before it starts planning. In the example below, the user said the Bella Noches number is "derived in a programmatic way by asking them their area code then giving them the number -5552", and the assistant follows up to pin down exactly how the area code maps to the full number. Pick an option, type your own answer in the input below, or **Skip** to let the assistant choose.
+    If your request is ambiguous, the assistant asks a clarifying multiple-choice question before it starts planning. Pick an option, type your own answer, or **Skip** to let the assistant choose.
 
     ![Studio Assistant asking a clarifying multiple-choice question about how the Bella Noches phone number is derived from the caller's area code, with a Skip option](/images/studio-assistant/clarifying-question.png)
   </Step>
 
   <Step title="Approve or revise the plan">
-    Once it has enough context, the assistant presents a plan card with **Approve** and **Reject** buttons. **Nothing is written until you approve.** Click the plan card to expand the full breakdown, flow changes, topic updates, transfers, voice samples, and anything else it intends to touch. From the expanded view you can write feedback for the assistant to revise the plan, then **Send** to re-plan.
+    Once it has enough context, the assistant presents a plan card with **Approve** and **Reject** buttons. **Nothing is written until you approve.** Click the plan card to expand the full breakdown. From the expanded view you can write feedback for the assistant to revise the plan, then **Send** to re-plan.
 
     ![Expanded plan modal for a Bella Noches redirect flow with a feedback textarea and Cancel/Send buttons](/images/studio-assistant/approve-flow-revise.png)
 
-    After you send revisions, the plan is marked **Changes requested** and your feedback is shown above the regenerated plan, so you can see what the next version is responding to.
+    After you send revisions, the plan is marked **Changes requested** and your feedback is shown above the regenerated plan.
 
     ![Plan card after revisions submitted: a Changes requested pill, a Your feedback block quoting the typed feedback, and the regenerated plan summary below](/images/studio-assistant/approve-flow-revised.png)
 
-    When you **Approve**, the changes are applied to your branch (never to `Main`). Every applied edit is summarized in a **changes made** card you can expand to see exactly which steps, flows, or settings were modified, and which branch the change landed on.
+    When you **Approve**, the changes apply to your branch. Every applied edit is summarized in a **changes made** card.
 
     ![A single-step fix applied to the collect_phone_number step on the fix-booking-flow-wiring branch](/images/studio-assistant/change-applied.png)
   </Step>
 
   <Step title="Merge to main">
-    The **Merge** button in the top-right opens a dialog where you can add an optional message explaining the changes, then ship the branch back to `Main`. From there, your changes flow through the normal [Sandbox → Live](/environments-and-versions/introduction) pipeline.
+    The **Merge** button in the top-right opens a dialog where you can add an optional message, then ship the branch back to `Main`. From there, your changes flow through the normal [Sandbox → Live](/environments-and-versions/introduction) pipeline.
 
     ![Merge to the main branch dialog with an optional message typed in](/images/studio-assistant/merge-dialog.png)
   </Step>
 </Steps>
 
+</Accordion>
+
 ## Conversations and history
 
-- Chats are saved in the **History** panel on the left, scoped to the project.
-- Resume any past chat, switch between concurrent ones, or archive what you no longer need.
-- The assistant remembers everything in the current chat. Follow-ups like "now do the same for the cancellation flow" work without repeating context.
-- Drag in transcripts, policy docs, or screenshots to attach files. The assistant reads them as part of the request.
-- Start a new chat when switching to unrelated work. Each chat carries its full history as context, so very long chats can slow responses or trigger automatic summarization.
+Chats are saved in the **History** panel on the left, scoped to the project. You can resume any past chat, switch between concurrent ones, or archive what you're not using.
 
-## What Studio Assistant can work on
+The assistant remembers everything in the current chat. Follow-ups like *"now do the same for the cancellation flow"* work without repeating context. Drag in transcripts, policy docs, or screenshots to attach files; the assistant reads them as part of the request.
 
-Studio Assistant operates on the same building blocks you can edit by hand. For any of these, it can read your current configuration, propose changes, and write the changes to a branch.
-
-| Building block | Examples of what the assistant can do |
-|----------------|----------------------------------------|
-| **Flows** | Create new flows; restructure steps, transitions, and conditions; rewrite step prompts |
-| **Topics** | Create knowledge-base topics from a description; update wording or scope |
-| **Entities** | Define entities and their values; update entity definitions used by flows |
-| **Functions** | Wire flows to existing functions; describe and create new function specs |
-| **Integrations** | Configure integrations and connect them to flows |
-| **Handoffs** | Add transfer-to-human steps with the right conditions and metadata |
-| **Agent settings** | Set or update purpose, role, and personality |
-
-For complex requests, the assistant breaks the work down internally and delegates to specialized reasoning steps. You don't manage these directly; they appear as plan content and tool calls in the conversation log.
-
-## Working effectively
-
-Three patterns matter most:
-
-- **State the business rule, not just the action.** "Add a refund flow with a 30-day window, original payment method only" gets you a better first draft than "Add a refund flow".
-- **One unit of work per request.** One flow, one topic, one set of related changes. Easier to review, faster to iterate.
-- **Be specific about what to keep.** For requests that touch existing content, *"rewrite this flow"*, *"clean up the knowledge base"*, call out anything that should stay, or ask for a plan first so you can see what will be removed.
-
-[Full prompting guide →](/studio-assistant/prompting)
-
-## Limits
-
-Studio Assistant has a fair-use limit so usage stays predictable on the platform. The size of the limit and how often it resets are managed by PolyAI on your account. Your current usage and reset cadence show next to the message input.
-
-When you hit the limit, the assistant pauses until the next reset, a rest card replaces the input, and manual editing in Studio still works normally.
-
-[Usage and limits →](/studio-assistant/usage-and-limits)
-
-## What to expect
-
-- **Branches only.** Studio Assistant edits the branch you're on. It never publishes or promotes between [environments](/environments-and-versions/introduction) on its own.
-- **One scoped task at a time.** It works best on focused requests. For very large changes, break them into stages.
-- **Business knowledge comes from you.** The assistant won't invent prices, hours, policies, or names. If those are missing, planning will surface them as questions.
-- **Always reviewable.** Every change appears on a branch with a tracked-changes summary, so you can inspect, tweak, or revert it before merging.
+Start a new chat when switching to unrelated work. Each chat carries its full history as context, so very long chats can slow responses or trigger automatic summarization.
 
 ## Related pages
 
@@ -137,9 +146,9 @@ When you hit the limit, the assistant pauses until the next reset, a rest card r
     The building blocks the assistant uses to structure conversations.
   </Card>
   <Card title="Managed topics" icon="book" href="/managed-topics/introduction">
-    Knowledge the assistant reads from and writes to when answering content questions.
+    Knowledge the assistant reads from and writes to.
   </Card>
-  <Card title="Environments and versions" icon="layer-group" href="/environments-and-versions/introduction">
+  <Card title="Deployments" icon="layer-group" href="/environments-and-versions/introduction">
     Promote the assistant's branches from `Main` to Live.
   </Card>
 </CardGroup>
