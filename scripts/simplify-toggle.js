@@ -136,13 +136,27 @@
     '/user-management/',
     // Analytics — services not deployed on the Open platform cluster
     '/smart-analyst/',
-    '/agent-analysis/'
+    '/agent-analysis/',
+    // Connected Knowledge is the Source Hub: live document syncing from
+    // Confluence, SharePoint, Google Drive, etc. Enterprise-only — Open
+    // platform users build knowledge with Managed Topics instead.
+    '/connected-knowledge/'
   ];
   var ENTERPRISE_EXACT = [
     '/call-data/s3-to-s3',
     // Workspace-scoped API keys are enterprise-only — Open platform users use
     // personal access tokens (/secrets/personal-access-tokens) instead.
     '/secrets/api-keys',
+    // Model selection (Raven vs. GPT vs. Claude vs. bring-your-own) is
+    // enterprise. On the Open platform every agent runs on Raven; there's
+    // no model picker. The Raven page itself stays available because OP
+    // users still want to know what's running.
+    '/agent-settings/model-use',
+    '/agent-settings/byom',
+    // Language Hub (multi-language agent variants with shared content) is
+    // enterprise. The Open platform supports single-language agents and
+    // basic multilingual responses; the hub-style configuration is gated.
+    '/agent-settings/multilingual',
     // PolyScore is a single page; the underlying scoring service isn't
     // deployed on the Open platform cluster.
     '/analytics/polyscore',
