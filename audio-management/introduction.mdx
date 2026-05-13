@@ -113,6 +113,96 @@ Overrides follow a precedence order: **step > flow > global**. For example, you 
 Barge-in behavior cannot be fully tested in the chat panel. Always verify with a real phone call.
 </Note>
 
+### Control interrupted content (experimental)
+
+When a caller interrupts the agent, the agent's partially-spoken response is split into a "said" part (already heard by the caller) and an "unsaid" part. By default, the unsaid part is included in the conversation history with an ellipsis (`...`) marker. This can cause the LLM to act on content the caller never actually heard, leading to confused follow-ups.
+
+Use the experimental config keys below to control how interrupted utterances are split and how the result is displayed to the LLM and in [Agent Studio](/get-started/introduction).
+
+<Note>
+These keys live under `barge_in.experimental_config` in the experimental JSON config. They are intended for advanced tuning – contact your PolyAI representative before changing the defaults.
+</Note>
+
+#### Interruption granularity
+
+`interruption_granularity` controls **where** the agent's response is split when a caller interrupts.
+
+| Value | Behavior |
+|-------|----------|
+| `word` *(default)* | Splits at the nearest word boundary using audio timing. Most precise, but relies on word-level timing that can be unreliable on web calling. |
+| `sentence` | Splits at the nearest sentence boundary. The interrupted sentence and everything after it are treated as unsaid. |
+| `sentence_keep` | Splits at the nearest sentence boundary. The interrupted sentence stays in the said text – only fully unstarted sentences are treated as unsaid. |
+| `chunk` | The entire interrupted TTS chunk is treated as unsaid. No intra-chunk splitting. |
+
+#### Interruption display
+
+`interruption_display` controls how the interrupted utterance is shown in Agent Studio (and, by default, to the LLM).
+
+| Value | Output example |
+|-------|----------------|
+| `ellipsis` *(default)* | `Your booking is confirmed for...` |
+| `tags` | `Your booking is confirmed for <interrupted>Tuesday at 3pm.</interrupted>` |
+| `strip` | `Your booking is confirmed for` |
+| `none` | `Your booking is confirmed for Tuesday at 3pm.` (full text, as if no interruption occurred) |
+
+#### LLM-specific display
+
+`interruption_display_llm` overrides `interruption_display` for the conversation history sent to the LLM. Use this when you want Agent Studio to show one format (for debugging) and the LLM to see another (to prevent it from acting on unheard content). When omitted, the LLM inherits the value of `interruption_display`.
+
+The accepted values are the same as `interruption_display`: `ellipsis`, `tags`, `strip`, `none`.
+
+#### Examples
+
+**Remove all trace of interrupted content from both Agent Studio and the LLM.** Recommended when the LLM is acting on content the caller never heard:
+
+```json
+{
+  "barge_in": {
+    "is_enabled": true,
+    "experimental_config": {
+      "interruption_granularity": "sentence_keep",
+      "interruption_display": "strip"
+    }
+  }
+}
+```
+
+**Show interruption tags in Agent Studio for debugging, but hide unheard content from the LLM:**
+
+```json
+{
+  "barge_in": {
+    "is_enabled": true,
+    "experimental_config": {
+      "interruption_granularity": "sentence_keep",
+      "interruption_display": "tags",
+      "interruption_display_llm": "strip"
+    }
+  }
+}
+```
+
+**Show interruption tags in Agent Studio, send no interruption context to the LLM at all:**
+
+```json
+{
+  "barge_in": {
+    "is_enabled": true,
+    "experimental_config": {
+      "interruption_granularity": "sentence",
+      "interruption_display": "tags",
+      "interruption_display_llm": "none"
+    }
+  }
+}
+```
+
+#### Choosing a configuration
+
+- If the **LLM keeps acting on interrupted content** (for example, confirming a time the caller never heard), use `interruption_display_llm: "strip"` or `"none"`.
+- If you are running on **web calling** and barge-in splits feel unnatural, switch from `word` granularity to `sentence_keep` or `chunk`.
+- If you need **debugging visibility** in Agent Studio, keep `interruption_display: "tags"` and override the LLM separately.
+
 ## Related pages
 
 <CardGroup cols={3}>
