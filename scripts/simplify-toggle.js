@@ -123,9 +123,11 @@
     '/variant-management/',
     '/analytics/test-suite/',
     // Channels (entire group is absent from the PLG sidebar) — voice tuning
-    // pages, audio management, webchat, and widgets all land here
+    // pages, audio management, and webchat all land here. /widgets/ is
+    // explicitly NOT locked: it covers PolyPhone configuration, install,
+    // test, and troubleshooting, which are the primary OP deployment flow.
     '/speech-recognition/', '/response-control/', '/audio-management/',
-    '/webchat/', '/widgets/',
+    '/webchat/',
     // Configure — enterprise-only sub-groups. Numbers is rendered in the
     // PLG sidebar but every telephony page (the Numbers landing page and
     // its sub-pages, including the Twilio guide) opens with an enterprise
