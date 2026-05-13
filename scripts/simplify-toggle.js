@@ -131,7 +131,16 @@
     // banner because PSTN provisioning is enterprise-only.
     '/telephony/',
     '/call-data/conversations-api/',
-    '/api-reference/', '/api/',
+    // API reference: lock the enterprise-only APIs by sub-prefix so the
+    // Agents API (OP-available, used by PATs) stays open. /api/ is the
+    // older custom-integration doc set, all enterprise.
+    '/api-reference/conversations/',
+    '/api-reference/chat/',
+    '/api-reference/concurrent-calls/',
+    '/api-reference/dni/',
+    '/api-reference/handoff/',
+    '/api-reference/alerts/',
+    '/api/',
     '/analytics/csat/',
     '/user-management/',
     // Analytics — services not deployed on the Open platform cluster
@@ -140,7 +149,11 @@
     // Connected Knowledge is the Source Hub: live document syncing from
     // Confluence, SharePoint, Google Drive, etc. Enterprise-only — Open
     // platform users build knowledge with Managed Topics instead.
-    '/connected-knowledge/'
+    '/connected-knowledge/',
+    // Telephony providers under /integrations/voice/ — same gating as
+    // /telephony/ (PSTN provisioning is contracted). Sub-pages under
+    // amazon-connect/, sip/, etc. all locked by this prefix.
+    '/integrations/voice/'
   ];
   var ENTERPRISE_EXACT = [
     '/call-data/s3-to-s3',
@@ -173,20 +186,17 @@
     '/flows/asr-biasing',
     '/flows/dtmf',
     '/flows/few-shot-prompting',
+    // Managed-topic actions that depend on enterprise channels.
+    '/managed-topics/how-to-setup-action/send-sms',
+    '/managed-topics/how-to-setup-action/handoff',
     // Managed-service integration pages (not in Studio UI)
     '/integrations/managed-services',
-    '/integrations/voice/sip/custom-sip', '/integrations/voice/dnis-pool',
     '/integrations/zoom',
     '/integrations/design-my-night', '/integrations/liveres',
     '/integrations/zendesk-ticketing-solutions',
     '/integrations/pci-pal', '/integrations/stripe',
     '/integrations/google-sheets', '/integrations/ideal-postcode',
     '/integrations/deepl',
-    // Non-UI integrations — only Five9, Twilio, Dialpad are click-and-go
-    '/integrations/voice/introduction',
-    '/integrations/voice/sip/NICECXone',
-    '/integrations/voice/amazon-connect/amazon-connect',
-    '/integrations/voice/sip/genesys',
     '/integrations/zendesk',
     '/integrations/salesforce',
     '/integrations/opentable',
@@ -431,13 +441,10 @@
     banner.innerHTML =
       '<div class="free-trial-enterprise-banner__icon" aria-hidden="true">✦</div>' +
       '<div class="free-trial-enterprise-banner__body">' +
-        '<p class="free-trial-enterprise-banner__title"><strong>This is an Enterprise feature.</strong></p>' +
-        '<p class="free-trial-enterprise-banner__text">' +
-          'You’re viewing the docs in <strong>Open platform mode</strong>. This page is documented in full so you can plan for it, but the feature isn’t available on the Open platform self-serve plan.' +
-        '</p>' +
+        '<p class="free-trial-enterprise-banner__title"><strong>Enterprise feature.</strong> Not on the Open platform.</p>' +
         '<p class="free-trial-enterprise-banner__actions">' +
           '<a href="https://poly.ai/request-a-demo" class="free-trial-enterprise-banner__cta" target="_blank" rel="noopener">Talk to sales</a>' +
-          '<button type="button" class="free-trial-enterprise-banner__exit" id="free-trial-enterprise-banner-exit">Exit Open platform mode</button>' +
+          '<button type="button" class="free-trial-enterprise-banner__exit" id="free-trial-enterprise-banner-exit">Open platform — exit</button>' +
         '</p>' +
       '</div>';
 
@@ -496,10 +503,7 @@
     banner.innerHTML =
       '<div class="free-trial-enterprise-banner__icon" aria-hidden="true">✦</div>' +
       '<div class="free-trial-enterprise-banner__body">' +
-        '<p class="free-trial-enterprise-banner__title"><strong>This is an Open platform feature.</strong></p>' +
-        '<p class="free-trial-enterprise-banner__text">' +
-          'Studio Assistant is part of the PolyAI Open platform. Enter Open platform mode to read these docs in context, or talk to sales about availability on an enterprise plan.' +
-        '</p>' +
+        '<p class="free-trial-enterprise-banner__title"><strong>Open platform feature.</strong> Enter Open platform mode to read in context.</p>' +
         '<p class="free-trial-enterprise-banner__actions">' +
           '<button type="button" class="free-trial-enterprise-banner__cta" id="open-platform-only-banner-enter">Enter Open platform mode</button>' +
           '<a href="https://poly.ai/request-a-demo" class="free-trial-enterprise-banner__exit" target="_blank" rel="noopener">Talk to sales</a>' +
