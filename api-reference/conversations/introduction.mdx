@@ -117,7 +117,6 @@ The Conversations API supports several query parameters for filtering and contro
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `include_latency` | Include latency metrics per conversation | `false` |
-| `include_turn_metadata` | Include additional generative AI metadata for each turn. This does not control whether the `turns` array is returned – turns are always included. | `false` |
 
 ## Response structure
 
@@ -503,18 +502,17 @@ A successful response includes:
 - translation outputs (when enabled)
 - handoff metadata (if applicable)
 
-## Understanding `turns`, `num_turns`, and `include_turn_metadata`
+## Understanding `turns` and `num_turns`
 
-These three fields are often confused. Here's how they relate:
+These two fields are often confused. Here's how they relate:
 
 | Field | Type | Purpose |
 |-------|------|---------|
 | `turns` | Array of turn objects | The full ordered list of conversation turns. Included by default, but may be empty if transcript access is disabled in the project's API configuration. |
 | `num_turns` | Integer | A count of turns in the conversation. This value reflects the number of turns that occurred, even if the `turns` array is empty due to configuration. |
-| `include_turn_metadata` | Query parameter (boolean) | When `true`, adds an extra `metadata` field to each turn with generative AI details. Does **not** control whether the `turns` array itself is populated. |
 
 <Warning>
-`include_turn_metadata` and `include_latency` enrich **existing** turn data – they do not populate an empty `turns` array. If your `turns` array is empty, these parameters will have no effect. The `turns` array is controlled by your project's [transcript visibility](#transcript-visibility) setting, not by these query parameters.
+`include_latency` enriches **existing** turn data – it does not populate an empty `turns` array. If your `turns` array is empty, this parameter will have no effect. The `turns` array is controlled by your project's [transcript visibility](#transcript-visibility) setting, not by this query parameter.
 </Warning>
 
 ## Transcript visibility
@@ -586,11 +584,8 @@ If the response only contains a subset of expected fields:
 3. **Check metric configuration.** On the **API Keys** tab, click **Configuration** and verify the response metrics you expect are enabled (e.g. `CALL_IN_PROGRESS`, `CALL_COMPLETED`, `HANDOFF_TO`). If no metrics are selected, the `metrics` object in the response will be empty.
 4. **Check field whitelisting (v1 only).** Projects on v1 may have field whitelisting enabled in their project configuration (`enable_whitelist: true`). When active, the API only returns fields explicitly listed in the project's API config — typically just `id`, `started_at`, `account_id`, and `project_id`. If you are on v1 and see this behavior, migrate to v3 where field visibility is controlled through the [API Keys Configuration panel](#transcript-visibility) instead.
 
-### `include_latency` or `include_turn_metadata` is not adding data
+### `include_latency` is not adding data
 
-These parameters enrich **existing** turn data – they do not populate an empty `turns` array:
+`include_latency=true` adds per-turn latency metrics to each turn object, but enriches **existing** turn data – it does not populate an empty `turns` array.
 
-- `include_latency=true` adds per-turn latency metrics to each turn object
-- `include_turn_metadata=true` adds additional generative AI metadata to each turn object
-
-If `turns` is empty, these parameters have no effect. Fix the underlying cause first (see [transcript visibility](#transcript-visibility) above).
+If `turns` is empty, this parameter has no effect. Fix the underlying cause first (see [transcript visibility](#transcript-visibility) above).
