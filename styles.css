@@ -129,7 +129,7 @@ footer + div {
 
 /* ── Difficulty system ─────────────────────────────────────────────────────── */
 
-/* Sidebar tag pills — colour-coded by audience */
+/* Sidebar tag pills — color-coded by audience */
 [data-tag="Code"] [data-testid="tag"],
 nav [data-testid="tag"]:has-text("Code") {
   background-color: rgba(99, 102, 241, 0.1) !important;
@@ -357,11 +357,318 @@ html.dark .simplify-toggle {
   display: none !important;
 }
 
-/* Hide developer/advanced sidebar items in simplified mode.
-   JS marks them with data-simplified-hide="true" — covers section headers,
-   collapsed sub-groups, and individual expanded page items. */
+/* Hide top-nav tabs (Developer, API reference, Advanced) in Open platform mode.
+   Greying a nav tab looks broken — these stay hidden. */
 [data-simplified="true"] [data-simplified-hide="true"] {
   display: none !important;
+}
+
+/* Dedicated Open platform sidebar group — present in docs.json (so search
+   and direct links keep working) but hidden from the enterprise view.
+   Revealed only when the user enters Open platform mode. */
+[data-open-platform-only="true"] {
+  display: none !important;
+}
+
+[data-simplified="true"] [data-open-platform-only="true"] {
+  display: block !important;
+}
+
+/* Inverse: in Open platform mode, hide every other sidebar group plus the
+   global top-bar anchors (Home / Community / Blog from
+   navigation.global.anchors). The self-serve sidebar collapses down to the
+   dedicated Open platform group, so the experience reads as a focused
+   single-product surface rather than a stripped-down enterprise IA. */
+[data-simplified="true"] [data-open-platform-hidden="true"] {
+  display: none !important;
+}
+
+/* Visual hint on enterprise/developer sidebar entries in Open platform mode.
+   JS marks the section header, the section's sibling list, and any
+   individual page item with data-simplified-enterprise="true". The opacity
+   cascade dims every descendant — so a marked group header dims all its
+   sub-pages too. Items stay fully clickable; the dim is just a "this
+   isn't on your Open platform" signal. The gating itself is enforced on the
+   destination page (see the [data-on-enterprise-page] rule below). */
+[data-simplified="true"] [data-simplified-enterprise="true"] {
+  opacity: 0.55;
+  filter: saturate(0.7);
+}
+
+/* Hover behavior: do not lift the opacity or animate. Grayed entries should
+   read as inert — they stay clickable but visually do not invite interaction. */
+[data-simplified="true"] [data-simplified-enterprise="true"]:hover {
+  opacity: 0.55;
+  filter: saturate(0.7);
+  cursor: default;
+}
+
+/* Page content grayout + lock when the user lands on an enterprise page
+   in Open platform mode. We target everything that follows the banner inside
+   its container, so this works regardless of whether Mintlify wraps
+   content in <main>, #content-area, or something else. The sidebar,
+   navbar, and free-trial pill (none of which are siblings of the banner)
+   are unaffected. */
+[data-simplified="true"][data-on-enterprise-page="true"] .free-trial-enterprise-banner ~ * {
+  opacity: 0.45;
+  pointer-events: none;
+  user-select: none;
+  filter: saturate(0.55) blur(0.3px);
+}
+
+/* Belt-and-braces: any focusable descendant inside the grayed area should
+   not steal tab focus or respond to clicks. */
+[data-simplified="true"][data-on-enterprise-page="true"] .free-trial-enterprise-banner ~ * :is(a, button, input, select, textarea, [tabindex]) {
+  pointer-events: none;
+}
+
+/* Lock cursor — make it obvious the content isn't interactive. */
+[data-simplified="true"][data-on-enterprise-page="true"] .free-trial-enterprise-banner ~ *,
+[data-simplified="true"][data-on-enterprise-page="true"] .free-trial-enterprise-banner ~ * * {
+  cursor: not-allowed !important;
+}
+
+/* Banner stays sharp/saturated on top of the locked content. */
+[data-simplified="true"][data-on-enterprise-page="true"] .free-trial-enterprise-banner,
+[data-simplified="true"][data-on-enterprise-page="true"] .free-trial-enterprise-banner * {
+  cursor: auto !important;
+}
+[data-simplified="true"][data-on-enterprise-page="true"] .free-trial-enterprise-banner :is(a, button) {
+  cursor: pointer !important;
+}
+
+/* Inverse of the enterprise lockout: when NOT in Open platform mode (the
+   enterprise default), and the path is in the OPEN_PLATFORM_ONLY_PATHS list
+   (e.g. Studio Assistant), gray the page body and pin the OP-only banner.
+   Reuses .free-trial-enterprise-banner's layout/typography. */
+html[data-on-open-platform-only="true"]:not([data-simplified="true"]) .open-platform-only-banner ~ * {
+  opacity: 0.45;
+  pointer-events: none;
+  user-select: none;
+  filter: saturate(0.55) blur(0.3px);
+}
+
+html[data-on-open-platform-only="true"]:not([data-simplified="true"]) .open-platform-only-banner ~ * :is(a, button, input, select, textarea, [tabindex]) {
+  pointer-events: none;
+}
+
+html[data-on-open-platform-only="true"]:not([data-simplified="true"]) .open-platform-only-banner ~ *,
+html[data-on-open-platform-only="true"]:not([data-simplified="true"]) .open-platform-only-banner ~ * * {
+  cursor: not-allowed !important;
+}
+
+html[data-on-open-platform-only="true"]:not([data-simplified="true"]) .open-platform-only-banner,
+html[data-on-open-platform-only="true"]:not([data-simplified="true"]) .open-platform-only-banner * {
+  cursor: auto !important;
+}
+
+html[data-on-open-platform-only="true"]:not([data-simplified="true"]) .open-platform-only-banner :is(a, button) {
+  cursor: pointer !important;
+}
+
+/* ── Lock banners ─────────────────────────────────────────────────────────────
+   Two flavours of floating lock card, both built on the same shell:
+     - .free-trial-enterprise-banner — shown on enterprise pages when in OP mode
+     - .open-platform-only-banner    — shown on OP pages when in enterprise mode
+   Studio palette throughout. Floats top-center over the page, draggable
+   via the ⋮⋮ handle on the left edge. Position persists in localStorage
+   (handled in scripts/simplify-toggle.js). */
+.free-trial-enterprise-banner {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  position: fixed;
+  top: 5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  width: min(380px, calc(100vw - 2rem));
+  padding: 0.85rem 1rem 0.85rem 0.5rem;
+  border: 1px solid rgba(22, 22, 23, 0.1);
+  border-radius: 14px;
+  background: var(--studio-paper);
+  color: var(--studio-ink);
+  font-size: 0.85rem;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.06);
+  user-select: none;
+}
+
+html.dark .free-trial-enterprise-banner {
+  background: var(--studio-ink);
+  color: #f5f5f5;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.free-trial-enterprise-banner--dragging {
+  cursor: grabbing !important;
+  transition: none !important;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18), 0 3px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Drag handle on the left edge — small ⋮⋮ icon, only the handle initiates
+   drag so the banner body and buttons remain clickable. */
+.free-trial-enterprise-banner__handle {
+  flex: 0 0 auto;
+  width: 0.9rem;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(22, 22, 23, 0.35);
+  font-size: 0.7rem;
+  letter-spacing: -0.1em;
+  cursor: grab;
+  touch-action: none;
+  transition: color 140ms ease;
+}
+
+.free-trial-enterprise-banner__handle:hover {
+  color: var(--studio-ink);
+}
+
+.free-trial-enterprise-banner--dragging .free-trial-enterprise-banner__handle {
+  cursor: grabbing;
+}
+
+html.dark .free-trial-enterprise-banner__handle {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+html.dark .free-trial-enterprise-banner__handle:hover {
+  color: #f5f5f5;
+}
+
+.free-trial-enterprise-banner__icon {
+  font-size: 0.9rem;
+  line-height: 1;
+  color: var(--studio-ink);
+  flex: 0 0 auto;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 999px;
+  background: var(--studio-lime-22);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.05rem;
+}
+
+html.dark .free-trial-enterprise-banner__icon {
+  color: var(--studio-lime);
+  background: var(--studio-lime-12);
+}
+
+.free-trial-enterprise-banner__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.free-trial-enterprise-banner__title {
+  margin: 0 0 0.4rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.free-trial-enterprise-banner__title strong {
+  font-weight: 600;
+}
+
+.free-trial-enterprise-banner__text {
+  margin: 0 0 0.7rem 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: rgba(22, 22, 23, 0.78);
+}
+
+html.dark .free-trial-enterprise-banner__text {
+  color: rgba(245, 245, 245, 0.78);
+}
+
+.free-trial-enterprise-banner__actions {
+  margin: 0;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.free-trial-enterprise-banner__cta,
+.free-trial-enterprise-banner__exit {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.2;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.free-trial-enterprise-banner__cta {
+  background: var(--studio-ink);
+  color: var(--studio-paper) !important;
+  border: 1px solid var(--studio-ink);
+}
+
+.free-trial-enterprise-banner__cta:hover {
+  background: rgba(22, 22, 23, 0.85);
+  border-color: rgba(22, 22, 23, 0.85);
+}
+
+html.dark .free-trial-enterprise-banner__cta {
+  background: var(--studio-lime);
+  color: var(--studio-ink) !important;
+  border-color: var(--studio-lime);
+}
+
+html.dark .free-trial-enterprise-banner__cta:hover {
+  background: rgba(217, 238, 80, 0.85);
+  border-color: rgba(217, 238, 80, 0.85);
+}
+
+.free-trial-enterprise-banner__exit {
+  color: var(--studio-ink);
+  background: transparent;
+  border: 1px solid rgba(22, 22, 23, 0.2);
+}
+
+.free-trial-enterprise-banner__exit:hover {
+  background: var(--studio-lime-12);
+  border-color: var(--studio-lime-35);
+}
+
+html.dark .free-trial-enterprise-banner__exit {
+  color: #f5f5f5;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+html.dark .free-trial-enterprise-banner__exit:hover {
+  background: var(--studio-lime-12);
+  border-color: var(--studio-lime-35);
+}
+
+/* The Open-platform-only variant gets the lime-on-ink CTA flipped: it's
+   the affirmative action (Enter Open platform mode), so it gets the lime
+   pill. Talk-to-sales is the secondary action. */
+.open-platform-only-banner .free-trial-enterprise-banner__cta {
+  background: var(--studio-lime);
+  color: var(--studio-ink) !important;
+  border-color: var(--studio-lime);
+}
+
+.open-platform-only-banner .free-trial-enterprise-banner__cta:hover {
+  background: rgba(217, 238, 80, 0.85);
+  border-color: rgba(217, 238, 80, 0.85);
+}
+
+html.dark .open-platform-only-banner .free-trial-enterprise-banner__cta {
+  background: var(--studio-lime);
+  color: var(--studio-ink) !important;
 }
 
 /* ── Content mode switching ──────────────────────────────────────────────────
@@ -385,32 +692,59 @@ html.dark .simplify-toggle {
 /* ── Developer content accordion (simplified mode only) ──────────────────── */
 
 .dev-accordion {
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  border-radius: 8px;
-  margin: 1.5rem 0;
+  border: 1px solid rgba(22, 22, 23, 0.1);
+  border-radius: 12px;
+  margin: 1.25rem 0;
   overflow: hidden;
+  background: var(--studio-paper);
+}
+
+html.dark .dev-accordion {
+  background: rgba(22, 22, 23, 0.4);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .dev-accordion-summary {
-  padding: 0.75rem 1rem;
+  padding: 0.55rem 0.95rem;
   cursor: pointer;
   font-weight: 500;
-  font-size: 0.9rem;
-  color: #6366f1;
-  background: rgba(99, 102, 241, 0.05);
+  font-size: 0.82rem;
+  color: var(--studio-ink);
+  background: var(--studio-lime-12);
   list-style: none;
   user-select: none;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.55rem;
+  transition: background 140ms ease;
+}
+
+html.dark .dev-accordion-summary {
+  color: #f5f5f5;
+  background: rgba(217, 238, 80, 0.06);
+}
+
+.dev-accordion-summary:hover {
+  background: var(--studio-lime-22);
+}
+
+html.dark .dev-accordion-summary:hover {
+  background: var(--studio-lime-12);
 }
 
 .dev-accordion-summary::-webkit-details-marker { display: none; }
 
 .dev-accordion-summary::before {
   content: '▸';
-  font-size: 0.75em;
+  font-size: 0.7em;
+  color: var(--studio-ink);
+  opacity: 0.6;
   transition: transform 140ms ease;
+}
+
+html.dark .dev-accordion-summary::before {
+  color: var(--studio-lime);
+  opacity: 0.9;
 }
 
 .dev-accordion[open] > .dev-accordion-summary::before {
@@ -418,8 +752,12 @@ html.dark .simplify-toggle {
 }
 
 .dev-accordion > .developer-only {
-  padding: 0 1rem 1rem;
-  border-top: 1px solid rgba(99, 102, 241, 0.1);
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid rgba(22, 22, 23, 0.06);
+}
+
+html.dark .dev-accordion > .developer-only {
+  border-top-color: rgba(255, 255, 255, 0.06);
 }
 
 @media (prefers-reduced-motion: reduce) {

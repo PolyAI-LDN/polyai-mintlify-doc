@@ -10,7 +10,83 @@ keywords:
   - pre-release
   - live
   - promote
+  - deployments
 ---
+
+<div className="simplified-only">
+
+Two environments on Agent Builder: **Sandbox**, where your changes land for testing, and **Live**, where real callers reach your agent. You publish a version into Sandbox, test it, then promote it to Live when you're happy.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft: Make changes
+    Draft --> Sandbox: Publish
+    Sandbox --> Live: Promote
+
+    Live --> Sandbox: Rollback
+
+    note right of Draft: Edits in progress
+    note right of Sandbox: Testing
+    note right of Live: Production
+```
+
+<Warning>
+**Publishing isn't the same as going live.** Drafts must be **published** to Sandbox first. They only reach your callers when you **promote** to Live.
+</Warning>
+
+## Publish a draft to Sandbox
+
+Whenever you make changes (via Agent Builder or directly), a draft banner appears at the top of the page with two options:
+
+- **Delete** reverts to the most recent published version.
+- **Publish** saves the draft as a version. Add a short description if you want a note for future you.
+
+![delete-publish](/images/deployment/draft-line.png)
+
+Once published, the version becomes your active **Sandbox** deployment. Find it under **Deployments** in the sidebar.
+
+## Test in Sandbox
+
+Click **Test** in the top-right of any page to open the Agent Debugging panel. Choose **Call agent** or **Webchat**, pick **Sandbox** from the environment dropdown, and try the scenario you're worried about. Every test call lands in [Conversations](/analytics/conversations/introduction) with a transcript.
+
+If something looks off, the [iterate-after-a-call](/learn/iterate-open-platform) flow walks through fixing it.
+
+## Promote to Live
+
+When the Sandbox version handles real scenarios properly, promote it.
+
+1. Open **Deployments** in the sidebar.
+2. In the **Sandbox** tab, click the overflow menu (three dots) next to the version.
+3. Select **Promote to Live**.
+4. Tick the confirmation box and click **Promote**.
+
+![Deployments page in Agent Builder mode showing the Sandbox tab with a list of published versions](/images/deployment/op-deployments-list.png)
+
+![Promote version live confirmation modal warning that the version will receive live customer traffic, with an "I understand and wish to continue" checkbox and a Promote button](/images/deployment/op-promote-to-live.png)
+
+Once it's Live, every new caller (via Web Calling, the shareable link, or anywhere else you've placed the agent) hits the promoted version immediately.
+
+## Roll back
+
+If a Live version is causing problems, roll back.
+
+1. Open **Deployments > Live** in the sidebar.
+2. Open the overflow menu on the version you want to roll back.
+3. Click **Rollback**, then confirm.
+
+The previous version becomes Live again. You can promote forward whenever you're ready.
+
+## Compare versions
+
+Side-by-side diffs let you check what changed between two versions before you promote. Open **Deployments** or **Project History**, select a version, and click **Compare**. Sorting is newest-first.
+
+![Version comparison view showing two deployments side by side with line-level diffs across Functions, Variables, Flows, and other agent settings](/images/deployment/op-version-comparison.png)
+
+[Tracking changes →](/environments-and-versions/diffs)
+
+</div>
+
+<div className="full-only">
 
 Test agent changes before they reach live callers. Draft → Sandbox → Pre-release → Live.
 
@@ -131,7 +207,7 @@ The system confirms when the rollback is complete.
 
 ## Testing your agent
 
-Main page: [Quickstart – test your agent](/get-started/quickstart#test-your-agent)
+Main page: [Quickstart: test your agent](/get-started/quickstart#test-your-agent)
 
 Test your agent in any environment:
 
@@ -153,7 +229,7 @@ Assign phone numbers and SIP headers per version.
 
 ## Automate with the Agents API
 
-The same pipeline is available programmatically — useful for wiring deployments into CI or orchestrating releases across many agents.
+The same pipeline is available programmatically, which is useful for wiring deployments into CI or orchestrating releases across many agents.
 
 <AccordionGroup>
   <Accordion title="Deploy via the Agents API" icon="code">
@@ -207,13 +283,12 @@ The same pipeline is available programmatically — useful for wiring deployment
   <Card title="Project history" icon="clock-rotate-left" href="/environments-and-versions/project-history">
     Audit trail of all published versions and changes.
   </Card>
-  <div className="full-only">
   <Card title="Test suite" icon="flask-vial" href="/analytics/test-suite/introduction">
     Run regression tests against Draft or Sandbox.
   </Card>
   <Card title="Deployments endpoints" icon="square-terminal" href="/api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment">
     Publish, promote, and rollback from the Agents API.
   </Card>
-  </div>
 </CardGroup>
 
+</div>
