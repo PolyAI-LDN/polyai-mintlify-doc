@@ -1,0 +1,133 @@
+---
+title: "Handoff to live agent"
+description: "Transfer the conversation from the PolyAI agent to a human agent."
+---
+
+A handoff transfers the conversation from the PolyAI agent to a human agent. This happens automatically when the PolyAI agent determines it cannot handle the user's request.
+
+There are two handoff modes: **server-managed** (PolyAI handles routing internally) and **client-managed** (your app handles routing).
+
+## Server-managed handoff
+
+In the typical flow, PolyAI manages the handoff internally:
+
+```
+  ← POLY_AGENT_TRIGGERED_HANDOFF     The agent wants to hand off
+  ← POLY_AGENT_LEFT                  The agent leaves the session
+  ← HANDOFF_ACCEPTED                 The live agent system accepted the request
+  ← HANDOFF_QUEUE_STATUS             (periodic) User is #3 in the queue
+  ← LIVE_AGENT_JOINED                A human agent has connected
+     ... user and human agent chat ...
+  ← LIVE_AGENT_LEFT                  The human agent leaves
+  ← SESSION_END                      Session is over
+```
+
+During the handoff, the user continues to send `EVENT_TYPE_USER_MESSAGE` events — the messages are routed to the live agent instead of the PolyAI agent.
+
+```mermaid
+sequenceDiagram
+    participant Client as Your App
+    participant PolyAI as PolyAI Agent
+    participant Live as Live Agent
+
+    note over Client,PolyAI: Conversation with PolyAI agent
+    Client->>PolyAI: USER_MESSAGE
+    PolyAI-->>Client: POLY_AGENT_MESSAGE
+
+    rect rgb(255, 248, 235)
+    note over Client,Live: Handoff
+    PolyAI-->>Client: POLY_AGENT_TRIGGERED_HANDOFF
+    PolyAI-->>Client: POLY_AGENT_LEFT
+    PolyAI-->>Client: HANDOFF_ACCEPTED
+    PolyAI-->>Client: HANDOFF_QUEUE_STATUS ("You are #2 in queue")
+    Live-->>Client: LIVE_AGENT_JOINED ("Sarah has joined")
+    end
+
+    rect rgb(235, 248, 255)
+    note over Client,Live: Conversation with Live Agent
+    Client->>Live: USER_MESSAGE
+    Live-->>Client: echo (USER_MESSAGE + message_id)
+    Live-->>Client: LIVE_AGENT_TYPING
+    Live-->>Client: LIVE_AGENT_MESSAGE
+    end
+
+    rect rgb(250, 240, 240)
+    note over Client,Live: Session End
+    Live-->>Client: LIVE_AGENT_LEFT
+    Live-->>Client: SESSION_END (REASON_NATURAL_END)
+    end
+```
+
+## Client-managed handoff
+
+In some configurations, the server cannot handle the handoff and asks your client to do it:
+
+```
+  ← POLY_AGENT_TRIGGERED_HANDOFF     The agent wants to hand off
+  ← CLIENT_HANDOFF_REQUIRED          Your client needs to handle this
+  ← POLY_AGENT_LEFT                  The agent leaves the session
+```
+
+When you receive `CLIENT_HANDOFF_REQUIRED`, redirect the user to the appropriate support channel (e.g. open a Zendesk widget, redirect to a phone number). The `reason` and `queue_name` fields give context for routing.
+
+| Field | Description |
+|-------|-------------|
+| `reason` | `COMPLEX_QUERY`, `AGENT_DECISION`, or `POLICY` |
+| `queue_name` | Suggested routing destination |
+
+## Failed handoffs
+
+| Event | Meaning | What to do |
+|-------|---------|------------|
+| `EVENT_TYPE_HANDOFF_FAILED` | The live agent system rejected or could not complete the handoff | Show an error and let the user try again or end the session |
+| `EVENT_TYPE_HANDOFF_TIMEOUT` | The user waited too long in the queue | Show a timeout message and offer alternative support channels |
+
+See [Server events → Handoff events](/api-reference/messaging/events-receive#handoff-events) for the full event payloads.
+
+## Conversation flow (full session)
+
+```mermaid
+sequenceDiagram
+    participant Client as Your App
+    participant Server as PolyAI
+
+    rect rgb(240, 245, 250)
+    note over Client,Server: Authentication & Session Setup
+    Client->>Server: POST /api/v1/access-token
+    Server-->>Client: { access_token, expires_in }
+    Client->>Server: POST /api/v1/sessions
+    Server-->>Client: { session_id }
+    end
+
+    rect rgb(240, 250, 240)
+    note over Client,Server: WebSocket Connection
+    Client->>Server: WebSocket connect (session_id, access_token)
+    Server-->>Client: EVENT_BATCH (history incl. SESSION_START)
+    end
+
+    rect rgb(250, 245, 240)
+    note over Client,Server: Agent Join
+    Client->>Server: REQUEST_POLY_AGENT_JOIN
+    Server-->>Client: echo (REQUEST_POLY_AGENT_JOIN)
+    Server-->>Client: POLY_AGENT_JOINED (agent_name, avatar)
+    Server-->>Client: POLY_AGENT_THINKING
+    Server-->>Client: POLY_AGENT_MESSAGE (greeting)
+    end
+
+    rect rgb(245, 240, 250)
+    note over Client,Server: Conversation (repeats)
+    Client->>Server: USER_TYPING (started)
+    Client->>Server: USER_TYPING (stopped)
+    Client->>Server: USER_MESSAGE
+    Server-->>Client: echo (USER_MESSAGE + message_id)
+    Server-->>Client: POLY_AGENT_THINKING
+    Server-->>Client: POLY_AGENT_MESSAGE (response)
+    end
+
+    rect rgb(250, 240, 240)
+    note over Client,Server: Session End
+    Client->>Server: USER_END_SESSION
+    Server-->>Client: echo (USER_END_SESSION)
+    Server-->>Client: SESSION_END (REASON_USER_END)
+    end
+```

@@ -1,0 +1,30 @@
+---
+title: "Best practices"
+description: "Recommendations for connection management, message handling, UX, and security."
+---
+
+## Connection management
+
+- **Send heartbeats regularly.** Use the interval from `capabilities.heartbeat_interval_seconds` in the `SESSION_START` event (fall back to 30 seconds). Without heartbeats, the session times out after 10 minutes.
+- **Implement reconnection with backoff.** Connections can drop due to network issues or server-side timeouts. Reconnect with exponential backoff (start at 1 second, cap at 30 seconds) using the same `session_id` and a `cursor` set to your last seen `sequence`.
+- **Don't create a new session on reconnect.** Reuse the existing `session_id` to preserve the conversation. Only create a new session for a genuinely new conversation.
+
+## Message handling
+
+- **Deduplicate by `id`.** The same event may arrive more than once — during replay after a reconnect, or if replay and live delivery overlap. Use the event `id` to detect duplicates.
+- **Order by `sequence`.** Events may arrive out of order during reconnection. Sort by `sequence` for display.
+- **Flatten `EVENT_TYPE_EVENT_BATCH`.** On connect, the server sends history as batch events. Extract the `events` array into your local event list.
+- **Process streaming chunks in order.** Accumulate chunks by `message_id` in `chunk_index` order. The message is complete when `is_complete` is `true`.
+
+## User experience
+
+- **Show typing indicators.** Display when you receive `POLY_AGENT_THINKING` or `LIVE_AGENT_TYPING`. Clear when the message arrives.
+- **Show response suggestions as buttons.** When a message includes `response_suggestions`, display them as tappable buttons. When tapped, send the suggestion's `message_text` as a `USER_MESSAGE`.
+- **Handle handoff gracefully.** Inform the user they're being connected to a human agent. Show queue status updates if available.
+- **Handle session end.** When you receive `SESSION_END`, disable the message input and show an appropriate message based on the reason.
+
+## Security
+
+- **Treat the access token as sensitive.** Do not log it, store it in `localStorage`, or expose it to third-party scripts. It is passed as a WebSocket query parameter — ensure connections use `wss://` (TLS).
+- **Tokens are short-lived.** Obtain a fresh token for each new session. Do not cache tokens across sessions.
+- **Never embed your connector token in client-side code.** The connector token must be kept on a trusted backend that mints access tokens for your clients. Exposing it lets anyone create sessions against your project.

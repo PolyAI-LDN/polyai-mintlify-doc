@@ -1,0 +1,95 @@
+---
+title: "Sessions and authentication"
+description: "Exchange your connector token for a short-lived access token, then create a session."
+---
+
+Before opening a WebSocket, you obtain an access token and create a session.
+
+## Obtain an access token
+
+Exchange your connector token for a short-lived JWT access token.
+
+**`POST /api/v1/access-token`**
+
+### Headers
+
+| Header | Required | Description |
+|--------|----------|-------------|
+| `X-Token` | Yes | Your connector token (provided by PolyAI) |
+| `X-Host` | Yes | The domain or app namespace you registered when generating the token (e.g. `https://www.yourcompany.com` or `com.yourcompany.app`). Must match exactly. |
+| `Content-Type` | Yes | `application/json` |
+
+### Request body
+
+```json
+{}
+```
+
+### Response — `200 OK`
+
+```json
+{
+  "access_token": "eyJhbGc...",
+  "expires_in": 86400,
+  "token_type": "Bearer"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `access_token` | string | JWT to use for all subsequent requests |
+| `expires_in` | integer | Seconds until the token expires |
+| `token_type` | string | Always `"Bearer"` |
+
+Use this token in two places:
+
+- As a `Bearer` token in the `Authorization` header for [Create session](#create-session)
+- As the `access_token` query parameter when [connecting the WebSocket](/api-reference/messaging/websocket)
+
+<Warning>
+Treat the access token as sensitive. Do not log it, store it in `localStorage`, or expose it to third-party scripts. Always connect over `wss://` (TLS).
+</Warning>
+
+## Create session
+
+A session represents one conversation. Create a session before opening a WebSocket.
+
+**`POST /api/v1/sessions`**
+
+### Headers
+
+| Header | Required | Description |
+|--------|----------|-------------|
+| `Authorization` | Yes | `Bearer <access_token>` from the previous step |
+| `Content-Type` | Yes | `application/json` |
+| `User-Agent` | No | The browser or device user agent |
+
+### Request body (optional)
+
+```json
+{
+  "platform": "web",
+  "streaming_enabled": true
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `streaming_enabled` | boolean | `false` | When `true`, agent responses arrive as a series of incremental chunks. When `false`, each response arrives as a single complete message. See [Streaming](/api-reference/messaging/streaming). |
+| `platform` | string | `web` | One of `web`, `ios`, `android`, or `custom`. |
+
+The request body is optional — if omitted, `streaming_enabled` defaults to `false`.
+
+### Response — `200 OK`
+
+```json
+{
+  "session_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}
+```
+
+Keep the `session_id` — you need it to open the WebSocket and to reconnect if the connection drops.
+
+<Note>
+Sessions expire after roughly 10 minutes of inactivity. After expiry, create a new session — you cannot resume an expired session.
+</Note>

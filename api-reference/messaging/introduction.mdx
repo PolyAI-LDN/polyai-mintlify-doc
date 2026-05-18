@@ -1,0 +1,160 @@
+---
+title: "Messaging API"
+sidebarTitle: "Overview"
+description: "Embed real-time text conversations into your application using WebSockets, with seamless handoff to live agents."
+---
+
+The Messaging API lets you embed real-time text conversations into your application. End users chat with a PolyAI agent, and when needed, the conversation can be seamlessly handed off to a live human agent — all within the same session.
+
+Communication happens over a WebSocket connection after a short HTTP handshake. All messages are JSON-encoded events.
+
+<Note>
+The Messaging API is a **real-time, event-driven** protocol. If you only need simple turn-based request/response (for example for SMS), use the [Chat API](/api-reference/chat/introduction) instead. See [Messaging API vs Chat API](#messaging-api-vs-chat-api) below.
+</Note>
+
+## Base URL
+
+Each region has its own cluster-specific host:
+
+| Cluster | Base URL | Description |
+|---------|----------|-------------|
+| `us-1` | `https://messaging.us-1.poly.ai` | US Mainland |
+| `uk-1` | `https://messaging.uk-1.poly.ai` | UK |
+| `euw-1` | `https://messaging.euw-1.poly.ai` | EU West |
+
+Your PolyAI contact will confirm which cluster your project is deployed in. There is no region-agnostic alias — you must use the cluster URL that matches your project.
+
+## Prerequisites
+
+Before integrating, you need two values, both generated when you create a webchat widget in Agent Studio under **Channels → Chat → Widget**:
+
+| Value | What it is | Where to find it |
+|-------|------------|------------------|
+| **Connector token** | A secret token that identifies your integration | Generated automatically when you create a widget in Agent Studio |
+| **Host identifier** | The domain (e.g. `https://www.yourcompany.com`) or app namespace (e.g. `com.yourcompany.app`) you registered when generating the token | Set as the host domain when creating the widget. The server rejects requests where `X-Host` doesn't match. |
+
+<Tip>
+Subdomains are matched against the registered host — for example, a connector registered to `yourcompany.com` accepts requests from `app.yourcompany.com`.
+</Tip>
+
+## Getting started
+
+Every conversation follows this sequence:
+
+<Steps>
+<Step title="Obtain an access token">
+`POST /api/v1/access-token` with your connector token. Returns a short-lived JWT.
+</Step>
+<Step title="Create a session">
+`POST /api/v1/sessions` with the access token. Returns a `session_id`.
+</Step>
+<Step title="Open a WebSocket connection">
+`wss://<base-url>/ws?access_token=...&session_id=...`
+</Step>
+<Step title="Request the agent to join">
+Send `EVENT_TYPE_REQUEST_POLY_AGENT_JOIN` to start the conversation.
+</Step>
+<Step title="Exchange messages">
+Send and receive events over the WebSocket.
+</Step>
+</Steps>
+
+<Warning>
+The PolyAI agent does not join the session automatically. On a **new session**, after opening the WebSocket and receiving the session history, your client must explicitly send `EVENT_TYPE_REQUEST_POLY_AGENT_JOIN` to start the conversation. On a **reconnect** to an existing session, the agent has already joined — check the replayed history for `EVENT_TYPE_POLY_AGENT_JOINED` and skip the join request if present.
+</Warning>
+
+### Minimal JavaScript example
+
+```javascript
+// 1. Get an access token
+const tokenRes = await fetch("https://messaging.us-1.poly.ai/api/v1/access-token", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "X-Token": "<your-connector-token>",
+    "X-Host": "https://www.yourcompany.com",
+  },
+  body: "{}",
+});
+const { access_token } = await tokenRes.json();
+
+// 2. Create a session
+const sessionRes = await fetch("https://messaging.us-1.poly.ai/api/v1/sessions", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${access_token}`,
+  },
+  body: JSON.stringify({ streaming_enabled: false }),
+});
+const { session_id } = await sessionRes.json();
+
+// 3. Open the WebSocket
+const ws = new WebSocket(
+  `wss://messaging.us-1.poly.ai/ws?session_id=${session_id}&access_token=${access_token}`
+);
+
+ws.onmessage = (event) => {
+  const msg = JSON.parse(event.data);
+  console.log(msg.type, msg.payload);
+};
+
+ws.onopen = () => {
+  // Wait for EVENT_TYPE_EVENT_BATCH (history replay), then:
+
+  // 4. Request the agent to join
+  ws.send(JSON.stringify({
+    type: "EVENT_TYPE_REQUEST_POLY_AGENT_JOIN",
+    payload: {},
+  }));
+};
+```
+
+## Messaging API vs Chat API
+
+PolyAI offers two APIs for non-voice channels. Pick the one that matches your integration model.
+
+| | [Messaging API](/api-reference/messaging/introduction) | [Chat API](/api-reference/chat/introduction) |
+|---|---|---|
+| **Protocol** | WebSocket (real-time, event-driven) | REST (turn-based request/response) |
+| **Streaming responses** | Yes (incremental chunks) | No |
+| **Typing indicators** | Yes | No |
+| **Live-agent handoff** | Yes (full event flow over the WebSocket) | Yes (via `handoff` in the respond response) |
+| **Reconnection / history replay** | Built-in (`cursor` query param) | Client manages turns |
+| **Auth** | Connector token + host domain → short-lived JWT | API key + connector token |
+| **Best for** | Web apps, iOS/Android apps, custom SDKs | SMS, server-to-server, simple webchat |
+
+## Reference
+
+<CardGroup cols={2}>
+  <Card title="Sessions and authentication" icon="key" href="/api-reference/messaging/sessions">
+    Obtain an access token and create a session
+  </Card>
+  <Card title="WebSocket connection" icon="plug" href="/api-reference/messaging/websocket">
+    Connect, reconnect, and keep the connection alive
+  </Card>
+  <Card title="Event format" icon="code" href="/api-reference/messaging/events">
+    Common envelope, echo behavior, delivery receipts
+  </Card>
+  <Card title="Client events" icon="paper-plane" href="/api-reference/messaging/events-send">
+    Events your client can send
+  </Card>
+  <Card title="Server events" icon="inbox" href="/api-reference/messaging/events-receive">
+    Events your client receives
+  </Card>
+  <Card title="Streaming" icon="bolt" href="/api-reference/messaging/streaming">
+    Receive agent responses as incremental chunks
+  </Card>
+  <Card title="Handoff to live agent" icon="user-headset" href="/api-reference/messaging/handoff">
+    Server-managed and client-managed handoff flows
+  </Card>
+  <Card title="Session lifecycle" icon="diagram-project" href="/api-reference/messaging/lifecycle">
+    Every event in order, from connect to session end
+  </Card>
+  <Card title="Errors" icon="triangle-exclamation" href="/api-reference/messaging/errors">
+    HTTP codes and system-message error catalog
+  </Card>
+  <Card title="Best practices" icon="star" href="/api-reference/messaging/best-practices">
+    Connection management, dedup, ordering, UX, security
+  </Card>
+</CardGroup>
