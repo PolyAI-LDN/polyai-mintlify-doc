@@ -287,11 +287,11 @@
   function updateButton(btn, simplified) {
     btn.setAttribute('aria-pressed', simplified);
     btn.title = simplified
-      ? 'Exit Open platform mode (show all docs)'
-      : 'Enter Open platform mode (lock enterprise pages behind a banner)';
+      ? 'Exit Free trial mode (show all docs)'
+      : 'Enter Free trial mode (lock enterprise pages behind a banner)';
     btn.innerHTML = simplified
-      ? '<span class="simplify-toggle__icon">✦</span><span class="simplify-toggle__label">Open platform — exit</span>'
-      : '<span class="simplify-toggle__icon">✦</span><span class="simplify-toggle__label">Open platform</span>';
+      ? '<span class="simplify-toggle__icon">✦</span><span class="simplify-toggle__label">Free trial — exit</span>'
+      : '<span class="simplify-toggle__icon">✦</span><span class="simplify-toggle__label">Free trial</span>';
     btn.classList.toggle('simplify-toggle--active', !!simplified);
   }
 
