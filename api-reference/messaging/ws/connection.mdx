@@ -1,0 +1,135 @@
+---
+title: "WebSocket connection"
+description: "Connect to a Messaging API session, resume from a cursor, and read the capabilities advertised in SESSION_START."
+---
+
+The WebSocket carries every event in a Messaging API conversation. Open one connection per session, after you have a `session_id` and an `access_token` from the REST handshake.
+
+## Endpoint
+
+```
+wss://<base-url>/ws
+```
+
+Use the same base URL as the REST endpoints — for example `wss://messaging.us-1.poly.ai/ws`.
+
+## Query parameters
+
+<ParamField query="session_id" type="string" required>
+  The session ID returned by `POST /api/v1/sessions`.
+</ParamField>
+
+<ParamField query="access_token" type="string" required>
+  The short-lived access token returned by `POST /api/v1/access-token`.
+</ParamField>
+
+<ParamField query="cursor" type="string" default="seq:0">
+  Resume from a specific point in the conversation. Use the format `seq:<n>`, where `<n>` is the highest `sequence` number your client has already processed. The server replays only events after that point.
+
+  Omit the parameter (or pass `seq:0`) to receive the full session history.
+</ParamField>
+
+### Cursor format
+
+The cursor follows the format `seq:<n>` where `<n>` is a non-negative integer:
+
+| Cursor      | Behavior                                                |
+| ----------- | ------------------------------------------------------- |
+| _(omitted)_ | Replay the full session history from the beginning.    |
+| `seq:0`     | Replay the full session history from the beginning.    |
+| `seq:42`    | Replay only events with `sequence > 42`.               |
+
+Anything else returns `400 Bad Request` with the message `invalid cursor: expected format seq:<n> where <n> is a non-negative integer`.
+
+<Note>
+  Plain integers (for example `cursor=42`) are still accepted for backward compatibility, but new clients should always use the `seq:<n>` form. The plain-integer form may be removed in a future version.
+</Note>
+
+### Example
+
+```javascript
+// First connection — no cursor, replay full history.
+const ws = new WebSocket(
+  `wss://messaging.poly.ai/ws?session_id=${sessionId}&access_token=${accessToken}`
+);
+
+// Reconnect — resume after the last sequence number you saw.
+const reconnect = new WebSocket(
+  `wss://messaging.poly.ai/ws?session_id=${sessionId}&access_token=${accessToken}&cursor=seq:${lastSequence}`
+);
+```
+
+Track `lastSequence` as the highest `sequence` value across every event you have rendered or persisted. Resuming from that cursor avoids reprocessing events your client has already seen.
+
+## History replay
+
+When the WebSocket opens, the server immediately pushes the session history as one or more `EVENT_TYPE_EVENT_BATCH` events. The first batch always contains `EVENT_TYPE_SESSION_START`.
+
+After processing the replay:
+
+- **New session** — if the replay does not include `EVENT_TYPE_POLY_AGENT_JOINED`, send `EVENT_TYPE_REQUEST_POLY_AGENT_JOIN` to bring the agent into the conversation.
+- **Reconnect** — the agent has already joined. Resume sending user messages and heartbeats.
+
+## Session capabilities
+
+`EVENT_TYPE_SESSION_START` carries a `capabilities` object that describes the limits and pacing your client should use for this session. Read it once when the event arrives and configure your client accordingly.
+
+```json
+{
+  "type": "EVENT_TYPE_SESSION_START",
+  "payload": {
+    "capabilities": {
+      "streaming": true,
+      "max_message_size_bytes": 1048576,
+      "heartbeat_interval_seconds": 30,
+      "max_reconnect_attempts": 5
+    }
+  }
+}
+```
+
+<ResponseField name="streaming" type="boolean">
+  When `true`, agent responses arrive as a series of incremental chunks. When `false`, each response arrives as a single complete message.
+</ResponseField>
+
+<ResponseField name="max_message_size_bytes" type="integer">
+  Maximum size, in bytes, of a single WebSocket message your client may send. Messages larger than this are rejected by the server.
+</ResponseField>
+
+<ResponseField name="heartbeat_interval_seconds" type="integer">
+  How often, in seconds, your client should send `EVENT_TYPE_HEARTBEAT`. Use this value instead of hardcoding an interval — it lets PolyAI tune timeout behavior without a client release. If the field is missing, fall back to 30 seconds.
+</ResponseField>
+
+<ResponseField name="max_reconnect_attempts" type="integer">
+  Suggested number of reconnection attempts before your client gives up and surfaces an error to the user. Pair this with exponential backoff (for example, start at 1 second and cap at 30 seconds).
+</ResponseField>
+
+### Applying capabilities
+
+```javascript
+ws.onmessage = (event) => {
+  const msg = JSON.parse(event.data);
+  if (msg.type !== "EVENT_TYPE_EVENT_BATCH") return;
+
+  for (const ev of msg.payload.events) {
+    if (ev.type === "EVENT_TYPE_SESSION_START") {
+      const caps = ev.payload.capabilities ?? {};
+      const heartbeatMs = (caps.heartbeat_interval_seconds ?? 30) * 1000;
+
+      setInterval(() => {
+        ws.send(JSON.stringify({ type: "EVENT_TYPE_HEARTBEAT", payload: {} }));
+      }, heartbeatMs);
+
+      configureReconnect({
+        maxAttempts: caps.max_reconnect_attempts ?? 5,
+        maxMessageSizeBytes: caps.max_message_size_bytes,
+        streaming: caps.streaming === true,
+      });
+    }
+  }
+};
+```
+
+## Idle timeout
+
+If the server receives no messages — including heartbeats — for the idle timeout period (default 10 minutes), the connection is closed and the session ends with `REASON_USER_ABANDONED`. Send heartbeats at the advertised `heartbeat_interval_seconds` to keep the connection alive.

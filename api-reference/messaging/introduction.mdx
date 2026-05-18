@@ -1,0 +1,58 @@
+---
+title: "Messaging API"
+sidebarTitle: "Overview"
+description: "Embed real-time text conversations with PolyAI agents over WebSocket, with session resume and seamless human handoff."
+---
+
+The Messaging API lets you embed real-time text conversations into your application. End users chat with a PolyAI agent, and the same session can hand off to a human agent without dropping context.
+
+Each conversation runs over a WebSocket connection opened after a short HTTP handshake. All traffic is JSON-encoded events.
+
+## When to use it
+
+Use the Messaging API when you need:
+
+- A persistent, server-pushed conversation channel (rather than polling)
+- Session resume after a network drop, without losing messages
+- Live human handoff inside the same session
+- A lower-level integration than the [Chat API](/api-reference/chat/introduction) REST endpoints — for example, when building a custom mobile or web client
+
+If you only need request/response messaging from a server-side backend, the [Chat API](/api-reference/chat/introduction) is simpler.
+
+## Base URL
+
+```
+https://messaging.poly.ai
+```
+
+For cluster-specific deployments, the pattern is `https://messaging.<cluster>.poly.ai`. Your PolyAI contact will confirm which URL to use.
+
+| Cluster | Region |
+| ------- | ------ |
+| `us-1`  | US     |
+| `uk-1`  | UK     |
+| `euw-1` | EU     |
+
+## Conversation flow
+
+Every conversation follows this sequence:
+
+1. Exchange your connector token for a short-lived access token: `POST /api/v1/access-token`.
+2. Create a session: `POST /api/v1/sessions`.
+3. Open a WebSocket: `wss://<base-url>/ws?access_token=...&session_id=...`.
+4. Process the history replay sent by the server, starting with `EVENT_TYPE_SESSION_START`.
+5. On a new session, send `EVENT_TYPE_REQUEST_POLY_AGENT_JOIN` to bring the agent in. On reconnect, skip this step if the replay already contains `EVENT_TYPE_POLY_AGENT_JOINED`.
+6. Exchange events. Send `EVENT_TYPE_HEARTBEAT` at the cadence advertised in `SESSION_START` capabilities.
+
+See [WebSocket connection](/api-reference/messaging/ws/connection) for the connection contract, cursor format, and session capabilities.
+
+## Prerequisites
+
+You need two values, both issued in **Agent Studio** under **Messaging → API Configuration**:
+
+| Value | What it is |
+| ----- | ---------- |
+| **Connector token** | A secret token that identifies your integration. Sent as `X-Token` when exchanging for an access token. |
+| **Host identifier** | The domain (for example `https://www.yourcompany.com`) or app namespace (for example `com.yourcompany.app`) you registered when generating the token. Sent as `X-Host`. The server rejects requests where `X-Host` does not match. |
+
+To request access, contact your PolyAI representative.
