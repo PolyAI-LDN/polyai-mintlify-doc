@@ -1,0 +1,128 @@
+---
+title: "Event format"
+description: "The common JSON envelope used for every WebSocket event."
+---
+
+All communication over the WebSocket uses JSON events with a common structure.
+
+## Sending events (client → server)
+
+When sending events, include only `type` and `payload`. The server assigns `id`, `sequence`, and `timestamp` — do not include them.
+
+```json
+{
+  "type": "EVENT_TYPE_USER_MESSAGE",
+  "payload": {
+    "text": "Hello, I need some help."
+  }
+}
+```
+
+You can optionally include a `metadata` field with custom key-value pairs. The server echoes these back, useful for correlating sent messages with their echoes:
+
+```json
+{
+  "type": "EVENT_TYPE_USER_MESSAGE",
+  "payload": {
+    "text": "Hello, I need some help."
+  },
+  "metadata": {
+    "custom": {
+      "local_id": "draft_abc123"
+    }
+  }
+}
+```
+
+## Receiving events (server → client)
+
+Events from the server include additional fields:
+
+```json
+{
+  "id": "018d91c7-7b12-7474-9a84-7e8c0e9e4f1a",
+  "sequence": 5,
+  "timestamp": "2024-02-12T12:00:00Z",
+  "type": "EVENT_TYPE_POLY_AGENT_MESSAGE",
+  "payload": {
+    "message_id": "msg_abc123",
+    "text": "Hello! How can I help you today?",
+    "attachments": [],
+    "response_suggestions": [
+      { "message_text": "I have a question about my order" },
+      { "message_text": "I need to make a booking" }
+    ]
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique identifier for this event (UUID). Use to deduplicate. |
+| `sequence` | integer or null | Monotonically increases with each event in the session. Use to order events. `null` for transient events (e.g. typing indicators) that are not part of the permanent history. |
+| `timestamp` | string | When the server processed this event (ISO 8601). |
+| `type` | string | The event type. |
+| `payload` | object | Event-specific data. |
+| `metadata` | object | Present when `custom` data was included. Contains your key-value pairs echoed back. |
+
+## Echo behavior
+
+When you send certain events, the server echoes them back with the server-assigned `id`, `sequence`, and `timestamp` added. This confirms the server received and processed your event. The following events are echoed:
+
+- `EVENT_TYPE_USER_MESSAGE` — the echo includes a server-assigned `message_id` in the payload
+- `EVENT_TYPE_USER_END_SESSION`
+- `EVENT_TYPE_HEARTBEAT`
+- `EVENT_TYPE_REQUEST_POLY_AGENT_JOIN`
+
+Since your client receives both its own echoed events and server-originated events on the same WebSocket, use the `id` field to deduplicate.
+
+## Using echoes as delivery receipts
+
+Echoes act as server-side acknowledgements — when you receive the echo of a message you sent, the server has received and processed it. Use this to build delivery confirmation and retry logic.
+
+Add a unique `client_event_id` to `metadata.custom` when sending. The server echoes this value back, letting you match the echo to the original message:
+
+```javascript
+// Track pending messages
+const pending = new Map();
+
+function sendMessage(text) {
+  const clientEventId = crypto.randomUUID();
+  const event = {
+    type: "EVENT_TYPE_USER_MESSAGE",
+    payload: { text },
+    metadata: { custom: { client_event_id: clientEventId } },
+  };
+
+  pending.set(clientEventId, { event, sentAt: Date.now(), retries: 0 });
+  ws.send(JSON.stringify(event));
+
+  // Retry if no echo arrives in 5 seconds
+  setTimeout(() => retryIfPending(clientEventId), 5000);
+}
+
+function handleEvent(msg) {
+  // Check if this is an echo of something we sent
+  const clientEventId = msg.metadata?.custom?.client_event_id;
+  if (clientEventId && pending.has(clientEventId)) {
+    pending.delete(clientEventId);
+    updateMessageStatus(clientEventId, "sent");
+  }
+}
+
+function retryIfPending(clientEventId) {
+  const entry = pending.get(clientEventId);
+  if (!entry) return;
+
+  if (entry.retries < 3) {
+    entry.retries++;
+    ws.send(JSON.stringify(entry.event));
+    setTimeout(() => retryIfPending(clientEventId), 5000 * entry.retries);
+  } else {
+    pending.delete(clientEventId);
+    updateMessageStatus(clientEventId, "failed");
+  }
+}
+```
+
+This pattern gives you optimistic delivery tracking (show "sending..." → "sent" → "failed") without additional server-side support.

@@ -1,0 +1,86 @@
+---
+title: "WebSocket connection"
+description: "Connect, reconnect, and keep the WebSocket alive."
+---
+
+After [creating a session](/api-reference/messaging/sessions), open a WebSocket to send and receive events in real time.
+
+## Connecting
+
+**`wss://<base-url>/ws`**
+
+### Query parameters
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `session_id` | Yes | The session ID from the Create Session response |
+| `access_token` | Yes | Your access token |
+| `cursor` | No | Resume from a specific point in the conversation. Format: `seq:<n>` where `<n>` is a sequence number. Default: `seq:0` (full history). |
+
+```javascript
+const ws = new WebSocket(
+  `wss://messaging.us-1.poly.ai/ws?session_id=${sessionId}&access_token=${accessToken}`
+);
+```
+
+<Info>
+The access token is passed as a query parameter (not a header) because WebSocket connections do not support custom headers during the handshake. All connections use TLS encryption.
+</Info>
+
+### Connection limits
+
+| Constraint | Value |
+|------------|-------|
+| Idle timeout (no messages) | 10 minutes |
+| Maximum message size | 128 KB |
+| Concurrent connections per session | 10 |
+
+## What happens on connect
+
+When the WebSocket opens, the server immediately sends the session history as one or more `EVENT_TYPE_EVENT_BATCH` events. This lets your client reconstruct the conversation state — especially useful when reconnecting after a network drop.
+
+The first batch always contains at least the `EVENT_TYPE_SESSION_START` event, which tells your client about the session's capabilities (e.g. whether streaming is enabled).
+
+After processing the history:
+
+- **New session** (no `EVENT_TYPE_POLY_AGENT_JOINED` in the replayed events): send `EVENT_TYPE_REQUEST_POLY_AGENT_JOIN` to start the conversation.
+- **Reconnect**: the agent has already joined — skip the join request.
+
+## Keeping the connection alive
+
+Send `EVENT_TYPE_HEARTBEAT` events at regular intervals to prevent the connection from timing out. The server echoes each heartbeat back.
+
+If the server receives no messages (including heartbeats) for the idle timeout period (10 minutes), the connection is closed and the session will eventually end.
+
+```javascript
+// Send a heartbeat every 30 seconds
+setInterval(() => {
+  ws.send(JSON.stringify({ type: "EVENT_TYPE_HEARTBEAT", payload: {} }));
+}, 30000);
+```
+
+<Tip>
+Read `capabilities.heartbeat_interval_seconds` from the `EVENT_TYPE_SESSION_START` event and use that interval. Fall back to 30 seconds if it's not set.
+</Tip>
+
+## Reconnecting
+
+If the connection drops, reconnect using the same `session_id` and `access_token`. Pass the `cursor` parameter to avoid replaying events you've already received:
+
+```javascript
+const ws = new WebSocket(
+  `wss://messaging.us-1.poly.ai/ws?session_id=${sessionId}&access_token=${token}&cursor=seq:${lastSequence}`
+);
+```
+
+Set `lastSequence` to the highest `sequence` number your client has seen. The server replays only events after that point.
+
+<Warning>
+**Connection dropped ≠ session ended.** If the WebSocket closes unexpectedly, the session is still alive on the server. Reconnect with the same `session_id` and a `cursor` to resume. Do not create a new session on reconnect.
+</Warning>
+
+### Recommended reconnect strategy
+
+- Implement exponential backoff: start at 1 second, cap at 30 seconds
+- Use `capabilities.max_reconnect_attempts` from `SESSION_START` as a hint for how many times to retry
+- After exhausting retries, surface an error and let the user start a new session
