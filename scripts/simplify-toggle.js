@@ -54,7 +54,7 @@
   // The actual PLG sidebar renders:
   //   Home · Analytics (= standard Dashboard only) · Conversations ·
   //   Build {Agent, Knowledge, Flows, Tools} ·
-  //   Configure {General, Agent voice, PolyPhone, Numbers, Integrations} ·
+  //   Configure {General, Agent voice, Web Calling, Numbers, Integrations} ·
   //   Operations (= Environments).
   // Everything not in that list is dimmed in the docs sidebar below.
   //
@@ -73,12 +73,12 @@
     'Variant management',
     'Test suite',
     // Channels group — entirely absent from the PLG sidebar; voice settings
-    // move into Configure (Agent voice + PolyPhone).
+    // move into Configure (Agent voice + Web Calling).
     'Chat', 'Widgets',
     'Speech recognition', 'Response control', 'Audio management',
     // Configure group — enterprise-only sub-groups (SettingsSection.tsx
     // renders a stripped-down Configure for PLG with General, Agent voice,
-    // PolyPhone, Numbers, and Integrations). Numbers is rendered but gated:
+    // Web Calling, Numbers, and Integrations). Numbers is rendered but gated:
     // the page opens with an enterprise banner because PSTN provisioning
     // is contracted on the enterprise cluster.
     'Numbers',
@@ -124,7 +124,7 @@
     '/analytics/test-suite/',
     // Channels (entire group is absent from the PLG sidebar) — voice tuning
     // pages, audio management, and webchat all land here. /widgets/ is
-    // explicitly NOT locked: it covers PolyPhone configuration, install,
+    // explicitly NOT locked: it covers Web Calling configuration, install,
     // test, and troubleshooting, which are the primary OP deployment flow.
     '/speech-recognition/', '/response-control/', '/audio-management/',
     '/webchat/',
