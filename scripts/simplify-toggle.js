@@ -38,13 +38,13 @@
   // landing area — a curated path that becomes the entire sidebar for
   // self-serve users so they don't see the rest of the enterprise IA.
   // Marked with data-open-platform-only="true".
-  var OPEN_PLATFORM_ONLY_GROUPS = ['Open platform'];
+  var OPEN_PLATFORM_ONLY_GROUPS = ['Agent Builder'];
 
   // When Open platform mode is on, every sidebar group whose name is NOT in
   // this list gets hidden. Keeping the list to just ['Open platform'] makes
   // the experience a single focused group; add 'FAQ' / 'Glossary' here if we
   // ever want to keep those visible to self-serve users.
-  var OPEN_PLATFORM_KEEP_GROUPS = ['Open platform'];
+  var OPEN_PLATFORM_KEEP_GROUPS = ['Agent Builder'];
 
   // Collapsed sub-group button labels to dim in Open platform mode.
   //
@@ -287,8 +287,8 @@
   function updateButton(btn, simplified) {
     btn.setAttribute('aria-pressed', simplified);
     btn.title = simplified
-      ? 'Exit Free trial mode (show all docs)'
-      : 'Enter Free trial mode (lock enterprise pages behind a banner)';
+      ? 'Exit free trial mode (show all docs)'
+      : 'Enter free trial mode (scope to Agent Builder)';
     btn.innerHTML = simplified
       ? '<span class="simplify-toggle__icon">✦</span><span class="simplify-toggle__label">Free trial — exit</span>'
       : '<span class="simplify-toggle__icon">✦</span><span class="simplify-toggle__label">Free trial</span>';
@@ -451,10 +451,10 @@
       '<div class="free-trial-enterprise-banner__icon" aria-hidden="true">✦</div>' +
       '<div class="free-trial-enterprise-banner__body">' +
         '<p class="free-trial-enterprise-banner__title"><strong>Enterprise feature</strong></p>' +
-        '<p class="free-trial-enterprise-banner__text">This page is here for reference, but it isn\'t part of the Open platform self-serve trial. When you\'re ready to use it, talk to sales about an enterprise plan.</p>' +
+        '<p class="free-trial-enterprise-banner__text">This page is here for reference, but it isn\'t part of the Agent Builder free trial. When you\'re ready to use it, talk to sales about an enterprise plan.</p>' +
         '<p class="free-trial-enterprise-banner__actions">' +
           '<a href="https://poly.ai/request-a-demo" class="free-trial-enterprise-banner__cta" target="_blank" rel="noopener">Talk to sales</a>' +
-          '<button type="button" class="free-trial-enterprise-banner__exit" id="free-trial-enterprise-banner-exit">Open platform — exit</button>' +
+          '<button type="button" class="free-trial-enterprise-banner__exit" id="free-trial-enterprise-banner-exit">Free trial — exit</button>' +
         '</p>' +
       '</div>';
 
@@ -523,10 +523,10 @@
       '<div class="free-trial-enterprise-banner__handle" aria-hidden="true" title="Drag to move">⋮⋮</div>' +
       '<div class="free-trial-enterprise-banner__icon" aria-hidden="true">✦</div>' +
       '<div class="free-trial-enterprise-banner__body">' +
-        '<p class="free-trial-enterprise-banner__title"><strong>Open platform feature</strong></p>' +
-        '<p class="free-trial-enterprise-banner__text">This is part of the PolyAI Open platform — the self-serve, 60-day free trial of Agent Studio. Switch on Open platform mode to read these docs in context, or talk to sales about getting it on enterprise.</p>' +
+        '<p class="free-trial-enterprise-banner__title"><strong>Agent Builder feature</strong></p>' +
+        '<p class="free-trial-enterprise-banner__text">This is part of PolyAI Agent Builder — the self-serve, 60-day free trial of Agent Studio. Switch on Free trial mode to read these docs in context, or talk to sales about getting it on enterprise.</p>' +
         '<p class="free-trial-enterprise-banner__actions">' +
-          '<button type="button" class="free-trial-enterprise-banner__cta" id="open-platform-only-banner-enter">Enter Open platform mode</button>' +
+          '<button type="button" class="free-trial-enterprise-banner__cta" id="open-platform-only-banner-enter">Enter Free trial mode</button>' +
           '<a href="https://poly.ai/request-a-demo" class="free-trial-enterprise-banner__exit" target="_blank" rel="noopener">Talk to sales</a>' +
         '</p>' +
       '</div>';
