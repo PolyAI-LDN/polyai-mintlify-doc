@@ -1,0 +1,308 @@
+---
+title: "Server events"
+description: "Events your client receives over the WebSocket."
+---
+
+The server sends these events to your client. Group them into four categories: PolyAI agent, live agent, handoff, and system.
+
+## PolyAI agent events
+
+### `EVENT_TYPE_POLY_AGENT_JOINED`
+
+The PolyAI agent has joined the session. Sent in response to your `REQUEST_POLY_AGENT_JOIN`.
+
+```json
+{
+  "payload": {
+    "agent_name": "Ada",
+    "agent_avatar_url": "https://example.com/avatars/ada.png"
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `agent_name` | string | The agent's display name — show this in your UI |
+| `agent_avatar_url` | string | URL of the agent's avatar image |
+
+### `EVENT_TYPE_POLY_AGENT_THINKING`
+
+The agent is composing a response. Show a typing indicator in your UI.
+
+```json
+{ "payload": {} }
+```
+
+### `EVENT_TYPE_POLY_AGENT_MESSAGE`
+
+A complete message from the agent. Sent when `streaming_enabled` is `false`.
+
+```json
+{
+  "payload": {
+    "message_id": "msg_abc123",
+    "text": "I'd be happy to help you book a table! What restaurant are you interested in?",
+    "attachments": [
+      {
+        "title": "Our locations",
+        "preview_image_url": "https://example.com/thumb.png",
+        "content_url": "https://example.com/locations",
+        "content_type": "ATTACHMENT_CONTENT_TYPE_URL",
+        "call_to_action_text": "View locations"
+      }
+    ],
+    "response_suggestions": [
+      { "message_text": "The Italian place on Main Street" },
+      { "message_text": "Show me all available restaurants" }
+    ]
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `message_id` | string | Unique identifier for this message |
+| `text` | string | The message text |
+| `attachments` | array | Rich content cards. See [Attachments](#attachments). |
+| `response_suggestions` | array | Quick-reply options. When the user taps one, send its `message_text` as a `USER_MESSAGE`. |
+
+<Note>
+If `streaming_enabled` is `true`, you receive `EVENT_TYPE_POLY_AGENT_MESSAGE_CHUNK` events instead. See [Streaming](/api-reference/messaging/streaming).
+</Note>
+
+### `EVENT_TYPE_POLY_AGENT_LEFT`
+
+The agent has left the session (typically before a handoff to a live agent).
+
+```json
+{ "payload": {} }
+```
+
+### `EVENT_TYPE_POLY_AGENT_TRIGGERED_HANDOFF`
+
+The agent has determined a human should take over. Handoff events follow — see [Handoff](/api-reference/messaging/handoff).
+
+```json
+{ "payload": {} }
+```
+
+## Live agent events
+
+When a conversation is handed off to a human, you receive these events:
+
+### `EVENT_TYPE_LIVE_AGENT_JOINED`
+
+A human agent has connected to the conversation.
+
+```json
+{
+  "payload": {
+    "agent": {
+      "id": "agent_42",
+      "name": "Sarah",
+      "avatar_url": "https://example.com/avatars/sarah.png"
+    }
+  }
+}
+```
+
+### `EVENT_TYPE_LIVE_AGENT_TYPING`
+
+The human agent is typing.
+
+```json
+{
+  "payload": {
+    "state": "TYPING_STATE_STARTED",
+    "agent_id": "agent_42"
+  }
+}
+```
+
+### `EVENT_TYPE_LIVE_AGENT_MESSAGE`
+
+A message from the human agent. Same structure as agent messages, plus an `agent_id`.
+
+```json
+{
+  "payload": {
+    "message_id": "msg_live_789",
+    "agent_id": "agent_42",
+    "text": "Hi! I can see your booking request. Let me check availability.",
+    "attachments": [],
+    "response_suggestions": []
+  }
+}
+```
+
+### `EVENT_TYPE_LIVE_AGENT_LEFT`
+
+The human agent has left the session.
+
+```json
+{ "payload": {} }
+```
+
+## Handoff events
+
+These events track the transition from the PolyAI agent to a human agent. See [Handoff](/api-reference/messaging/handoff) for the full flow.
+
+### `EVENT_TYPE_HANDOFF_ACCEPTED`
+
+The live agent system accepted the handoff. The user may be placed in a queue.
+
+```json
+{ "payload": {} }
+```
+
+### `EVENT_TYPE_HANDOFF_QUEUE_STATUS`
+
+Periodic updates while the user is waiting. Show in your UI (e.g. "You are #3 in the queue").
+
+```json
+{
+  "payload": {
+    "queue_name": "General Support",
+    "position_in_queue": 3,
+    "estimated_wait_seconds": 180
+  }
+}
+```
+
+All fields are optional — not all live agent systems provide queue position data.
+
+### `EVENT_TYPE_CLIENT_HANDOFF_REQUIRED`
+
+The server cannot handle the handoff automatically and needs your client to take action (e.g. redirect to a different channel or open a third-party widget).
+
+```json
+{
+  "payload": {
+    "reason": "COMPLEX_QUERY",
+    "queue_name": "Support Queue"
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `reason` | string | `COMPLEX_QUERY`, `AGENT_DECISION`, or `POLICY` |
+| `queue_name` | string | Suggested routing destination |
+
+### `EVENT_TYPE_HANDOFF_FAILED`
+
+The handoff could not be completed (e.g. the live agent system is unavailable).
+
+```json
+{ "payload": {} }
+```
+
+### `EVENT_TYPE_HANDOFF_TIMEOUT`
+
+The user waited too long in the queue without being connected.
+
+```json
+{ "payload": {} }
+```
+
+## System events
+
+### `EVENT_TYPE_SESSION_START`
+
+Sent as part of the history replay when the WebSocket connects. Describes session capabilities.
+
+```json
+{
+  "payload": {
+    "capabilities": {
+      "streaming": true,
+      "max_message_size_bytes": 131072,
+      "max_reconnect_attempts": 5,
+      "heartbeat_interval_seconds": 30
+    }
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `streaming` | boolean | Whether agent responses use streaming chunks |
+| `max_message_size_bytes` | integer | Maximum size of a single WebSocket message |
+| `max_reconnect_attempts` | integer | Suggested number of reconnection attempts |
+| `heartbeat_interval_seconds` | integer | How often (in seconds) to send heartbeats |
+
+### `EVENT_TYPE_SESSION_END`
+
+The session has ended. After this, no further events will be sent. Close the WebSocket.
+
+```json
+{
+  "payload": {
+    "reason": "REASON_USER_END"
+  }
+}
+```
+
+| Reason | Meaning |
+|--------|---------|
+| `REASON_USER_END` | The user explicitly ended the session |
+| `REASON_USER_ABANDONED` | The session timed out — no messages received (including heartbeats) |
+| `REASON_NATURAL_END` | The conversation reached a natural conclusion |
+
+### `EVENT_TYPE_SYSTEM_MESSAGE`
+
+A system-level notification — usually an error in response to an invalid event you sent. See [Errors](/api-reference/messaging/errors) for the full catalog.
+
+```json
+{
+  "payload": {
+    "level": "SYSTEM_MESSAGE_LEVEL_ERROR",
+    "message": "Event type not allowed: EVENT_TYPE_POLY_AGENT_MESSAGE"
+  }
+}
+```
+
+| Level | When you'll see it |
+|-------|--------------------|
+| `SYSTEM_MESSAGE_LEVEL_INFO` | Informational notices |
+| `SYSTEM_MESSAGE_LEVEL_WARNING` | Non-critical issues |
+| `SYSTEM_MESSAGE_LEVEL_ERROR` | Typically a malformed or disallowed event |
+
+### `EVENT_TYPE_EVENT_BATCH`
+
+A batch of historical events, sent during connection replay. Contains an array of events in chronological order.
+
+```json
+{
+  "payload": {
+    "events": [
+      { "id": "...", "sequence": 1, "type": "EVENT_TYPE_SESSION_START", "payload": {} },
+      { "id": "...", "sequence": 2, "type": "EVENT_TYPE_POLY_AGENT_MESSAGE", "payload": {} }
+    ]
+  }
+}
+```
+
+Flatten the `events` array into your local event list, using `sequence` for ordering and `id` for deduplication.
+
+## Attachments
+
+Attachments are rich content items in agent or live agent messages — typically links or images.
+
+```json
+{
+  "title": "Our Locations",
+  "preview_image_url": "https://example.com/thumb.png",
+  "content_url": "https://example.com/locations",
+  "content_type": "ATTACHMENT_CONTENT_TYPE_URL",
+  "call_to_action_text": "View locations"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `title` | string | Display title |
+| `preview_image_url` | string | URL of a thumbnail or preview image |
+| `content_url` | string | URL of the full content (the link the user opens) |
+| `content_type` | string | `ATTACHMENT_CONTENT_TYPE_URL` (link) or `ATTACHMENT_CONTENT_TYPE_IMAGE` (image) |
+| `call_to_action_text` | string | Button label (e.g. "View locations", "Open image") |
