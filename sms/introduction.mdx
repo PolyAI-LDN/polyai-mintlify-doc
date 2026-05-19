@@ -118,10 +118,45 @@ All created SMS templates are listed in **Build > SMS**. You can:
 
 4. **Click 'Save' and 'Publish'**
 
+## Compliance keywords (STOP, START, HELP)
+
+PolyAI automatically handles the standard SMS compliance keywords required by [TCPA](https://www.fcc.gov/sites/default/files/tcpa-rules.pdf) and carrier rules. When a recipient replies with one of these keywords, PolyAI responds and updates their opt-out status without forwarding the message to your agent.
+
+Opt-out status is tracked per (recipient number, Twilio number) pair, so a user opted out of one campaign can still receive messages from a different Twilio number.
+
+### Supported keywords
+
+Matching is case-insensitive and ignores leading or trailing whitespace and a single trailing punctuation character (`.`, `!`, `?`, `,`, `;`). For example, `stop`, `STOP.`, and `  Stop!  ` are all treated as `STOP`.
+
+| Keyword | Accepted variants | What happens |
+|---|---|---|
+| **STOP** | `STOP`, `STOPALL`, `UNSUBSCRIBE`, `CANCEL`, `END`, `QUIT` | The sender is opted out. PolyAI replies with a confirmation and suppresses all future outbound SMS to that number from the same Twilio number until they opt back in. |
+| **START** | `START`, `YES`, `UNSTOP` | The opt-out record is removed. PolyAI replies with a confirmation and resumes delivery of outbound SMS. |
+| **HELP** | `HELP` | PolyAI replies with a static help message pointing the user to `STOP` and `START`. |
+
+### Default reply messages
+
+| Keyword | Reply sent to the user |
+|---|---|
+| STOP | `You have been unsubscribed and will not receive further messages. Reply START to resubscribe.` |
+| START | `You have been resubscribed and will receive messages again.` |
+| HELP | `Reply STOP to unsubscribe or START to resubscribe.` |
+
+### What this means for your agent
+
+- **Inbound `STOP`/`START`/`HELP` replies never reach your flows or Managed Topics.** They are intercepted at the SMS handler, so you do not need to script keyword responses yourself.
+- **Outbound SMS to opted-out recipients is silently dropped.** If a function or Managed Topic action calls `conv.send_sms` or `conv.send_sms_template` for an opted-out number, the request returns successfully but no SMS is delivered. Check the [Standard dashboard](/analytics/dashboards/standard) SMS widget to monitor delivery.
+- **Any other inbound message from an opted-out sender is also dropped** until they reply `START`.
+- The opt-out record persists indefinitely until the user opts back in, satisfying TCPA record-keeping requirements.
+
+<Note>
+A2P 10DLC campaigns in the US and Canada require you to disclose `STOP` and `HELP` behavior during opt-in. The replies above are designed to meet that requirement out of the box.
+</Note>
+
 ## Best practices
 - Keep messages short and relevant – 160 characters or fewer sends as a single segment.
 - Use variant attributes or dynamic fields (e.g., customer name, booking details) to personalize messages.
-- Follow SMS regulations, including providing opt-out options when required.
+- Disclose `STOP` and `HELP` keywords when collecting opt-in consent – PolyAI handles the replies automatically, but the disclosure is your responsibility.
 
 ## Example: Integrating handoffs with SMS
 Combine [handoff](/call-handoff/introduction) functionality with SMS:
