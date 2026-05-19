@@ -1,0 +1,116 @@
+---
+title: Disable knowledge topics from functions
+sidebarTitle: Disable KB topics
+description: Exclude specific Managed Topics from RAG retrieval at runtime using conv.disable_kb_topics() based on conversation context.
+tag: "Code"
+---
+
+<Info>
+**This page requires Python familiarity.** It covers disabling [Managed Topics](/managed-topics/introduction) from Python functions so they are excluded from retrieval for the rest of the conversation.
+</Info>
+
+Use `conv.disable_kb_topics()` when you need to deterministically prevent the agent from matching certain topics – for example, when an upstream IVR has already handled a flow, the caller is in a context where some answers are not applicable, or a client request requires hiding a topic from the agent without editing the knowledge base.
+
+Previously this could only be approximated through prompting. Disabling topics from a function gives you a reliable, deterministic way to scope the agent's knowledge mid-conversation.
+
+Set and clear disabled topics using:
+
+- `conv.disable_kb_topics()` – hide one or more topics from retrieval
+- `conv.clear_disabled_kb_topics()` – re-enable topics that were previously disabled
+
+## How it behaves
+
+### Persists across turns
+
+Topics disabled with `conv.disable_kb_topics()` stay disabled for the rest of the conversation. They continue to be excluded until you:
+
+- call `conv.clear_disabled_kb_topics()`, or
+- call `conv.disable_kb_topics()` again with a new list (the new list replaces the previous one).
+
+You do not need to re-disable topics on every turn.
+
+### Excluded everywhere RAG runs
+
+Disabled topics are removed from:
+
+- The list of topics shown to the LLM in the system prompt.
+- Retrieval results used to ground the response.
+- The function/tool list exposed to real-time (speech-to-speech) agents.
+
+### Combines with channel exclusions
+
+Disabled topics are merged with any topics already excluded for the current channel (configured under **Channels**). A topic is hidden if it is excluded by either mechanism.
+
+## When to use this
+
+Use `conv.disable_kb_topics()` when:
+
+- An external IVR has already handled an intent and you do not want the agent to repeat it.
+- The caller's account or segment should not see certain topics (for example, a "cancellations" topic for a non-cancellable plan).
+- A client requests temporary suppression of a topic without changing the knowledge base.
+- You want to scope retrieval to a subset of topics for a specific part of the conversation.
+
+## conv.disable_kb_topics()
+
+Disables one or more Managed Topics for the current conversation.
+
+### Parameters
+
+#### topics (list of strings)
+
+A list of Managed Topic **names** to disable. Names must match the topic names configured under **Build > Knowledge > Managed Topics**.
+
+Calling `conv.disable_kb_topics()` replaces any previously disabled list. To add to the existing list, include the previous names alongside the new ones.
+
+### Examples
+
+#### Disable a single topic based on IVR context
+
+```python
+def on_start(conv):
+    if conv.state.get("ivr_intent") == "billing_handled":
+        conv.disable_kb_topics(["refund_policy", "billing_dispute"])
+```
+
+#### Disable topics based on account data
+
+```python
+def setup_account(conv):
+    account = conv.api.crm.get_account()
+
+    if not account["supports_cancellation"]:
+        conv.disable_kb_topics(["cancellation_policy"])
+```
+
+#### Replace the disabled list
+
+```python
+def update_scope(conv):
+    # Only "store_hours" is disabled after this call;
+    # any previously disabled topics are re-enabled.
+    conv.disable_kb_topics(["store_hours"])
+```
+
+## conv.clear_disabled_kb_topics()
+
+Re-enables any topics that were previously disabled for the conversation.
+
+Use this when the reason for disabling no longer applies – for example, after the caller switches to a different intent or completes a verification step.
+
+### Example: disable, then clear
+
+```python
+def handle_self_service(conv):
+    conv.disable_kb_topics(["human_handoff"])
+    conv.say("Let's try to sort this out together.")
+
+    # Later, if self-service fails:
+    if conv.state.get("self_service_failed"):
+        conv.clear_disabled_kb_topics()
+```
+
+## Related documentation
+
+- [Managed Topics](/managed-topics/introduction)
+- [RAG](/managed-topics/RAG/introduction)
+- [Conversation object](/tools/classes/conv-object)

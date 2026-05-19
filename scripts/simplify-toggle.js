@@ -1,56 +1,182 @@
 (function () {
-  // ── Simplify view toggle ──────────────────────────────────────────────────
-  // Persistent simplified mode backed by localStorage.
-  // Once on, it stays on across page loads and sessions until the user clicks
-  // "Exit simplified mode" or navigates to a page that's flagged as complex
-  // (in which case it auto-exits and takes them there in full-docs view).
+  // ── Open platform mode toggle ─────────────────────────────────────────────
+  // Persistent "Open platform mode" view backed by localStorage. Once on, it
+  // stays on across page loads and sessions until the user clicks
+  // "Exit Open platform mode" via the floating pill or the landing page button.
   //
-  // ?view=simplified is still honoured as a one-shot entry point (e.g. from
-  // the /platform/simplified-mode landing page link or an external share),
-  // and is mirrored back into the URL on navigations so links can be shared.
+  // CSS class names and DOM ids keep their legacy "free-trial-enterprise-banner"
+  // tokens so the styles.css selectors continue to match; only the visible
+  // labels read as "Open platform" externally.
+  //
+  // In Open platform mode:
+  //  - Sidebar entries for enterprise/developer content are visually dimmed
+  //    so the user can see at a glance what's part of the Open platform and
+  //    what isn't — but they remain fully clickable. No inline "Enterprise"
+  //    pill; the dim state alone is the signal.
+  //  - When the user lands on an enterprise/developer page (via sidebar,
+  //    search, deep-link, or URL bar), the page renders with a sticky banner
+  //    pinned to the top of the content area, and the rest of the page
+  //    content is grayed out and pointer-events: none — readable and
+  //    scrollable, but not interactive.
+  //  - Top-nav tabs that are wholly developer/API focused are still hidden
+  //    (graying a tab looks broken).
+  //  - .developer-only sections inside otherwise-mixed pages are wrapped in
+  //    a collapsed accordion so the page stays readable without code.
+  //
+  // ?view=simplified is still honoured as a one-shot entry point and is
+  // mirrored back into the URL on navigations so links can be shared.
   var STORAGE_KEY = 'polyai-simplified-mode';
   var POSITION_KEY = 'polyai-simplified-pill-position';
+  var BANNER_POSITION_KEY = 'polyai-lock-banner-position';
   var DRAG_THRESHOLD = 4; // px — movement before we treat a pointerdown as a drag
 
-  // Sidebar group names to hide entirely in simplified mode.
-  var HIDDEN_GROUPS = ['Developer tools', 'Secrets', 'Code-driven flows'];
+  // Sidebar group names to dim in Open platform mode.
+  var ENTERPRISE_GROUPS = ['Developer tools', 'Secrets', 'Code-driven flows'];
 
-  // Collapsed sub-group button labels to hide in simplified mode.
-  // SMS, Call handoffs, and Flows are intentionally excluded here — their intro
-  // pages are visible in simplified mode with developer content behind an
-  // accordion, and Flows contains a No-code sub-group that must stay visible.
-  var HIDDEN_SUBGROUPS = [
-    'Tools', 'Configuration builder',
-    'Speech recognition', 'Response control', 'Audio management',
+  // Sidebar groups that should render ONLY when Open platform mode is on,
+  // hidden completely otherwise. This is the dedicated "separate product"
+  // landing area — a curated path that becomes the entire sidebar for
+  // self-serve users so they don't see the rest of the enterprise IA.
+  // Marked with data-open-platform-only="true".
+  var OPEN_PLATFORM_ONLY_GROUPS = ['Agent Builder'];
+
+  // When Open platform mode is on, every sidebar group whose name is NOT in
+  // this list gets hidden. Keeping the list to just ['Open platform'] makes
+  // the experience a single focused group; add 'FAQ' / 'Glossary' here if we
+  // ever want to keep those visible to self-serve users.
+  var OPEN_PLATFORM_KEEP_GROUPS = ['Agent Builder'];
+
+  // Collapsed sub-group button labels to dim in Open platform mode.
+  //
+  // Derived from the live PLG sidebar component in platform_ui:
+  //   apps/jupiter/src/components/organisms/ProjectSidebar/index.tsx (PlgContent)
+  //   apps/jupiter/src/components/organisms/ProjectNavigation/components/{Build,Settings,Analytics}Section.tsx
+  // The actual PLG sidebar renders:
+  //   Home · Analytics (= standard Dashboard only) · Conversations ·
+  //   Build {Agent, Knowledge, Flows, Tools} ·
+  //   Configure {General, Agent voice, Web Calling, Numbers, Integrations} ·
+  //   Operations (= Environments).
+  // Everything not in that list is dimmed in the docs sidebar below.
+  //
+  // Intentionally excluded:
+  //  - SMS, Call handoffs, Flows — intro pages are visible with developer
+  //    content behind an accordion; Flows contains a No-code sub-group that
+  //    must stay visible.
+  //  - Tools, Knowledge — both are part of the Open platform Build sidebar
+  //    (BuildSection.tsx renders these even when isPlgProd is true); custom
+  //    Python tools and managed-topic knowledge bases are first-class
+  //    self-serve features.
+  //  - Conversations — surfaced as a top-level item in the PLG sidebar.
+  var ENTERPRISE_SUBGROUPS = [
+    // Build group — enterprise-only sub-groups (BuildSection.tsx gates these
+    // on !isPlgProd)
     'Variant management',
     'Test suite',
+    // Channels group — entirely absent from the PLG sidebar; voice settings
+    // move into Configure (Agent voice + Web Calling).
+    'Chat', 'Widgets',
+    'Speech recognition', 'Response control', 'Audio management',
+    // Configure group — enterprise-only sub-groups (SettingsSection.tsx
+    // renders a stripped-down Configure for PLG with General, Agent voice,
+    // Web Calling, Numbers, and Integrations). Numbers is rendered but gated:
+    // the page opens with an enterprise banner because PSTN provisioning
+    // is contracted on the enterprise cluster.
+    'Numbers',
     'APIs', 'API and export',
+    'Configuration builder',
+    'Metrics', 'Dashboards', 'CSAT',
+    'User management', 'API keys',
+    'Call data',
+    // Analytics group — only Conversations and the standard Dashboard appear
+    // in the PLG sidebar; everything else under Analytics is enterprise-only.
+    'Smart analyst', 'Agent analysis', 'PolyScore',
+    // PolyAcademy levels 2/3 are enterprise-tier training content.
     'PolyAcademy level 2', 'PolyAcademy level 3',
-    // Managed-service integration groups (hidden in simplified mode)
+    // Integration directories that only apply to enterprise managed services.
     'Managed services',
-    // Non-UI integration sidebar groups
     'Amazon Connect',
     'CRM',
     'Hospitality',
-    'Healthcare',
-    'Knowledge base'
+    'Healthcare'
   ];
 
-  // Top-nav tab labels to hide in simplified mode.
-  var HIDDEN_TABS = ['Developer', 'API reference', 'Advanced'];
+  // Top-nav tab labels — these stay hidden (a grayed-out tab looks broken).
+  // Release notes is a documentation surface for monthly enterprise feature
+  // launches and tier-rollout milestones — none of which apply to a self-serve
+  // user mid-trial. Academy is PolyAcademy training built around the
+  // enterprise IA (Level 2/3 are explicitly enterprise-tier content). Both
+  // hidden in Open platform mode.
+  var HIDDEN_TABS = ['Developer', 'API reference', 'Advanced', 'Release notes', 'Academy'];
 
-  // Path prefixes that are "complex" — clicking a link to these exits simplified mode.
-  // Must stay in sync with the li[id] checks in markSidebarGroups().
-  var COMPLEX_PREFIXES = [
-    '/tools/', '/secrets/', '/extend/', '/configuration-builder/',
-    '/speech-recognition/', '/response-control/', '/audio-management/', '/variant-management/',
-    '/telephony/twilio/',
-    '/call-data/conversations-api/',
+  // Path prefixes for "enterprise/developer" pages. Visiting one in
+  // Open platform mode shows the page with the content grayed out behind a
+  // sticky banner.
+  // Note: /extend/, /secrets/, /tools/, /studio-assistant/, and
+  // /managed-topics/ are intentionally NOT in this list — the ADK, personal
+  // access tokens, the Secrets Vault, custom Python tools/functions, Studio
+  // Assistant, and managed-topic knowledge bases are all available to
+  // Open platform users. Specific sub-pages that are enterprise-only
+  // (e.g. /secrets/api-keys) are listed in ENTERPRISE_EXACT below.
+  var ENTERPRISE_PREFIXES = [
+    // Build — enterprise-only sub-groups
+    '/configuration-builder/',
+    '/variant-management/',
     '/analytics/test-suite/',
-    '/api-reference/', '/api/'
+    // Channels (entire group is absent from the PLG sidebar) — voice tuning
+    // pages, audio management, and webchat all land here. /widgets/ is
+    // explicitly NOT locked: it covers Web Calling configuration, install,
+    // test, and troubleshooting, which are the primary OP deployment flow.
+    '/speech-recognition/', '/response-control/', '/audio-management/',
+    '/webchat/',
+    // Configure — enterprise-only sub-groups. Numbers is rendered in the
+    // PLG sidebar but every telephony page (the Numbers landing page and
+    // its sub-pages, including the Twilio guide) opens with an enterprise
+    // banner because PSTN provisioning is enterprise-only.
+    '/telephony/',
+    '/call-data/conversations-api/',
+    // API reference: lock the whole tree. PATs authenticate the Agents API
+    // for OP users from the CLI, but the API reference pages themselves are
+    // documentation we don't want self-serve users acting on directly.
+    // /api/ is the older custom-integration doc set, also all enterprise.
+    '/api-reference/',
+    '/api/',
+    '/analytics/csat/',
+    '/user-management/',
+    // Analytics — services not deployed on the Open platform cluster
+    '/smart-analyst/',
+    '/agent-analysis/',
+    // Connected Knowledge is the Source Hub: live document syncing from
+    // Confluence, SharePoint, Google Drive, etc. Enterprise-only — Open
+    // platform users build knowledge with Managed Topics instead.
+    '/connected-knowledge/',
+    // Telephony providers under /integrations/voice/ — same gating as
+    // /telephony/ (PSTN provisioning is contracted). Sub-pages under
+    // amazon-connect/, sip/, etc. all locked by this prefix.
+    '/integrations/voice/',
+    // Agent settings: on the Open platform you change personality, rules,
+    // model, etc. through Studio Assistant rather than the direct config
+    // pages. The pages themselves are enterprise-flavoured (model picker,
+    // BYOM, Language Hub, Agents API automation), so the whole directory
+    // is locked. The Raven page is allowlisted below in SIMPLIFIED_INTROS
+    // because it appears in the OP sidebar as 'What model does PolyAI use?'.
+    '/agent-settings/'
   ];
-  var COMPLEX_EXACT = [
+  var ENTERPRISE_EXACT = [
     '/call-data/s3-to-s3',
+    // Workspace-scoped API keys are enterprise-only — Open platform users use
+    // personal access tokens (/secrets/personal-access-tokens) instead.
+    '/secrets/api-keys',
+    // (Model selection, BYOM, Language Hub, and the rest of /agent-settings/
+    // are now covered by the /agent-settings/ prefix above. Raven stays open
+    // via SIMPLIFIED_INTROS.)
+    // PolyScore is a single page; the underlying scoring service isn't
+    // deployed on the Open platform cluster.
+    '/analytics/polyscore',
+    // Dashboards: only the standard dashboard is part of the Open platform
+    // (per the PLG_ANALYTICS_DASHBOARD branch in PlgContent). The custom-
+    // dashboard builder and the safety dashboard are enterprise-only.
+    '/analytics/dashboards/custom',
+    '/analytics/dashboards/safety',
     // Code-driven flow pages — the no-code subdirectory stays visible.
     '/flows/triggering-flows',
     '/flows/example',
@@ -59,20 +185,17 @@
     '/flows/asr-biasing',
     '/flows/dtmf',
     '/flows/few-shot-prompting',
+    // Managed-topic actions that depend on enterprise channels.
+    '/managed-topics/how-to-setup-action/send-sms',
+    '/managed-topics/how-to-setup-action/handoff',
     // Managed-service integration pages (not in Studio UI)
     '/integrations/managed-services',
-    '/integrations/voice/sip/custom-sip', '/integrations/voice/dnis-pool',
     '/integrations/zoom',
     '/integrations/design-my-night', '/integrations/liveres',
     '/integrations/zendesk-ticketing-solutions',
     '/integrations/pci-pal', '/integrations/stripe',
     '/integrations/google-sheets', '/integrations/ideal-postcode',
     '/integrations/deepl',
-    // Non-UI integrations — only Five9, Twilio, Dialpad are click-and-go
-    '/integrations/voice/introduction',
-    '/integrations/voice/sip/NICECXone',
-    '/integrations/voice/amazon-connect/amazon-connect',
-    '/integrations/voice/sip/genesys',
     '/integrations/zendesk',
     '/integrations/salesforce',
     '/integrations/opentable',
@@ -82,16 +205,48 @@
     '/integrations/snapcall'
   ];
 
-  // These intro pages are "mixed" — they appear in simplified mode with developer
-  // content tucked behind an accordion. They must not trigger exit from simplified mode.
-  var SIMPLIFIED_INTROS = ['/call-handoff/introduction', '/sms/introduction', '/flows/introduction'];
+  // Paths the lock check should treat as Open-platform-safe even if they'd
+  // match an ENTERPRISE_PREFIXES prefix. Two kinds of entries:
+  //   - "Mixed" intros that show in Open platform mode with developer content
+  //     tucked behind an accordion (call-handoff, sms, flows).
+  //   - Allowlisted pages under an otherwise-locked prefix (Raven, which is
+  //     surfaced in the OP sidebar as 'What model does PolyAI use?' even
+  //     though the parent /agent-settings/ directory is locked).
+  var SIMPLIFIED_INTROS = [
+    '/call-handoff/introduction',
+    '/sms/introduction',
+    '/flows/introduction',
+    '/agent-settings/raven'
+  ];
 
-  function isComplexPath(pathname) {
+  // Pages that carry a "Code" / "Advanced" tag pill in the docs but are
+  // first-class self-serve features on the Open platform. The sidebar
+  // dimmer normally flags anything with one of those tag pills, so these
+  // paths are an explicit exception.
+  var SIMPLIFIED_ALLOWED_TAGGED = ['/extend/adk'];
+
+  // Inverse of ENTERPRISE_PREFIXES: pages that are ONLY available on the
+  // Open platform tier (e.g. Studio Assistant, which ships on the Open
+  // platform and reaches enterprise via separate availability). When an
+  // enterprise reader (not in Open platform mode) lands on one of these
+  // pages, we inject an Open-platform-only banner that mirrors the
+  // enterprise banner shown in the opposite direction.
+  var OPEN_PLATFORM_ONLY_PATHS = [
+    '/studio-assistant/introduction',
+    '/studio-assistant/prompting',
+    '/studio-assistant/usage-and-limits'
+  ];
+
+  function isOpenPlatformOnlyPath(pathname) {
+    return OPEN_PLATFORM_ONLY_PATHS.indexOf(pathname) !== -1;
+  }
+
+  function isEnterprisePath(pathname) {
     if (SIMPLIFIED_INTROS.indexOf(pathname) !== -1) return false;
-    if (COMPLEX_EXACT.indexOf(pathname) !== -1) return true;
-    // Sub-pages of call-handoff and sms (other than introduction) are still complex
+    if (ENTERPRISE_EXACT.indexOf(pathname) !== -1) return true;
+    // Sub-pages of call-handoff and sms (other than introduction) are still gated
     if (pathname.startsWith('/call-handoff/') || pathname.startsWith('/sms/')) return true;
-    return COMPLEX_PREFIXES.some(function (p) { return pathname.startsWith(p); });
+    return ENTERPRISE_PREFIXES.some(function (p) { return pathname.startsWith(p); });
   }
 
   function readStoredPreference() {
@@ -132,50 +287,127 @@
   function updateButton(btn, simplified) {
     btn.setAttribute('aria-pressed', simplified);
     btn.title = simplified
-      ? 'Exit no code mode (show all docs)'
-      : 'Enter no code mode (hide developer and API content)';
+      ? 'Exit free trial mode (show all docs)'
+      : 'Enter free trial mode (scope to Agent Builder)';
     btn.innerHTML = simplified
-      ? '<span class="simplify-toggle__icon">\u2726</span><span class="simplify-toggle__label">No code \u2014 exit</span>'
-      : '<span class="simplify-toggle__icon">\u2726</span><span class="simplify-toggle__label">No code mode</span>';
+      ? '<span class="simplify-toggle__icon">✦</span><span class="simplify-toggle__label">Free trial — exit</span>'
+      : '<span class="simplify-toggle__icon">✦</span><span class="simplify-toggle__label">Free trial</span>';
     btn.classList.toggle('simplify-toggle--active', !!simplified);
   }
 
-  // Mark sidebar section headers, sub-groups, tagged items, and path-matched items.
+  // Mark sidebar section headers, sub-groups, tagged items, and path-matched
+  // items so the stylesheet can dim them. This is purely a visual hint —
+  // the items remain fully clickable. The opacity cascade dims every
+  // descendant of a marked element, so we deliberately skip marking
+  // descendants of an already-marked ancestor (otherwise opacity multiplies
+  // and sub-pages end up unreadable).
+  //
   // Runs after each navigation since Mintlify re-renders the sidebar.
   function markSidebarGroups() {
-    // Top-level section headers
+    function clearAll() {
+      document.querySelectorAll('[data-simplified-enterprise="true"]').forEach(function (el) {
+        delete el.dataset.simplifiedEnterprise;
+      });
+      document.querySelectorAll('[data-open-platform-only="true"]').forEach(function (el) {
+        delete el.dataset.openPlatformOnly;
+      });
+      document.querySelectorAll('[data-open-platform-hidden="true"]').forEach(function (el) {
+        delete el.dataset.openPlatformHidden;
+      });
+    }
+    function hasMarkedAncestor(el) {
+      var p = el.parentElement;
+      while (p) {
+        if (p.dataset && p.dataset.simplifiedEnterprise === 'true') return true;
+        p = p.parentElement;
+      }
+      return false;
+    }
+
+    // Re-mark from a clean slate on every nav. Mintlify re-renders the
+    // sidebar but may keep some nodes; clearing first prevents stale marks.
+    clearAll();
+
+    // 1. Top-level section headers — dim header + sibling list (which
+    //    cascades to every sub-page in the group). Also flag groups that
+    //    belong to the dedicated Open platform area (visible only when
+    //    Open platform mode is on) and groups that should be hidden when
+    //    Open platform mode is on.
     document.querySelectorAll('.sidebar-group-header').forEach(function (header) {
       var h5 = header.querySelector('h5');
       if (!h5) return;
       var name = h5.textContent.trim();
-      if (HIDDEN_GROUPS.indexOf(name) !== -1) {
-        header.dataset.simplifiedHide = 'true';
-        var sibling = header.nextElementSibling;
-        if (sibling) sibling.dataset.simplifiedHide = 'true';
+      var sibling = header.nextElementSibling;
+
+      if (ENTERPRISE_GROUPS.indexOf(name) !== -1) {
+        header.dataset.simplifiedEnterprise = 'true';
+        if (sibling) sibling.dataset.simplifiedEnterprise = 'true';
+      }
+
+      if (OPEN_PLATFORM_ONLY_GROUPS.indexOf(name) !== -1) {
+        // Hidden by default in styles.css; revealed inside [data-simplified="true"].
+        header.dataset.openPlatformOnly = 'true';
+        if (sibling) sibling.dataset.openPlatformOnly = 'true';
+      } else if (OPEN_PLATFORM_KEEP_GROUPS.indexOf(name) === -1) {
+        // Every other group gets hidden when Open platform mode is on, so
+        // the self-serve sidebar collapses down to just the dedicated area.
+        header.dataset.openPlatformHidden = 'true';
+        if (sibling) sibling.dataset.openPlatformHidden = 'true';
       }
     });
 
-    // Collapsed sub-group buttons — strip tag pill text (e.g. "ToolsCode" → "Tools")
-    // before matching, since tag spans are children of the button element.
+    // 2. Collapsed sub-group buttons — strip tag pill text before matching,
+    //    since tag spans are children of the button element.
     document.querySelectorAll('.sidebar-group li > button').forEach(function (btn) {
+      var li = btn.closest('li');
+      if (!li || hasMarkedAncestor(li)) return;
       var clone = btn.cloneNode(true);
       clone.querySelectorAll('[data-nav-tag]').forEach(function (el) { el.remove(); });
       var name = clone.textContent.trim();
-      if (HIDDEN_SUBGROUPS.indexOf(name) !== -1) {
-        var li = btn.closest('li');
-        if (li) li.dataset.simplifiedHide = 'true';
+      if (ENTERPRISE_SUBGROUPS.indexOf(name) !== -1) {
+        li.dataset.simplifiedEnterprise = 'true';
       }
     });
 
-    // Expanded individual page items — hide by path prefix or Code/Advanced tag.
-    // isComplexPath() already handles the SIMPLIFIED_INTROS exclusion.
+    // 3. Expanded individual page items — dim by path prefix or Code/Advanced
+    //    tag. Skip if an ancestor is already marked, or if the path is on the
+    //    Open-platform allowlist (so e.g. /extend/adk stays bright despite
+    //    carrying a "Code" tag pill).
     document.querySelectorAll('li[id]').forEach(function (li) {
+      if (hasMarkedAncestor(li)) return;
       var id = li.id;
-      var pathMatch = isComplexPath(id);
+      if (SIMPLIFIED_ALLOWED_TAGGED.indexOf(id) !== -1) return;
+      var pathMatch = isEnterprisePath(id);
       var tagEl = li.querySelector('[data-nav-tag="Code"], [data-nav-tag="Advanced"]');
       if (pathMatch || tagEl) {
-        li.dataset.simplifiedHide = 'true';
+        li.dataset.simplifiedEnterprise = 'true';
       }
+    });
+  }
+
+  // Mark the global anchors (Home / Community / Blog from
+  // navigation.global.anchors in docs.json) for hiding in Open platform
+  // mode, so the self-serve experience reads as a single-product surface
+  // with no escape hatches into the broader docs / community.
+  //
+  // In the Maple theme these render at the top of the sidebar (not inside
+  // a <header> or top navbar), so we match by href pattern anywhere on the
+  // page and mark the link plus its enclosing <li>. The CSS rule is scoped
+  // to [data-simplified="true"], so marking links in body content is safe —
+  // they only hide for Open platform users.
+  function markGlobalAnchors() {
+    var anchorHrefs = [
+      'docs.poly.ai/home',
+      'polyaijupiter-uki8686.slack.com',
+      'poly.ai/resources'
+    ];
+    document.querySelectorAll('a[href]').forEach(function (a) {
+      var href = a.getAttribute('href') || '';
+      var match = anchorHrefs.some(function (frag) { return href.indexOf(frag) !== -1; });
+      if (!match) return;
+      a.dataset.openPlatformHidden = 'true';
+      var li = a.closest('li');
+      if (li) li.dataset.openPlatformHidden = 'true';
     });
   }
 
@@ -191,7 +423,150 @@
     });
   }
 
-  // Wrap .developer-only sections in a <details> accordion in simplified mode.
+  // Inject a sticky upsell banner at the top of an enterprise page when the
+  // user is in Open platform mode. Sets data-on-enterprise-page on <html> so the
+  // stylesheet can gray out and disable pointer events on everything in the
+  // main content area except the banner itself. Idempotent — won't double-
+  // insert across SPA navs.
+  function applyEnterpriseBanner() {
+    var existing = document.getElementById('free-trial-enterprise-banner');
+    var simplified = document.documentElement.dataset.simplified === 'true';
+    var enterprise = isEnterprisePath(window.location.pathname);
+
+    if (!simplified || !enterprise) {
+      if (existing) existing.remove();
+      document.documentElement.removeAttribute('data-on-enterprise-page');
+      return;
+    }
+    if (existing) return;
+
+    document.documentElement.setAttribute('data-on-enterprise-page', 'true');
+
+    var banner = document.createElement('aside');
+    banner.id = 'free-trial-enterprise-banner';
+    banner.className = 'free-trial-enterprise-banner';
+    banner.setAttribute('role', 'note');
+    banner.innerHTML =
+      '<div class="free-trial-enterprise-banner__handle" aria-hidden="true" title="Drag to move">⋮⋮</div>' +
+      '<div class="free-trial-enterprise-banner__icon" aria-hidden="true">✦</div>' +
+      '<div class="free-trial-enterprise-banner__body">' +
+        '<p class="free-trial-enterprise-banner__title"><strong>Enterprise feature</strong></p>' +
+        '<p class="free-trial-enterprise-banner__text">This page is here for reference, but it isn\'t part of the Agent Builder free trial. When you\'re ready to use it, talk to sales about an enterprise plan.</p>' +
+        '<p class="free-trial-enterprise-banner__actions">' +
+          '<a href="https://poly.ai/request-a-demo" class="free-trial-enterprise-banner__cta" target="_blank" rel="noopener">Talk to sales</a>' +
+          '<button type="button" class="free-trial-enterprise-banner__exit" id="free-trial-enterprise-banner-exit">Free trial — exit</button>' +
+        '</p>' +
+      '</div>';
+
+    // Insert at top of main content. Mintlify uses #content-area / main; fall
+    // back to body if neither exists yet. The CSS pins the banner to the top
+    // of its scroll container with position: sticky.
+    var mount = document.querySelector('main') || document.querySelector('#content-area') || document.body;
+    if (mount && mount.firstChild) {
+      mount.insertBefore(banner, mount.firstChild);
+    } else if (mount) {
+      mount.appendChild(banner);
+    }
+
+    var exitBtn = banner.querySelector('#free-trial-enterprise-banner-exit');
+    if (exitBtn) {
+      exitBtn.addEventListener('click', function (e) {
+        if (banner.dataset.dragSuppressClick === '1') {
+          banner.dataset.dragSuppressClick = '';
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        e.preventDefault();
+        setSimplified(false);
+        document.querySelectorAll('.simplify-toggle').forEach(function (b) {
+          updateButton(b, false);
+        });
+        markSidebarGroups();
+        markNavbarTabs();
+        markGlobalAnchors();
+        applyDeveloperContent();
+        applyEnterpriseBanner();
+        applyOpenPlatformOnlyBanner();
+        updateLandingPageStatus();
+      });
+    }
+
+    applyStoredBannerPosition(banner);
+    makeBannerDraggable(banner);
+  }
+
+  // Inject a sticky banner at the top of an Open-platform-only page when the
+  // user is NOT in Open platform mode (the enterprise default). Mirrors
+  // applyEnterpriseBanner but in the opposite direction. Sets
+  // data-on-open-platform-only on <html> so the stylesheet can gray out the
+  // page body while keeping the banner readable.
+  function applyOpenPlatformOnlyBanner() {
+    var existing = document.getElementById('open-platform-only-banner');
+    var simplified = document.documentElement.dataset.simplified === 'true';
+    var opOnly = isOpenPlatformOnlyPath(window.location.pathname);
+
+    if (simplified || !opOnly) {
+      if (existing) existing.remove();
+      document.documentElement.removeAttribute('data-on-open-platform-only');
+      return;
+    }
+    if (existing) return;
+
+    document.documentElement.setAttribute('data-on-open-platform-only', 'true');
+
+    var banner = document.createElement('aside');
+    banner.id = 'open-platform-only-banner';
+    banner.className = 'free-trial-enterprise-banner open-platform-only-banner';
+    banner.setAttribute('role', 'note');
+    banner.innerHTML =
+      '<div class="free-trial-enterprise-banner__handle" aria-hidden="true" title="Drag to move">⋮⋮</div>' +
+      '<div class="free-trial-enterprise-banner__icon" aria-hidden="true">✦</div>' +
+      '<div class="free-trial-enterprise-banner__body">' +
+        '<p class="free-trial-enterprise-banner__title"><strong>Agent Builder feature</strong></p>' +
+        '<p class="free-trial-enterprise-banner__text">This is part of PolyAI Agent Builder — the self-serve, 60-day free trial of Agent Studio. Switch on Free trial mode to read these docs in context, or talk to sales about getting it on enterprise.</p>' +
+        '<p class="free-trial-enterprise-banner__actions">' +
+          '<button type="button" class="free-trial-enterprise-banner__cta" id="open-platform-only-banner-enter">Enter Free trial mode</button>' +
+          '<a href="https://poly.ai/request-a-demo" class="free-trial-enterprise-banner__exit" target="_blank" rel="noopener">Talk to sales</a>' +
+        '</p>' +
+      '</div>';
+
+    var mount = document.querySelector('main') || document.querySelector('#content-area') || document.body;
+    if (mount && mount.firstChild) {
+      mount.insertBefore(banner, mount.firstChild);
+    } else if (mount) {
+      mount.appendChild(banner);
+    }
+
+    var enterBtn = banner.querySelector('#open-platform-only-banner-enter');
+    if (enterBtn) {
+      enterBtn.addEventListener('click', function (e) {
+        if (banner.dataset.dragSuppressClick === '1') {
+          banner.dataset.dragSuppressClick = '';
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        e.preventDefault();
+        setSimplified(true);
+        document.querySelectorAll('.simplify-toggle').forEach(function (b) {
+          updateButton(b, true);
+        });
+        markSidebarGroups();
+        markNavbarTabs();
+        markGlobalAnchors();
+        applyDeveloperContent();
+        applyEnterpriseBanner();
+        applyOpenPlatformOnlyBanner();
+        updateLandingPageStatus();
+      });
+    }
+
+    applyStoredBannerPosition(banner);
+    makeBannerDraggable(banner);
+  }
+
+  // Wrap .developer-only sections in a <details> accordion in Open platform mode.
   // Unwrap them in full-docs mode.
   function applyDeveloperContent() {
     var simplified = document.documentElement.dataset.simplified === 'true';
@@ -226,33 +601,6 @@
     }
   }
 
-  // Intercept clicks on links to complex pages while in simplified mode —
-  // exit simplified mode and navigate to the page in full-docs view.
-  document.addEventListener('click', function (e) {
-    if (document.documentElement.dataset.simplified !== 'true') return;
-    var a = e.target.closest('a[href]');
-    if (!a) return;
-    var href = a.getAttribute('href');
-    if (!href || href.startsWith('#')) return;
-    var destPath;
-    try {
-      var destUrl = new URL(href, window.location.origin);
-      if (destUrl.origin !== window.location.origin) return; // external
-      destPath = destUrl.pathname;
-    } catch (err) { return; }
-    if (isComplexPath(destPath)) {
-      e.preventDefault();
-      e.stopPropagation();
-      setSimplified(false);
-      document.querySelectorAll('.simplify-toggle').forEach(function (b) {
-        updateButton(b, false);
-      });
-      markNavbarTabs();
-      updateLandingPageStatus();
-      window.location.href = destPath;
-    }
-  }, true);
-
   function createToggleButton() {
     var btn = document.createElement('button');
     btn.className = 'simplify-toggle';
@@ -269,21 +617,17 @@
         return;
       }
       var next = document.documentElement.dataset.simplified !== 'true';
-      // If switching INTO simplified mode while on a complex page, redirect home.
-      // localStorage persistence means we don't need the sessionStorage flag,
-      // but we still redirect so the user lands somewhere the mode makes sense.
-      if (next && isComplexPath(window.location.pathname)) {
-        writeStoredPreference(true);
-        window.location.href = '/';
-        return;
-      }
       setSimplified(next);
       // Sync all toggle buttons on the page.
       document.querySelectorAll('.simplify-toggle').forEach(function (b) {
         updateButton(b, next);
       });
+      markSidebarGroups();
       markNavbarTabs();
+      markGlobalAnchors();
       applyDeveloperContent();
+      applyEnterpriseBanner();
+      applyOpenPlatformOnlyBanner();
       updateLandingPageStatus();
     });
 
@@ -295,7 +639,7 @@
   // The pill lives at a fixed top-right position by default. Users can drag
   // it anywhere in the viewport; the position is stored in localStorage and
   // restored on reload. A small movement threshold ensures a plain click still
-  // toggles simplified mode without being swallowed by the drag handler.
+  // toggles Open platform mode without being swallowed by the drag handler.
 
   function readStoredPosition() {
     try {
@@ -393,8 +737,106 @@
     btn.addEventListener('pointercancel', endDrag);
   }
 
+  // ── Banner drag support ─────────────────────────────────────────────────
+  // The lock banner uses the same drag mechanism as the pill but with its own
+  // localStorage key and a wider clamp footprint. Defaults to a centered-top
+  // position (set in CSS); after the first drag the explicit left/top win.
+
+  function readStoredBannerPosition() {
+    try {
+      var raw = window.localStorage.getItem(BANNER_POSITION_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (typeof parsed.left !== 'number' || typeof parsed.top !== 'number') return null;
+      return parsed;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function writeStoredBannerPosition(pos) {
+    try {
+      window.localStorage.setItem(BANNER_POSITION_KEY, JSON.stringify(pos));
+    } catch (e) {}
+  }
+
+  function applyStoredBannerPosition(el) {
+    var pos = readStoredBannerPosition();
+    if (!pos) return;
+    var rect = el.getBoundingClientRect();
+    var clamped = clampPosition(pos.left, pos.top, rect.width || 340, rect.height || 110);
+    el.style.left = clamped.left + 'px';
+    el.style.top = clamped.top + 'px';
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
+    el.style.transform = 'none';
+  }
+
+  function makeBannerDraggable(el) {
+    // Only the handle initiates drags; clicks inside the body/buttons don't.
+    var handle = el.querySelector('.free-trial-enterprise-banner__handle');
+    if (!handle) return;
+
+    var startX = 0, startY = 0;
+    var originLeft = 0, originTop = 0;
+    var dragging = false;
+    var pointerId = null;
+
+    handle.addEventListener('pointerdown', function (e) {
+      if (e.button !== undefined && e.button !== 0) return;
+      var rect = el.getBoundingClientRect();
+      startX = e.clientX;
+      startY = e.clientY;
+      originLeft = rect.left;
+      originTop = rect.top;
+      pointerId = e.pointerId;
+      dragging = false;
+    });
+
+    handle.addEventListener('pointermove', function (e) {
+      if (pointerId === null || e.pointerId !== pointerId) return;
+      var dx = e.clientX - startX;
+      var dy = e.clientY - startY;
+      if (!dragging && Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
+      if (!dragging) {
+        dragging = true;
+        el.classList.add('free-trial-enterprise-banner--dragging');
+        try { handle.setPointerCapture(pointerId); } catch (err) {}
+      }
+      var rect = el.getBoundingClientRect();
+      var next = clampPosition(originLeft + dx, originTop + dy, rect.width, rect.height);
+      el.style.left = next.left + 'px';
+      el.style.top = next.top + 'px';
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+      el.style.transform = 'none';
+      e.preventDefault();
+    });
+
+    function endDrag(e) {
+      if (pointerId === null) return;
+      if (e && e.pointerId !== pointerId) return;
+      try { handle.releasePointerCapture(pointerId); } catch (err) {}
+      pointerId = null;
+      if (dragging) {
+        el.classList.remove('free-trial-enterprise-banner--dragging');
+        var rect = el.getBoundingClientRect();
+        writeStoredBannerPosition({ left: rect.left, top: rect.top });
+        // Swallow the click that would otherwise hit any nested button after
+        // a drag — banner buttons (Talk to sales, Exit, Enter) check this.
+        el.dataset.dragSuppressClick = '1';
+        setTimeout(function () { el.dataset.dragSuppressClick = ''; }, 0);
+      }
+      dragging = false;
+    }
+
+    handle.addEventListener('pointerup', endDrag);
+    handle.addEventListener('pointercancel', endDrag);
+  }
+
   // Re-clamp saved position into view on resize (e.g. orientation change,
-  // browser window shrunk) so the pill can never end up off-screen.
+  // browser window shrunk) so the pill and lock banner can never end up
+  // off-screen.
   window.addEventListener('resize', function () {
     document.querySelectorAll('.simplify-toggle').forEach(function (btn) {
       var pos = readStoredPosition();
@@ -407,6 +849,20 @@
       btn.style.bottom = 'auto';
       if (clamped.left !== pos.left || clamped.top !== pos.top) {
         writeStoredPosition(clamped);
+      }
+    });
+    document.querySelectorAll('.free-trial-enterprise-banner').forEach(function (el) {
+      var pos = readStoredBannerPosition();
+      if (!pos) return;
+      var rect = el.getBoundingClientRect();
+      var clamped = clampPosition(pos.left, pos.top, rect.width, rect.height);
+      el.style.left = clamped.left + 'px';
+      el.style.top = clamped.top + 'px';
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+      el.style.transform = 'none';
+      if (clamped.left !== pos.left || clamped.top !== pos.top) {
+        writeStoredBannerPosition(clamped);
       }
     });
   });
@@ -426,8 +882,8 @@
     applyStoredPosition(btn);
   }
 
-  // Wires up the explicit Enter / Exit buttons on the /platform/simplified-mode
-  // landing page. Shows a confirmation panel once the user is in simplified mode.
+  // Wires up the explicit Enter / Exit buttons on the /platform/open-platform
+  // landing page. Shows a confirmation panel once the user is in Open platform mode.
   function updateLandingPageStatus() {
     var active = document.documentElement.dataset.simplified === 'true';
     var status = document.getElementById('simplified-mode-status');
@@ -446,7 +902,7 @@
       enter.addEventListener('click', function (e) {
         e.preventDefault();
         writeStoredPreference(true);
-        // Land on the home page in simplified mode so the user sees the
+        // Land on the home page in Open platform mode so the user sees the
         // filtered experience immediately.
         window.location.href = '/?view=simplified';
       });
@@ -460,8 +916,12 @@
         document.querySelectorAll('.simplify-toggle').forEach(function (b) {
           updateButton(b, false);
         });
+        markSidebarGroups();
         markNavbarTabs();
+      markGlobalAnchors();
         applyDeveloperContent();
+        applyEnterpriseBanner();
+      applyOpenPlatformOnlyBanner();
         updateLandingPageStatus();
       });
     }
@@ -473,7 +933,10 @@
       injectToggle();
       markSidebarGroups();
       markNavbarTabs();
+      markGlobalAnchors();
       applyDeveloperContent();
+      applyEnterpriseBanner();
+      applyOpenPlatformOnlyBanner();
       wireLandingPageButtons();
     }, 150);
   }
@@ -492,14 +955,20 @@
       injectToggle();
       markSidebarGroups();
       markNavbarTabs();
+      markGlobalAnchors();
       applyDeveloperContent();
+      applyEnterpriseBanner();
+      applyOpenPlatformOnlyBanner();
       wireLandingPageButtons();
     });
   } else {
     injectToggle();
     markSidebarGroups();
     markNavbarTabs();
+      markGlobalAnchors();
     applyDeveloperContent();
+    applyEnterpriseBanner();
+      applyOpenPlatformOnlyBanner();
     wireLandingPageButtons();
   }
 
@@ -509,11 +978,10 @@
     if (url && document.documentElement.dataset.simplified === 'true') {
       try {
         var u = new URL(url, window.location.origin);
-        // Don't inject ?view=simplified when navigating to a complex page
-        if (!isComplexPath(u.pathname)) {
-          u.searchParams.set('view', 'simplified');
-          url = u.pathname + u.search + u.hash;
-        }
+        // Always preserve the flag — even on enterprise pages, since the user
+        // stays in Open platform mode and just sees the upsell banner.
+        u.searchParams.set('view', 'simplified');
+        url = u.pathname + u.search + u.hash;
       } catch (e) {}
     }
     _push.call(history, state, title, url);
@@ -542,4 +1010,4 @@
   applyTabClass();
   document.addEventListener('DOMContentLoaded', applyTabClass);
   window.addEventListener('popstate', applyTabClass);
-}());
+})();

@@ -64,6 +64,10 @@ The Live conversations panel:
 
 Use the Live conversations panel during launches, A/B rollouts, or incident response to watch live traffic without leaving the Conversations workspace. The panel respects the active scope and filter chips, so a Test-scope view shows only sandbox traffic in progress.
 
+<Note>
+  Viewing live conversations requires [PII-level access](/tools/classes/conv-log#pii) in addition to standard conversation read permission. Users without PII access receive an access-denied response when opening the Live conversations panel or a live conversation, because the in-progress transcript and contact details cannot be redacted in real time.
+</Note>
+
 ### Review side panel
 
 Clicking a row opens the **Conversation Review** panel on the right. The panel header shows the timestamp, channel type, and detected language. For webchat sessions, the contact email also appears.
@@ -120,6 +124,10 @@ The **Visibility** tab lists all available columns with a toggle for each. **Sta
 
 ![Columns panel showing the Visibility tab with toggles for pre-built metrics](/images/analytics/conv-review-columns-visibility.png)
 
+<Note>
+When a conversation has more than one value for the same metric — for example, multiple **QA** topic matches across turns, or a custom metric logged several times — the table cell shows every value joined by commas (for example, `billing, handoff`). The cell timestamp reflects the most recent entry. Filtering and sorting still operate on the underlying individual values.
+</Note>
+
 ### Order
 
 The **Order** tab lets you drag columns into your preferred display order. Start time is locked as the first column.
@@ -140,8 +148,20 @@ Available filter types include:
 - **PolyScore** — numeric comparison: less than, greater than, equals
 - **Duration** — time comparison (more than / less than), entered as hours, minutes, seconds
 - **Environment** — include or exclude specific environments
-- **Function calls** — filter by whether any function ran, or by a specific function name (supports *exists*, *equals*, *contains*)
-- **SMS events** — filter by whether any SMS was sent, or by a specific SMS event name (supports *exists*, *equals*, *contains*)
+- **Contact** — filter by caller or recipient phone number. Matches against either the `from_number` or `to_number` on the conversation, so a single value finds both inbound and outbound calls involving that number. Supports *equals*, *contains*, and *not contains* — use *contains* to match a partial number such as the last four digits.
+- **CSAT score** — filter by the [CSAT survey](/analytics/csat/introduction) rating (1–5) the caller gave at the end of the conversation. Supports *equals*, *less than*, *greater than*, range comparisons, and *exists* to find every conversation that has (or doesn't have) a recorded score.
+- **Function calls** — filter by whether any function ran, or by a specific function name (supports *exists*, *equals*, *contains*, *not contains*)
+- **SMS events** — filter by whether any SMS was sent, or by a specific SMS event name (supports *exists*, *equals*, *contains*, *not contains*)
+- **Custom metrics** — filter by any [custom metric](/settings/metrics) recorded on the conversation. String metrics support *equals*, *exists*, *contains*, and *not contains*; numeric metrics support *equals*, *less than*, *greater than*, and range comparisons.
+
+#### Substring matching with contains and not contains
+
+Use **contains** and **not contains** to match any conversation whose field value includes the text you enter as a substring. Matching is case-insensitive, so `pizza` matches `Pizza Palace` and `THE PIZZERIA`.
+
+- **contains: `pizza`** — keeps conversations where the value includes `pizza` anywhere in the string.
+- **not contains: `pizza`** — excludes conversations where the value includes `pizza`, and keeps everything else (including conversations where the field is empty).
+
+For example, filtering the `RESTAURANT_NAME` custom metric with **contains: `pizza`** surfaces every booking taken for a restaurant with "pizza" in its name, while **not contains: `sms`** on the **Channel** field hides any conversation routed through an SMS channel.
 
 Click **Apply** to run the filters. Active filters appear as chips above the table showing a short summary of each condition — for example, **PolyScore < 5** and **Duration > 1m 0s**. Click **×** on a chip to remove that filter.
 
@@ -175,6 +195,10 @@ For programmatic export and the underlying API, see [Call data](/call-data/intro
 ## Caller identity and PII
 
 The panel header displays the caller's email (webchat) or phone number (voice) when available. Personally identifiable details are visible only to users with [PII-level access](/tools/classes/conv-log#pii). When PII masking is enabled for your account, contact details are redacted in both the table and the panel.
+
+### Audio playback and PII
+
+Audio playback in the Transcription tab follows the same [PII-level access](/tools/classes/conv-log#pii) rules as the rest of the panel. Users with PII access hear the original recording by default and can opt in to the redacted version. Users without PII access always hear the redacted recording — sensitive segments are muted server-side, and the option to fetch the unredacted audio is not available. The same rule applies to the public [Conversations API](/api-reference/conversations/introduction) `/audio` endpoint: requests from API keys without PII access return redacted audio regardless of the `redacted` query parameter.
 
 ## Matched topics and sources
 

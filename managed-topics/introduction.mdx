@@ -12,7 +12,7 @@ keywords:
   - sample questions
 ---
 
-Managed Topics define what your agent knows and how it responds. Each topic has sample questions, an answer, and optional actions (handoffs, SMS, tool calls). Topics cover the questions callers ask most – return policies, store hours, appointment availability, account lookups.
+Managed Topics define what your agent knows and how it responds. Each topic has sample questions, an answer, and optional actions (handoffs, SMS, tool calls). Topics cover the questions callers ask most: return policies, store hours, appointment availability, account lookups.
 
 Managed Topics are found under **Build > Knowledge > Managed Topics tab**.
 
@@ -20,9 +20,15 @@ Managed Topics are found under **Build > Knowledge > Managed Topics tab**.
 **Use Managed Topics when** you need precise control over what the agent says, or when the answer should trigger an action (SMS, handoff, tool call). **Use [Connected Knowledge](/connected-knowledge/introduction) instead** when you want to expose large volumes of external content (help articles, PDFs, FAQs) without curating individual topics.
 </Note>
 
+<div className="simplified-only">
+<Tip>
+[Agent Builder](/studio-assistant/introduction) pre-populates your Managed Topics from the URL or document you gave it at sign-up. Skim what it built, then ask in plain language to fix anything that's off ("tighten the refund answer", "add a topic for store hours"). You can also edit topics directly in this tab.
+</Tip>
+</div>
+
 <div className="full-only">
 
-If you need to add custom logic to your topics – such as API calls, data lookups, or conditional behavior – see the [Tools](/tools/introduction) section under **Build** in the sidebar.
+If you need to add custom logic to your topics, such as API calls, data lookups, or conditional behavior, see the [Tools](/tools/introduction) section under **Build** in the sidebar.
 
 </div>
 
@@ -32,11 +38,13 @@ Searchable, filterable list of all topics. Click any topic to edit its content, 
 
 ## How retrieval works
 
-![retrieval](/images/managed-topics/kb-rag-ven.png)
+<Frame caption="How retrieval finds the best-matching topic">
+  <img src="/images/managed-topics/kb-rag-ven.png" alt="Retrieval-augmented generation flow for Managed Topics" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
 
 The agent **does not** see all MTs at once. Instead, it uses [retrieval-augmented generation (RAG)](/managed-topics/RAG/introduction) to find the best match for the user's message.
 
-1. The retriever compares the message to the topic's **name**, **sample questions**, and **content** – with higher weighting given to the name and sample questions.
+1. The retriever compares the message to the topic's **name**, **sample questions**, and **content**, with higher weighting given to the name and sample questions.
 2. It returns the top matching topics to the LLM.
 3. The [LLM](https://en.wikipedia.org/wiki/Large_language_model) selects the best match and generates a reply (and may trigger an **[action](/managed-topics/how-to-setup-action/introduction)**).
 
@@ -64,7 +72,9 @@ Ask a clarifying question before giving the answer.
 - Use branching inside `content` to structure the reply.
 - Leave `actions` empty.
 
-**Example – Pet policy (multi-turn)** <img src="/images/managed-topics/kb-multi.png" alt="multi-pet_policy" />
+<Frame caption="Example, Pet policy (multi-turn)">
+  <img src="/images/managed-topics/kb-multi.png" alt="multi-pet_policy" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
 
 ### Handoff
 
@@ -77,7 +87,9 @@ Agent replies, then offers to transfer.
 - `content`: Include the answer and the offer.
 - `actions`: Trigger `transfer_call` (or another [handoff function](/call-handoff/introduction)) only if the user accepts.
 
-**Example – Spa booking** <img src="/images/managed-topics/kb-handoff-spa.png" alt="handoff_offer-spa" />
+<Frame caption="Example, Spa booking">
+  <img src="/images/managed-topics/kb-handoff-spa.png" alt="handoff_offer-spa" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
 
 #### Direct
 
@@ -86,17 +98,20 @@ Immediate transfer with no agent reply.
 - Leave `content` empty.
 - Always run `transfer_call` in `actions`.
 
-**Example – Billing handoff** <img src="/images/managed-topics/kb-direct-billing.png" alt="handoff-direct-billing" />
+<Frame caption="Example, Billing handoff">
+  <img src="/images/managed-topics/kb-direct-billing.png" alt="handoff-direct-billing" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
 
 #### Conditional
 
-Transfer based on user clarification – for example, group size or request type.
+Transfer based on user clarification, for example, group size or request type.
 
 - `content`: Ask a disambiguating question.
 - `actions`: Map each answer to the correct destination.
 
-**Example – Room reservations** <img src="/images/managed-topics/kb-handoff-conditional.png" alt="handoff_conditional-room_reservation" />
-
+<Frame caption="Example, Room reservations">
+  <img src="/images/managed-topics/kb-handoff-conditional.png" alt="handoff_conditional-room_reservation" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
 ### Outbound messaging
 
 Used when you want to send a follow-up message via SMS or WhatsApp.
@@ -108,8 +123,9 @@ Offer to send a link via message.
 - `content`: Include a short message and ask for consent.
 - `actions`: If accepted, call `start_sms_flow`. See [SMS setup](/sms/introduction) for details.
 
-**Example – Send a link** <img src="/images/managed-topics/kb-handoff-sms.png" alt="SMS_offer" />
-
+<Frame caption="Example, Send a link">
+  <img src="/images/managed-topics/kb-handoff-sms.png" alt="SMS_offer" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
 #### Conditional
 
 Let the user choose which message to receive.
@@ -117,8 +133,9 @@ Let the user choose which message to receive.
 - `content`: Ask a branching question.
 - `actions`: Map answers to different `sms_id`s.
 
-**Example – Conditional SMS** <img src="/images/managed-topics/kb-sms-conditional.png" alt="SMS_conditional" />
-
+<Frame caption="Example, Conditional SMS">
+  <img src="/images/managed-topics/kb-sms-conditional.png" alt="SMS_conditional" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
 ### Info only
 
 Used for static reference material (like opening hours or prices). No interaction or action required.
@@ -126,8 +143,9 @@ Used for static reference material (like opening hours or prices). No interactio
 - Fill `content`.
 - Leave `actions` empty.
 
-**Example – Opening hours** <img src="/images/managed-topics/kb-misc-info.png" alt="misc_info_dump_opening_hours" />
-
+<Frame caption="Example, Opening hours">
+  <img src="/images/managed-topics/kb-misc-info.png" alt="misc_info_dump_opening_hours" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
 ## Entity extraction and structured data collection
 
 Managed Topics do not support entity extraction directly. If you need to collect structured data (names, dates, phone numbers, etc.) when a topic is matched, trigger a flow from the topic's action and configure [entity extraction](/flows/no-code/entities) in that flow's steps.
@@ -148,7 +166,7 @@ def start_booking_flow(conv: Conversation):
     return
 ```
 
-This approach is useful when you need additional logic before entering the flow – for example, storing the originating topic name in `conv.state` so the agent can return to it after the flow completes.
+This approach is useful when you need additional logic before entering the flow, for example, storing the originating topic name in `conv.state` so the agent can return to it after the flow completes.
 
 ### Returning to the topic after a flow
 
@@ -167,8 +185,8 @@ For the full triggering-flows reference, see [Triggering flows](/flows/triggerin
 
 Include at least **3 sample questions** per topic (maximum 20). This baseline helps the AI generalize intent across typical phrasings. For broad topics, add more to ensure better coverage.
 
-- Focus on variety in **language and structure** – don't just make minor rewrites of the same sentence
-- Think about how real users might describe the same issue – confused, specific, vague, or using non-standard terminology
+- Focus on variety in **language and structure**, don't just make minor rewrites of the same sentence
+- Think about how real users might describe the same issue, confused, specific, vague, or using non-standard terminology
 - Additional examples should reflect **distinct phrasings**, not slight rewordings
 - Vary sentence lengths alongside phrasing variety
 - Consider including short queries ("billing help") alongside full questions ("Why was I charged twice this month?")
@@ -179,21 +197,21 @@ If migrating from an intent-based project, you might have more than 10 sample qu
 
 Because the topic **Name** is shown to the retriever, it should be semantically close to the topic content. For instance, a topic about payment disputes named "general_behavior-payment" will likely trigger on payment queries in general rather than only on disputes.
 
-- Make topic names **semantically descriptive** – the name should clearly reflect what the topic is about
+- Make topic names **semantically descriptive**, the name should clearly reflect what the topic is about
 - Avoid generic names like `Misc`, `Help`, `Info`, or `General`
 - Use natural language: `Payment dispute resolution` is better than `payment_dispute_v2`
 
 ### Writing topic content
 
 - Keep replies **brief, helpful, and consistent** with your brand style
-- Give the agent **one task per turn** – do not mix text responses and tool calls in the same round
+- Give the agent **one task per turn**, do not mix text responses and tool calls in the same round
 - Break down multi-step processes into **multiple turns or topics** rather than cramming everything into a single entry
 - For multi-turn topics, structure the conversation so each turn has a clear purpose (ask a question, provide information, or trigger an action)
-- After answering a simple FAQ, ensure the agent asks if the user needs more help – either in the topic content or in the [Behavior](/agent-settings/rules) section
+- After answering a simple FAQ, ensure the agent asks if the user needs more help, either in the topic content or in the [Behavior](/agent-settings/rules) section
 
 ### Using actions effectively
 
-- Use `actions` **only when necessary** – if the agent just needs to answer a question, leave actions empty
+- Use `actions` **only when necessary**, if the agent just needs to answer a question, leave actions empty
 - Limit to **one action per turn** for reliability
 - When an action requires a handoff, include the handoff utterance as a parameter to `transfer_call` rather than mixing a `content` response with the action
 - For conditional actions (transfer to different destinations based on caller response), use the disambiguating question in `content` and map each answer to its destination in `actions`
@@ -207,7 +225,7 @@ Because the topic **Name** is shown to the retriever, it should be semantically 
 - Keep replies short, helpful, and on-brand.
 - Use `actions` only when necessary.
 - Split multi-part flows into separate turns or topics.
-- Give the agent one task per turn – either speak or act, not both.
+- Give the agent one task per turn, either speak or act, not both.
 
 **Avoid this:**
 
@@ -218,7 +236,7 @@ Because the topic **Name** is shown to the retriever, it should be semantically 
 
 ### Common anti-patterns
 
-**Mixing text and tool calls in one turn:** For best results, split utterances and tool calls into separate turns – give the agent one task per turn. When a topic requires both a spoken response and an action, structure it so the response happens in one turn and the action in the next.
+**Mixing text and tool calls in one turn:** For best results, split utterances and tool calls into separate turns, give the agent one task per turn. When a topic requires both a spoken response and an action, structure it so the response happens in one turn and the action in the next.
 
 <Tabs>
 <Tab title="Good">
@@ -227,7 +245,7 @@ Turn 1: Agent answers the question and asks if the user wants to be transferred.
 Turn 2: If the user says yes, call `transfer_call` with a handoff utterance.
 </Tab>
 <Tab title="Bad">
-Single turn: Answer the question, then immediately call `transfer_call` with utterance – the agent may skip one of these tasks.
+Single turn: Answer the question, then immediately call `transfer_call` with utterance, the agent may skip one of these tasks.
 </Tab>
 </Tabs>
 
@@ -241,7 +259,9 @@ Multiple users can edit Managed Topics at the same time. Changes are synced in r
 
 ## Activating and deactivating topics
 
-![kb-toggle](/images/release-notes/2511/kb-toggle.png)
+<Frame caption="Activate or deactivate a topic in Managed Topics">
+  <img src="/images/release-notes/2511/kb-toggle.png" alt="kb-toggle" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
 
 Not every topic needs to be available all the time. You can temporarily **deactivate** a topic to keep it out of retrieval without deleting it or removing its content.
 
@@ -255,7 +275,7 @@ This is useful for seasonal articles, phased rollouts, A/B tests, or hiding cont
 
 ## Automate with the Agents API
 
-If you already have a knowledge base somewhere else — a help center, CMS, or intents list — you can create and sync topics programmatically instead of clicking through the UI.
+If you already have a knowledge base somewhere else (a help center, CMS, or intents list), you can create and sync topics programmatically instead of clicking through the UI.
 
 <AccordionGroup>
   <Accordion title="Seed or sync topics via the Agents API" icon="code">

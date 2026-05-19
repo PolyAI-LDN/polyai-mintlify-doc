@@ -1,0 +1,111 @@
+---
+title: "Errors"
+description: "HTTP status codes and system-message error catalog."
+---
+
+## HTTP errors
+
+| Status | Meaning |
+|--------|---------|
+| `400` | Bad request — missing required headers or malformed body |
+| `401` | Unauthorized — invalid or expired access token, or connector token not recognised |
+| `404` | Session not found |
+| `429` | Rate limit exceeded — check the `Retry-After` header for when to retry |
+| `500` | Server error — retry with exponential backoff |
+
+## WebSocket errors
+
+If you send an invalid event (wrong type, malformed JSON, or a server-only event type), the server responds with `EVENT_TYPE_SYSTEM_MESSAGE` at level `SYSTEM_MESSAGE_LEVEL_ERROR`. The message describes what went wrong. Your WebSocket connection remains open — fix the issue and continue.
+
+## Rate limiting
+
+Both HTTP endpoints and WebSocket messages are rate limited per session.
+
+- **HTTP:** returns `429 Too Many Requests` with a `Retry-After` header
+- **WebSocket:** messages may be dropped
+
+Under normal usage you should not hit rate limits.
+
+## Access token errors
+
+Returned from `POST /api/v1/access-token`.
+
+| Error | HTTP Status | Cause | Resolution |
+|-------|-------------|-------|------------|
+| `Missing authentication headers` | 401 | `X-Token` or `X-Host` header missing | Include both headers. |
+| `Connector token does not exist` | 401 | `X-Token` is not a valid connector token | Use the connector token from your widget configuration in Agent Studio. |
+| `Failed to validate connector` | 401 | `X-Host` doesn't match the registered domain | Ensure `X-Host` matches the domain or app namespace you registered. Subdomains match — `app.yourcompany.com` matches `yourcompany.com`. |
+| `Connector missing host domain` | 401 | The connector has no host domain configured | Configure a host domain when creating the widget in Agent Studio. |
+| `Failed to create access token` | 500 | Internal error generating the JWT | Retry. If persistent, contact PolyAI. |
+
+## Session creation errors
+
+Returned from `POST /api/v1/sessions`.
+
+| Error | HTTP Status | Cause | Resolution |
+|-------|-------------|-------|------------|
+| `Missing access token` | 400 | No `Authorization` header | Include `Authorization: Bearer <access_token>`. |
+| `Missing authentication headers` | 401 | `Authorization` header is not in `Bearer <token>` format | Use the format `Authorization: Bearer <your_access_token>`. |
+| `Invalid access token` | 401 | Access token is malformed, expired, or tampered with | Obtain a fresh access token. |
+| `Error parsing request` | 400 | Request body contains invalid JSON | Send valid JSON (e.g. `{}` or `{"streaming_enabled": true}`). The body is optional — omit it entirely if you don't need streaming. |
+| `Failed to create session` | 500 | Internal error | Retry. If persistent, contact PolyAI. |
+
+## WebSocket connection errors
+
+Returned as HTTP errors during the WebSocket handshake, not as WebSocket events.
+
+| Error | HTTP Status | Cause | Resolution |
+|-------|-------------|-------|------------|
+| `session not found` | 404 | The `session_id` doesn't exist or has expired | Create a new session. Sessions expire after ~10 minutes of inactivity. |
+| `authentication failed` | 401 | The `access_token` is invalid, expired, or doesn't match the session | Obtain a fresh access token and create a new session. |
+| `connection limit exceeded for session` | 429 | Too many simultaneous WebSocket connections (default 10) | Close unused connections before opening new ones. |
+| `invalid connection parameters` | 400 | Missing `session_id` or `access_token` | Include both query parameters in the WebSocket URL. |
+| `invalid cursor: must be a non-negative integer` | 400 | The `cursor` is malformed | Use format `seq:<n>` where `<n>` is a non-negative integer (e.g. `seq:0`). |
+
+## Invalid event errors
+
+These arrive as `EVENT_TYPE_SYSTEM_MESSAGE` events. The connection remains open.
+
+| Error message | Cause | Resolution |
+|---------------|-------|------------|
+| `Unknown event type or invalid message format` | JSON could not be parsed, or event type is not recognised | Check that your JSON is well-formed and `type` is a valid `EVENT_TYPE_*` value. |
+| `Event type not allowed: EVENT_TYPE_*` | You sent an event type that only the server can send | Only send the 5 allowed [client events](/api-reference/messaging/events-send). |
+
+## Agent errors
+
+These arrive as `EVENT_TYPE_SYSTEM_MESSAGE` during the conversation. They indicate a server-side issue — your client did nothing wrong.
+
+| Error message | Cause | What to do |
+|---------------|-------|------------|
+| `Our system is experiencing high load. Please try again in a moment.` | Agent service is temporarily overloaded | Display the message. Retry after a few seconds. |
+| `Sorry, I'm unable to start a conversation right now. Please try again later.` | Agent failed to start a conversation | Display the message. The user can try `REQUEST_POLY_AGENT_JOIN` again or start a new session. |
+| `Sorry, I'm having trouble responding right now. Please try again.` | Agent failed to generate a response | Display the message. The user can re-send their message. |
+| `Sorry, I encountered an error. Please try again.` | Error during streaming (stream interrupted or invalid data) | Display the message. The user can re-send. |
+
+## Session state errors
+
+These usually mean the session has expired or the server has lost track of it.
+
+| Error message | Cause | What to do |
+|---------------|-------|------------|
+| `Error: Session not found` | The session no longer exists | Start a new session. |
+| `Error: Unable to retrieve session` | Internal lookup error | Transient — retry. If persistent, start a new session. |
+| `Error: Connector not found` | The connector is no longer valid | Contact PolyAI — indicates a configuration issue. |
+| `Error: Conversation not found` | The session exists but has no active conversation | Send `REQUEST_POLY_AGENT_JOIN`. |
+| `Error: Conversation ID not found in session` | The conversation was not properly initialised | Send `REQUEST_POLY_AGENT_JOIN`. If it persists, create a new session. |
+
+## Handoff errors
+
+| Error message | Cause | What to do |
+|---------------|-------|------------|
+| `Sorry, we could not connect you to an agent. Please try again.` | Handoff provider could not create a live agent session | Display the message. The user may try again or use an alternative channel. |
+| `Failed to forward message to live agent` | A user message could not be delivered during an active handoff | Display the message. The user can re-send. If persistent, the handoff may have silently failed. |
+| `Sorry, handoff could not be initiated.` | Handoff configuration is invalid or the system rejected the request | Display the message. Usually a configuration issue — contact PolyAI if it persists. |
+
+## General debugging tips
+
+- **Check `metadata.custom`.** Custom metadata you sent is echoed back in error messages too — useful for correlating errors with specific user actions.
+- **Watch for `SESSION_END` after errors.** Some errors are followed by a `SESSION_END` event. Always handle session end gracefully.
+- **"High load" errors are transient.** They self-resolve — implement a brief retry (2–5 seconds) before showing a permanent error.
+- **Connection dropped ≠ session ended.** Reconnect with the same `session_id` and a `cursor` to resume.
+- **Log the full event.** When reporting issues to PolyAI, include the complete JSON of the error event (including `id`, `timestamp`, and `metadata`).
