@@ -163,7 +163,29 @@ The Conversation object (conv) provides access to conversation data and tools fo
 
   <Accordion title="state">
     **Description**: Dictionary-like store that persists values across turns. Validated entities are also written here under their entity name, coerced to their native Python type (`int` for numeric/quantity entities, `float` for decimal numerics and currency, `str` for everything else).
-    
+
+    **Access patterns**: `conv.state` supports both bracket and attribute access — pick whichever reads more clearly. Reads and writes behave identically across the two styles:
+
+    ```python
+    # Writes are equivalent
+    conv.state["is_verified"] = True
+    conv.state.is_verified = True
+
+    # Reads differ for missing keys
+    conv.state["is_verified"]        # raises KeyError if missing
+    conv.state.is_verified           # returns None if missing
+    conv.state.get("is_verified")    # returns None if missing
+    ```
+
+    <Warning>
+    Missing-key behavior differs by access style:
+    - `conv.state["missing_key"]` raises `KeyError`.
+    - `conv.state.missing_key` returns `None` — it does **not** raise `AttributeError`.
+    - `conv.state.get("missing_key")` returns `None` (or your default).
+
+    This means `if conv.state.is_verified == False:` is **not** the same as "missing or False" — when the key is missing the value is `None`, and `None == False` is `False`, so the branch is skipped. Prefer `if not conv.state.get("is_verified"):` to treat missing and falsy the same way.
+    </Warning>
+
     **Example**:
     ```python
     # Manual state
@@ -172,6 +194,12 @@ The Conversation object (conv) provides access to conversation data and tools fo
     # Auto-synced entity, available as a native int
     if conv.state.party_size > 15:
       flow.goto_step("Group Booking")
+
+    # Guarding a function on a verification flag
+    if not conv.state.get("is_verified"):
+      conv.state.original_topic = "check_account_balance"
+      conv.goto_flow("Identify & Verify User")
+      return
     ```
   </Accordion>
 
