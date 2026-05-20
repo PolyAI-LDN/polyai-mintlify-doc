@@ -162,11 +162,16 @@ The Conversation object (conv) provides access to conversation data and tools fo
   </Accordion>
 
   <Accordion title="state">
-    **Description**: Dictionary-like store that persists values across turns.
+    **Description**: Dictionary-like store that persists values across turns. Validated entities are also written here under their entity name, coerced to their native Python type (`int` for numeric/quantity entities, `float` for decimal numerics and currency, `str` for everything else).
     
     **Example**:
     ```python
+    # Manual state
     conv.state["attempts"] = conv.state.get("attempts", 0) + 1
+
+    # Auto-synced entity, available as a native int
+    if conv.state.party_size > 15:
+      flow.goto_step("Group Booking")
     ```
   </Accordion>
 
@@ -311,12 +316,17 @@ The Conversation object (conv) provides access to conversation data and tools fo
   </Accordion>
 
   <Accordion title="entities">
-    **Description**: Dictionary of entity validation results collected from the conversation (dict[str, EntityValidationResult]).
-    
+    **Description**: Dictionary of entity validation results collected from the conversation (dict[str, EntityValidationResult]). Each result's `.value` is the raw string captured from the caller.
+
+    For a typed value (`int`, `float`, or `str`) read the entity from [`conv.state`](#state) instead -- validated entities are auto-synced there under their entity name.
+
     **Example**:
     ```python
     if "email" in conv.entities:
-      validated_email = conv.entities.email
+      validated_email = conv.entities.email.value  # str
+
+    # Numeric entity as a native int
+    party_size = conv.state.party_size
     ```
   </Accordion>
 

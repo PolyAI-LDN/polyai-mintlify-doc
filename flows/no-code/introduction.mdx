@@ -136,21 +136,25 @@ Function steps behave differently.
 
 #### Accessing collected entities in a function
 
-Entities collected earlier in the flow are available as:
+Validated entities are available two ways:
 
 ```python
-    conv.entities.entity_name.value
+    conv.state.entity_name           # native Python type (recommended)
+    conv.entities.entity_name.value  # raw string value
 ```
 
 Example:
 
 ```python
-    email = conv.entities.email.value
+    email = conv.state.email                   # str
+    party_size = conv.state.number_of_passengers  # int, no cast needed
+
+    # Equivalent using the raw string value:
     party_size = int(conv.entities.number_of_passengers.value)
 ```
 
 <Note>
-Entity values are always strings. Cast to `int()` or `float()` before numeric comparisons.
+`conv.state` stores numeric entities as `int` or `float` based on the entity configuration. `conv.entities.<name>.value` is always a string -- cast to `int()` or `float()` before numeric comparisons. See [Entities -- Accessing entities in code](/flows/no-code/entities#accessing-entities-in-code).
 </Note>
 
 #### Moving to another step from a function
@@ -166,9 +170,7 @@ You must call:
 Example:
 
 ```python
-    party_size = int(conv.entities.number_of_passengers.value)
-
-    if party_size > 15:
+    if conv.state.number_of_passengers > 15:
         flow.goto_step("Group Booking", "large party")
     else:
         flow.goto_step("Individual Booking", "small party")
