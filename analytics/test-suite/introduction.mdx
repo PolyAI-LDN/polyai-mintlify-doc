@@ -1,6 +1,6 @@
 ---
 title: "Overview"
-description: "Save and re-run conversations to check for regressions."
+description: "Save conversations as test cases, add assertions, and re-run them to catch regressions before deploys."
 tag: "Advanced"
 keywords:
   - test suite
@@ -8,9 +8,10 @@ keywords:
   - regression testing
   - QA
   - quality assurance
+  - assertions
 ---
 
-Use the test suite to save conversations as test cases, group them into sets, and re-run them against Draft or Sandbox after every change.
+Use the test suite to save conversations as test cases, attach assertions that define what "passing" means, group cases into sets, and re-run them against Draft or Sandbox after every change.
 
 Test cases and test sets are found under **Build > Test suite**.
 
@@ -19,10 +20,18 @@ Test cases and test sets are found under **Build > Test suite**.
 ## Concepts
 
 - **Test Case**
-  A single scenario captured from a real conversation (user messages, agent replies, and the [tools](/tools/introduction) invoked). Each case tracks its **Last run** and **Outcome**.
+  A single scenario captured from a real conversation (user messages, agent replies, and the [tools](/tools/introduction) invoked). Each case tracks its **Last run** and **Outcome**, and can carry **tags** and one or more **assertions**.
 
 - **Test Set**
   A named collection of Test Cases. Use sets to cover a feature area or release scope (for example, "Payments," "Shipping," "Core intents"). A Test Case can belong to **multiple** sets.
+
+- **Assertion**
+  A check that runs against the replayed conversation. A case passes only when every assertion on it passes. Two assertion types are supported:
+  - **Prompt assertion** — the agent's reply must contain or match an expected string.
+  - **Function call assertion** — the agent must invoke a named [tool](/tools/introduction), optionally with specific argument values.
+
+- **Tag**
+  A free-form label on a test case (for example, `regression`, `billing`, `p0`). Tags help you filter and group cases across sets.
 
 <Note>
 Test Cases and Test Sets run against non-production versions. Select **Draft** or **Sandbox** when you start a run.
@@ -73,6 +82,56 @@ Each test case stores the function call values from the original conversation. Y
 Editing parameters is useful for testing edge cases. For example, duplicate a booking test case and change the party size to test large-group handling.
 </Tip>
 
+## Add assertions
+
+Assertions turn a saved conversation into an explicit pass/fail check. Without assertions, a test case only verifies that the agent runs without errors. With assertions, you decide exactly what the agent must say or do for the case to pass.
+
+A test case can hold any number of assertions, and **all of them must pass** for the case to be marked **Passed**.
+
+<Tabs>
+  <Tab title="Prompt assertion">
+
+  Use a prompt assertion when the agent's reply must contain or match a specific string — for example, a disclaimer, a confirmation number format, or a refusal.
+
+  1. Open the test case and select the agent turn you want to check.
+  2. Select **Add assertion > Prompt**.
+  3. Enter the expected text the agent should say.
+  4. Save the case.
+
+  </Tab>
+
+  <Tab title="Function call assertion">
+
+  Use a function call assertion when the agent must invoke a specific [tool](/tools/introduction), optionally with particular argument values — for example, `book_table` with `party_size = 4`.
+
+  1. Open the test case and select the agent turn where the tool should fire.
+  2. Select **Add assertion > Function call** and pick the function by name.
+  3. For each argument you care about, set:
+     - **Value type** — `string`, `number`, `boolean`, etc.
+     - **Assertion type** — for example, `equals`, `contains`, or `any` (call happened, value not checked).
+     - **Expected value** — the value the argument must match.
+  4. Leave arguments you don't care about unset — they won't be checked.
+  5. Save the case.
+
+  Arguments you don't list act as wildcards. To assert only that a function is called (with no argument checks), add the assertion without any arguments.
+
+  </Tab>
+</Tabs>
+
+<Tip>
+Start with one or two assertions per case — usually the single behavior that would make this scenario a regression. Sprawling assertion lists are brittle and hard to debug when they fail.
+</Tip>
+
+## Tag test cases
+
+Add tags to organize cases across sets. Tags are free-form strings — common choices include severity (`p0`, `p1`), area (`billing`, `handoff`), or release scope (`regression`, `pre-release`).
+
+1. Open a test case.
+2. In the **Tags** field, type a tag and press **Enter**.
+3. Repeat to add more tags, or remove a tag by selecting the **×** next to it.
+
+Use tags in the **Test Cases** list to filter (for example, show only `p0` regressions) and to assemble new sets quickly.
+
 ## Run tests
 
 You can run a **single case** or an entire **set**.
@@ -107,8 +166,10 @@ You can run a **single case** or an entire **set**.
 
 After a run completes, each test case shows:
 
-- **Outcome** – whether the case passed or failed compared to the expected behavior
+- **Outcome** – **Passed** when every assertion on the case passes, **Failed** when any assertion fails. Cases with no assertions only check that the conversation replays without errors.
 - **Last run** – when the test was last executed
+
+Open a failed case to see which assertion failed and the actual value the agent produced, so you can decide whether the agent behavior regressed or the assertion needs to be updated.
 
 For test sets, the set view provides:
 
@@ -128,6 +189,8 @@ Run your test sets after every significant change to Draft. Catching regressions
 ## Best practices
 
 - **Name test cases descriptively** – use names that describe the scenario, not the expected outcome (e.g. "Caller cancels booking" rather than "Test 1")
+- **Assert the one thing that matters** – prefer a single targeted assertion over many loose ones; it makes failures easy to diagnose
+- **Tag for filtering, not folders** – use short, consistent tags (`p0`, `billing`, `regression`) so you can slice the same case from multiple angles
 - **Create focused sets** – group cases by feature area ("Refunds", "Shipping", "Escalations") so failures point to the right area
 - **Cover happy paths and edge cases** – include both successful flows and failure scenarios (invalid input, missing data, handoff triggers)
 - **Re-run after knowledge changes** – topic edits can silently break other flows. Test sets catch this
