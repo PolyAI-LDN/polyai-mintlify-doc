@@ -73,6 +73,10 @@ When a topic triggers a flow (e.g. to collect a date or verify identity), the ag
 1. Before entering the flow, store the topic name in state (e.g. `conv.state.original_topic`).
 2. In the flow's exit function, check the stored topic and return a prompt that directs the LLM to the relevant topic content:
 
+<Info>
+**What is an "exit function"?** There is no special "exit function" step type. An exit function is just a [transition function](/flows/transition-functions) on the final step of the flow that calls `conv.exit_flow()` and returns a payload (typically `{"content": ...}` or `{"utterance": ...}`). It runs because the step runs — not because the flow registers an "on-exit hook" — and its return value becomes the function output the agent uses next. Mutating `conv.state` from inside it is the same as from any other function: `conv.state["is_verified"] = True` (or `conv.state.is_verified = True`) takes effect immediately and persists across subsequent turns.
+</Info>
+
 ```python
 def exit_and_resume(conv: Conversation, flow: Flow):
     conv.exit_flow()
@@ -179,6 +183,59 @@ def identify_and_verify_user(conv: Conversation):
 **Why it fails**: on the first (unverified) call, `identify_and_verify_user` queues `goto_flow` and returns a string — but execution never comes back into `check_account_balance` on this turn, so callers reading the return of `check_account_balance` get `None` or the verification string instead of a balance response.
 
 **Correct pattern**: only the entry point calls `goto_flow` + `return`. Post-flow resumption is done in the target flow's exit function, not by calling the original function recursively.
+</Warning>
+
+<Warning>
+**Anti-pattern: infinite verification loop when the flow never sets `is_verified`.**
+
+If the protected function calls `conv.goto_flow("Identify & Verify User")` whenever `conv.state.is_verified` is falsy, and the verification flow never writes `is_verified = True` on success, the user is sent back into verification every turn — forever.
+
+```python
+# Protected function — re-triggers verification on every call until is_verified is True
+def check_account_balance(conv: Conversation, account_type: str):
+    if not conv.state.get("is_verified"):
+        conv.state.original_topic = "check_account_balance"
+        conv.state.pending_account_type = account_type
+        conv.goto_flow("Identify & Verify User")
+        return "Tell the user we need to verify their identity first."
+    ...
+```
+
+**Two things have to be true to break out of the loop:**
+
+1. **The verification flow must write `is_verified = True` on the success path.** Do this inside a transition function on the verification step that compares user input to the expected value:
+
+   ```python
+   def check_verification(conv: Conversation, flow: Flow):
+       if conv.state.get("user_input") == conv.state.get("expected_value"):
+           conv.state.is_verified = True
+           flow.goto_step("Verification succeeded")
+           return
+
+       attempts = conv.state.get("verification_attempts", 0) + 1
+       conv.state.verification_attempts = attempts
+       if attempts >= 3:
+           conv.goto_flow("Escalation")
+           return
+       flow.goto_step("Retry verification")
+       return
+   ```
+
+2. **The protected function must have a terminal branch for repeated failures.** Otherwise, three failed attempts followed by the user returning to the original topic will re-trigger verification a fourth time. Guard on the attempts counter too:
+
+   ```python
+   def check_account_balance(conv: Conversation, account_type: str):
+       if conv.state.get("verification_attempts", 0) >= 3:
+           return "Tell the user we cannot continue without successful identity verification."
+       if not conv.state.get("is_verified"):
+           conv.state.original_topic = "check_account_balance"
+           conv.state.pending_account_type = account_type
+           conv.goto_flow("Identify & Verify User")
+           return "Tell the user we need to verify their identity first."
+       ...
+   ```
+
+See the [Escalating after repeated failed verification](#example-escalating-after-repeated-failed-verification) example below for the in-flow version of this pattern.
 </Warning>
 
 ## Start or switch flows from inside another flow
