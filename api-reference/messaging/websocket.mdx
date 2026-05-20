@@ -69,11 +69,15 @@ If the connection drops, reconnect using the same `session_id` and `access_token
 
 ```javascript
 const ws = new WebSocket(
-  `wss://messaging.us-1.poly.ai/ws?session_id=${sessionId}&access_token=${token}&cursor=seq:${lastSequence}`
+  `wss://messaging.us-1.poly.ai/ws?session_id=${sessionId}&access_token=${token}&cursor=${lastSequence}`
 );
 ```
 
 Set `lastSequence` to the highest `sequence` number your client has seen. The server replays only events after that point.
+
+<Note>
+If the `cursor` value can't be parsed, the server logs a warning and defaults to `0` (full replay) instead of rejecting the connection. Your client stays connected — you just receive the full history.
+</Note>
 
 <Warning>
 **Connection dropped ≠ session ended.** If the WebSocket closes unexpectedly, the session is still alive on the server. Reconnect with the same `session_id` and a `cursor` to resume. Do not create a new session on reconnect.

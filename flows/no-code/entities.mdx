@@ -93,22 +93,40 @@ If a branch depends on an entity being present, always include a clear fallback 
 
 ## Accessing entities in code
 
-Entities collected earlier in a flow are available in Function steps through `conv.entities.entity_name.value`.
+Validated entities are available in Function steps two ways:
 
-<Warning>
-Entity values are **always strings**, even for numeric types. You must cast to `int()` or `float()` before numeric comparisons, otherwise string comparison rules apply and `"9" > "10"` evaluates to `True`.
-</Warning>
+- `conv.state.entity_name` -- the value coerced to its native Python type. Recommended for new code.
+- `conv.entities.entity_name.value` -- the raw string value, with validation metadata on the surrounding object. Use when you need the original string or the [`EntityValidationResult`](/tools/classes/conv-object#entities) fields.
+
+Both are kept in sync. An entity only appears in `conv.state` after it passes validation, so failed extractions never overwrite earlier values.
+
+### Native types in `conv.state`
+
+The type stored in `conv.state` is derived from the entity's configuration:
+
+| Entity type | Stored as | Example |
+| --- | --- | --- |
+| Number (integer) | `int` | `conv.state.party_size == 4` |
+| Number (decimal) | `float` | `conv.state.weight_kg == 12.5` |
+| Currency | `float` | `conv.state.amount == 19.99` |
+| Everything else | `str` | `conv.state.email == "a@b.com"` |
+
+If coercion fails for any reason, the original string value is stored so your function still receives a value to work with.
 
 ```python
-# Correct – cast before comparing
-party_size = int(conv.entities.number_of_guests.value)
-if party_size > 15:
+# Recommended – native int, no cast needed
+if conv.state.party_size > 15:
     flow.goto_step("Group Booking")
 
-# Incorrect – string comparison
-if conv.entities.number_of_guests.value > "15":  # "9" > "15" is True!
+# Still supported – raw string from conv.entities
+party_size = int(conv.entities.party_size.value)
+if party_size > 15:
     flow.goto_step("Group Booking")
 ```
+
+<Warning>
+`conv.entities.entity_name.value` is **always a string**, even for numeric types. Cast to `int()` or `float()` before numeric comparisons, otherwise string comparison rules apply and `"9" > "10"` evaluates to `True`. Use `conv.state.entity_name` to skip the cast.
+</Warning>
 
 See [no-code flows – accessing entities in a function](/flows/no-code/introduction#accessing-collected-entities-in-a-function) for more examples.
 
