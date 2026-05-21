@@ -1,0 +1,145 @@
+---
+title: "Avaya RCMS"
+description: "Bridge Avaya Real-time Contact Media Streaming to PolyAI over the RCMS WebSocket protocol."
+---
+
+Connect PolyAI to an Avaya contact center using the Real-time Contact Media Streaming (RCMS) WebSocket protocol. A lightweight bridge server speaks Avaya's Media Interaction Messaging (MIM) on one side and the PolyAI `bidirectional_media` service on the other, so calls handled by Avaya are answered by your PolyAI agent.
+
+<Note>
+Avaya RCMS support is delivered as a managed sample server. Contact your PolyAI account manager to receive the reference codebase and to enable the upstream `bidirectional_media` endpoint for your account.
+</Note>
+
+## How it works
+
+The bridge runs as a WebSocket server that Avaya RCMS connects to as a media client. For each call:
+
+1. Avaya RCMS opens a WebSocket (`wss://`) to the bridge and sends `session.start`.
+2. Avaya issues `bot.start` with a `botId` of `polyai:<auth-token>`. The token after the colon selects the PolyAI connector (account, project, and variant), just like the Agent Studio demo page.
+3. The bridge opens an upstream connection to `bidirectional_media`, forwarding the token as the `X-PolyAi-Auth-Token` custom parameter.
+4. Audio flows in both directions. Optional live transcripts are streamed back to Avaya as MIM `bot.feature` events of type `TRANSCRIPT`.
+5. When the agent escalates, the bridge converts the bidi-media `stop` command into a MIM handoff event (see [Handoffs](#handoffs)).
+
+## Prerequisites
+
+- An Avaya environment that can connect to an external RCMS-compatible WebSocket server
+- A PolyAI agent with the `bidirectional_media` service enabled for your account
+- A connector auth token from PolyAI (used as the `botId` suffix)
+- Python 3.10+ on the host that runs the bridge server
+- A TLS certificate and key for the bridge (recommended for production)
+
+## Run the bridge server
+
+Install the bridge dependencies and start the server. The defaults bind to `0.0.0.0:8443`.
+
+```bash
+pip install -r requirements.txt
+
+# WebSocket over TLS (WSS) using your certificate
+python main.py --ssl-cert /path/to/cert.pem --ssl-key /path/to/key.pem
+```
+
+Useful flags:
+
+| Flag | Purpose |
+|------|---------|
+| `--host`, `--port` | Bind address and port (default `0.0.0.0:8443`). |
+| `--ssl-cert`, `--ssl-key` | Enable TLS (WSS). Omit both to run plain `ws://` for local testing. |
+| `--enable-auth` | Require a JWT Bearer token in the `Authorization` header on the handshake. |
+| `--jwt-secret-key` | HS256 secret used to verify JWTs when `--enable-auth` is set. |
+| `--log-file`, `--message-log-file` | Debug and protocol message log paths. |
+| `-v` | Verbose logging. |
+
+<Tip>
+For production, replace the bundled self-signed certificate with a CA-signed certificate and key from your PKI.
+</Tip>
+
+## Configure the upstream PolyAI endpoint
+
+The bridge reads its upstream targets from environment variables. The defaults point to the internal `us-1` platform endpoint; override these to target a different region or a development environment.
+
+| Variable | Description |
+|----------|-------------|
+| `POLYAI_BIDI_MEDIA_ADDR` | WebSocket URL of `bidirectional_media`. Default: `ws://bidirectional-media.us-1.platform.polyai.int/api/v1/conversation`. |
+| `POLYAI_BIDI_MEDIA_TLS_INSECURE` | Set to `1` to skip TLS verification on the outbound connection (development only). |
+| `POLYAI_EVENTS_API_ADDR` | Platform events WebSocket base URL used to stream live transcripts (for example, `wss://api.us-1.platform.polyai.app`). Omit to disable transcripts. |
+| `POLYAI_EVENTS_AUTH_TOKEN` | Bearer token for the platform events API. Not required for internal deployments. |
+| `POLYAI_CONNECTOR_SERVICE_ADDR` | HTTP base URL of the PolyAI Connector Service, used to resolve the auth token to account and project IDs. Required when `POLYAI_EVENTS_API_ADDR` is set. |
+
+```bash
+export POLYAI_BIDI_MEDIA_ADDR="wss://bidirectional-media.us-1.platform.polyai.app/api/v1/conversation"
+export POLYAI_EVENTS_API_ADDR="wss://api.us-1.platform.polyai.app"
+export POLYAI_CONNECTOR_SERVICE_ADDR="http://connector-service:8080"
+
+python main.py --ssl-cert cert.pem --ssl-key key.pem
+```
+
+## Select an agent from Avaya
+
+Avaya picks which PolyAI agent answers the call by setting the `botId` in the MIM `bot.start` message. The bridge supports two values:
+
+- `echo` — a built-in echo bot, useful for confirming audio paths end to end.
+- `polyai:<auth-token>` — routes the call to a PolyAI agent. The token after the colon is the connector auth token issued by PolyAI and is forwarded upstream as `X-PolyAi-Auth-Token`.
+
+```json
+{
+  "type": "bot.start",
+  "payload": {
+    "botId": "polyai:abc123-your-connector-token",
+    "endpointId": "endpoint-123"
+  }
+}
+```
+
+## Live transcripts
+
+When `POLYAI_EVENTS_API_ADDR` and `POLYAI_CONNECTOR_SERVICE_ADDR` are configured, the bridge subscribes to PolyAI's platform events alongside the media stream and forwards user and agent transcripts to Avaya as MIM `bot.feature` events with `ftype = "TRANSCRIPT"`. The account and project are resolved automatically from the connector token, so no extra Avaya-side configuration is required.
+
+Set `POLYAI_EVENTS_AUTH_TOKEN` if your events endpoint requires a Bearer token. Leave `POLYAI_EVENTS_API_ADDR` unset to disable transcripts entirely.
+
+## Handoffs
+
+When your PolyAI agent escalates, the upstream `bidirectional_media` service issues a `stop` command. The bridge translates that into the appropriate MIM `bot.feature` so Avaya can route the caller:
+
+| Escalation `ringGroup` | MIM event emitted | Use it for |
+|------------------------|-------------------|------------|
+| A queue identifier (any non-URI string) | `LIVE_AGENT_HANDOFF` with `queueId = ringGroup` | Transferring to an Avaya queue or skill group. |
+| An address URI (`tel:`, `sip:`, `sips:`) | `TRANSFER_CALL` with the URI as the target | Transferring directly to a phone number or SIP endpoint. |
+| Any value when `command = "error"` | `LIVE_AGENT_HANDOFF` with `tag = "error"` | Routing failed conversations to a fallback queue. |
+
+Configure the `ringGroup` value in your [call handoffs](/call-handoff/introduction). Use a plain queue ID to land in an Avaya queue, or a fully qualified URI to transfer to a number or SIP address.
+
+## Authentication
+
+By default the bridge accepts any WebSocket connection from Avaya. Use `--enable-auth` to require a JWT Bearer token in the `Authorization` header on the handshake. Tokens are verified with HS256 against the value of `--jwt-secret-key`.
+
+```bash
+python main.py \
+  --ssl-cert cert.pem --ssl-key key.pem \
+  --enable-auth --jwt-secret-key YOUR_SECRET
+```
+
+The Avaya side must sign a JWT with the same secret and algorithm and send it as `Authorization: Bearer <token>` when opening the WebSocket.
+
+## Test the integration
+
+1. Start the bridge with `botId = "echo"` from Avaya and confirm audio echoes back.
+2. Switch the `botId` to `polyai:<auth-token>` and place a test call. The PolyAI agent should answer.
+3. Trigger an escalation from your agent and verify the call lands in the expected Avaya queue or transfer target.
+4. Review the call in **Analytics > Conversations > Voice**.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Voice integrations" icon="phone" href="/integrations/voice/introduction">
+    Other voice platform integrations
+  </Card>
+  <Card title="Call handoffs" icon="phone-volume" href="/call-handoff/introduction">
+    Configure transfer destinations for escalations
+  </Card>
+  <Card title="Custom SIP" icon="diagram-project" href="/integrations/voice/sip/custom-sip">
+    SIP-based routing and programmatic transfers
+  </Card>
+  <Card title="Integrations overview" icon="grid" href="/integrations/introduction">
+    All available PolyAI integrations
+  </Card>
+</CardGroup>
