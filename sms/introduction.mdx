@@ -1,19 +1,84 @@
 ---
 title: "Overview"
-description: "Send SMS messages from your agent using Twilio for confirmations, links, and follow-ups"
+description: "Run two-way SMS conversations and send outbound SMS messages from your PolyAI agent"
 keywords:
   - SMS
   - text message
   - messaging
   - Twilio
   - SMS templates
+  - conversational SMS
 ---
 
-**Prerequisites:** You need a Twilio account. See the [Twilio integration guide](/telephony/twilio/introduction).
+PolyAI supports two SMS use cases:
 
-Use SMS to extend conversations beyond voice – send confirmation codes, appointment details, links, or follow-up information that callers can reference after the call ends. SMS connects real-time voice conversations with persistent written records.
+- **Conversational SMS (`sms.polyai`)** – your agent handles full two-way text conversations over SMS, just like webchat or voice.
+- **Outbound SMS templates (`sms.twilio`)** – your agent sends one-off messages (confirmations, links, follow-ups) from inside a voice or chat conversation.
 
-Create and manage SMS templates in **Build > SMS**.
+Both run on Twilio. The rest of this page covers Twilio setup and outbound templates. For conversational SMS specifics, see [Conversational SMS](#conversational-sms) below.
+
+**Prerequisites:** You need a Twilio account. See the [Twilio integration guide](/telephony/twilio/introduction). Create and manage outbound SMS templates in **Build > SMS**.
+
+## Conversational SMS
+
+Conversational SMS lets your agent run a full back-and-forth text conversation over SMS – the same flows, topics, and tools you use for voice or webchat, surfaced as text messages. Inbound SMS messages start a turn; agent replies are sent back as one or more SMS segments.
+
+### When to use it
+
+- You want a single agent to serve voice, webchat, and SMS users from the same project.
+- Customers prefer asynchronous text over a voice call or a live webchat session.
+- You need a lightweight channel for follow-ups, status checks, or simple Q&A.
+
+For one-off transactional messages sent during a voice or webchat conversation (for example, "text me the link"), use [outbound SMS templates](#using-an-sms-template) instead.
+
+### Channel identifier
+
+In custom functions, conversational SMS conversations expose `conv.channel_type == "sms.polyai"`. Use this to branch behavior – for example, to disable voice-only features:
+
+```python
+def start(conv):
+    if conv.channel_type == "sms.polyai":
+        conv.state.transfers_enabled = False
+        conv.state.greet_message = "Hi 👋 How can I help?"
+```
+
+To match any SMS sub-type (conversational or template-based), use `conv.channel_type.startswith("sms")`.
+
+### SMS prompt decorator
+
+PolyAI automatically applies an **SMS prompt decorator** to every turn on `sms.polyai`. The decorator instructs the LLM to:
+
+- Keep responses under 160 characters where possible and never exceed 320 characters (2 segments).
+- Use plain text only – no markdown, bullets, line breaks, or URLs unless explicitly required.
+- Ask at most one question per message and avoid repeating information already sent.
+- Phrase handoffs in plain language.
+
+You don't need to add any of this to your behavior prompt – it is applied on top of your existing prompt for SMS turns only. Voice and webchat turns are unaffected.
+
+### Override the SMS decorator
+
+If you need to customize the SMS-specific instructions for your project, set the `sms_decorator` field in your prompt configuration. This follows the same pattern as `webchat_decorator` and replaces the default SMS decorator for `sms.polyai` turns.
+
+```yaml
+prompts:
+  sms_decorator: |-
+    <INTERFACE_OVERRIDE>
+    You are now operating in SMS mode. Keep replies under 160 characters,
+    plain text only, one question per message.
+    </INTERFACE_OVERRIDE>
+```
+
+Leave `sms_decorator` unset to use the platform default.
+
+### Model selection
+
+Older Raven (`polywhirl`) variants are not tuned for text chat and are automatically swapped for a safe text-channel model on `sms.polyai`. For multichannel agents, [Raven 3.5](/agent-settings/raven) is the recommended model – it is tuned for both voice and text. Auto-reasoning is enabled for text channels because streaming latency is not a concern over SMS.
+
+Voice-only behaviors (filler utterances, partial function-output utterances) are disabled automatically on `sms.polyai`.
+
+## Outbound SMS templates
+
+Use SMS templates to extend conversations beyond voice – send confirmation codes, appointment details, links, or follow-up information that callers can reference after the call ends. Templates connect real-time voice conversations with persistent written records. The rest of this page covers Twilio setup, template management, and outbound delivery – all of which apply equally to projects that also use conversational SMS.
 
 ## Setting up messaging
 
