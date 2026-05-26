@@ -23,8 +23,10 @@
   //  - .developer-only sections inside otherwise-mixed pages are wrapped in
   //    a collapsed accordion so the page stays readable without code.
   //
-  // ?view=simplified is still honoured as a one-shot entry point and is
-  // mirrored back into the URL on navigations so links can be shared.
+  // ?view=simplified is still honoured as a one-shot entry point and the
+  // preference is promoted to localStorage so the mode sticks across
+  // navigations. The flag is NOT re-injected into outgoing URLs — see the
+  // SPA-nav block at the bottom of this file for why (PR #454).
   var STORAGE_KEY = 'polyai-simplified-mode';
   var POSITION_KEY = 'polyai-simplified-pill-position';
   var BANNER_POSITION_KEY = 'polyai-lock-banner-position';
@@ -984,12 +986,14 @@
     updateLandingPageStatus();
   }
 
-  // Run our DOM passes synchronously on nav, then once more after the next
-  // animation frame in case Mintlify re-renders the sidebar after the route
-  // resolves. The previous 150ms setTimeout meant every SPA navigation
-  // visibly flashed the unfiltered sidebar for ~one frame before the dim/
-  // hide rules kicked in. Two tight passes (sync + rAF) eliminates that
-  // without the long delay.
+  // Run our DOM passes synchronously on nav. The previous 150ms setTimeout
+  // (and, in the first cut of PR #454, a doubled sync + rAF pass) is gone:
+  // the MutationObserver attached to the sidebar root re-marks any late
+  // Mintlify re-renders without us having to schedule a defensive second
+  // pass on every nav. `onNav` is also throttled to one call per
+  // animation frame so back-to-back triggers (history hook + popstate +
+  // poll fallback all firing for the same navigation) collapse into a
+  // single DOM pass.
   function runPasses() {
     injectToggle();
     markSidebarGroups();
@@ -999,11 +1003,17 @@
     applyEnterpriseBanner();
     applyOpenPlatformOnlyBanner();
     wireLandingPageButtons();
-  }
-  function onNav() {
-    runPasses();
-    requestAnimationFrame(runPasses);
+    applyTabClass();
     observeSidebar();
+  }
+  var _navScheduled = false;
+  function onNav() {
+    if (_navScheduled) return;
+    _navScheduled = true;
+    requestAnimationFrame(function () {
+      _navScheduled = false;
+      runPasses();
+    });
   }
 
   // Apply preference immediately (before paint).
@@ -1015,10 +1025,14 @@
   }
   setSimplified(isSimplified());
 
+  // Initial pass runs synchronously (no rAF throttling) so the very first
+  // paint is already marked — we don't want a one-frame flash of the
+  // unfiltered sidebar on cold loads. Subsequent SPA navigations go through
+  // the throttled onNav.
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', onNav);
+    document.addEventListener('DOMContentLoaded', runPasses);
   } else {
-    onNav();
+    runPasses();
   }
 
   // Re-run on Mintlify SPA navigations. We previously monkey-patched
@@ -1083,6 +1097,9 @@
   observeSidebar();
 
   // ── Tab class injection ───────────────────────────────────────────────────
+  // Set data-tab on <html> based on the current path so the stylesheet can
+  // scope per-section visuals. Folded into runPasses() so it runs on every
+  // SPA navigation, not just popstate.
   function applyTabClass() {
     var path = window.location.pathname;
     var tab = 'helpcenter';
@@ -1100,7 +1117,7 @@
     document.documentElement.dataset.tab = tab;
   }
 
+  // Initial synchronous set so the first paint has the right tab class
+  // without waiting for runPasses() to be defined/called.
   applyTabClass();
-  document.addEventListener('DOMContentLoaded', applyTabClass);
-  window.addEventListener('popstate', applyTabClass);
 })();
