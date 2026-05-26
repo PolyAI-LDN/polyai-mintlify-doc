@@ -333,6 +333,55 @@
     //    belong to the dedicated Open platform area (visible only when
     //    Open platform mode is on) and groups that should be hidden when
     //    Open platform mode is on.
+    //
+    // Resilience note: Mintlify's sidebar DOM has changed across theme
+    // versions — the original `.sidebar-group-header` + `<h5>` pattern no
+    // longer matches the live site (group titles render as <h3>/<h4>/<h5>
+    // inside the sidebar nav). Instead of hard-coding a class, walk every
+    // heading inside `#sidebar` / `#sidebar-content` (Mintlify's stable
+    // ID hooks documented in customize/custom-scripts) and match by the
+    // heading's text content. We then climb to the nearest LI/section
+    // wrapper so the dataset attribute hides the header AND the page list.
+    var sidebarRoot =
+      document.getElementById('sidebar-content') ||
+      document.getElementById('sidebar') ||
+      document.querySelector('aside');
+    if (sidebarRoot) {
+      var groupNames = []
+        .concat(ENTERPRISE_GROUPS, OPEN_PLATFORM_ONLY_GROUPS, OPEN_PLATFORM_KEEP_GROUPS);
+      sidebarRoot.querySelectorAll('h2, h3, h4, h5, h6').forEach(function (heading) {
+        var name = (heading.textContent || '').trim();
+        if (!name || groupNames.indexOf(name) === -1) return;
+
+        // Climb to the wrapper that contains both the heading and the
+        // group's page list. Try the standard LI/section/nav containers,
+        // then fall back to the parentElement so we always mark something.
+        var wrapper =
+          heading.closest('li') ||
+          heading.closest('section') ||
+          heading.closest('nav > div') ||
+          heading.parentElement;
+        if (!wrapper) return;
+
+        if (ENTERPRISE_GROUPS.indexOf(name) !== -1) {
+          wrapper.dataset.simplifiedEnterprise = 'true';
+        }
+
+        if (OPEN_PLATFORM_ONLY_GROUPS.indexOf(name) !== -1) {
+          // Hidden by default in styles.css; revealed inside [data-simplified="true"].
+          wrapper.dataset.openPlatformOnly = 'true';
+        } else if (OPEN_PLATFORM_KEEP_GROUPS.indexOf(name) === -1 &&
+                   ENTERPRISE_GROUPS.indexOf(name) === -1) {
+          // Every other named group gets hidden when Open platform mode is
+          // on, so the self-serve sidebar collapses down to just the
+          // dedicated area.
+          wrapper.dataset.openPlatformHidden = 'true';
+        }
+      });
+    }
+
+    // Legacy selector kept for older Mintlify themes that still render
+    // `.sidebar-group-header` / `<h5>`. No-op on current builds.
     document.querySelectorAll('.sidebar-group-header').forEach(function (header) {
       var h5 = header.querySelector('h5');
       if (!h5) return;
@@ -345,12 +394,9 @@
       }
 
       if (OPEN_PLATFORM_ONLY_GROUPS.indexOf(name) !== -1) {
-        // Hidden by default in styles.css; revealed inside [data-simplified="true"].
         header.dataset.openPlatformOnly = 'true';
         if (sibling) sibling.dataset.openPlatformOnly = 'true';
       } else if (OPEN_PLATFORM_KEEP_GROUPS.indexOf(name) === -1) {
-        // Every other group gets hidden when Open platform mode is on, so
-        // the self-serve sidebar collapses down to just the dedicated area.
         header.dataset.openPlatformHidden = 'true';
         if (sibling) sibling.dataset.openPlatformHidden = 'true';
       }
