@@ -110,7 +110,7 @@ The Conversations API supports several query parameters for filtering and contro
 | `in_progress` | Filter by conversation status: `true` for in-progress, `false` for finished | all |
 | `limit` | Max conversations per request (1–5000) | 5 |
 | `offset` | Pagination offset. Prefer `cursor` for large result sets. | 0 |
-| `cursor` | Opaque [keyset pagination](#pagination) cursor returned by the previous response. v3 only. | – |
+| `cursor` | Opaque [keyset pagination](#pagination) cursor returned by the previous response. Supported on v3, and on v2 when chunked response streaming is enabled for your project. | – |
 
 ### Optional response fields
 
@@ -169,7 +169,7 @@ The v3 endpoint supports two pagination strategies. Use **cursor-based paginatio
 
 | Strategy | Request param | Response field | When to use |
 |----------|---------------|----------------|-------------|
-| Cursor (recommended, v3) | `cursor` | `cursor` | New integrations and any workload that walks more than a few pages. Performance stays constant as you advance through the result set, and pages do not drift when conversations are added concurrently. |
+| Cursor (recommended) | `cursor` | `cursor` | New integrations and any workload that walks more than a few pages. Performance stays constant as you advance through the result set, and pages do not drift when conversations are added concurrently. Available on v3, and on v2 when chunked response streaming is enabled for your project (see [Large response streaming](#large-response-streaming)). |
 | Offset (legacy) | `offset` | `next_offset` | Existing integrations that already rely on offsets. Available on all versions. |
 
 <Tip>You can only use one strategy per request. If both `cursor` and `offset` are present, `cursor` takes precedence.</Tip>
@@ -255,6 +255,22 @@ do {
 ### Offset-based pagination (legacy)
 
 When results exceed the limit, the response includes `next_offset`. Use this value as the `offset` parameter in your next request to fetch the next page. Offset pagination becomes slower as you advance deep into the result set and pages may shift if conversations are written between requests — use `cursor` instead where possible.
+
+## Large response streaming
+
+By default, the API builds the full JSON response in memory before sending it. For large pages — typically `limit` in the hundreds combined with `include_context_state=true` or `include_turn_metadata=true` — that response can be hundreds of megabytes and slow or unstable to download.
+
+When chunked response streaming is enabled for your project, the API instead sends conversations incrementally using HTTP chunked transfer encoding. The response body is the same JSON shape; only the transport changes. Streaming responses also expose the `cursor` field, so you can combine streaming with [cursor-based pagination](#cursor-based-pagination) to walk through very large result sets without ever buffering a full page.
+
+| Version | Streaming support |
+|---------|-------------------|
+| v3 | Enabled when your project has chunked response streaming turned on. |
+| v2 | Enabled when your project has chunked response streaming turned on. |
+| v1 | Not supported. |
+
+Streaming is gated by a per-project setting managed by PolyAI. To turn it on, ask your PolyAI representative to enable chunked response streaming for the project. No client changes are required — clients that already parse the JSON response work unchanged, and clients that parse incrementally (for example, with a streaming JSON parser) start receiving conversations as soon as the server emits them.
+
+<Tip>If you query the v2 or v3 endpoint with a large `limit` and run into timeouts or out-of-memory errors on the client, enabling chunked response streaming and switching to `cursor` pagination almost always resolves it.</Tip>
 
 ## Examples
 
