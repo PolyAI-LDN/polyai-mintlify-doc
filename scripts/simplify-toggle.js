@@ -352,8 +352,15 @@
     // inside the sidebar nav). Instead of hard-coding a class, walk every
     // heading inside `#sidebar` / `#sidebar-content` (Mintlify's stable
     // ID hooks documented in customize/custom-scripts) and match by the
-    // heading's text content. We then climb to the nearest LI/section
-    // wrapper so the dataset attribute hides the header AND the page list.
+    // heading's text content.
+    //
+    // CRITICAL: Do NOT climb to an ancestor wrapper here. In the previous
+    // implementation `heading.closest('li' | 'section' | 'nav > div' |
+    // parentElement)` could resolve to the entire `#sidebar-content`
+    // element, which then got `data-open-platform-only="true"` and the
+    // CSS hid the whole sidebar in main mode. Only the heading itself
+    // (which collapses to zero height when hidden) and its immediate
+    // following sibling (the group's page list) are marked.
     var sidebarRoot =
       document.getElementById('sidebar-content') ||
       document.getElementById('sidebar') ||
@@ -365,29 +372,32 @@
         var name = (heading.textContent || '').trim();
         if (!name || groupNames.indexOf(name) === -1) return;
 
-        // Climb to the wrapper that contains both the heading and the
-        // group's page list. Try the standard LI/section/nav containers,
-        // then fall back to the parentElement so we always mark something.
-        var wrapper =
-          heading.closest('li') ||
-          heading.closest('section') ||
-          heading.closest('nav > div') ||
-          heading.parentElement;
-        if (!wrapper) return;
+        // The page list usually renders as the heading's immediate
+        // following sibling (<ul> / <ol> / <div>). Mark both the heading
+        // and that sibling — never an ancestor — so we never accidentally
+        // hide the entire sidebar container.
+        var sibling = heading.nextElementSibling;
+
+        function mark(attr) {
+          heading.dataset[attr] = 'true';
+          if (sibling) sibling.dataset[attr] = 'true';
+        }
 
         if (ENTERPRISE_GROUPS.indexOf(name) !== -1) {
-          wrapper.dataset.simplifiedEnterprise = 'true';
+          mark('simplifiedEnterprise');
         }
 
         if (OPEN_PLATFORM_ONLY_GROUPS.indexOf(name) !== -1) {
           // Hidden by default in styles.css; revealed inside [data-simplified="true"].
-          wrapper.dataset.openPlatformOnly = 'true';
+          mark('openPlatformOnly');
         } else if (OPEN_PLATFORM_KEEP_GROUPS.indexOf(name) === -1 &&
                    ENTERPRISE_GROUPS.indexOf(name) === -1) {
           // Every other named group gets hidden when Open platform mode is
           // on, so the self-serve sidebar collapses down to just the
-          // dedicated area.
-          wrapper.dataset.openPlatformHidden = 'true';
+          // dedicated area. This attribute is scoped to
+          // [data-simplified="true"] in styles.css, so it's a no-op in
+          // main mode.
+          mark('openPlatformHidden');
         }
       });
     }
