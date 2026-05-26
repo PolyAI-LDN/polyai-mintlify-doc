@@ -347,80 +347,85 @@
     //    Open platform mode is on.
     //
     // Resilience note: Mintlify's sidebar DOM has changed across theme
-    // versions — the original `.sidebar-group-header` + `<h5>` pattern no
-    // longer matches the live site (group titles render as <h3>/<h4>/<h5>
-    // inside the sidebar nav). Instead of hard-coding a class, walk every
-    // heading inside `#sidebar` / `#sidebar-content` (Mintlify's stable
-    // ID hooks documented in customize/custom-scripts) and match by the
-    // heading's text content.
+    // versions. Historically group titles lived inside `.sidebar-group-header
+    // > h5`; current builds expose `sidebar-group-header` as a Mintlify
+    // *element selector* (the value is the tag name / id, used as
+    // `sidebar-group-header { … }` in CSS — see
+    // https://www.mintlify.com/docs/customize/custom-scripts), and the title
+    // text renders as an h2/h3/h4/h5/h6 inside the stable `#sidebar-content`
+    // container.
     //
-    // CRITICAL: Do NOT climb to an ancestor wrapper here. In the previous
+    // To work across builds we collect candidate header elements from every
+    // known shape (tag name, id-prefix, class, and headings inside the
+    // sidebar root) and dedupe by element. For each candidate whose text
+    // matches a tracked group name we mark the candidate itself plus its
+    // immediate next-sibling (the page list).
+    //
+    // CRITICAL: Do NOT climb to an ancestor wrapper here. In a previous
     // implementation `heading.closest('li' | 'section' | 'nav > div' |
     // parentElement)` could resolve to the entire `#sidebar-content`
-    // element, which then got `data-open-platform-only="true"` and the
-    // CSS hid the whole sidebar in main mode. Only the heading itself
-    // (which collapses to zero height when hidden) and its immediate
-    // following sibling (the group's page list) are marked.
+    // element, which then got `data-open-platform-only="true"` and the CSS
+    // hid the whole sidebar in main mode.
     var sidebarRoot =
       document.getElementById('sidebar-content') ||
       document.getElementById('sidebar') ||
       document.querySelector('aside');
-    if (sidebarRoot) {
-      var groupNames = []
-        .concat(ENTERPRISE_GROUPS, OPEN_PLATFORM_ONLY_GROUPS, OPEN_PLATFORM_KEEP_GROUPS);
-      sidebarRoot.querySelectorAll('h2, h3, h4, h5, h6').forEach(function (heading) {
-        var name = (heading.textContent || '').trim();
-        if (!name || groupNames.indexOf(name) === -1) return;
 
-        // The page list usually renders as the heading's immediate
-        // following sibling (<ul> / <ol> / <div>). Mark both the heading
-        // and that sibling — never an ancestor — so we never accidentally
-        // hide the entire sidebar container.
-        var sibling = heading.nextElementSibling;
-
-        function mark(attr) {
-          heading.dataset[attr] = 'true';
-          if (sibling) sibling.dataset[attr] = 'true';
-        }
-
-        if (ENTERPRISE_GROUPS.indexOf(name) !== -1) {
-          mark('simplifiedEnterprise');
-        }
-
-        if (OPEN_PLATFORM_ONLY_GROUPS.indexOf(name) !== -1) {
-          // Hidden by default in styles.css; revealed inside [data-simplified="true"].
-          mark('openPlatformOnly');
-        } else if (OPEN_PLATFORM_KEEP_GROUPS.indexOf(name) === -1 &&
-                   ENTERPRISE_GROUPS.indexOf(name) === -1) {
-          // Every other named group gets hidden when Open platform mode is
-          // on, so the self-serve sidebar collapses down to just the
-          // dedicated area. This attribute is scoped to
-          // [data-simplified="true"] in styles.css, so it's a no-op in
-          // main mode.
-          mark('openPlatformHidden');
-        }
-      });
+    var headerCandidates = [];
+    function pushCandidate(el) {
+      if (el && headerCandidates.indexOf(el) === -1) headerCandidates.push(el);
     }
 
-    // Legacy selector kept for older Mintlify themes that still render
-    // `.sidebar-group-header` / `<h5>`. No-op on current builds.
-    document.querySelectorAll('.sidebar-group-header').forEach(function (header) {
-      var h5 = header.querySelector('h5');
-      if (!h5) return;
-      var name = h5.textContent.trim();
+    // Mintlify "element selector" — `sidebar-group-header` is exposed as
+    // either a tag name or an id prefix in current builds.
+    document.querySelectorAll('sidebar-group-header').forEach(pushCandidate);
+    document.querySelectorAll('[id^="sidebar-group-header"]').forEach(pushCandidate);
+    document.querySelectorAll('[class*="sidebar-group-header"]').forEach(pushCandidate);
+    document.querySelectorAll('[class*="SidebarGroupHeader"]').forEach(pushCandidate);
+    // Legacy class hook from older themes.
+    document.querySelectorAll('.sidebar-group-header').forEach(pushCandidate);
+
+    // Heading-text fallback — works whatever wrapper the theme uses, as
+    // long as group titles are emitted as semantic headings.
+    if (sidebarRoot) {
+      sidebarRoot.querySelectorAll('h2, h3, h4, h5, h6').forEach(pushCandidate);
+    }
+
+    var groupNames = []
+      .concat(ENTERPRISE_GROUPS, OPEN_PLATFORM_ONLY_GROUPS, OPEN_PLATFORM_KEEP_GROUPS);
+
+    headerCandidates.forEach(function (header) {
+      // The element-selector hits (`<sidebar-group-header>`) usually wrap
+      // an inner heading; the heading-text hits are the heading itself.
+      // Read the text from whichever inner heading exists, falling back
+      // to the candidate's own textContent.
+      var innerHeading = header.querySelector('h2, h3, h4, h5, h6');
+      var nameSource = innerHeading || header;
+      var name = (nameSource.textContent || '').trim();
+      if (!name || groupNames.indexOf(name) === -1) return;
+
       var sibling = header.nextElementSibling;
 
+      function mark(attr) {
+        header.dataset[attr] = 'true';
+        if (sibling) sibling.dataset[attr] = 'true';
+      }
+
       if (ENTERPRISE_GROUPS.indexOf(name) !== -1) {
-        header.dataset.simplifiedEnterprise = 'true';
-        if (sibling) sibling.dataset.simplifiedEnterprise = 'true';
+        mark('simplifiedEnterprise');
       }
 
       if (OPEN_PLATFORM_ONLY_GROUPS.indexOf(name) !== -1) {
-        header.dataset.openPlatformOnly = 'true';
-        if (sibling) sibling.dataset.openPlatformOnly = 'true';
-      } else if (OPEN_PLATFORM_KEEP_GROUPS.indexOf(name) === -1) {
-        header.dataset.openPlatformHidden = 'true';
-        if (sibling) sibling.dataset.openPlatformHidden = 'true';
+        // Hidden by default in styles.css; revealed inside [data-simplified="true"].
+        mark('openPlatformOnly');
+      } else if (OPEN_PLATFORM_KEEP_GROUPS.indexOf(name) === -1 &&
+                 ENTERPRISE_GROUPS.indexOf(name) === -1) {
+        // Every other named group gets hidden when Open platform mode is
+        // on, so the self-serve sidebar collapses down to just the
+        // dedicated area. This attribute is scoped to
+        // [data-simplified="true"] in styles.css, so it's a no-op in
+        // main mode.
+        mark('openPlatformHidden');
       }
     });
 
