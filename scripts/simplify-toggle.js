@@ -274,13 +274,23 @@
 
   function setSimplified(on) {
     writeStoredPreference(on);
-    var url = new URL(window.location.href);
-    if (on) {
-      url.searchParams.set('view', 'simplified');
-    } else {
-      url.searchParams.delete('view');
-    }
-    history.replaceState(null, '', url.pathname + url.search + url.hash);
+    // Only touch the URL when the ?view=simplified flag actually needs to
+    // change. Rewriting history on every page load — even when the URL was
+    // already correct — was triggering Mintlify's SPA router to re-resolve
+    // the route, causing the visible "initial paint then reload" flicker on
+    // docs.poly.ai. Skip the replaceState entirely if the URL already
+    // matches the desired state.
+    try {
+      var url = new URL(window.location.href);
+      var hasFlag = url.searchParams.get('view') === 'simplified';
+      if (on && !hasFlag) {
+        url.searchParams.set('view', 'simplified');
+        history.replaceState(null, '', url.pathname + url.search + url.hash);
+      } else if (!on && hasFlag) {
+        url.searchParams.delete('view');
+        history.replaceState(null, '', url.pathname + url.search + url.hash);
+      }
+    } catch (e) {}
     document.documentElement.dataset.simplified = on ? 'true' : 'false';
   }
 
@@ -974,17 +984,26 @@
     updateLandingPageStatus();
   }
 
+  // Run our DOM passes synchronously on nav, then once more after the next
+  // animation frame in case Mintlify re-renders the sidebar after the route
+  // resolves. The previous 150ms setTimeout meant every SPA navigation
+  // visibly flashed the unfiltered sidebar for ~one frame before the dim/
+  // hide rules kicked in. Two tight passes (sync + rAF) eliminates that
+  // without the long delay.
+  function runPasses() {
+    injectToggle();
+    markSidebarGroups();
+    markNavbarTabs();
+    markGlobalAnchors();
+    applyDeveloperContent();
+    applyEnterpriseBanner();
+    applyOpenPlatformOnlyBanner();
+    wireLandingPageButtons();
+  }
   function onNav() {
-    setTimeout(function () {
-      injectToggle();
-      markSidebarGroups();
-      markNavbarTabs();
-      markGlobalAnchors();
-      applyDeveloperContent();
-      applyEnterpriseBanner();
-      applyOpenPlatformOnlyBanner();
-      wireLandingPageButtons();
-    }, 150);
+    runPasses();
+    requestAnimationFrame(runPasses);
+    observeSidebar();
   }
 
   // Apply preference immediately (before paint).
@@ -997,43 +1016,71 @@
   setSimplified(isSimplified());
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-      injectToggle();
-      markSidebarGroups();
-      markNavbarTabs();
-      markGlobalAnchors();
-      applyDeveloperContent();
-      applyEnterpriseBanner();
-      applyOpenPlatformOnlyBanner();
-      wireLandingPageButtons();
-    });
+    document.addEventListener('DOMContentLoaded', onNav);
   } else {
-    injectToggle();
-    markSidebarGroups();
-    markNavbarTabs();
-      markGlobalAnchors();
-    applyDeveloperContent();
-    applyEnterpriseBanner();
-      applyOpenPlatformOnlyBanner();
-    wireLandingPageButtons();
+    onNav();
   }
 
-  // Re-run on Mintlify SPA navigations, preserving ?view=simplified in URL.
-  var _push = history.pushState;
-  history.pushState = function (state, title, url) {
-    if (url && document.documentElement.dataset.simplified === 'true') {
-      try {
-        var u = new URL(url, window.location.origin);
-        // Always preserve the flag — even on enterprise pages, since the user
-        // stays in Open platform mode and just sees the upsell banner.
-        u.searchParams.set('view', 'simplified');
-        url = u.pathname + u.search + u.hash;
-      } catch (e) {}
+  // Re-run on Mintlify SPA navigations. We previously monkey-patched
+  // history.pushState to (a) trigger onNav and (b) inject ?view=simplified
+  // into the outgoing URL. That second behaviour was rewriting URLs Mintlify's
+  // router was in the middle of resolving and produced a visible
+  // "double-paint" on docs.poly.ai (and made the search bar unusable, since
+  // every keystroke-driven navigation got its URL silently changed).
+  //
+  // Detect SPA navigations by polling location.pathname + location.search
+  // instead. The check is cheap and runs only after a real URL change. The
+  // preference is still kept in localStorage, so Open platform mode survives
+  // navigation without needing the query param on every link.
+  var _lastUrl = window.location.pathname + window.location.search;
+  function checkUrlChange() {
+    var current = window.location.pathname + window.location.search;
+    if (current !== _lastUrl) {
+      _lastUrl = current;
+      onNav();
     }
-    _push.call(history, state, title, url);
-    onNav();
-  };
+  }
+  // Hook the existing history methods without rewriting the URL.
+  ['pushState', 'replaceState'].forEach(function (m) {
+    var orig = history[m];
+    history[m] = function () {
+      var ret = orig.apply(this, arguments);
+      checkUrlChange();
+      return ret;
+    };
+  });
   window.addEventListener('popstate', onNav);
+  // Fallback: poll for URL changes the SPA may make outside history methods.
+  setInterval(checkUrlChange, 500);
+
+  // Watch the sidebar for re-renders. When Mintlify replaces the sidebar
+  // DOM after navigation (or as a result of search interactions), re-apply
+  // the dim/hide marks without waiting for the next URL change. This is
+  // what makes the experience feel non-flickery: as soon as the sidebar
+  // exists, it's already marked.
+  function observeSidebar() {
+    var sidebarRoot =
+      document.getElementById('sidebar-content') ||
+      document.getElementById('sidebar') ||
+      document.querySelector('aside');
+    if (!sidebarRoot || sidebarRoot.dataset.simplifyObserved === '1') return;
+    sidebarRoot.dataset.simplifyObserved = '1';
+    var scheduled = false;
+    var observer = new MutationObserver(function () {
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(function () {
+        scheduled = false;
+        markSidebarGroups();
+        markNavbarTabs();
+        markGlobalAnchors();
+      });
+    });
+    observer.observe(sidebarRoot, { childList: true, subtree: true });
+  }
+  // Try to attach the observer immediately; onNav re-attaches on every
+  // route change in case the sidebar root node itself was replaced.
+  observeSidebar();
 
   // ── Tab class injection ───────────────────────────────────────────────────
   function applyTabClass() {
