@@ -177,11 +177,21 @@ The gateway requires Opus audio.
 
 ### ICE servers
 
-Configure your peer connection with a STUN server.
-TURN is recommended for restrictive networks.
+Configure your peer connection with STUN servers, and TURN servers if you expect clients on restrictive networks.
 
-Example STUN server:
-`stun.l.google.com:19302`
+You can hardcode public STUN servers (for example, `stun:stun.l.google.com:19302`), but for TURN we recommend fetching credentials at connection time from the [`GET /api/v1/ice-servers`](/api-reference/webrtc-gateway/ice-servers) endpoint. The gateway issues fresh ephemeral credentials on each request and returns `turns:` URLs on port 443 so clients behind corporate firewalls that block UDP can still relay media over TLS.
+
+Fetch the configuration before creating the peer connection:
+
+```js
+const res = await fetch(
+  "https://webrtc-gateway.us-1.platform.polyai.app/api/v1/ice-servers",
+  { headers: { Authorization: `Bearer ${authToken}` } },
+);
+const { iceServers } = await res.json();
+
+const pc = new RTCPeerConnection({ iceServers });
+```
 
 ## Browser support
 
@@ -203,9 +213,9 @@ Ensure the authentication token is valid and included in the offer message. Ever
 
 ### ICE connection fails
 
-- Corporate firewalls may require TURN
-- Ensure UDP traffic is allowed
-- Configure TURN over TCP if needed
+- Corporate firewalls may require TURN. Fetch the gateway's TURN configuration from [`GET /api/v1/ice-servers`](/api-reference/webrtc-gateway/ice-servers) and pass it to your `RTCPeerConnection`.
+- Ensure UDP traffic is allowed where possible.
+- The `iceServers` response includes a `turns:` URL on port 443 (TURN over TLS), which works on networks that block UDP and most non-HTTPS TCP traffic.
 
 ## Useful links
 

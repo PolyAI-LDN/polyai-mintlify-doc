@@ -1,0 +1,58 @@
+---
+title: Get ICE servers
+description: Fetch STUN and TURN configuration with fresh ephemeral credentials for an RTCPeerConnection.
+openapi: "/api-reference/webrtc-gateway/openapi.yaml GET /api/v1/ice-servers"
+---
+
+Use this endpoint to fetch the ICE server configuration that your client should pass to `RTCPeerConnection` before creating an offer. Each response returns the STUN servers configured on the gateway and, when TURN is enabled, a TURN entry with fresh HMAC-SHA1 credentials that expire 24 hours after issue.
+
+## When to use it
+
+Call this endpoint instead of hardcoding ICE servers in your client when:
+
+- You expect users on networks that block UDP (for example, corporate firewalls). The response includes a `turns:` URL on port 443 so media can relay over TLS.
+- You want short-lived credentials issued per session instead of long-lived shared secrets in your client code.
+
+If your users are always on permissive networks, hardcoding a public STUN server is still fine.
+
+## Authentication
+
+Pass a Studio JWT or connector token using either:
+
+- The `token` query parameter — `?token=<jwt>`
+- The `Authorization` header — `Authorization: Bearer <jwt>`
+
+Requests without a valid token receive `401 Unauthorized`.
+
+## Example
+
+```js
+const res = await fetch(
+  "https://webrtc-gateway.us-1.platform.polyai.app/api/v1/ice-servers",
+  { headers: { Authorization: `Bearer ${authToken}` } },
+);
+const { iceServers } = await res.json();
+
+const pc = new RTCPeerConnection({ iceServers });
+```
+
+Example response when TURN is configured:
+
+```json
+{
+  "iceServers": [
+    { "urls": ["stun:stun.l.google.com:19302"] },
+    {
+      "urls": [
+        "turn:turn.example.com:3478",
+        "turn:turn.example.com:3478?transport=tcp",
+        "turns:turn.example.com:443?transport=tcp"
+      ],
+      "username": "1748390400:webrtc-gateway",
+      "credential": "base64-encoded-hmac"
+    }
+  ]
+}
+```
+
+When TURN is not configured on the gateway, the response contains only STUN entries.

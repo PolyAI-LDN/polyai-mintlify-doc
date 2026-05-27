@@ -41,3 +41,83 @@ paths:
                     type: integer
                     minimum: 0
                     example: 42
+
+  /api/v1/ice-servers:
+    get:
+      summary: Get ICE servers
+      description: |
+        Returns the gateway's ICE server configuration, including any STUN
+        servers and (when TURN is configured) a TURN server entry with fresh
+        ephemeral HMAC-SHA1 credentials valid for 24 hours.
+
+        Use this endpoint to populate the `iceServers` field of an
+        `RTCPeerConnection` before creating an offer. Fetching credentials at
+        connection time ensures clients on restrictive networks (where UDP is
+        blocked) can relay media through TURN over TLS on port 443.
+
+        Authentication is required. Pass a Studio JWT or connector token either
+        as a `token` query parameter or as a `Bearer` token in the
+        `Authorization` header.
+      operationId: getICEServers
+      tags:
+        - WebRTC
+      parameters:
+        - in: query
+          name: token
+          description: Studio JWT or connector token. Alternative to the `Authorization` header.
+          required: false
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: ICE server configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - iceServers
+                properties:
+                  iceServers:
+                    type: array
+                    description: List of STUN and TURN servers for the client to use.
+                    items:
+                      type: object
+                      required:
+                        - urls
+                      properties:
+                        urls:
+                          type: array
+                          items:
+                            type: string
+                          example:
+                            - "turn:turn.example.com:3478"
+                            - "turn:turn.example.com:3478?transport=tcp"
+                            - "turns:turn.example.com:443?transport=tcp"
+                        username:
+                          type: string
+                          description: Ephemeral username (only present for TURN entries). Expires 24 hours after issue.
+                          example: "1748390400:webrtc-gateway"
+                        credential:
+                          type: string
+                          description: HMAC-SHA1 credential (only present for TURN entries).
+                          example: "base64-encoded-hmac"
+        "401":
+          description: Missing or invalid auth token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: invalid auth token
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
