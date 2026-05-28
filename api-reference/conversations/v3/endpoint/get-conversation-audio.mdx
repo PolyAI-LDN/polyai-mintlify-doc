@@ -19,6 +19,18 @@ Users without PII access always receive the redacted recording, even when `redac
 
 PII access is granted through your account's role and permission configuration in Agent Studio. See [PII logging](/tools/classes/conv-log#pii) for related conversation-log behavior.
 
+## Regional base URLs
+
+| Region | Base URL                                  |
+| ------ | ----------------------------------------- |
+| US     | `https://api.us-1.platform.polyai.app`    |
+| UK     | `https://api.uk-1.platform.polyai.app`    |
+| EUW    | `https://api.euw-1.platform.polyai.app`   |
+
+<Warning>
+This endpoint lives on the **Conversations API** host (`api.{region}.platform.polyai.app`), *not* the Agents API host (`api.{region}.poly.ai`). Sending the request to `api.us-1.poly.ai` (or any `*.poly.ai` host) will fail. See [Conversations API overview](/api-reference/conversations/introduction#regional-base-urls) for the full host list.
+</Warning>
+
 ## Example
 
 ```bash
@@ -27,3 +39,14 @@ curl --request GET \
   --header "x-api-key: $POLYAI_API_KEY" \
   --output conversation.wav
 ```
+
+Replace `{account_id}`, `{project_id}`, and `{conversation_id}` with real values — the placeholders are not resolved server-side. Only `Accept: audio/wav` is needed; do not send `Content-Type` on this `GET` request (it has no body).
+
+## Common pitfalls
+
+| Symptom | Likely cause | Fix |
+| ------- | ------------ | --- |
+| `404 Not Found` or DNS error | Using the wrong host (e.g. `api.us-1.poly.ai`) | Use `api.{region}.platform.polyai.app` |
+| `404 Not Found` for a valid-looking ID | `project_id` is missing a suffix (e.g. `myproject` vs `myproject-usp`) | Confirm the exact project ID in Agent Studio → API Keys |
+| `404 Not Found` on the conversation | The literal string `{conversation_id}` was left in the URL | Substitute a real conversation ID from the List Conversations endpoint |
+| `401 Unauthorized` | Empty or wrong-region API key | Issue a project- and region-scoped key from PolyAI |
