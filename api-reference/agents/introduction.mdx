@@ -31,6 +31,10 @@ If you want to ship an agent change, use the Agents API. If you want to know wha
 The Agents API is organized around a small set of nested resources:
 
 ```
+account
+ ├── agent                  # top-level agent resource (created/listed under account)
+ └── voice-library          # account-scoped voice catalog (register, list, sample)
+
 agent
  ├── branch                 # isolated working copy
  │    ├── behavior          # system prompt and interaction rules
@@ -41,23 +45,23 @@ agent
  ├── telephony
  │    ├── connector         # voice-infra binding
  │    └── phone-number      # E.164 number routed to a connector
- ├── voice                  # active voice, tuning, multi-voice rotation
  └── real-time-config       # runtime values editable without publishing
 ```
 
-Everything except deployments, telephony, and real-time configs is scoped to a **branch**. The default branch is `main`; create additional branches for parallel development and merge them back.
+Agents and voice library entries are scoped to an **account**. Everything inside an agent except deployments, telephony, and real-time configs is scoped to a **branch**. The default branch is `main`; create additional branches for parallel development and merge them back.
 
 ## Base URL
 
 The Agents API uses the same regional base URL family as [Alerts](/api-reference/alerts/introduction) and [Webhooks](/api-reference/webhooks/introduction):
 
-| Region | Base URL                 |
-| ------ | ------------------------ |
-| US     | `https://api.us.poly.ai` |
-| UK     | `https://api.uk.poly.ai` |
-| EU     | `https://api.eu.poly.ai` |
+| Region | Base URL                     |
+| ------ | ---------------------------- |
+| US     | `https://api.us.poly.ai`     |
+| EU     | `https://api.eu.poly.ai`     |
+| UK     | `https://api.uk.poly.ai`     |
+| Studio | `https://api.studio.poly.ai` |
 
-All Agents API paths are prefixed with `/v1/agents`.
+Most Agents API paths are prefixed with `/v1/agents/{agentId}/…`. Account-scoped endpoints (listing/creating agents, voice library) are prefixed with `/v1/accounts/{accountId}/…`.
 
 <Warning>
 Do not use `https://api.poly.ai` without a region prefix — it returns an error. Always include the region.
@@ -68,7 +72,7 @@ Do not use `https://api.poly.ai` without a region prefix — it returns an error
 All endpoints authenticate with an API key sent in the `x-api-key` header. Keys are scoped to a workspace.
 
 ```bash
-curl https://api.us.poly.ai/v1/agents \
+curl https://api.us.poly.ai/v1/accounts/ACCOUNT_ID/agents \
   -H "x-api-key: YOUR_API_KEY"
 ```
 
@@ -81,7 +85,7 @@ API keys for the Agents API are not yet available through self-service. Email [d
 ### 1. Create an agent
 
 ```bash
-curl -X POST https://api.us.poly.ai/v1/agents \
+curl -X POST https://api.us.poly.ai/v1/accounts/ACCOUNT_ID/agents \
   -H "x-api-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
