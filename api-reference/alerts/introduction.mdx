@@ -1,15 +1,15 @@
 ---
 title: "Alerts API"
 sidebarTitle: "Overview"
-description: "Monitor agent performance in real time and receive webhook notifications when latency, errors, or volume thresholds are breached."
+description: "Manage alert rules and query active alerts firing on your PolyAI agents."
 ---
 
-The Alerts API lets you monitor your voice agents in real time and react to performance issues. Configure rules to watch key metrics like latency, errors, and call volume, then receive signed webhook notifications when thresholds breach.
+The Alerts API lets you monitor your voice agents in real time and react to performance issues. Configure rules to watch key metrics like latency, errors, and call volume, then list which rules are currently firing.
 
 ## Key features
 
 - **Alert rules** - Monitor metrics like turn latency, API errors, function errors, call crashes, and call volume
-- **[Webhook notifications](/api-reference/webhooks/introduction)** - Receive signed HTTP POST requests when alerts trigger or resolve
+- **Active alerts** - Query which rules are currently in the `alert` state
 - **Project scoping** - Scope alerts to specific projects or monitor account-wide
 
 ## Limits
@@ -69,83 +69,12 @@ curl -X POST https://api.us.poly.ai/v1/alert-rules \
 
 Replace `api.us.poly.ai` with the base URL for your deployment region. See [Getting started](/api-reference/introduction#regional-api-endpoints) for the full list of regional base URLs.
 
-### 2. Register a webhook endpoint
-
-```bash
-curl -X POST https://api.us.poly.ai/v1/webhook-endpoints \
-  -H "x-api-key: YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Production alert notifications",
-    "url": "https://example.com/webhooks/polyai",
-    "event_types": ["alerts.triggered", "alerts.resolved"]
-  }'
-```
-
-<Warning>
-The `signing_secret` is returned only once when you create a webhook endpoint. Store it securely immediately.
-
-**Lost your signing secret?** Use the [rotate signing secret](/api-reference/webhooks/endpoint/rotate-webhook-signing-secret) endpoint to generate a new one.
-</Warning>
-
-### 3. Check active alerts
+### 2. Check active alerts
 
 ```bash
 curl https://api.us.poly.ai/v1/alerts \
   -H "x-api-key: YOUR_API_KEY"
 ```
-
-## Webhook delivery
-
-When an alert triggers or resolves, PolyAI sends a signed HTTP POST to your registered [webhook endpoints](/api-reference/webhooks/introduction).
-
-| Event | Description |
-|-------|-------------|
-| `alerts.triggered` | Sent when an alert rule transitions into a firing state |
-| `alerts.resolved` | Sent when a firing alert transitions back to `ok` |
-
-### Example payloads
-
-<Tabs>
-  <Tab title="alerts.triggered">
-```json
-{
-  "event_type": "alerts.triggered",
-  "alert": {
-    "id": "ar_0Kx4mNpQ8rWvYb2dFgHjLs",
-    "name": "High turn latency (p95)",
-    "project_id": "proj_abc123",
-    "metric": "turn_latency_p95",
-    "operator": ">=",
-    "threshold_value": 1500,
-    "current_value": 1823,
-    "previous_state": "ok",
-    "triggered_at": "2024-03-15T10:30:00Z"
-  }
-}
-```
-  </Tab>
-  <Tab title="alerts.resolved">
-```json
-{
-  "event_type": "alerts.resolved",
-  "alert": {
-    "id": "ar_0Kx4mNpQ8rWvYb2dFgHjLs",
-    "name": "High turn latency (p95)",
-    "project_id": "proj_abc123",
-    "metric": "turn_latency_p95",
-    "operator": ">=",
-    "threshold_value": 1500,
-    "current_value": 920,
-    "previous_state": "alert",
-    "resolved_at": "2024-03-15T10:45:00Z"
-  }
-}
-```
-  </Tab>
-</Tabs>
-
-For webhook delivery details including headers, retry policy, and signature verification, see the [Webhooks API](/api-reference/webhooks/introduction).
 
 ## Authentication
 
@@ -167,7 +96,7 @@ curl https://api.us.poly.ai/v1/alerts \
 | 400 | Validation error - check request body or parameters |
 | 401 | Missing or invalid API key |
 | 404 | Resource not found |
-| 409 | Resource limit exceeded (e.g. maximum number of alert rules or webhook endpoints reached) |
+| 409 | Resource limit exceeded (e.g. maximum number of alert rules reached) |
 | 422 | Validation error or malformed resource ID |
 | 500 | Internal server error |
 | 502 | Monitoring backend sync failure |
@@ -192,7 +121,7 @@ curl https://api.us.poly.ai/v1/alerts \
 
 ## Pagination
 
-List endpoints currently return all results without pagination. For accounts with many alert rules or webhook endpoints, consider filtering by `project_id`, `metric`, or `enabled` status to reduce response size.
+List endpoints currently return all results without pagination. For accounts with many alert rules, consider filtering by `project_id`, `metric`, or `enabled` status to reduce response size.
 
 ## Update request format
 

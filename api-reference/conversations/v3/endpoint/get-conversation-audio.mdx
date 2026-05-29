@@ -1,0 +1,52 @@
+---
+title: "Get audio recording for a conversation"
+description: "Fetch the WAV audio recording for a conversation. Served from api.{region}.poly.ai. Users without PII access automatically receive the redacted recording."
+openapi: "GET /v1/agents/{agentId}/conversations/{conversationId}/audio"
+---
+
+## PII access and redaction
+
+The `redacted` query parameter controls whether personally identifiable information (PII) is muted from the returned audio:
+
+| User PII access | `redacted` query value | Audio returned |
+|-----------------|------------------------|----------------|
+| Yes             | `false` (or omitted)   | Raw recording |
+| Yes             | `true`                 | Redacted recording |
+| No              | `false` (or omitted)   | Redacted recording (enforced) |
+| No              | `true`                 | Redacted recording |
+
+Users without PII access always receive the redacted recording, even when `redacted=false` is passed. This is enforced server-side, so callers cannot bypass redaction by omitting or overriding the query parameter.
+
+PII access is granted through your account's role and permission configuration in Agent Studio. See [PII logging](/tools/classes/conv-log#pii) for related conversation-log behavior.
+
+## Regional base URLs
+
+| Region | Base URL                       |
+| ------ | ------------------------------ |
+| US     | `https://api.us.poly.ai`       |
+| EU     | `https://api.eu.poly.ai`       |
+| UK     | `https://api.uk.poly.ai`       |
+| Studio | `https://api.studio.poly.ai`   |
+
+<Warning>
+This endpoint is served from the Kong-routed host (`api.{region}.poly.ai`), *not* `api.{region}-1.platform.polyai.app` (which serves the list-conversations endpoint). Sending the request to the wrong host will fail.
+</Warning>
+
+## Example
+
+```bash
+curl --request GET \
+  --url "https://api.us.poly.ai/v1/agents/{agentId}/conversations/{conversationId}/audio?direction=combined&redacted=false" \
+  --header "x-api-key: $POLYAI_API_KEY" \
+  --output conversation.wav
+```
+
+Replace `{agentId}` and `{conversationId}` with real values — the placeholders are not resolved server-side. Only `Accept: audio/wav` is needed; do not send `Content-Type` on this `GET` request (it has no body).
+
+## Common pitfalls
+
+| Symptom | Likely cause | Fix |
+| ------- | ------------ | --- |
+| `404 Not Found` or DNS error | Using the wrong host (e.g. `api.us-1.platform.polyai.app`) | Use `api.{region}.poly.ai` |
+| `404 Not Found` on the conversation | The literal string `{conversationId}` was left in the URL | Substitute a real conversation ID from the List Conversations endpoint |
+| `401 Unauthorized` | Empty or wrong-region API key | Issue a region-scoped key from PolyAI |
