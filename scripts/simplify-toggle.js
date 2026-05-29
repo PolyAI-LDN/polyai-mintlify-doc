@@ -23,8 +23,10 @@
   //  - .developer-only sections inside otherwise-mixed pages are wrapped in
   //    a collapsed accordion so the page stays readable without code.
   //
-  // ?view=simplified is still honoured as a one-shot entry point and is
-  // mirrored back into the URL on navigations so links can be shared.
+  // ?view=simplified is still honoured as a one-shot entry point and the
+  // preference is promoted to localStorage so the mode sticks across
+  // navigations. The flag is NOT re-injected into outgoing URLs — see the
+  // SPA-nav block at the bottom of this file for why (PR #454).
   var STORAGE_KEY = 'polyai-simplified-mode';
   var POSITION_KEY = 'polyai-simplified-pill-position';
   var BANNER_POSITION_KEY = 'polyai-lock-banner-position';
@@ -274,13 +276,23 @@
 
   function setSimplified(on) {
     writeStoredPreference(on);
-    var url = new URL(window.location.href);
-    if (on) {
-      url.searchParams.set('view', 'simplified');
-    } else {
-      url.searchParams.delete('view');
-    }
-    history.replaceState(null, '', url.pathname + url.search + url.hash);
+    // Only touch the URL when the ?view=simplified flag actually needs to
+    // change. Rewriting history on every page load — even when the URL was
+    // already correct — was triggering Mintlify's SPA router to re-resolve
+    // the route, causing the visible "initial paint then reload" flicker on
+    // docs.poly.ai. Skip the replaceState entirely if the URL already
+    // matches the desired state.
+    try {
+      var url = new URL(window.location.href);
+      var hasFlag = url.searchParams.get('view') === 'simplified';
+      if (on && !hasFlag) {
+        url.searchParams.set('view', 'simplified');
+        history.replaceState(null, '', url.pathname + url.search + url.hash);
+      } else if (!on && hasFlag) {
+        url.searchParams.delete('view');
+        history.replaceState(null, '', url.pathname + url.search + url.hash);
+      }
+    } catch (e) {}
     document.documentElement.dataset.simplified = on ? 'true' : 'false';
   }
 
@@ -333,28 +345,97 @@
     //    belong to the dedicated Open platform area (visible only when
     //    Open platform mode is on) and groups that should be hidden when
     //    Open platform mode is on.
-    document.querySelectorAll('.sidebar-group-header').forEach(function (header) {
-      var h5 = header.querySelector('h5');
-      if (!h5) return;
-      var name = h5.textContent.trim();
-      var sibling = header.nextElementSibling;
+    //
+    // Resilience note: Mintlify's sidebar DOM has changed across theme
+    // versions. Historically group titles lived inside `.sidebar-group-header
+    // > h5`; current builds expose `sidebar-group-header` as a Mintlify
+    // *element selector* (the value is the tag name / id, used as
+    // `sidebar-group-header { … }` in CSS — see
+    // https://www.mintlify.com/docs/customize/custom-scripts), and the title
+    // text renders as an h2/h3/h4/h5/h6 inside the stable `#sidebar-content`
+    // container.
+    //
+    // To work across builds we collect candidate header elements from every
+    // known shape (tag name, id-prefix, class, and headings inside the
+    // sidebar root) and dedupe by element. Candidates are scoped to the
+    // sidebar root only — never the document at large — so a stray
+    // heading in page content can never be mistaken for a sidebar group
+    // header.
+    //
+    // CRITICAL invariants:
+    // - Do NOT climb to an ancestor wrapper before marking (a previous
+    //   implementation used `closest('li' | 'section' | 'nav > div' |
+    //   parentElement)`, which resolved to `#sidebar-content` and hid
+    //   the whole sidebar in main mode).
+    // - Process EVERY sidebar header, not just those in the allowlist
+    //   sets — otherwise the default-hide branch (`openPlatformHidden`)
+    //   never fires for the regular groups (Introduction / Build / …)
+    //   and they leak into free-trial mode.
+    var sidebarRoot =
+      document.getElementById('sidebar-content') ||
+      document.getElementById('sidebar') ||
+      document.querySelector('aside');
 
-      if (ENTERPRISE_GROUPS.indexOf(name) !== -1) {
-        header.dataset.simplifiedEnterprise = 'true';
-        if (sibling) sibling.dataset.simplifiedEnterprise = 'true';
+    if (sidebarRoot) {
+      var headerCandidates = [];
+      function pushCandidate(el) {
+        if (!el) return;
+        // Sidebar-only scope — skip anything that isn't inside the
+        // sidebar root, even if its tag/class matches Mintlify's
+        // selector vocabulary.
+        if (!sidebarRoot.contains(el)) return;
+        if (headerCandidates.indexOf(el) === -1) headerCandidates.push(el);
       }
 
-      if (OPEN_PLATFORM_ONLY_GROUPS.indexOf(name) !== -1) {
-        // Hidden by default in styles.css; revealed inside [data-simplified="true"].
-        header.dataset.openPlatformOnly = 'true';
-        if (sibling) sibling.dataset.openPlatformOnly = 'true';
-      } else if (OPEN_PLATFORM_KEEP_GROUPS.indexOf(name) === -1) {
-        // Every other group gets hidden when Open platform mode is on, so
-        // the self-serve sidebar collapses down to just the dedicated area.
-        header.dataset.openPlatformHidden = 'true';
-        if (sibling) sibling.dataset.openPlatformHidden = 'true';
-      }
-    });
+      // Mintlify "element selector" — `sidebar-group-header` is exposed
+      // as either a tag name or an id prefix in current builds.
+      document.querySelectorAll('sidebar-group-header').forEach(pushCandidate);
+      document.querySelectorAll('[id^="sidebar-group-header"]').forEach(pushCandidate);
+      document.querySelectorAll('[class*="sidebar-group-header"]').forEach(pushCandidate);
+      document.querySelectorAll('[class*="SidebarGroupHeader"]').forEach(pushCandidate);
+      // Legacy class hook from older themes.
+      document.querySelectorAll('.sidebar-group-header').forEach(pushCandidate);
+
+      // Heading-text fallback — works whatever wrapper the theme uses,
+      // as long as group titles are emitted as semantic headings inside
+      // the sidebar root.
+      sidebarRoot.querySelectorAll('h2, h3, h4, h5, h6').forEach(pushCandidate);
+
+      headerCandidates.forEach(function (header) {
+        // The element-selector hits (`<sidebar-group-header>`) usually
+        // wrap an inner heading; the heading-text hits are the heading
+        // itself. Read the text from whichever inner heading exists,
+        // falling back to the candidate's own textContent.
+        var innerHeading = header.querySelector('h2, h3, h4, h5, h6');
+        var nameSource = innerHeading || header;
+        var name = (nameSource.textContent || '').trim();
+        if (!name) return;
+
+        var sibling = header.nextElementSibling;
+
+        function mark(attr) {
+          header.dataset[attr] = 'true';
+          if (sibling) sibling.dataset[attr] = 'true';
+        }
+
+        if (ENTERPRISE_GROUPS.indexOf(name) !== -1) {
+          mark('simplifiedEnterprise');
+        }
+
+        if (OPEN_PLATFORM_ONLY_GROUPS.indexOf(name) !== -1) {
+          // Hidden by default in styles.css; revealed inside
+          // [data-simplified="true"].
+          mark('openPlatformOnly');
+        } else if (OPEN_PLATFORM_KEEP_GROUPS.indexOf(name) === -1) {
+          // Every other sidebar group gets hidden when Open platform
+          // mode is on, so the self-serve sidebar collapses down to
+          // just the dedicated area. This attribute is scoped to
+          // [data-simplified="true"] in styles.css, so it's a no-op in
+          // main mode.
+          mark('openPlatformHidden');
+        }
+      });
+    }
 
     // 2. Collapsed sub-group buttons — strip tag pill text before matching,
     //    since tag spans are children of the button element.
@@ -928,17 +1009,34 @@
     updateLandingPageStatus();
   }
 
+  // Run our DOM passes synchronously on nav. The previous 150ms setTimeout
+  // (and, in the first cut of PR #454, a doubled sync + rAF pass) is gone:
+  // the MutationObserver attached to the sidebar root re-marks any late
+  // Mintlify re-renders without us having to schedule a defensive second
+  // pass on every nav. `onNav` is also throttled to one call per
+  // animation frame so back-to-back triggers (history hook + popstate +
+  // poll fallback all firing for the same navigation) collapse into a
+  // single DOM pass.
+  function runPasses() {
+    injectToggle();
+    markSidebarGroups();
+    markNavbarTabs();
+    markGlobalAnchors();
+    applyDeveloperContent();
+    applyEnterpriseBanner();
+    applyOpenPlatformOnlyBanner();
+    wireLandingPageButtons();
+    applyTabClass();
+    observeSidebar();
+  }
+  var _navScheduled = false;
   function onNav() {
-    setTimeout(function () {
-      injectToggle();
-      markSidebarGroups();
-      markNavbarTabs();
-      markGlobalAnchors();
-      applyDeveloperContent();
-      applyEnterpriseBanner();
-      applyOpenPlatformOnlyBanner();
-      wireLandingPageButtons();
-    }, 150);
+    if (_navScheduled) return;
+    _navScheduled = true;
+    requestAnimationFrame(function () {
+      _navScheduled = false;
+      runPasses();
+    });
   }
 
   // Apply preference immediately (before paint).
@@ -950,46 +1048,81 @@
   }
   setSimplified(isSimplified());
 
+  // Initial pass runs synchronously (no rAF throttling) so the very first
+  // paint is already marked — we don't want a one-frame flash of the
+  // unfiltered sidebar on cold loads. Subsequent SPA navigations go through
+  // the throttled onNav.
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-      injectToggle();
-      markSidebarGroups();
-      markNavbarTabs();
-      markGlobalAnchors();
-      applyDeveloperContent();
-      applyEnterpriseBanner();
-      applyOpenPlatformOnlyBanner();
-      wireLandingPageButtons();
-    });
+    document.addEventListener('DOMContentLoaded', runPasses);
   } else {
-    injectToggle();
-    markSidebarGroups();
-    markNavbarTabs();
-      markGlobalAnchors();
-    applyDeveloperContent();
-    applyEnterpriseBanner();
-      applyOpenPlatformOnlyBanner();
-    wireLandingPageButtons();
+    runPasses();
   }
 
-  // Re-run on Mintlify SPA navigations, preserving ?view=simplified in URL.
-  var _push = history.pushState;
-  history.pushState = function (state, title, url) {
-    if (url && document.documentElement.dataset.simplified === 'true') {
-      try {
-        var u = new URL(url, window.location.origin);
-        // Always preserve the flag — even on enterprise pages, since the user
-        // stays in Open platform mode and just sees the upsell banner.
-        u.searchParams.set('view', 'simplified');
-        url = u.pathname + u.search + u.hash;
-      } catch (e) {}
+  // Re-run on Mintlify SPA navigations. We previously monkey-patched
+  // history.pushState to (a) trigger onNav and (b) inject ?view=simplified
+  // into the outgoing URL. That second behaviour was rewriting URLs Mintlify's
+  // router was in the middle of resolving and produced a visible
+  // "double-paint" on docs.poly.ai (and made the search bar unusable, since
+  // every keystroke-driven navigation got its URL silently changed).
+  //
+  // Detect SPA navigations by polling location.pathname + location.search
+  // instead. The check is cheap and runs only after a real URL change. The
+  // preference is still kept in localStorage, so Open platform mode survives
+  // navigation without needing the query param on every link.
+  var _lastUrl = window.location.pathname + window.location.search;
+  function checkUrlChange() {
+    var current = window.location.pathname + window.location.search;
+    if (current !== _lastUrl) {
+      _lastUrl = current;
+      onNav();
     }
-    _push.call(history, state, title, url);
-    onNav();
-  };
+  }
+  // Hook the existing history methods without rewriting the URL.
+  ['pushState', 'replaceState'].forEach(function (m) {
+    var orig = history[m];
+    history[m] = function () {
+      var ret = orig.apply(this, arguments);
+      checkUrlChange();
+      return ret;
+    };
+  });
   window.addEventListener('popstate', onNav);
+  // Fallback: poll for URL changes the SPA may make outside history methods.
+  setInterval(checkUrlChange, 500);
+
+  // Watch the sidebar for re-renders. When Mintlify replaces the sidebar
+  // DOM after navigation (or as a result of search interactions), re-apply
+  // the dim/hide marks without waiting for the next URL change. This is
+  // what makes the experience feel non-flickery: as soon as the sidebar
+  // exists, it's already marked.
+  function observeSidebar() {
+    var sidebarRoot =
+      document.getElementById('sidebar-content') ||
+      document.getElementById('sidebar') ||
+      document.querySelector('aside');
+    if (!sidebarRoot || sidebarRoot.dataset.simplifyObserved === '1') return;
+    sidebarRoot.dataset.simplifyObserved = '1';
+    var scheduled = false;
+    var observer = new MutationObserver(function () {
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(function () {
+        scheduled = false;
+        markSidebarGroups();
+        markNavbarTabs();
+        markGlobalAnchors();
+      });
+    });
+    observer.observe(sidebarRoot, { childList: true, subtree: true });
+  }
+  // Try to attach the observer immediately; onNav re-attaches on every
+  // route change in case the sidebar root node itself was replaced.
+  observeSidebar();
 
   // ── Tab class injection ───────────────────────────────────────────────────
+  // Set data-tab on <html> based on the current path so the stylesheet can
+  // scope per-section visuals. Folded into runPasses() so it runs on every
+  // SPA navigation, not just popstate.
   function applyTabClass() {
     var path = window.location.pathname;
     var tab = 'helpcenter';
@@ -1007,7 +1140,7 @@
     document.documentElement.dataset.tab = tab;
   }
 
+  // Initial synchronous set so the first paint has the right tab class
+  // without waiting for runPasses() to be defined/called.
   applyTabClass();
-  document.addEventListener('DOMContentLoaded', applyTabClass);
-  window.addEventListener('popstate', applyTabClass);
 })();

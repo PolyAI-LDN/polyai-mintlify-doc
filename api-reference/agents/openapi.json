@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "PolyAI Agents API",
-    "version": "1.0.3",
-    "description": "Build and deploy PolyAI agents programmatically. Create agents, manage branches, update behavior rules, configure knowledge bases, provision telephony, publish deployments, and update real-time configs."
+    "version": "1.0.4",
+    "description": "Build and deploy PolyAI agents programmatically. Create agents, manage branches, update behavior rules, configure knowledge bases, provision telephony, configure voices, publish deployments, and update real-time configs."
   },
   "servers": [
     {
@@ -188,7 +188,7 @@
         ]
       },
       "BatchUpdateConnectorsBody": {
-        "description": "Ordered list of connector updates.\n\nEach update is applied independently \u2014 partial success is possible.",
+        "description": "Ordered list of connector updates.\n\nEach update is applied independently — partial success is possible.",
         "type": "object",
         "properties": {
           "updates": {
@@ -644,7 +644,7 @@
         ]
       },
       "DeletePhoneNumbersResponse": {
-        "description": "Per-number results of a batch release \u2014 phone numbers that were\nsuccessfully released, plus any that couldn't be and why.",
+        "description": "Per-number results of a batch release — phone numbers that were\nsuccessfully released, plus any that couldn't be and why.",
         "type": "object",
         "properties": {
           "deleted": {
@@ -1330,6 +1330,245 @@
         ],
         "additionalProperties": false,
         "title": "VariantResponse"
+      },
+      "DeployedVoiceResponse": {
+        "description": "A single deployed voice in a project's voice rotation.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Deployed voice ID",
+            "type": "string"
+          },
+          "genaiProjectId": {
+            "description": "Project ID this deployed voice belongs to",
+            "type": "string"
+          },
+          "voiceId": {
+            "description": "ID of the underlying voice in the voice library",
+            "type": "string"
+          },
+          "probability": {
+            "description": "Traffic weight in the rotation, between 0.0 and 1.0",
+            "type": "number",
+            "format": "float"
+          }
+        },
+        "required": [
+          "id",
+          "genaiProjectId",
+          "voiceId",
+          "probability"
+        ],
+        "additionalProperties": false,
+        "title": "DeployedVoiceResponse"
+      },
+      "ListDeployedVoicesResponse": {
+        "description": "All voices deployed to the project's rotation.",
+        "type": "object",
+        "properties": {
+          "deployedVoices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeployedVoiceResponse"
+            }
+          }
+        },
+        "required": [
+          "deployedVoices"
+        ],
+        "additionalProperties": false,
+        "title": "ListDeployedVoicesResponse"
+      },
+      "UpsertDeployedVoiceBody": {
+        "description": "Create or update a deployed voice. Omit `id` to create a new deployed voice; provide `id` to update an existing one.",
+        "type": "object",
+        "properties": {
+          "voiceId": {
+            "description": "ID of the voice (from the voice library) to deploy",
+            "type": "string"
+          },
+          "probability": {
+            "description": "Traffic weight in the rotation, between 0.0 and 1.0. The sum of probabilities across all deployed voices must equal 1.0.",
+            "type": "number",
+            "format": "float",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "id": {
+            "description": "Deployed voice ID. Omit to create a new entry; include to update an existing entry.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "voiceId",
+          "probability"
+        ],
+        "additionalProperties": false,
+        "title": "UpsertDeployedVoiceBody"
+      },
+      "DeleteDeployedVoiceResponse": {
+        "description": "Result of deleting a deployed voice.",
+        "type": "object",
+        "properties": {
+          "success": {
+            "description": "True when the deployed voice was removed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "additionalProperties": false,
+        "title": "DeleteDeployedVoiceResponse"
+      },
+      "TuningSettingsResponse": {
+        "description": "Voice tuning settings for a given voice and purpose. Fields are null when the tuning provider does not support them or no override has been set.",
+        "type": "object",
+        "properties": {
+          "stability": {
+            "description": "Voice stability (0–100). Higher values make the voice more consistent and less expressive.",
+            "type": "integer"
+          },
+          "similarityBoost": {
+            "description": "Similarity boost (0–100). Higher values make the output sound closer to the original voice sample.",
+            "type": "integer"
+          },
+          "style": {
+            "description": "Style exaggeration (provider-specific, 0–100)",
+            "type": "integer"
+          },
+          "optimizeStreamingLatency": {
+            "description": "Streaming latency optimization level (provider-specific)",
+            "type": "integer"
+          },
+          "speed": {
+            "description": "Playback speed multiplier. Valid range depends on the voice provider.",
+            "type": "number",
+            "format": "float"
+          },
+          "modelId": {
+            "description": "Provider model ID used for synthesis",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "title": "TuningSettingsResponse"
+      },
+      "EditVoiceTuningBody": {
+        "description": "Update tuning settings for a voice. Only fields you include are changed. Set `resetToDefault` to true to revert all settings to the provider defaults.",
+        "type": "object",
+        "properties": {
+          "stability": {
+            "description": "Voice stability (0–100)",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "similarityBoost": {
+            "description": "Similarity boost (0–100)",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "speed": {
+            "description": "Playback speed multiplier. The valid range depends on the voice provider; out-of-range values return a 400.",
+            "type": "number",
+            "format": "float"
+          },
+          "modelId": {
+            "description": "Provider model ID override",
+            "type": "string"
+          },
+          "resetToDefault": {
+            "description": "Reset all tuning settings to the provider defaults. Overrides other fields when true.",
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "title": "EditVoiceTuningBody"
+      },
+      "GenerateAudioBody": {
+        "description": "Synthesize a short audio preview for a given voice and text. Useful for auditioning a voice or tuning settings before deploying.",
+        "type": "object",
+        "properties": {
+          "provider": {
+            "description": "TTS provider key (e.g. `eleven_labs`, `cartesia`). Defaults to `eleven_labs`.",
+            "type": "string"
+          },
+          "text": {
+            "description": "Text to synthesize",
+            "type": "string"
+          },
+          "language": {
+            "description": "BCP-47 language tag, e.g. `en-US`",
+            "type": "string"
+          },
+          "config": {
+            "description": "Provider-specific synthesis config. Typically includes the voice ID and any tuning overrides accepted by the provider.",
+            "type": "object"
+          },
+          "storeOnS3": {
+            "description": "When true, store the audio in S3 and return a presigned URL. When false or omitted, returns a short-lived URL only.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "text",
+          "language",
+          "config"
+        ],
+        "additionalProperties": false,
+        "title": "GenerateAudioBody"
+      },
+      "GenerateAudioResponse": {
+        "description": "Generated audio preview.",
+        "type": "object",
+        "properties": {
+          "url": {
+            "description": "URL of the generated audio file",
+            "type": "string"
+          },
+          "text": {
+            "description": "The text that was synthesized",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "text"
+        ],
+        "additionalProperties": false,
+        "title": "GenerateAudioResponse"
+      },
+      "UpdateProjectVoiceBody": {
+        "description": "Set the project's primary voice.",
+        "type": "object",
+        "properties": {
+          "voiceId": {
+            "description": "Voice ID to set as the project's active voice",
+            "type": "string"
+          }
+        },
+        "required": [
+          "voiceId"
+        ],
+        "additionalProperties": false,
+        "title": "UpdateProjectVoiceBody"
+      },
+      "ProjectVoiceResponse": {
+        "description": "Confirmation of the newly set project voice.",
+        "type": "object",
+        "properties": {
+          "voiceId": {
+            "description": "The voice ID now set as the project's active voice",
+            "type": "string"
+          }
+        },
+        "required": [
+          "voiceId"
+        ],
+        "additionalProperties": false,
+        "title": "ProjectVoiceResponse"
       }
     }
   },
@@ -1815,10 +2054,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           }
         }
       },
@@ -1851,10 +2090,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           }
         }
       },
@@ -1900,10 +2139,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           }
         }
       },
@@ -1949,10 +2188,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -2009,10 +2248,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -2085,10 +2324,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           }
         }
       },
@@ -2121,10 +2360,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -2181,10 +2420,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -2241,10 +2480,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -2288,10 +2527,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           }
         }
       },
@@ -2337,10 +2576,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           }
         }
       },
@@ -2374,10 +2613,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           }
         }
       },
@@ -2423,10 +2662,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           }
         }
       },
@@ -2459,10 +2698,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -2486,10 +2725,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -2526,10 +2765,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -2587,10 +2826,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           }
         }
       },
@@ -2624,10 +2863,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           }
         }
       },
@@ -2661,10 +2900,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           }
         }
       },
@@ -2710,10 +2949,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           }
         }
       },
@@ -2746,10 +2985,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -2786,10 +3025,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -2813,10 +3052,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -2853,10 +3092,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized \u2013 missing or invalid API key"
+            "description": "Unauthorized – missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden – insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -2874,6 +3113,412 @@
         },
         {
           "name": "phoneNumber",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/deployed-voices": {
+      "get": {
+        "summary": "List deployed voices",
+        "description": "List every voice deployed to the project's voice rotation. Use this to see which voices are active and the traffic weight (probability) assigned to each.",
+        "tags": [
+          "Voices"
+        ],
+        "responses": {
+          "200": {
+            "description": "Deployed voices for the project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListDeployedVoicesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          }
+        }
+      },
+      "put": {
+        "summary": "Create or update a deployed voice",
+        "description": "Add a new voice to the rotation, or update the probability of an existing deployed voice. Probabilities across all deployed voices must sum to 1.0.",
+        "tags": [
+          "Voices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertDeployedVoiceBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The created or updated deployed voice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeployedVoiceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/deployed-voices/{deployedVoiceId}": {
+      "delete": {
+        "summary": "Delete a deployed voice",
+        "description": "Remove a voice from the project's deployed-voice rotation. The underlying voice in the voice library is not affected.",
+        "tags": [
+          "Voices"
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteDeployedVoiceResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "deployedVoiceId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Deployed voice ID"
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/voices/{voiceId}/tuning-settings": {
+      "get": {
+        "summary": "Get voice tuning settings",
+        "description": "Retrieve the tuning settings (stability, similarity boost, speed, model) currently applied to a voice for the project. Returns an empty object if no overrides are set.",
+        "tags": [
+          "Voices"
+        ],
+        "parameters": [
+          {
+            "name": "purpose",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter to a specific tuning purpose, e.g. `disclaimer`. Omit to fetch the default agent tuning."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current tuning settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TuningSettingsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update voice tuning settings",
+        "description": "Update one or more tuning settings for a voice in the project. Only the fields you provide are changed. Set `resetToDefault` to true to revert all settings to the provider defaults. Speed is validated against the provider's allowed range.",
+        "tags": [
+          "Voices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditVoiceTuningBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated tuning settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TuningSettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "voiceId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Voice ID from the voice library"
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/voices/{voiceId}/disclaimer/tuning-settings": {
+      "get": {
+        "summary": "Get disclaimer voice tuning settings",
+        "description": "Retrieve the tuning settings used when the voice reads required disclaimers. Disclaimers often need different settings (e.g. slower speed, higher stability) than the agent's main voice.",
+        "tags": [
+          "Voices"
+        ],
+        "responses": {
+          "200": {
+            "description": "Current disclaimer tuning settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TuningSettingsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update disclaimer voice tuning settings",
+        "description": "Update tuning settings used specifically for disclaimer playback. Only the fields you provide are changed.",
+        "tags": [
+          "Voices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditVoiceTuningBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated disclaimer tuning settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TuningSettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "voiceId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Voice ID from the voice library"
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/generate-audio": {
+      "post": {
+        "summary": "Generate a TTS audio preview",
+        "description": "Synthesize a short audio preview for a given voice, language, and text. Use this to audition a voice or to test tuning settings before applying them to the live agent.",
+        "tags": [
+          "Voices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateAudioBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "URL to the generated audio",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerateAudioResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/voice": {
+      "put": {
+        "summary": "Set the project's active voice",
+        "description": "Set the project's primary voice. The voice must already exist in the project's voice library. This replaces the agent's default voice; for multi-voice rotations, use the deployed voices endpoints instead.",
+        "tags": [
+          "Voices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProjectVoiceBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated project voice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectVoiceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
           "in": "path",
           "required": true,
           "schema": {
@@ -2919,6 +3564,10 @@
     {
       "name": "Real-Time Configs",
       "description": "Update runtime values (e.g. opening hours) outside the publish workflow."
+    },
+    {
+      "name": "Voices",
+      "description": "Configure agent voices: pick the active voice, run multi-voice rotations, tune stability and speed, and generate audio previews."
     }
   ]
 }
