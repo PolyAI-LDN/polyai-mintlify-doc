@@ -9,16 +9,21 @@ keywords:
   - locale codes
 ---
 
-This page is the single source of truth for which languages PolyAI supports and which models cover them. Use it to confirm what you can ship today across LLM, speech recognition (ASR), and text-to-speech (TTS), and how language coverage varies by model.
+This page is the canonical reference for which languages PolyAI supports and which models cover them across LLM, speech recognition (ASR), and text-to-speech (TTS).
 
 For setup and runtime behavior, see [Multi-language](/agent-settings/multilingual). For model selection, see [Model](/agent-settings/model-use) and [Raven](/agent-settings/raven).
+
+<Note>
+**Source of truth.** LLM model availability and channel support are read from `platform_ui` model metadata (`supports_voice`, `supports_webchat`) and the per-region `llm_gateway` model registry in `poly_core`. Raven language list reflects internal research team announcements. Provider lists reflect the implementations in `poly_core/src/agent_v3/nlu/asr_providers/` and `poly_core/src/poly_platform/llm_gateway/`. The 73-language response table is mirrored from `agent-settings/multilingual.mdx`, which was originally compiled from public docs rather than an engineering-authoritative list – flagged for confirmation by Research/Runtime.
+</Note>
 
 ## At a glance
 
 | Layer | Coverage | Notes |
 | --- | --- | --- |
-| LLM (response language) | 73 languages | Full union across Raven and supported third-party LLMs. |
-| Raven (recommended LLM) | 24+ languages | Conversation-tuned, near-perfect language consistency. |
+| LLM response languages | 73 (table below) | Compiled list of BCP 47 codes accepted by the platform. |
+| Raven (recommended LLM) | 24 languages | Conversation-tuned. Some languages outside this list (for example Danish) require a third-party LLM. |
+| Third-party LLMs | Provider-dependent | Pick a model that supports your target language; channel availability varies. |
 | ASR (speech-to-text) | Provider-dependent | Routed automatically per language with fallback. |
 | TTS (text-to-speech) | Provider-dependent | Voice availability varies by provider and language. |
 
@@ -26,7 +31,7 @@ For setup and runtime behavior, see [Multi-language](/agent-settings/multilingua
 
 ### Raven (recommended)
 
-[Raven](/agent-settings/raven) is purpose-built for customer service across voice and chat. Raven 3.5 supports the following languages:
+[Raven](/agent-settings/raven) is purpose-built for customer service across voice and chat. Raven 3.5 supports the following 24 languages:
 
 Arabic, Bulgarian, Cantonese, Croatian, Czech, Dutch, English, French, German, Greek, Hindi, Hindi (Romanized/Hinglish), Italian, Japanese, Korean, Mandarin (China), Mandarin (Taiwan), Polish, Portuguese (Brazil), Portuguese (Portugal), Serbian, Spanish (US), Swedish, Turkish.
 
@@ -34,13 +39,24 @@ Arabic, Bulgarian, Cantonese, Croatian, Czech, Dutch, English, French, German, G
 
 You can keep prompts and knowledge in English and set the response language to your target language – Raven responds consistently in the target language. Quality improves further if you translate prompts and add examples in the target language.
 
+<Warning>
+**Known Raven gaps.** Raven does **not** cover Danish – use GPT-5 (or another third-party model that supports Danish) for Danish deployments. Other languages in the 73-language table that are absent from the Raven list above also require a third-party LLM. When in doubt, check with Research before committing to a Raven deployment for a language not listed here.
+</Warning>
+
 ### Third-party LLMs
 
-When you select an OpenAI or Amazon Bedrock model on the [Model](/agent-settings/model-use) page, language coverage matches that provider's official support. PolyAI exposes the full union of those languages – 73 in total – so any language in the table below works with a supported third-party model even if Raven does not cover it.
+When you select an OpenAI or Amazon Bedrock model on the [Model](/agent-settings/model-use) page, language coverage matches that provider's official support. Use a third-party LLM when:
+
+- Your target language is not on the Raven list above, or
+- You need a capability only the third-party model provides.
 
 ### Full list of supported response languages
 
-PolyAI supports 73 response languages for multilingual agents. Pass the BCP 47 code (for example `es-ES`) when setting the language in the UI or via `conv.set_language()`.
+PolyAI accepts the BCP 47 codes below as response languages. Pass the code in the UI or via `conv.set_language()`.
+
+<Note>
+This list is mirrored from [Multi-language](/agent-settings/multilingual). It was originally compiled from documentation rather than a single engineering-authoritative registry. Treat it as the set of locale codes the platform accepts – not as a guarantee that every model covers every language. Always cross-check with the Raven list and the chosen third-party model's official language support before launching a new language.
+</Note>
 
 | Language | Code |
 | --- | --- |
@@ -128,34 +144,52 @@ For full model descriptions and selection guidance, see [Model](/agent-settings/
 
 ### LLM models
 
-| Provider | Model | Voice | Chat | Notes |
-| --- | --- | --- | --- | --- |
-| PolyAI | Raven 3.5 | <Icon icon="check" iconType="solid" /> | <Icon icon="check" iconType="solid" /> | Recommended. Auto-reasoning, out-of-domain detection, built-in safety. |
-| PolyAI | Raven V3 | <Icon icon="check" iconType="solid" /> | <Icon icon="xmark" iconType="solid" /> | Legacy. Superseded by Raven 3.5. |
-| OpenAI | GPT-5.2 | <Icon icon="check" iconType="solid" /> | <Icon icon="check" iconType="solid" /> | High-quality interactions requiring nuance and strong reasoning. |
-| OpenAI | GPT-5.2 chat | <Icon icon="check" iconType="solid" /> | <Icon icon="check" iconType="solid" /> | Extended dialogue and conversational stability. |
-| OpenAI | GPT-5 mini | <Icon icon="check" iconType="solid" /> | <Icon icon="check" iconType="solid" /> | Lower latency for mid-complexity use cases. |
-| OpenAI | GPT-5 nano | <Icon icon="check" iconType="solid" /> | <Icon icon="check" iconType="solid" /> | Simple tasks, fast response. |
-| OpenAI | GPT-4o / 4o mini | <Icon icon="check" iconType="solid" /> | <Icon icon="check" iconType="solid" /> | Versatile balance of reasoning, speed, and cost. |
-| OpenAI | GPT-4.1 / 4.1 mini / 4.1 nano | <Icon icon="check" iconType="solid" /> | <Icon icon="check" iconType="solid" /> | Reasoning to latency-focused tiers. |
-| Amazon Bedrock | Claude 3.5 Haiku | <Icon icon="check" iconType="solid" /> | <Icon icon="check" iconType="solid" /> | Predictable tasks with strong safety alignment. |
-| Amazon Bedrock | Nova Micro | <Icon icon="check" iconType="solid" /> | <Icon icon="check" iconType="solid" /> | Efficient general-purpose performance. |
+The table below reflects the model gateway registry in `poly_core/src/poly_platform/llm_gateway/dynamic_configs/models.*.yaml` (US-1, EU-W-1, UK-1 production). Per-channel support is gated by `supports_voice` / `supports_webchat` metadata served by the model options API – the channel column reflects today's defaults but a deployment-specific override can change it.
 
-You can also [bring your own model](/agent-settings/byom) via a custom LLM endpoint.
+| Provider | Model | Channel | Regions | Notes |
+| --- | --- | --- | --- | --- |
+| PolyAI | Raven 3.5 (`polywhirl-3-5`) | Voice + Chat | All | Recommended. Auto-reasoning, out-of-domain detection, custom style following, built-in safety. |
+| PolyAI | Raven V3 (`polywhirl-v3`) | Voice | All | Legacy. Superseded by Raven 3.5. No chat support. |
+| PolyAI | Raven V2 (`polywhirl-v2`) | Voice | All | Legacy. Retained for existing deployments. |
+| PolyAI | Raven Omni (`raven-omni`) | End-to-end voice | Dev / Apollo only | Not yet generally available. End-to-end speech-to-speech model. |
+| OpenAI (Azure / OpenAI direct) | GPT-5 | Voice + Chat | All | Strong reasoning. |
+| OpenAI (Azure / OpenAI direct) | GPT-5 mini | Voice + Chat | All | Lower latency for mid-complexity workloads. |
+| OpenAI (Azure / OpenAI direct) | GPT-5 nano | Voice + Chat | All | Fast, lightweight responses. |
+| OpenAI (Azure / OpenAI direct) | GPT-5 chat | Chat | All | Optimized for extended dialogue. |
+| OpenAI (Azure) | GPT-5.2 chat | Chat | All | Latest chat-optimized model. |
+| OpenAI (Azure / OpenAI direct) | GPT-4.1 | Voice + Chat | All | Strong reasoning with improved cross-task performance. |
+| OpenAI (Azure / OpenAI direct) | GPT-4.1 mini | Voice + Chat | All | Cost-effective, latency-focused. |
+| OpenAI (Azure / OpenAI direct) | GPT-4.1 nano | Voice + Chat | All | Minimal compute, high throughput. |
+| OpenAI (Azure / OpenAI direct) | GPT-4o | Voice + Chat | All | Balanced reasoning, speed, and cost. |
+| OpenAI (Azure / OpenAI direct) | GPT-4o mini | Voice + Chat | All | High-volume / everyday workloads. |
+| OpenAI | GPT realtime / realtime-mini | End-to-end voice | All | Speech-to-speech; behaves differently from text LLMs. |
+| Amazon Bedrock | Claude Sonnet 4 (`aws-claude-4-sonnet`) | Voice + Chat | US-1, EU-W-1, UK-1 | Strong reasoning and safety alignment. |
+| Amazon Bedrock | Claude 3.5 Haiku (`aws-claude-35-haiku`) | Voice + Chat | US-1 only | Predictable tasks with strong safety alignment. Not currently configured in EU-W-1 / UK-1. |
+| Amazon Bedrock | Nova Micro (`aws-nova-micro`) | Voice + Chat | All | Efficient general-purpose performance. |
+| Custom | Fine-tuned OpenAI (`oai-gpt-fine-tuned`) | Voice + Chat | All | Per-account fine-tuned OpenAI deployments. |
+| Custom | Bring your own model | Voice + Chat | All | See [Bring your own model](/agent-settings/byom). |
+
+<Note>
+**Channel column caveats.** "Voice + Chat" means the model is generally available for both channels via the model metadata flags. Some accounts disable specific models per channel, and end-to-end voice models (`gpt-realtime`, `raven-omni`) are filtered out of the traditional model selector by `filterTraditionalModels` in `platform_ui`. Confirm with Runtime / Research before relying on this column for a new launch.
+</Note>
 
 ### ASR providers
 
-ASR coverage is provider-dependent. PolyAI routes to the best-fit provider per language with automatic fallback. See [Speech recognition](/speech-recognition/introduction).
+ASR providers wired into the platform today (`poly_core/src/agent_v3/nlu/asr_providers/`):
 
-- Google Cloud Speech-to-Text
-- Google Gemini
-- Amazon Transcribe
 - Deepgram
-- OpenAI
-- Mistral
+- Google Cloud Speech-to-Text (v1 and v2)
 - NVIDIA Riva
+- Amazon Transcribe
+- OpenAI (Whisper)
+- Fano
 - NVIDIA NeMo
-- Custom ASR integrations
+
+The platform routes requests to the best-fit provider per language and use case, with automatic fallback. See [Speech recognition](/speech-recognition/introduction).
+
+<Note>
+Google Gemini and Mistral are listed as ASR providers in [Architecture overview](/glossary/architecture) but are not currently implemented in `agent_v3/nlu/asr_providers/`. Treat the architecture overview as forward-looking until those providers are confirmed live.
+</Note>
 
 ### TTS providers
 
@@ -177,19 +211,21 @@ TTS voice availability varies by provider and language. Browse what's available 
 ## Choosing a language and model
 
 1. **Pick the response language** from the table above using its BCP 47 code.
-2. **Check Raven coverage** – if your language is on the Raven list, Raven 3.5 is the recommended LLM.
-3. **If Raven does not cover it**, select a third-party LLM in [Voice configuration](/voice/voice-configuration) or [Chat configuration](/webchat/chat-configuration).
-4. **Confirm a voice exists** for the language in the [Voice library](/voice/voice-library). Prefer native voices over multilingual fallbacks.
-5. **Configure ASR** – defaults usually work, but for domain-specific terms see [Speech recognition](/speech-recognition/introduction) and [ASR biasing](/speech-recognition/introduction).
+2. **Check Raven coverage** – if your language is on the 24-language Raven list, Raven 3.5 is the recommended LLM.
+3. **If Raven does not cover it** (for example Danish), select a third-party LLM in [Voice configuration](/voice/voice-configuration) or [Chat configuration](/webchat/chat-configuration). Verify the chosen model officially supports the language.
+4. **Confirm regional availability** for Bedrock models if you are deploying outside US-1.
+5. **Confirm a voice exists** for the language in the [Voice library](/voice/voice-library). Prefer native voices over multilingual fallbacks.
+6. **Configure ASR** – defaults usually work; for domain terms see [Speech recognition](/speech-recognition/introduction) and ASR biasing.
 
 ## Maintaining this page
 
 This page is the canonical reference. When language or model coverage changes:
 
-- **New Raven language** → update the Raven list above and `agent-settings/raven.mdx`.
+- **Raven language added / removed** → update the Raven list above and `agent-settings/raven.mdx`, cite the Research announcement.
 - **New response language** → add a row to the full language table above and update `agent-settings/multilingual.mdx`.
-- **New LLM model** → add a row to the LLM model table above and update `agent-settings/model-use.mdx`.
-- **New ASR or TTS provider** → add to the provider lists above and update `glossary/architecture.mdx`.
+- **New / removed LLM model** → check `poly_core/src/poly_platform/llm_gateway/dynamic_configs/models.*.yaml`, update the model table above, and update `agent-settings/model-use.mdx`.
+- **Channel / regional availability change** → check `platform_ui` model metadata (`supports_voice`, `supports_webchat`) and the per-region gateway YAMLs.
+- **New ASR or TTS provider** → confirm against `poly_core/src/agent_v3/nlu/asr_providers/` (ASR) and TTS provider classes, then update the lists above and `glossary/architecture.mdx`.
 - **Deprecation** → mark the row and link to the release note in [Release notes](/releases).
 
 ## Related pages
