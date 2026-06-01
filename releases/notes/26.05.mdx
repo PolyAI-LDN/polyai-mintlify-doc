@@ -56,4 +56,42 @@ See [Tripleseat](/integrations/tripleseat) for the setup guide.
 
 </Accordion>
 
+<Accordion title="Custom payload templates for deployment webhooks" icon="webhook" id="deployment-webhook-payload-template">
+
+Deployment webhooks (fired on publish, promote, and rollback) now support an optional **`payload_template`** so you can shape the request body to match the system you're notifying — for example, GitHub's `repository_dispatch` endpoint or a Slack incoming webhook — instead of receiving the default PolyAI payload.
+
+Two substitution modes are supported:
+
+- **Field placeholders** — `{{deployment_id}}`, `{{account_id}}`, `{{project_id}}`, `{{client_env}}`, `{{artifact_version}}`, `{{deployment_type}}`, `{{deployment_message}}`, `{{version_hash}}`, `{{timestamp}}`, and `{{user}}` are replaced inline inside string values.
+- **Full payload** — the exact string `"{{payload}}"` is replaced with the full deployment payload object. When this placeholder is absent, the default payload fields are merged at the top level of the rendered template.
+
+Example — trigger a GitHub Actions workflow via `repository_dispatch`:
+
+```yaml
+webhooks:
+  on_draft_published:
+    - url: https://api.github.com/repos/my-org/my-repo/dispatches
+      auth:
+        header: Authorization
+        secret_name: github-token
+      payload_template:
+        event_type: project-sync
+        client_payload: "{{payload}}"
+```
+
+Example — post a human-readable message to Slack:
+
+```yaml
+webhooks:
+  on_deployment:
+    live:
+      - url: https://hooks.slack.com/services/T000/B000/XXX
+        payload_template:
+          text: "Deployed {{project_id}} ({{deployment_type}}) — {{deployment_message}}"
+```
+
+Webhooks without a `payload_template` continue to receive the default deployment payload unchanged.
+
+</Accordion>
+
 </AccordionGroup>
