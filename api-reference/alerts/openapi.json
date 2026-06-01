@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "PolyAI Alerts API",
-    "version": "1.0.0",
-    "description": "Create alert rules, inspect active alerts, register webhook endpoints, and receive signed webhook notifications when alert thresholds are breached."
+    "version": "1.0.8",
+    "description": "Manage alert rules and query active alerts."
   },
   "servers": [
     {
@@ -11,12 +11,16 @@
       "description": "US region"
     },
     {
+      "url": "https://api.eu.poly.ai",
+      "description": "EU region"
+    },
+    {
       "url": "https://api.uk.poly.ai",
       "description": "UK region"
     },
     {
-      "url": "https://api.eu.poly.ai",
-      "description": "EU region"
+      "url": "https://api.studio.poly.ai",
+      "description": "Studio region"
     }
   ],
   "security": [
@@ -29,7 +33,8 @@
       "ApiKeyAuth": {
         "type": "apiKey",
         "in": "header",
-        "name": "x-api-key"
+        "name": "X-API-KEY",
+        "description": "An API key is a token that you provide when making API calls. Include the token in a header parameter called `X-API-KEY`."
       }
     },
     "parameters": {
@@ -44,21 +49,11 @@
           "example": "ar_0Kx4mNpQ8rWvYb2dFgHjLs"
         }
       },
-      "EndpointId": {
-        "name": "endpoint_id",
-        "in": "path",
-        "required": true,
-        "description": "The endpoint_id must be a prefixed ID (e.g. whe_9ZtRcXw3nByK5pVqMaEfJs).",
-        "schema": {
-          "type": "string",
-          "pattern": "^whe_[A-Za-z0-9]+$",
-          "example": "whe_9ZtRcXw3nByK5pVqMaEfJs"
-        }
-      },
       "EnabledFilter": {
         "name": "enabled",
         "in": "query",
         "required": false,
+        "description": "Filter by enabled status",
         "schema": {
           "type": "boolean"
         }
@@ -67,14 +62,16 @@
         "name": "metric",
         "in": "query",
         "required": false,
+        "description": "Filter by metric",
         "schema": {
-          "$ref": "#/components/schemas/Metric"
+          "$ref": "#/components/schemas/AlertMetric"
         }
       },
       "ProjectIdFilter": {
         "name": "project_id",
         "in": "query",
         "required": false,
+        "description": "Filter by project ID",
         "schema": {
           "type": "string"
         }
@@ -83,22 +80,16 @@
         "name": "state",
         "in": "query",
         "required": false,
+        "description": "Filter by current state",
         "schema": {
           "$ref": "#/components/schemas/AlertState"
-        }
-      },
-      "EventTypeFilter": {
-        "name": "event_type",
-        "in": "query",
-        "required": false,
-        "schema": {
-          "$ref": "#/components/schemas/WebhookEventType"
         }
       }
     },
     "schemas": {
-      "Metric": {
+      "AlertMetric": {
         "type": "string",
+        "description": "Metric to monitor.",
         "enum": [
           "turn_latency_p50",
           "turn_latency_p95",
@@ -108,25 +99,24 @@
           "call_volume"
         ]
       },
-      "ComparisonOperator": {
+      "AlertOperator": {
         "type": "string",
+        "description": "Comparison operator used by the alert rule.",
         "enum": [">", "<", ">=", "<="]
       },
       "AlertState": {
         "type": "string",
+        "description": "Current state of an alert rule.",
         "enum": ["ok", "alert", "no_data", "unknown"]
-      },
-      "WebhookEventType": {
-        "type": "string",
-        "enum": ["alerts.triggered", "alerts.resolved"]
       },
       "WindowDuration": {
         "type": "string",
-        "description": "Evaluation window duration",
+        "description": "Evaluation window duration. Allowed values: `5m`, `10m`, or `60m`.",
         "enum": ["5m", "10m", "60m"]
       },
-      "AlertRule": {
+      "AlertRuleResponse": {
         "type": "object",
+        "description": "An alert rule: its trigger condition, evaluation window, and current state.",
         "required": [
           "id",
           "name",
@@ -135,38 +125,110 @@
           "threshold_value",
           "window_duration",
           "enabled",
-          "current_state",
           "created_at",
           "updated_at"
         ],
         "properties": {
-          "id": { "type": "string", "pattern": "^ar_[A-Za-z0-9]+$", "example": "ar_0Kx4mNpQ8rWvYb2dFgHjLs" },
-          "name": { "type": "string" },
-          "project_id": { "type": ["string", "null"] },
-          "metric": { "$ref": "#/components/schemas/Metric" },
-          "operator": { "$ref": "#/components/schemas/ComparisonOperator" },
-          "threshold_value": { "type": "integer", "minimum": 0 },
-          "window_duration": { "$ref": "#/components/schemas/WindowDuration" },
-          "enabled": { "type": "boolean", "default": true },
-          "current_state": { "$ref": "#/components/schemas/AlertState" },
-          "since": { "type": ["string", "null"], "format": "date-time" },
-          "last_evaluated_at": { "type": ["string", "null"], "format": "date-time" },
-          "current_value": { "type": ["integer", "null"] },
-          "created_at": { "type": "string", "format": "date-time" },
-          "updated_at": { "type": "string", "format": "date-time" }
+          "id": {
+            "type": "string",
+            "description": "Alert rule ID",
+            "pattern": "^ar_[A-Za-z0-9]+$",
+            "example": "ar_0Kx4mNpQ8rWvYb2dFgHjLs"
+          },
+          "name": {
+            "type": "string",
+            "description": "Alert rule name"
+          },
+          "project_id": {
+            "type": ["string", "null"],
+            "description": "Project ID"
+          },
+          "metric": {
+            "$ref": "#/components/schemas/AlertMetric",
+            "description": "Metric being monitored"
+          },
+          "operator": {
+            "$ref": "#/components/schemas/AlertOperator",
+            "description": "Comparison operator"
+          },
+          "threshold_value": {
+            "type": "integer",
+            "description": "Threshold value",
+            "minimum": 0
+          },
+          "window_duration": {
+            "$ref": "#/components/schemas/WindowDuration",
+            "description": "Window duration (5m, 10m, or 60m)"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether the alert is enabled"
+          },
+          "current_state": {
+            "$ref": "#/components/schemas/AlertState",
+            "description": "Current alert state"
+          },
+          "since": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "When the current state started"
+          },
+          "last_evaluated_at": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Last evaluation timestamp"
+          },
+          "current_value": {
+            "type": ["integer", "null"],
+            "description": "Current metric value"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last update timestamp"
+          }
         }
       },
-      "CreateAlertRuleRequest": {
+      "AlertRuleCreateRequest": {
         "type": "object",
+        "description": "Fields for creating a new alert rule: which metric to watch, the threshold condition, and how long it must hold to fire.",
         "required": ["name", "metric", "operator", "threshold_value", "window_duration"],
         "properties": {
-          "name": { "type": "string" },
-          "project_id": { "type": ["string", "null"] },
-          "metric": { "$ref": "#/components/schemas/Metric" },
-          "operator": { "$ref": "#/components/schemas/ComparisonOperator" },
-          "threshold_value": { "type": "integer", "minimum": 0 },
-          "window_duration": { "$ref": "#/components/schemas/WindowDuration" },
-          "enabled": { "type": "boolean", "default": true }
+          "name": {
+            "type": "string",
+            "description": "Alert rule name"
+          },
+          "project_id": {
+            "type": ["string", "null"],
+            "description": "Project ID (optional)"
+          },
+          "metric": {
+            "$ref": "#/components/schemas/AlertMetric",
+            "description": "Metric to monitor"
+          },
+          "operator": {
+            "$ref": "#/components/schemas/AlertOperator",
+            "description": "Comparison operator"
+          },
+          "threshold_value": {
+            "type": "integer",
+            "description": "Threshold value",
+            "minimum": 0
+          },
+          "window_duration": {
+            "$ref": "#/components/schemas/WindowDuration",
+            "description": "Window duration (5m, 10m, or 60m)"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether the alert is enabled",
+            "default": true
+          }
         },
         "additionalProperties": false,
         "example": {
@@ -179,21 +241,36 @@
           "enabled": true
         }
       },
-      "UpdateAlertRuleAttributes": {
+      "AlertRuleUpdateRequest": {
         "type": "object",
+        "description": "Partial update for an alert rule. Include only the fields you want to change.",
         "properties": {
-          "name": { "type": "string" },
-          "project_id": { "type": ["string", "null"] },
-          "metric": { "$ref": "#/components/schemas/Metric" },
-          "operator": { "$ref": "#/components/schemas/ComparisonOperator" },
-          "threshold_value": { "type": "integer", "minimum": 0 },
-          "window_duration": { "$ref": "#/components/schemas/WindowDuration" },
-          "enabled": { "type": "boolean" }
+          "name": {
+            "type": "string",
+            "description": "Alert rule name"
+          },
+          "project_id": {
+            "type": ["string", "null"],
+            "description": "Project ID"
+          },
+          "metric": {
+            "$ref": "#/components/schemas/AlertMetric"
+          },
+          "operator": {
+            "$ref": "#/components/schemas/AlertOperator"
+          },
+          "threshold_value": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "window_duration": {
+            "$ref": "#/components/schemas/WindowDuration"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
         },
-        "additionalProperties": false
-      },
-      "UpdateAlertRuleRequest": {
-        "$ref": "#/components/schemas/UpdateAlertRuleAttributes",
+        "additionalProperties": false,
         "example": {
           "threshold_value": 2000,
           "enabled": false
@@ -201,16 +278,19 @@
       },
       "AlertRuleListResponse": {
         "type": "object",
+        "description": "Every alert rule in scope, each with its current state.",
         "required": ["data"],
         "properties": {
           "data": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/AlertRule" }
+            "description": "An alert rule: its trigger condition, evaluation window, and current state.",
+            "items": { "$ref": "#/components/schemas/AlertRuleResponse" }
           }
         }
       },
-      "ActiveAlert": {
+      "ActiveAlertResponse": {
         "type": "object",
+        "description": "An alert rule that is currently firing, with details about why and when it triggered.",
         "required": [
           "alert_rule_id",
           "name",
@@ -221,202 +301,83 @@
           "since"
         ],
         "properties": {
-          "alert_rule_id": { "type": "string", "pattern": "^ar_[A-Za-z0-9]+$", "example": "ar_0Kx4mNpQ8rWvYb2dFgHjLs" },
-          "name": { "type": "string" },
-          "project_id": { "type": ["string", "null"] },
-          "metric": { "$ref": "#/components/schemas/Metric" },
-          "operator": { "$ref": "#/components/schemas/ComparisonOperator" },
-          "threshold_value": { "type": "integer" },
-          "window_duration": { "$ref": "#/components/schemas/WindowDuration" },
-          "since": { "type": "string", "format": "date-time" },
-          "last_evaluated_at": { "type": ["string", "null"], "format": "date-time" },
-          "current_value": { "type": ["integer", "null"] }
-        }
-      },
-      "ActiveAlertListResponse": {
-        "type": "object",
-        "required": ["data"],
-        "properties": {
-          "data": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/ActiveAlert" }
-          }
-        }
-      },
-      "WebhookEndpoint": {
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "url",
-          "enabled",
-          "event_types",
-          "timeout_ms",
-          "created_at",
-          "updated_at"
-        ],
-        "properties": {
-          "id": { "type": "string", "pattern": "^whe_[A-Za-z0-9]+$", "example": "whe_9ZtRcXw3nByK5pVqMaEfJs" },
-          "name": { "type": "string", "minLength": 1, "maxLength": 255 },
-          "url": { "type": "string", "format": "uri" },
-          "enabled": { "type": "boolean", "default": true },
-          "event_types": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/WebhookEventType" }
-          },
-          "headers": {
-            "type": "object",
-            "additionalProperties": { "type": "string" },
-            "default": {}
-          },
-          "timeout_ms": {
-            "type": "integer",
-            "minimum": 1000,
-            "maximum": 30000,
-            "default": 5000
-          },
-          "created_at": { "type": "string", "format": "date-time" },
-          "updated_at": { "type": "string", "format": "date-time" }
-        }
-      },
-      "WebhookEndpointCreateResponse": {
-        "allOf": [
-          { "$ref": "#/components/schemas/WebhookEndpoint" },
-          {
-            "type": "object",
-            "required": ["signing_secret"],
-            "properties": {
-              "signing_secret": {
-                "type": "string",
-                "description": "Returned only once during endpoint creation. Store it securely."
-              }
-            }
-          }
-        ]
-      },
-      "CreateWebhookEndpointRequest": {
-        "type": "object",
-        "required": ["name", "url", "event_types"],
-        "properties": {
-          "name": { "type": "string", "minLength": 1, "maxLength": 255 },
-          "url": {
+          "alert_rule_id": {
             "type": "string",
-            "format": "uri",
-            "pattern": "^https://"
+            "description": "Alert rule ID",
+            "pattern": "^ar_[A-Za-z0-9]+$",
+            "example": "ar_0Kx4mNpQ8rWvYb2dFgHjLs"
           },
-          "event_types": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/WebhookEventType" },
-            "minItems": 1
-          },
-          "headers": {
-            "type": "object",
-            "additionalProperties": { "type": "string" }
-          },
-          "timeout_ms": {
-            "type": "integer",
-            "minimum": 1000,
-            "maximum": 30000,
-            "default": 5000
-          },
-          "enabled": { "type": "boolean", "default": true }
-        },
-        "additionalProperties": false,
-        "example": {
-          "name": "Production alerts",
-          "url": "https://example.com/webhooks/polyai",
-          "event_types": ["alerts.triggered"],
-          "headers": {
-            "X-Custom-Header": "my-value"
-          },
-          "timeout_ms": 5000,
-          "enabled": true
-        }
-      },
-      "UpdateWebhookEndpointAttributes": {
-        "type": "object",
-        "properties": {
-          "name": { "type": "string", "minLength": 1, "maxLength": 255 },
-          "url": {
+          "name": {
             "type": "string",
-            "format": "uri",
-            "pattern": "^https://"
+            "description": "Alert rule name"
           },
-          "event_types": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/WebhookEventType" },
-            "minItems": 1
-          },
-          "headers": {
-            "type": "object",
-            "additionalProperties": { "type": "string" }
-          },
-          "timeout_ms": {
-            "type": "integer",
-            "minimum": 1000,
-            "maximum": 30000
-          },
-          "enabled": { "type": "boolean" }
-        },
-        "additionalProperties": false
-      },
-      "UpdateWebhookEndpointRequest": {
-        "$ref": "#/components/schemas/UpdateWebhookEndpointAttributes",
-        "example": {
-          "url": "https://example.com/webhooks/polyai-v2",
-          "enabled": false
-        }
-      },
-      "WebhookEndpointListResponse": {
-        "type": "object",
-        "required": ["data"],
-        "properties": {
-          "data": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/WebhookEndpoint" }
-          }
-        }
-      },
-      "WebhookAlert": {
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "metric",
-          "operator",
-          "threshold_value",
-          "triggered_at"
-        ],
-        "properties": {
-          "id": { "type": "string", "pattern": "^ar_[A-Za-z0-9]+$", "example": "ar_0Kx4mNpQ8rWvYb2dFgHjLs" },
-          "name": { "type": "string" },
-          "project_id": { "type": ["string", "null"] },
-          "metric": { "$ref": "#/components/schemas/Metric" },
-          "operator": { "$ref": "#/components/schemas/ComparisonOperator" },
-          "threshold_value": { "type": "integer" },
-          "current_value": { "type": ["integer", "null"] },
-          "previous_state": {
+          "project_id": {
             "type": ["string", "null"],
-            "enum": ["ok", "alert", "no_data", "unknown", null]
+            "description": "Project ID"
           },
-          "triggered_at": { "type": "string", "format": "date-time" }
-        }
-      },
-      "WebhookEvent": {
-        "type": "object",
-        "required": ["event_type", "alert"],
-        "properties": {
-          "event_type": { "$ref": "#/components/schemas/WebhookEventType" },
-          "alert": { "$ref": "#/components/schemas/WebhookAlert" }
-        }
-      },
-      "RotateSigningSecretResponse": {
-        "type": "object",
-        "required": ["signing_secret"],
-        "properties": {
-          "signing_secret": {
+          "metric": {
+            "$ref": "#/components/schemas/AlertMetric"
+          },
+          "operator": {
+            "$ref": "#/components/schemas/AlertOperator"
+          },
+          "threshold_value": {
+            "type": "integer",
+            "description": "Threshold value"
+          },
+          "window_duration": {
+            "$ref": "#/components/schemas/WindowDuration"
+          },
+          "since": {
             "type": "string",
-            "description": "The new signing secret. Store it securely — it cannot be retrieved again."
+            "format": "date-time",
+            "description": "When the alert started firing"
+          },
+          "last_evaluated_at": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Last evaluation timestamp"
+          },
+          "current_value": {
+            "type": ["integer", "null"],
+            "description": "Current metric value"
+          }
+        }
+      },
+      "ActiveAlertsListResponse": {
+        "type": "object",
+        "description": "Every alert rule currently in the firing state.",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ActiveAlertResponse" }
+          }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "properties": {
+          "loc": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                { "type": "string" },
+                { "type": "integer" }
+              ]
+            }
+          },
+          "msg": { "type": "string" },
+          "type": { "type": "string" }
+        }
+      },
+      "HTTPValidationError": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ValidationError" }
           }
         }
       },
@@ -453,7 +414,7 @@
         }
       },
       "Conflict": {
-        "description": "Resource limit exceeded (e.g. maximum number of alert rules or webhook endpoints reached).",
+        "description": "Resource limit exceeded (e.g. maximum number of alert rules reached).",
         "content": {
           "application/json": {
             "schema": { "$ref": "#/components/schemas/Error" }
@@ -464,7 +425,7 @@
         "description": "Validation error or malformed resource ID.",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" }
+            "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
           }
         }
       },
@@ -491,6 +452,7 @@
       "get": {
         "summary": "List alert rules",
         "operationId": "listAlertRules",
+        "description": "List alert rules with optional filters.",
         "parameters": [
           { "$ref": "#/components/parameters/EnabledFilter" },
           { "$ref": "#/components/parameters/MetricFilter" },
@@ -514,11 +476,12 @@
       "post": {
         "summary": "Create an alert rule",
         "operationId": "createAlertRule",
+        "description": "Create a new alert rule. The `account_id` is derived from the `X-API-KEY` header.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/CreateAlertRuleRequest" }
+              "schema": { "$ref": "#/components/schemas/AlertRuleCreateRequest" }
             }
           }
         },
@@ -527,7 +490,7 @@
             "description": "Alert rule created successfully.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AlertRule" }
+                "schema": { "$ref": "#/components/schemas/AlertRuleResponse" }
               }
             }
           },
@@ -544,13 +507,14 @@
       "get": {
         "summary": "Get an alert rule",
         "operationId": "getAlertRule",
+        "description": "Get a single alert rule by its ID.",
         "parameters": [{ "$ref": "#/components/parameters/RuleId" }],
         "responses": {
           "200": {
             "description": "Alert rule retrieved successfully.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AlertRule" }
+                "schema": { "$ref": "#/components/schemas/AlertRuleResponse" }
               }
             }
           },
@@ -563,12 +527,13 @@
       "patch": {
         "summary": "Update an alert rule",
         "operationId": "updateAlertRule",
+        "description": "Update an alert rule. Only the fields included in the request body are changed.",
         "parameters": [{ "$ref": "#/components/parameters/RuleId" }],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpdateAlertRuleRequest" }
+              "schema": { "$ref": "#/components/schemas/AlertRuleUpdateRequest" }
             }
           }
         },
@@ -577,7 +542,7 @@
             "description": "Alert rule updated successfully.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AlertRule" }
+                "schema": { "$ref": "#/components/schemas/AlertRuleResponse" }
               }
             }
           },
@@ -592,6 +557,7 @@
       "delete": {
         "summary": "Delete an alert rule",
         "operationId": "deleteAlertRule",
+        "description": "Delete an alert rule by its ID.",
         "parameters": [{ "$ref": "#/components/parameters/RuleId" }],
         "responses": {
           "204": {
@@ -606,8 +572,9 @@
     },
     "/v1/alerts": {
       "get": {
-        "summary": "List active alerts",
-        "operationId": "listActiveAlerts",
+        "summary": "Get active alerts",
+        "operationId": "getActiveAlerts",
+        "description": "List alert rules that are currently in the `alert` state.",
         "parameters": [
           { "$ref": "#/components/parameters/ProjectIdFilter" },
           { "$ref": "#/components/parameters/MetricFilter" }
@@ -617,187 +584,12 @@
             "description": "Active alerts retrieved successfully.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ActiveAlertListResponse" }
+                "schema": { "$ref": "#/components/schemas/ActiveAlertsListResponse" }
               }
             }
           },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "500": { "$ref": "#/components/responses/InternalServerError" }
-        }
-      }
-    },
-    "/v1/webhook-endpoints": {
-      "get": {
-        "summary": "List webhook endpoints",
-        "operationId": "listWebhookEndpoints",
-        "parameters": [
-          { "$ref": "#/components/parameters/EnabledFilter" },
-          { "$ref": "#/components/parameters/EventTypeFilter" }
-        ],
-        "responses": {
-          "200": {
-            "description": "Webhook endpoints retrieved successfully.",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/WebhookEndpointListResponse" }
-              }
-            }
-          },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
-        }
-      },
-      "post": {
-        "summary": "Create a webhook endpoint",
-        "operationId": "createWebhookEndpoint",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/CreateWebhookEndpointRequest" }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Webhook endpoint created successfully.",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/WebhookEndpointCreateResponse" }
-              }
-            }
-          },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "409": { "$ref": "#/components/responses/Conflict" },
-          "422": { "$ref": "#/components/responses/UnprocessableEntity" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
-        }
-      }
-    },
-    "/v1/webhook-endpoints/{endpoint_id}/rotate-secret": {
-      "post": {
-        "summary": "Rotate webhook signing secret",
-        "operationId": "rotateWebhookSigningSecret",
-        "description": "Generates a new signing secret for the webhook endpoint. The previous secret is immediately invalidated.",
-        "parameters": [{ "$ref": "#/components/parameters/EndpointId" }],
-        "responses": {
-          "200": {
-            "description": "Signing secret rotated successfully.",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/RotateSigningSecretResponse" }
-              }
-            }
-          },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "422": { "$ref": "#/components/responses/UnprocessableEntity" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
-        }
-      }
-    },
-    "/v1/webhook-endpoints/{endpoint_id}": {
-      "get": {
-        "summary": "Get a webhook endpoint",
-        "operationId": "getWebhookEndpoint",
-        "parameters": [{ "$ref": "#/components/parameters/EndpointId" }],
-        "responses": {
-          "200": {
-            "description": "Webhook endpoint retrieved successfully.",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/WebhookEndpoint" }
-              }
-            }
-          },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "422": { "$ref": "#/components/responses/UnprocessableEntity" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
-        }
-      },
-      "patch": {
-        "summary": "Update a webhook endpoint",
-        "operationId": "updateWebhookEndpoint",
-        "parameters": [{ "$ref": "#/components/parameters/EndpointId" }],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpdateWebhookEndpointRequest" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Webhook endpoint updated successfully.",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/WebhookEndpoint" }
-              }
-            }
-          },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "422": { "$ref": "#/components/responses/UnprocessableEntity" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
-        }
-      },
-      "delete": {
-        "summary": "Delete a webhook endpoint",
-        "operationId": "deleteWebhookEndpoint",
-        "parameters": [{ "$ref": "#/components/parameters/EndpointId" }],
-        "responses": {
-          "204": {
-            "description": "Webhook endpoint deleted successfully."
-          },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "422": { "$ref": "#/components/responses/UnprocessableEntity" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
-        }
-      }
-    }
-  },
-  "webhooks": {
-    "alertsTriggered": {
-      "post": {
-        "summary": "alerts.triggered webhook",
-        "description": "Sent when an alert rule transitions into a firing state.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/WebhookEvent" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Your endpoint acknowledged the event."
-          }
-        }
-      }
-    },
-    "alertsResolved": {
-      "post": {
-        "summary": "alerts.resolved webhook",
-        "description": "Sent when a firing alert transitions back to the ok state.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/WebhookEvent" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Your endpoint acknowledged the event."
-          }
         }
       }
     }

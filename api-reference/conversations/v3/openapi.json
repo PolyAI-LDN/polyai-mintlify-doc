@@ -2,7 +2,7 @@
   "openapi": "3.0.1",
   "info": {
     "title": "PolyAI Conversations API v3",
-    "description": "Schema for the PolyAI Conversations API v3.\n\nCompared to v1, v3:\n- Exposes additional turn-level fields (latency, translated_user_input, english_agent_response).\n- Normalizes empty text fields as empty strings rather than null.\n-",
+    "description": "Query conversations, recordings, and debug chat for a PolyAI agent.\n\nCompared to v1, v3:\n- Exposes additional turn-level fields (latency, translated_user_input, english_agent_response).\n- Normalizes empty text fields as empty strings rather than null.",
     "license": {
       "name": "MIT"
     },
@@ -27,9 +27,21 @@
       "ApiKeyAuth": []
     }
   ],
+  "tags": [
+    {
+      "name": "Conversations",
+      "description": "Query conversations and audio recordings."
+    },
+    {
+      "name": "Debug Chat",
+      "description": "Create and respond to debug chat sessions for testing an agent."
+    }
+  ],
   "paths": {
     "/v3/{account_id}/{project_id}/conversations": {
       "get": {
+        "tags": ["Conversations"],
+        "summary": "List conversations for a project",
         "description": "Retrieves conversations for a given account and project. Supports three retrieval modes: transcript search, semantic search, and random sampling. When no retrieval mode is specified, the endpoint returns all conversations matching the given filters (default behavior). Only one retrieval mode may be specified per request.",
         "parameters": [
           {
@@ -223,24 +235,290 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "conversations": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Conversation"
-                      }
-                    },
-                    "next_offset": {
-                      "type": "integer",
-                      "description": "If present, the result is being paginated and requires another API call to fetch the next portion (pass the provided `next_offset` as the `offset` param for the next API call). For new integrations, prefer the `cursor` field for faster, drift-free pagination."
-                    },
-                    "cursor": {
-                      "type": "string",
-                      "nullable": true,
-                      "description": "Opaque cursor pointing to the start of the next page. Pass this value as the `cursor` query parameter on the next request to fetch the following page. `null` when there are no more pages."
-                    }
-                  }
+                  "$ref": "#/components/schemas/GetConversationsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/conversations/{conversationId}": {
+      "get": {
+        "tags": ["Conversations"],
+        "summary": "Get a conversation by ID",
+        "description": "Retrieves a single conversation, including turn-by-turn transcript, metrics, and function events.\n\n**Host:** this endpoint is served from `api.{region}.poly.ai` — *not* the `api.{region}-1.platform.polyai.app` host used by the list-conversations and audio endpoints.",
+        "servers": [
+          { "url": "https://api.us.poly.ai", "description": "US base url" },
+          { "url": "https://api.eu.poly.ai", "description": "EU base url" },
+          { "url": "https://api.uk.poly.ai", "description": "UK base url" },
+          { "url": "https://api.studio.poly.ai", "description": "Studio base url" }
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "description": "Agent ID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "conversationId",
+            "in": "path",
+            "description": "Unique conversation ID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CAabcd1234567abcdef1250065d4fc7389"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/conversations/{conversationId}/audio": {
+      "get": {
+        "tags": ["Conversations"],
+        "summary": "Get audio recording for a conversation",
+        "description": "Returns the audio recording for a conversation as a WAV file.\n\n**Host:** this endpoint is served from `api.{region}.poly.ai` — *not* the `api.{region}-1.platform.polyai.app` host used by the list-conversations endpoint.\n\n**PII access enforcement.** Users without PII access always receive the redacted recording, regardless of the `redacted` query parameter. Users with PII access receive the raw recording by default and can opt into the redacted version by passing `redacted=true`. PII access is granted through your account's role and permission configuration in Agent Studio.",
+        "servers": [
+          { "url": "https://api.us.poly.ai", "description": "US base url" },
+          { "url": "https://api.eu.poly.ai", "description": "EU base url" },
+          { "url": "https://api.uk.poly.ai", "description": "UK base url" },
+          { "url": "https://api.studio.poly.ai", "description": "Studio base url" }
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "description": "Agent ID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "conversationId",
+            "in": "path",
+            "description": "Unique conversation ID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CAabcd1234567abcdef1250065d4fc7389"
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "description": "Which side of the call to return. `combined` returns the full mixed recording. `user` returns only the caller audio. `agent` returns only the agent audio.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "combined",
+                "user",
+                "agent"
+              ],
+              "default": "combined"
+            }
+          },
+          {
+            "name": "redacted",
+            "in": "query",
+            "description": "If `true`, returns the redacted recording with personally identifiable information (PII) muted. If `false`, returns the raw recording. **Users without PII access always receive the redacted recording, regardless of this parameter.**",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "WAV audio recording for the conversation.",
+            "content": {
+              "audio/wav": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Recording not found for the given conversation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/debug-chat": {
+      "post": {
+        "tags": ["Debug Chat"],
+        "summary": "Create a new debug chat session",
+        "description": "Starts a new debug chat session against an agent. Use this to interactively test an agent variant outside of production traffic.\n\n**Host:** this endpoint is served from `api.{region}.poly.ai` — *not* the `api.{region}-1.platform.polyai.app` host used by the list-conversations and audio endpoints.",
+        "servers": [
+          { "url": "https://api.us.poly.ai", "description": "US base url" },
+          { "url": "https://api.eu.poly.ai", "description": "EU base url" },
+          { "url": "https://api.uk.poly.ai", "description": "UK base url" },
+          { "url": "https://api.studio.poly.ai", "description": "Studio base url" }
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "description": "Agent ID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDebugChatBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Debug chat session created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebugChatResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/debug-chat/{conversationId}": {
+      "post": {
+        "tags": ["Debug Chat"],
+        "summary": "Send a message to a debug chat session",
+        "description": "Sends a user turn into an existing debug chat session and returns the agent's response.\n\n**Host:** this endpoint is served from `api.{region}.poly.ai` — *not* the `api.{region}-1.platform.polyai.app` host used by the list-conversations and audio endpoints.",
+        "servers": [
+          { "url": "https://api.us.poly.ai", "description": "US base url" },
+          { "url": "https://api.eu.poly.ai", "description": "EU base url" },
+          { "url": "https://api.uk.poly.ai", "description": "UK base url" },
+          { "url": "https://api.studio.poly.ai", "description": "Studio base url" }
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "description": "Agent ID.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "conversationId",
+            "in": "path",
+            "description": "Debug chat session conversation ID returned by `POST /v1/agents/{agentId}/debug-chat`.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RespondDebugChatBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebugChatResponse"
                 }
               }
             }
@@ -393,8 +671,9 @@
           }
         }
       },
-      "Conversation": {
+      "ConversationSummaryResponse": {
         "type": "object",
+        "description": "Public-facing conversation summary (used in list endpoint).",
         "properties": {
           "id": {
             "type": "string",
@@ -490,15 +769,6 @@
                   "minItems": 2
                 }
               ]
-            },
-            "example": {
-              "CALL_DURATION": "30",
-              "CALL_TURN": [
-                "2022-02-18T12:09:05.12677Z",
-                "2022-02-18T12:09:17.90602Z",
-                "2022-02-18T12:09:29.57732Z",
-                "2022-02-18T12:09:35.36996Z"
-              ]
             }
           },
           "state": {
@@ -522,6 +792,278 @@
           "channel",
           "in_progress"
         ]
+      },
+      "ConversationDetailResponse": {
+        "type": "object",
+        "description": "Public-facing conversation detail (includes turns, metrics, and function events).",
+        "required": ["conversationId", "accountId", "projectId"],
+        "properties": {
+          "conversationId": {
+            "type": "string",
+            "description": "Unique ID for this conversation.",
+            "example": "CAabcd1234567abcdef1250065d4fc7389"
+          },
+          "accountId": {
+            "type": "string",
+            "description": "ID of the customer account this conversation is under."
+          },
+          "projectId": {
+            "type": "string",
+            "description": "ID of the project this conversation is under."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "channel": {
+            "type": "string",
+            "description": "Conversation medium (e.g. `WEBCHAT`, `VOICE-SIP`)."
+          },
+          "fromNumber": {
+            "type": "string",
+            "description": "Caller phone number."
+          },
+          "toNumber": {
+            "type": "string",
+            "description": "Agent phone number."
+          },
+          "language": {
+            "type": "string",
+            "description": "Conversation language code."
+          },
+          "variantId": {
+            "type": "string",
+            "description": "Variant ID the conversation ran in."
+          },
+          "clientEnv": {
+            "type": "string",
+            "description": "Client environment (`sandbox`, `pre-release`, or `live`)."
+          },
+          "totalDuration": {
+            "type": "integer",
+            "description": "Total call duration in seconds."
+          },
+          "polyaiDuration": {
+            "type": "integer",
+            "description": "PolyAI-handled duration in seconds."
+          },
+          "duration": {
+            "type": "integer",
+            "description": "Duration in seconds."
+          },
+          "inProgress": {
+            "type": "boolean",
+            "description": "Whether the conversation is still in progress."
+          },
+          "handoff": {
+            "type": "boolean",
+            "description": "Whether handoff occurred."
+          },
+          "handoffDestination": {
+            "type": "string",
+            "description": "If multiple handoff destinations exist, which one was used."
+          },
+          "handoffReason": {
+            "type": "string",
+            "description": "Brief handoff reason."
+          },
+          "direction": {
+            "type": "string",
+            "description": "Call direction (e.g. `inbound`, `outbound`)."
+          },
+          "tags": {
+            "type": "array",
+            "description": "Tags applied to the conversation.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "polyScore": {
+            "type": "number",
+            "description": "PolyScore quality measure."
+          },
+          "shortSummary": {
+            "type": "string",
+            "description": "Short summary of the conversation."
+          },
+          "deploymentId": {
+            "type": "string",
+            "description": "Deployment ID."
+          },
+          "note": {
+            "type": "string",
+            "description": "Free-text note saved on the conversation."
+          },
+          "audioUrl": {
+            "type": "string",
+            "description": "URL to the audio recording."
+          },
+          "turns": {
+            "type": "array",
+            "description": "Ordered list of conversation turns.",
+            "items": {
+              "$ref": "#/components/schemas/ConversationTurn"
+            }
+          },
+          "metrics": {
+            "type": "object",
+            "description": "Custom metrics recorded for the conversation."
+          },
+          "functionEvents": {
+            "type": "object",
+            "description": "Function execution events that occurred during the conversation."
+          }
+        }
+      },
+      "GetConversationsResponse": {
+        "type": "object",
+        "description": "A page of conversations matching the query, plus pagination data.",
+        "required": ["conversations"],
+        "properties": {
+          "conversations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConversationSummaryResponse"
+            }
+          },
+          "next_offset": {
+            "type": "integer",
+            "description": "If present, the result is being paginated and requires another API call to fetch the next portion (pass the provided `next_offset` as the `offset` param for the next API call). For new integrations, prefer the `cursor` field for faster, drift-free pagination."
+          },
+          "cursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Opaque cursor pointing to the start of the next page. Pass this value as the `cursor` query parameter on the next request to fetch the following page. `null` when there are no more pages."
+          }
+        }
+      },
+      "ChatMetadataResponse": {
+        "type": "object",
+        "description": "Metadata returned with each chat response.",
+        "properties": {
+          "asrLangCode": {
+            "type": "string",
+            "description": "ASR language code (e.g. `en-US`)."
+          },
+          "ttsLangCode": {
+            "type": "string",
+            "description": "TTS language code (e.g. `en-US`)."
+          },
+          "agentResponseAudioUrl": {
+            "type": "string",
+            "description": "URL to the synthesized audio for the agent response, when applicable."
+          }
+        }
+      },
+      "CreateDebugChatBody": {
+        "type": "object",
+        "description": "Starting parameters for a debug chat session: which agent variant, which language codes, and which environment to run in.",
+        "required": ["clientEnv"],
+        "properties": {
+          "clientEnv": {
+            "type": "string",
+            "description": "Client environment (`sandbox`, `pre-release`, `live`).",
+            "enum": ["sandbox", "pre-release", "live"]
+          },
+          "asrLangCode": {
+            "type": "string",
+            "description": "ASR language code (e.g. `en-US`). Defaults to server config."
+          },
+          "ttsLangCode": {
+            "type": "string",
+            "description": "TTS language code (e.g. `en-US`). Defaults to server config."
+          },
+          "conversationId": {
+            "type": "string",
+            "description": "Custom conversation ID. Auto-generated if omitted."
+          },
+          "variantId": {
+            "type": "string",
+            "description": "Variant ID to use."
+          },
+          "channel": {
+            "type": "string",
+            "description": "Channel type (e.g. `chat.polyai`)."
+          },
+          "integrationAttributes": {
+            "type": "object",
+            "description": "Custom attributes accessible via `conv.integration_attributes` in project functions."
+          }
+        }
+      },
+      "RespondDebugChatBody": {
+        "type": "object",
+        "description": "A user turn sent into an existing debug chat session, with the runtime overrides that apply to this message.",
+        "required": ["clientEnv"],
+        "properties": {
+          "clientEnv": {
+            "type": "string",
+            "description": "Client environment (`sandbox`, `pre-release`, `live`).",
+            "enum": ["sandbox", "pre-release", "live"]
+          },
+          "asrLangCode": {
+            "type": "string",
+            "description": "ASR language code (e.g. `en-US`). Defaults to server config."
+          },
+          "ttsLangCode": {
+            "type": "string",
+            "description": "TTS language code (e.g. `en-US`). Defaults to server config."
+          },
+          "message": {
+            "type": "string",
+            "description": "User input message.",
+            "default": ""
+          },
+          "metadata": {
+            "type": "object",
+            "description": "User input metadata."
+          }
+        }
+      },
+      "DebugChatResponse": {
+        "type": "object",
+        "description": "A chat turn's result: the agent's reply text, the conversation's updated state, and whether the conversation has ended.",
+        "required": [
+          "conversationId",
+          "userInput",
+          "response",
+          "metadata",
+          "conversationEnded",
+          "delayedResponse"
+        ],
+        "properties": {
+          "conversationId": {
+            "type": "string",
+            "description": "ID of the debug chat session."
+          },
+          "userInput": {
+            "type": "string",
+            "description": "User input that produced this response."
+          },
+          "response": {
+            "type": "string",
+            "description": "Agent's reply text."
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/ChatMetadataResponse"
+          },
+          "conversationEnded": {
+            "type": "boolean",
+            "description": "Whether the conversation has ended after this turn."
+          },
+          "delayedResponse": {
+            "type": "boolean",
+            "description": "Whether the agent's response was delayed (e.g. awaiting a long-running tool)."
+          }
+        }
       }
     },
     "securitySchemes": {

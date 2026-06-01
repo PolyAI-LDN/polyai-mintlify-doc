@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "PolyAI Agents API",
-    "version": "1.0.4",
-    "description": "Build and deploy PolyAI agents programmatically. Create agents, manage branches, update behavior rules, configure knowledge bases, provision telephony, configure voices, publish deployments, and update real-time configs."
+    "version": "1.0.11",
+    "description": "Manage PolyAI agents, telephony, deployments, and real-time configs."
   },
   "servers": [
     {
@@ -11,26 +11,30 @@
       "description": "US region"
     },
     {
+      "url": "https://api.eu.poly.ai",
+      "description": "EU region"
+    },
+    {
       "url": "https://api.uk.poly.ai",
       "description": "UK region"
     },
     {
-      "url": "https://api.eu.poly.ai",
-      "description": "EU region"
+      "url": "https://api.studio.poly.ai",
+      "description": "Studio region"
     }
   ],
   "security": [
     {
-      "ApiKeyAuth": []
+      "polyApiKey": []
     }
   ],
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "components": {
     "securitySchemes": {
-      "ApiKeyAuth": {
+      "polyApiKey": {
         "type": "apiKey",
         "in": "header",
-        "name": "x-api-key"
+        "name": "X-API-KEY"
       }
     },
     "schemas": {
@@ -434,8 +438,7 @@
         },
         "required": [
           "name",
-          "responseSettings",
-          "voiceSettings"
+          "responseSettings"
         ],
         "additionalProperties": false,
         "title": "CreateAgentBody"
@@ -502,6 +505,23 @@
         "additionalProperties": false,
         "title": "CreateBranchBody"
       },
+      "CreateBranchResponse": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string"
+          },
+          "sequenceId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "branchId",
+          "sequenceId"
+        ],
+        "additionalProperties": false,
+        "title": "CreateBranchResponse"
+      },
       "CreateKnowledgeBaseTopicBody": {
         "type": "object",
         "properties": {
@@ -543,6 +563,51 @@
         "additionalProperties": false,
         "title": "CreateKnowledgeBaseTopicBody"
       },
+      "CreateKnowledgeBaseTopicPublicResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "actions": {
+            "type": "string"
+          },
+          "exampleQueries": {
+            "type": "object",
+            "properties": {
+              "queries": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "queries"
+            ],
+            "additionalProperties": false
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "content",
+          "actions",
+          "exampleQueries",
+          "isActive"
+        ],
+        "additionalProperties": false,
+        "title": "CreateKnowledgeBaseTopicPublicResponse"
+      },
       "CreateVariantBody": {
         "type": "object",
         "properties": {
@@ -575,6 +640,68 @@
         ],
         "additionalProperties": false,
         "title": "CreateVariantBody"
+      },
+      "CreateVoiceRequest": {
+        "description": "Request schema for creating a new voice.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Human-readable voice name",
+            "type": "string"
+          },
+          "provider": {
+            "description": "TTS provider (e.g. GOOGLE, OPENAI, ELEVENLABS)",
+            "type": "string"
+          },
+          "config": {
+            "description": "Provider-specific voice config",
+            "type": "object"
+          },
+          "providerVoiceId": {
+            "description": "Voice ID from the TTS provider",
+            "type": "string"
+          },
+          "voiceMetadata": {
+            "description": "Additional voice metadata",
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "provider",
+          "config",
+          "providerVoiceId"
+        ]
+      },
+      "DeleteAttributeResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false,
+        "title": "DeleteAttributeResponse"
+      },
+      "DeleteBranchResponse": {
+        "type": "object",
+        "properties": {
+          "sequence": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sequence",
+          "message"
+        ],
+        "additionalProperties": false,
+        "title": "DeleteBranchResponse"
       },
       "DeleteConnectorResponse": {
         "description": "Summary of a connector deletion, including every phone number that\nwas released by the cascade.",
@@ -665,6 +792,19 @@
         "required": [
           "deleted"
         ]
+      },
+      "DeleteVariantResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false,
+        "title": "DeleteVariantResponse"
       },
       "DeploymentResponse": {
         "description": "A deployment of an agent version to a specific environment, plus\nwho created it and when.",
@@ -802,6 +942,23 @@
         "additionalProperties": false,
         "title": "GetAttributesResponse"
       },
+      "GetBranchesResponse": {
+        "type": "object",
+        "properties": {
+          "branches": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          }
+        },
+        "required": [
+          "branches"
+        ],
+        "additionalProperties": false,
+        "title": "GetBranchesResponse"
+      },
       "GetConfigPageResponse": {
         "description": "A single config page for one environment.",
         "type": "object",
@@ -936,6 +1093,18 @@
         "additionalProperties": false,
         "title": "GetVariantsResponse"
       },
+      "GetVoiceResponse": {
+        "description": "Response for single voice endpoints.",
+        "type": "object",
+        "properties": {
+          "voice": {
+            "$ref": "#/components/schemas/VoiceResponse"
+          }
+        },
+        "required": [
+          "voice"
+        ]
+      },
       "ImportPhoneNumberBody": {
         "description": "Import settings for a single phone number, including which environment it routes to.",
         "type": "object",
@@ -998,6 +1167,69 @@
           "imported"
         ]
       },
+      "ListKnowledgeBaseTopicsResponse": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string"
+            },
+            "actions": {
+              "type": "string"
+            },
+            "exampleQueries": {
+              "type": "object",
+              "properties": {
+                "queries": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "queries"
+              ],
+              "additionalProperties": false
+            },
+            "isActive": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "content",
+            "actions",
+            "exampleQueries",
+            "isActive"
+          ],
+          "additionalProperties": false
+        },
+        "title": "ListKnowledgeBaseTopicsResponse"
+      },
+      "ListVoicesResponse": {
+        "description": "Response for GET /voice-library.",
+        "type": "object",
+        "properties": {
+          "voices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VoiceResponse"
+            }
+          }
+        },
+        "required": [
+          "voices"
+        ]
+      },
       "LookupConnectorBody": {
         "description": "Lookup payload for finding the connector that serves a given E.164 phone number.",
         "type": "object",
@@ -1050,6 +1282,95 @@
         "additionalProperties": false,
         "title": "MergeBranchBody"
       },
+      "MergeBranchConflictResponse": {
+        "title": "MergeBranchConflictResponse"
+      },
+      "MergeBranchResponse": {
+        "type": "object",
+        "properties": {
+          "sequence": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "testRunIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "sequence",
+          "message",
+          "testRunIds"
+        ],
+        "additionalProperties": false,
+        "title": "MergeBranchResponse"
+      },
+      "MutationDeploymentPublicResponse": {
+        "type": "object",
+        "properties": {
+          "deployment": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "accountId": {
+                "type": "string"
+              },
+              "agentId": {
+                "type": "string"
+              },
+              "environment": {
+                "type": "string"
+              },
+              "artifactVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "createdBy": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "metadata": {
+                "type": "object",
+                "additionalProperties": {},
+                "nullable": true
+              }
+            },
+            "required": [
+              "id",
+              "accountId",
+              "agentId",
+              "environment",
+              "artifactVersion",
+              "version",
+              "createdBy",
+              "createdAt"
+            ],
+            "additionalProperties": false
+          },
+          "testRunIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "deployment",
+          "testRunIds"
+        ],
+        "additionalProperties": false,
+        "title": "MutationDeploymentPublicResponse"
+      },
       "MutationDeploymentResponse": {
         "description": "The resulting deployment from a promote / rollback / publish action,\nplus any test runs it triggered.",
         "type": "object",
@@ -1101,20 +1422,23 @@
           "clientEnv"
         ]
       },
-      "PromoteDeploymentBody": {
-        "description": "Metadata attached to a promote action: an optional message and an\nexplicit target environment override.",
+      "PromoteDeploymentPublicBody": {
         "type": "object",
         "properties": {
           "deploymentMessage": {
-            "description": "Message describing this promotion",
-            "default": "",
-            "type": "string"
+            "type": "string",
+            "default": ""
           },
           "targetEnvironment": {
-            "description": "Target environment to promote to. If omitted, promotes to the next environment in sequence (sandbox->pre-release->live).",
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "pre-release",
+              "live"
+            ]
           }
-        }
+        },
+        "additionalProperties": false,
+        "title": "PromoteDeploymentPublicBody"
       },
       "PublishDeploymentBody": {
         "description": "Metadata attached to a publish action, with an optional target environment.",
@@ -1144,16 +1468,16 @@
           "connectorId"
         ]
       },
-      "RollbackDeploymentBody": {
-        "description": "Metadata attached to a rollback action.",
+      "RollbackDeploymentPublicBody": {
         "type": "object",
         "properties": {
           "deploymentMessage": {
-            "description": "Message describing this rollback",
-            "default": "",
-            "type": "string"
+            "type": "string",
+            "default": ""
           }
-        }
+        },
+        "additionalProperties": false,
+        "title": "RollbackDeploymentPublicBody"
       },
       "UpdateAgentRulesBody": {
         "type": "object",
@@ -1294,6 +1618,32 @@
         "additionalProperties": false,
         "title": "UpdateVariantBody"
       },
+      "UpdateVoiceRequest": {
+        "description": "Request schema for updating a voice.\n\nAll fields are optional — only provided fields are patched.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Human-readable voice name",
+            "type": "string"
+          },
+          "provider": {
+            "description": "TTS provider",
+            "type": "string"
+          },
+          "config": {
+            "description": "Provider-specific voice config",
+            "type": "object"
+          },
+          "providerVoiceId": {
+            "description": "Voice ID from the TTS provider",
+            "type": "string"
+          },
+          "voiceMetadata": {
+            "description": "Additional voice metadata",
+            "type": "object"
+          }
+        }
+      },
       "VariantResponse": {
         "type": "object",
         "properties": {
@@ -1331,202 +1681,63 @@
         "additionalProperties": false,
         "title": "VariantResponse"
       },
-      "DeployedVoiceResponse": {
-        "description": "A single deployed voice in a project's voice rotation.",
+      "VoiceResponse": {
+        "description": "A single voice as returned by the public API.",
         "type": "object",
         "properties": {
           "id": {
-            "description": "Deployed voice ID",
+            "description": "Unique voice identifier",
             "type": "string"
           },
-          "genaiProjectId": {
-            "description": "Project ID this deployed voice belongs to",
+          "name": {
+            "description": "Human-readable voice name",
             "type": "string"
           },
-          "voiceId": {
-            "description": "ID of the underlying voice in the voice library",
+          "provider": {
+            "description": "TTS provider",
             "type": "string"
           },
-          "probability": {
-            "description": "Traffic weight in the rotation, between 0.0 and 1.0",
-            "type": "number",
-            "format": "float"
+          "providerVoiceId": {
+            "description": "Voice ID from the TTS provider",
+            "type": "string"
+          },
+          "config": {
+            "description": "Provider-specific voice config",
+            "type": "object"
+          },
+          "metadata": {
+            "description": "Additional voice metadata",
+            "type": "object"
+          },
+          "isPolyVoice": {
+            "description": "True if this is a Poly-curated voice (vs account-owned)",
+            "default": false,
+            "type": "boolean"
           }
         },
         "required": [
           "id",
-          "genaiProjectId",
-          "voiceId",
-          "probability"
-        ],
-        "additionalProperties": false,
-        "title": "DeployedVoiceResponse"
+          "name",
+          "provider",
+          "providerVoiceId",
+          "config"
+        ]
       },
-      "ListDeployedVoicesResponse": {
-        "description": "All voices deployed to the project's rotation.",
-        "type": "object",
-        "properties": {
-          "deployedVoices": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DeployedVoiceResponse"
-            }
-          }
-        },
-        "required": [
-          "deployedVoices"
-        ],
-        "additionalProperties": false,
-        "title": "ListDeployedVoicesResponse"
-      },
-      "UpsertDeployedVoiceBody": {
-        "description": "Create or update a deployed voice. Omit `id` to create a new deployed voice; provide `id` to update an existing one.",
+      "VoiceSampleResponse": {
+        "description": "Response for GET /voice-library/<voice_id>/sample.",
         "type": "object",
         "properties": {
           "voiceId": {
-            "description": "ID of the voice (from the voice library) to deploy",
+            "description": "The voice that was synthesized",
             "type": "string"
           },
-          "probability": {
-            "description": "Traffic weight in the rotation, between 0.0 and 1.0. The sum of probabilities across all deployed voices must equal 1.0.",
-            "type": "number",
-            "format": "float",
-            "minimum": 0,
-            "maximum": 1
-          },
-          "id": {
-            "description": "Deployed voice ID. Omit to create a new entry; include to update an existing entry.",
+          "sampleUrl": {
+            "description": "Time-limited URL to a synthesized sample of the voice",
             "type": "string"
-          }
-        },
-        "required": [
-          "voiceId",
-          "probability"
-        ],
-        "additionalProperties": false,
-        "title": "UpsertDeployedVoiceBody"
-      },
-      "DeleteDeployedVoiceResponse": {
-        "description": "Result of deleting a deployed voice.",
-        "type": "object",
-        "properties": {
-          "success": {
-            "description": "True when the deployed voice was removed",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "additionalProperties": false,
-        "title": "DeleteDeployedVoiceResponse"
-      },
-      "TuningSettingsResponse": {
-        "description": "Voice tuning settings for a given voice and purpose. Fields are null when the tuning provider does not support them or no override has been set.",
-        "type": "object",
-        "properties": {
-          "stability": {
-            "description": "Voice stability (0–100). Higher values make the voice more consistent and less expressive.",
+          },
+          "expiresInSeconds": {
+            "description": "Number of seconds until sample_url expires",
             "type": "integer"
-          },
-          "similarityBoost": {
-            "description": "Similarity boost (0–100). Higher values make the output sound closer to the original voice sample.",
-            "type": "integer"
-          },
-          "style": {
-            "description": "Style exaggeration (provider-specific, 0–100)",
-            "type": "integer"
-          },
-          "optimizeStreamingLatency": {
-            "description": "Streaming latency optimization level (provider-specific)",
-            "type": "integer"
-          },
-          "speed": {
-            "description": "Playback speed multiplier. Valid range depends on the voice provider.",
-            "type": "number",
-            "format": "float"
-          },
-          "modelId": {
-            "description": "Provider model ID used for synthesis",
-            "type": "string"
-          }
-        },
-        "additionalProperties": false,
-        "title": "TuningSettingsResponse"
-      },
-      "EditVoiceTuningBody": {
-        "description": "Update tuning settings for a voice. Only fields you include are changed. Set `resetToDefault` to true to revert all settings to the provider defaults.",
-        "type": "object",
-        "properties": {
-          "stability": {
-            "description": "Voice stability (0–100)",
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 100
-          },
-          "similarityBoost": {
-            "description": "Similarity boost (0–100)",
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 100
-          },
-          "speed": {
-            "description": "Playback speed multiplier. The valid range depends on the voice provider; out-of-range values return a 400.",
-            "type": "number",
-            "format": "float"
-          },
-          "modelId": {
-            "description": "Provider model ID override",
-            "type": "string"
-          },
-          "resetToDefault": {
-            "description": "Reset all tuning settings to the provider defaults. Overrides other fields when true.",
-            "type": "boolean"
-          }
-        },
-        "additionalProperties": false,
-        "title": "EditVoiceTuningBody"
-      },
-      "GenerateAudioBody": {
-        "description": "Synthesize a short audio preview for a given voice and text. Useful for auditioning a voice or tuning settings before deploying.",
-        "type": "object",
-        "properties": {
-          "provider": {
-            "description": "TTS provider key (e.g. `eleven_labs`, `cartesia`). Defaults to `eleven_labs`.",
-            "type": "string"
-          },
-          "text": {
-            "description": "Text to synthesize",
-            "type": "string"
-          },
-          "language": {
-            "description": "BCP-47 language tag, e.g. `en-US`",
-            "type": "string"
-          },
-          "config": {
-            "description": "Provider-specific synthesis config. Typically includes the voice ID and any tuning overrides accepted by the provider.",
-            "type": "object"
-          },
-          "storeOnS3": {
-            "description": "When true, store the audio in S3 and return a presigned URL. When false or omitted, returns a short-lived URL only.",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "text",
-          "language",
-          "config"
-        ],
-        "additionalProperties": false,
-        "title": "GenerateAudioBody"
-      },
-      "GenerateAudioResponse": {
-        "description": "Generated audio preview.",
-        "type": "object",
-        "properties": {
-          "url": {
-            "description": "URL of the generated audio file",
-            "type": "string"
           },
           "text": {
             "description": "The text that was synthesized",
@@ -1534,46 +1745,16 @@
           }
         },
         "required": [
-          "url",
+          "voiceId",
+          "sampleUrl",
+          "expiresInSeconds",
           "text"
-        ],
-        "additionalProperties": false,
-        "title": "GenerateAudioResponse"
-      },
-      "UpdateProjectVoiceBody": {
-        "description": "Set the project's primary voice.",
-        "type": "object",
-        "properties": {
-          "voiceId": {
-            "description": "Voice ID to set as the project's active voice",
-            "type": "string"
-          }
-        },
-        "required": [
-          "voiceId"
-        ],
-        "additionalProperties": false,
-        "title": "UpdateProjectVoiceBody"
-      },
-      "ProjectVoiceResponse": {
-        "description": "Confirmation of the newly set project voice.",
-        "type": "object",
-        "properties": {
-          "voiceId": {
-            "description": "The voice ID now set as the project's active voice",
-            "type": "string"
-          }
-        },
-        "required": [
-          "voiceId"
-        ],
-        "additionalProperties": false,
-        "title": "ProjectVoiceResponse"
+        ]
       }
     }
   },
   "paths": {
-    "/v1/agents": {
+    "/v1/accounts/{accountId}/agents": {
       "get": {
         "responses": {
           "200": {
@@ -1618,7 +1799,273 @@
             }
           }
         }
-      }
+      },
+      "parameters": [
+        {
+          "name": "accountId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/accounts/{accountId}/voice-library": {
+      "get": {
+        "summary": "List all voices in the account's voice library",
+        "tags": [
+          "Voice Library"
+        ],
+        "parameters": [
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by voice metadata language, e.g. 'en-US'"
+          },
+          {
+            "name": "gender",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "male",
+                "female",
+                "neutral"
+              ],
+              "type": "string"
+            },
+            "description": "Filter by voice metadata gender"
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by TTS provider, e.g. 'GOOGLE', 'ELEVENLABS'"
+          },
+          {
+            "name": "isPolyVoice",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "If set, restrict to (or exclude) Poly's curated voices"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListVoicesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "post": {
+        "summary": "Register a new voice in the voice library",
+        "tags": [
+          "Voice Library"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVoiceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetVoiceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "accountId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/accounts/{accountId}/voice-library/{voiceId}": {
+      "get": {
+        "summary": "Get a single voice from the voice library",
+        "tags": [
+          "Voice Library"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetVoiceResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update a voice in the voice library",
+        "tags": [
+          "Voice Library"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateVoiceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetVoiceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "accountId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "voiceId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/accounts/{accountId}/voice-library/{voiceId}/sample": {
+      "get": {
+        "summary": "Synthesize a short audio sample of a voice",
+        "tags": [
+          "Voice Library"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceSampleResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "accountId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "voiceId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/v1/agents/{agentId}": {
       "delete": {
@@ -1631,13 +2078,30 @@
         "tags": [
           "Agents"
         ]
-      }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/v1/agents/{agentId}/branches": {
       "get": {
         "responses": {
           "200": {
-            "description": "List of branches"
+            "description": "List of branches",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetBranchesResponse"
+                }
+              }
+            }
           }
         },
         "summary": "List branches",
@@ -1648,7 +2112,14 @@
       "post": {
         "responses": {
           "201": {
-            "description": "Branch created"
+            "description": "Branch created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateBranchResponse"
+                }
+              }
+            }
           }
         },
         "summary": "Create branch",
@@ -1664,20 +2135,55 @@
             }
           }
         }
-      }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/v1/agents/{agentId}/branches/{branchId}": {
       "delete": {
         "responses": {
           "200": {
-            "description": "Branch deleted"
+            "description": "Branch deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteBranchResponse"
+                }
+              }
+            }
           }
         },
         "summary": "Delete branch",
         "tags": [
           "Branches"
         ]
-      }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "branchId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/v1/agents/{agentId}/branches/{branchId}/attributes": {
       "get": {
@@ -1724,13 +2230,38 @@
             }
           }
         }
-      }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "branchId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/v1/agents/{agentId}/branches/{branchId}/attributes/{attributeId}": {
       "delete": {
         "responses": {
           "200": {
-            "description": "Attribute deleted"
+            "description": "Attribute deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteAttributeResponse"
+                }
+              }
+            }
           }
         },
         "summary": "Delete attribute",
@@ -1764,7 +2295,33 @@
             }
           }
         }
-      }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "branchId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "attributeId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/v1/agents/{agentId}/branches/{branchId}/behavior": {
       "get": {
@@ -1814,13 +2371,38 @@
             }
           }
         }
-      }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "branchId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/v1/agents/{agentId}/branches/{branchId}/knowledge-base/topics": {
       "get": {
         "responses": {
           "200": {
-            "description": "List of knowledge base topics"
+            "description": "List of knowledge base topics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListKnowledgeBaseTopicsResponse"
+                }
+              }
+            }
           }
         },
         "summary": "List knowledge base topics",
@@ -1831,7 +2413,14 @@
       "post": {
         "responses": {
           "201": {
-            "description": "Created topic"
+            "description": "Created topic",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateKnowledgeBaseTopicPublicResponse"
+                }
+              }
+            }
           }
         },
         "summary": "Create knowledge base topic",
@@ -1847,16 +2436,41 @@
             }
           }
         }
-      }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "branchId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/v1/agents/{agentId}/branches/{branchId}/knowledge-base/topics/{topicId}": {
       "get": {
         "responses": {
           "200": {
-            "description": "Knowledge base topic"
+            "description": "Knowledge base topic",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateKnowledgeBaseTopicPublicResponse"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Topic not found"
+            "description": "Topic does not exist"
           }
         },
         "summary": "Get knowledge base topic",
@@ -1868,6 +2482,9 @@
         "responses": {
           "204": {
             "description": "Topic deleted"
+          },
+          "404": {
+            "description": "Topic not found"
           }
         },
         "summary": "Delete knowledge base topic",
@@ -1897,13 +2514,56 @@
             }
           }
         }
-      }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "branchId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "topicId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/v1/agents/{agentId}/branches/{branchId}/merge": {
       "post": {
         "responses": {
           "200": {
-            "description": "Branch merged"
+            "description": "Branch merged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MergeBranchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Merge conflicts or validation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MergeBranchConflictResponse"
+                }
+              }
+            }
           }
         },
         "summary": "Merge branch",
@@ -1919,7 +2579,25 @@
             }
           }
         }
-      }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "branchId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/v1/agents/{agentId}/branches/{branchId}/variants": {
       "get": {
@@ -1966,13 +2644,38 @@
             }
           }
         }
-      }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "branchId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/v1/agents/{agentId}/branches/{branchId}/variants/{variantId}": {
       "delete": {
         "responses": {
           "200": {
-            "description": "Variant deleted"
+            "description": "Variant deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteVariantResponse"
+                }
+              }
+            }
           }
         },
         "summary": "Delete variant",
@@ -2006,7 +2709,33 @@
             }
           }
         }
-      }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "branchId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "variantId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/v1/agents/{agentId}/deployments": {
       "get": {
@@ -2159,42 +2888,32 @@
     },
     "/v1/agents/{agentId}/deployments/{deploymentId}/promote": {
       "post": {
+        "responses": {
+          "200": {
+            "description": "Promoted deployment with triggered test run IDs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationDeploymentPublicResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Deployment not found"
+          }
+        },
         "summary": "Promote a deployment to the next environment",
         "tags": [
           "Deployments"
         ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PromoteDeploymentBody"
+                "$ref": "#/components/schemas/PromoteDeploymentPublicBody"
               }
             }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MutationDeploymentResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error"
-          },
-          "401": {
-            "description": "Unauthorized – missing or invalid API key"
-          },
-          "403": {
-            "description": "Forbidden – insufficient permissions"
-          },
-          "404": {
-            "description": "Resource not found"
           }
         }
       },
@@ -2219,42 +2938,32 @@
     },
     "/v1/agents/{agentId}/deployments/{deploymentId}/rollback": {
       "post": {
+        "responses": {
+          "200": {
+            "description": "Rolled-back deployment with triggered test run IDs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationDeploymentPublicResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Deployment not found"
+          }
+        },
         "summary": "Rollback to a previous deployment",
         "tags": [
           "Deployments"
         ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RollbackDeploymentBody"
+                "$ref": "#/components/schemas/RollbackDeploymentPublicBody"
               }
             }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MutationDeploymentResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error"
-          },
-          "401": {
-            "description": "Unauthorized – missing or invalid API key"
-          },
-          "403": {
-            "description": "Forbidden – insufficient permissions"
-          },
-          "404": {
-            "description": "Resource not found"
           }
         }
       },
@@ -2304,7 +3013,17 @@
             }
           }
         }
-      }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/v1/agents/{agentId}/real-time-configs": {
       "get": {
@@ -3120,454 +3839,6 @@
           }
         }
       ]
-    },
-    "/v1/agents/{agentId}/deployed-voices": {
-      "get": {
-        "summary": "List deployed voices",
-        "description": "List every voice deployed to the project's voice rotation. Use this to see which voices are active and the traffic weight (probability) assigned to each.",
-        "tags": [
-          "Voices"
-        ],
-        "responses": {
-          "200": {
-            "description": "Deployed voices for the project",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListDeployedVoicesResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized – missing or invalid API key"
-          },
-          "403": {
-            "description": "Forbidden – insufficient permissions"
-          }
-        }
-      },
-      "put": {
-        "summary": "Create or update a deployed voice",
-        "description": "Add a new voice to the rotation, or update the probability of an existing deployed voice. Probabilities across all deployed voices must sum to 1.0.",
-        "tags": [
-          "Voices"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpsertDeployedVoiceBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "The created or updated deployed voice",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DeployedVoiceResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error"
-          },
-          "401": {
-            "description": "Unauthorized – missing or invalid API key"
-          },
-          "403": {
-            "description": "Forbidden – insufficient permissions"
-          }
-        }
-      },
-      "parameters": [
-        {
-          "name": "agentId",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ]
-    },
-    "/v1/agents/{agentId}/deployed-voices/{deployedVoiceId}": {
-      "delete": {
-        "summary": "Delete a deployed voice",
-        "description": "Remove a voice from the project's deployed-voice rotation. The underlying voice in the voice library is not affected.",
-        "tags": [
-          "Voices"
-        ],
-        "responses": {
-          "200": {
-            "description": "Deleted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DeleteDeployedVoiceResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized – missing or invalid API key"
-          },
-          "403": {
-            "description": "Forbidden – insufficient permissions"
-          },
-          "404": {
-            "description": "Resource not found"
-          }
-        }
-      },
-      "parameters": [
-        {
-          "name": "agentId",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "name": "deployedVoiceId",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          },
-          "description": "Deployed voice ID"
-        }
-      ]
-    },
-    "/v1/agents/{agentId}/voices/{voiceId}/tuning-settings": {
-      "get": {
-        "summary": "Get voice tuning settings",
-        "description": "Retrieve the tuning settings (stability, similarity boost, speed, model) currently applied to a voice for the project. Returns an empty object if no overrides are set.",
-        "tags": [
-          "Voices"
-        ],
-        "parameters": [
-          {
-            "name": "purpose",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Filter to a specific tuning purpose, e.g. `disclaimer`. Omit to fetch the default agent tuning."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Current tuning settings",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TuningSettingsResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized – missing or invalid API key"
-          },
-          "403": {
-            "description": "Forbidden – insufficient permissions"
-          }
-        }
-      },
-      "put": {
-        "summary": "Update voice tuning settings",
-        "description": "Update one or more tuning settings for a voice in the project. Only the fields you provide are changed. Set `resetToDefault` to true to revert all settings to the provider defaults. Speed is validated against the provider's allowed range.",
-        "tags": [
-          "Voices"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EditVoiceTuningBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Updated tuning settings",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TuningSettingsResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error"
-          },
-          "401": {
-            "description": "Unauthorized – missing or invalid API key"
-          },
-          "403": {
-            "description": "Forbidden – insufficient permissions"
-          }
-        }
-      },
-      "parameters": [
-        {
-          "name": "agentId",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "name": "voiceId",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          },
-          "description": "Voice ID from the voice library"
-        }
-      ]
-    },
-    "/v1/agents/{agentId}/voices/{voiceId}/disclaimer/tuning-settings": {
-      "get": {
-        "summary": "Get disclaimer voice tuning settings",
-        "description": "Retrieve the tuning settings used when the voice reads required disclaimers. Disclaimers often need different settings (e.g. slower speed, higher stability) than the agent's main voice.",
-        "tags": [
-          "Voices"
-        ],
-        "responses": {
-          "200": {
-            "description": "Current disclaimer tuning settings",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TuningSettingsResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized – missing or invalid API key"
-          },
-          "403": {
-            "description": "Forbidden – insufficient permissions"
-          }
-        }
-      },
-      "put": {
-        "summary": "Update disclaimer voice tuning settings",
-        "description": "Update tuning settings used specifically for disclaimer playback. Only the fields you provide are changed.",
-        "tags": [
-          "Voices"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EditVoiceTuningBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Updated disclaimer tuning settings",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TuningSettingsResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error"
-          },
-          "401": {
-            "description": "Unauthorized – missing or invalid API key"
-          },
-          "403": {
-            "description": "Forbidden – insufficient permissions"
-          }
-        }
-      },
-      "parameters": [
-        {
-          "name": "agentId",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "name": "voiceId",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          },
-          "description": "Voice ID from the voice library"
-        }
-      ]
-    },
-    "/v1/agents/{agentId}/generate-audio": {
-      "post": {
-        "summary": "Generate a TTS audio preview",
-        "description": "Synthesize a short audio preview for a given voice, language, and text. Use this to audition a voice or to test tuning settings before applying them to the live agent.",
-        "tags": [
-          "Voices"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GenerateAudioBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "URL to the generated audio",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GenerateAudioResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error"
-          },
-          "401": {
-            "description": "Unauthorized – missing or invalid API key"
-          },
-          "403": {
-            "description": "Forbidden – insufficient permissions"
-          }
-        }
-      },
-      "parameters": [
-        {
-          "name": "agentId",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ]
-    },
-    "/v1/agents/{agentId}/voice": {
-      "put": {
-        "summary": "Set the project's active voice",
-        "description": "Set the project's primary voice. The voice must already exist in the project's voice library. This replaces the agent's default voice; for multi-voice rotations, use the deployed voices endpoints instead.",
-        "tags": [
-          "Voices"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateProjectVoiceBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Updated project voice",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProjectVoiceResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error"
-          },
-          "401": {
-            "description": "Unauthorized – missing or invalid API key"
-          },
-          "403": {
-            "description": "Forbidden – insufficient permissions"
-          },
-          "404": {
-            "description": "Resource not found"
-          }
-        }
-      },
-      "parameters": [
-        {
-          "name": "agentId",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ]
     }
-  },
-  "tags": [
-    {
-      "name": "Agents",
-      "description": "Create, list, duplicate, and delete agents."
-    },
-    {
-      "name": "Branches",
-      "description": "Create isolated branches for parallel development and merge back to main."
-    },
-    {
-      "name": "Agent Behavior",
-      "description": "Read and update an agent's behavior rules (system prompt, interaction style, edge cases)."
-    },
-    {
-      "name": "Knowledge Base",
-      "description": "Manage knowledge base topics used for retrieval and tool invocation."
-    },
-    {
-      "name": "Variants",
-      "description": "Manage site-specific variations of an agent using attributes and variants."
-    },
-    {
-      "name": "Deployments",
-      "description": "Publish drafts, promote across environments, and roll back deployments."
-    },
-    {
-      "name": "Connectors",
-      "description": "Manage telephony connectors that bind phone numbers to voice infrastructure."
-    },
-    {
-      "name": "Phone Numbers",
-      "description": "Provision, reassign, and delete phone numbers on an agent's connectors."
-    },
-    {
-      "name": "Real-Time Configs",
-      "description": "Update runtime values (e.g. opening hours) outside the publish workflow."
-    },
-    {
-      "name": "Voices",
-      "description": "Configure agent voices: pick the active voice, run multi-voice rotations, tune stability and speed, and generate audio previews."
-    }
-  ]
+  }
 }
