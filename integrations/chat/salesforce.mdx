@@ -1,0 +1,75 @@
+---
+title: Salesforce chat handoff
+sidebarTitle: Salesforce
+description: "Hand off a webchat or SMS conversation from PolyAI to a Salesforce Service Cloud Messaging agent."
+---
+
+Hand off a live webchat or SMS conversation from your PolyAI agent to a Salesforce Service Cloud Messaging agent. PolyAI continues to proxy messages between the end user and the Salesforce agent for the rest of the session, so the user stays in the same widget.
+
+<Note>This integration is available from **Configure > Integrations > Salesforce Messaging** in Agent Studio.</Note>
+
+## Prerequisites
+
+- A Salesforce org with Service Cloud and Messaging for In-App and Web enabled.
+- Salesforce administrator access to create a Messaging channel and a Connected App.
+- A PolyAI project with at least one Knowledge topic that should escalate to a human.
+
+## 1. Set up Salesforce
+
+1. In **Salesforce Setup**, go to **Messaging Settings** and create (or pick) a Messaging channel for PolyAI.
+2. In **App Manager**, create a Connected App with OAuth enabled and the `api`, `chatter_api`, and `refresh_token, offline_access` scopes.
+3. Note the following values – you'll paste them into Studio:
+   - **Consumer Key** (Client ID) and **Consumer Secret** (Client Secret) from the Connected App.
+   - **Salesforce instance URL** (for example `https://yourorg.my.salesforce.com`).
+   - **Messaging Channel ID** of the channel created in step 1.
+   - The **Routing configuration / Omni-Channel queue** PolyAI should hand chats off to.
+4. Configure routing in Omni-Channel so that messages on this channel land in a queue or skill that human agents are subscribed to.
+
+For broader Salesforce CRM access (case lookup, account data), see the [Salesforce CRM integration](/integrations/salesforce) – the two integrations can coexist on the same project.
+
+## 2. Connect from Studio
+
+1. In Agent Studio, open **Configure > Integrations** and click **Connect** on the **Salesforce Messaging** tile.
+2. Paste the values you saved in the previous step and save the connection. PolyAI uses these to call Salesforce's Messaging API on your behalf.
+
+## 3. Write the handoff function
+
+Add a Python tool that returns the chat handoff payload. The empty object lets you pass routing hints later (queue or skill) if needed.
+
+```python
+def transfer_to_salesforce(conv: Conversation):
+    return {
+        "utterance": "No problem, I'll transfer you to one of our agents now.",
+        "handoff": {
+            "text_chat": {
+                "salesforce_integration": {}
+            }
+        }
+    }
+```
+
+## 4. Assign the function to a topic
+
+Open the Knowledge topic that should escalate to a live agent, add an **Action**, and select the `transfer_to_salesforce` function. When that topic fires, PolyAI delivers the `utterance` to the user, opens a Salesforce Messaging conversation, and proxies subsequent turns between the two sides.
+
+You can call the same function from a flow step or directly via `conv.call_handoff()` if you need more dynamic routing.
+
+## 5. Verify
+
+1. Start a session in your webchat widget (or send an SMS, if SMS is wired up) and steer the conversation into the topic you wired the handoff to.
+2. Confirm that the `utterance` is sent and that a new conversation appears in the Salesforce Omni-Channel inbox for the routing queue you configured.
+3. Reply from Salesforce and confirm the message is delivered back to the user inside the original widget.
+4. End the session from the Salesforce side and confirm the widget shows the conversation as closed.
+
+If nothing arrives in Salesforce, check **Configure > Integrations > Salesforce Messaging** for connection errors, and confirm the Connected App is approved for the user PolyAI is authenticating as.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Salesforce CRM" href="/integrations/salesforce" icon="cloud">
+    Customer record lookup and case management.
+  </Card>
+  <Card title="Chat handoff overview" href="/integrations/chat/introduction" icon="message">
+    All chat handoff integrations and the shared payload shape.
+  </Card>
+</CardGroup>

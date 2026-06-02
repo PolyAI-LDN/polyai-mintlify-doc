@@ -1,0 +1,67 @@
+---
+title: Webex by Cisco chat handoff
+sidebarTitle: Webex by Cisco
+description: "Hand off a webchat or SMS conversation from PolyAI to a Webex Contact Center agent."
+---
+
+<Info>**Generally available 19 June 2026.** The setup steps below are accurate; the **Webex Messaging** tile appears in **Configure > Integrations** when the integration ships.</Info>
+
+Hand off a live webchat or SMS conversation from your PolyAI agent to a [Webex Contact Center](https://www.webex.com/contact-center.html) agent. PolyAI continues to proxy messages between the end user and the Webex agent for the rest of the session.
+
+## Prerequisites
+
+- A Webex Contact Center tenant with administrator access to **Bring Your Own Channel**.
+- A messaging channel created in Webex Contact Center routed to a queue with live agents subscribed.
+- A PolyAI project with at least one Knowledge topic that should escalate to a human.
+
+## 1. Configure Webex Contact Center
+
+1. In the Webex Control Hub, set up the integration under **Contact Center > Bring Your Own Channel**.
+2. Add the channel by clicking the **PolyAI** button that appears and following the in-product configuration page – Webex will display the integration details PolyAI needs.
+3. Configure routing and skills the way you'd handle any other Webex digital channel. The simplest setup routes the new conversation to a queue that has live agents subscribed.
+4. Record the values Webex generates – you'll paste them into Studio. Typical fields include an **Organization ID**, a **Channel ID**, and an **API secret**.
+
+## 2. Connect from Studio
+
+In Agent Studio, open **Configure > Integrations** and click **Connect** on the **Webex Messaging** tile. Paste the values you recorded in step 1.
+
+## 3. Write the handoff function
+
+```python
+def transfer_to_webex(conv: Conversation):
+    return {
+        "utterance": "No problem, I'll transfer you to one of our agents now.",
+        "handoff": {
+            "text_chat": {
+                "webex_integration": {}
+            }
+        }
+    }
+```
+
+## 4. Assign the function to a topic
+
+Open the Knowledge topic that should escalate, add an **Action**, and select `transfer_to_webex`. The same function can be called from any flow step or directly via `conv.call_handoff()` for dynamic routing.
+
+## 5. Verify
+
+1. Start a session in your webchat widget and steer the conversation into the topic you wired the handoff to.
+2. Confirm a new conversation appears in the Webex Contact Center agent desktop for the queue you configured.
+3. Reply from Webex and confirm the message is delivered back to the user inside the same widget.
+4. End the session from Webex and confirm the widget shows the conversation as closed.
+
+If the conversation never reaches Webex, check the Bring Your Own Channel configuration in Control Hub and confirm the channel is active.
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="Chat handoff overview" href="/integrations/chat/introduction" icon="message">
+    All chat handoff integrations and the shared payload shape.
+  </Card>
+  <Card title="Managed Topic actions" href="/managed-topics/how-to-setup-action/handoff" icon="bolt">
+    Wire a function into a Knowledge topic.
+  </Card>
+  <Card title="Managed services" href="/integrations/managed-services" icon="handshake">
+    Scope a custom CCaaS integration if Webex isn't enough.
+  </Card>
+</CardGroup>

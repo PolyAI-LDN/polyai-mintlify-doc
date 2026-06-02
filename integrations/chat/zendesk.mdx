@@ -1,0 +1,103 @@
+---
+title: Zendesk chat handoff
+sidebarTitle: Zendesk
+description: "Hand off a webchat or SMS conversation from PolyAI to a Zendesk Messaging agent."
+---
+
+Hand off a live webchat or SMS conversation from your PolyAI agent to a Zendesk Messaging agent. PolyAI continues to proxy messages between the end user and the Zendesk agent for the rest of the session.
+
+<Note>This integration is available from **Configure > Integrations > Zendesk Messaging** in Agent Studio. For ticketing-only flows (no live messaging), see [Zendesk Ticketing](/integrations/zendesk-ticketing-solutions).</Note>
+
+## Prerequisites
+
+- A Zendesk account with Admin Center access.
+- Your PolyAI project ID (for example `PROJECT-f07a975e`).
+- Your PolyAI messaging handoff base URLs – ask your PolyAI contact for the right values for your environment (dev or prod).
+
+## 1. Create the Conversations Integration in Zendesk
+
+The Conversations Integration gives PolyAI a messaging webhook endpoint, so Zendesk can forward new messages and typing events to Agent Studio.
+
+1. In **Zendesk Admin Center**, go to **Apps and integrations > Integrations > Conversations integrations**.
+2. Click **Create integration** and name it (e.g. `PolyAI Handoff`).
+3. On the **Details** tab, record the auto-generated values – you'll paste them into Studio:
+
+   | Field | Purpose |
+   |---|---|
+   | **App ID** | Identifies your Zendesk account. |
+   | **Integration ID** | Identifies this specific integration. |
+   | **Webhook ID** | Identifies the auto-created webhook. |
+   | **Shared secret** | PolyAI uses this to verify requests originate from Zendesk. |
+
+4. Set the **Webhook endpoint** to your PolyAI messaging handoff URL, replacing `<PROJECT_ID>` with your actual project ID:
+
+   ```
+   https://messaging.dev.poly.ai/handoff/webhooks/zendesk/PLATFORM/<PROJECT_ID>/live/events
+   ```
+
+   Use the base domain that matches your environment (the production base is provided by your PolyAI contact).
+5. Set **Webhook version** to **v2**.
+
+## 2. Create the Ticket Status Webhook
+
+This standalone webhook lets PolyAI react to ticket status changes (e.g. when a Zendesk agent solves the ticket).
+
+1. In **Admin Center**, go to **Apps and integrations > Webhooks > Webhooks** and click **Create webhook > Zendesk events**.
+2. Configure:
+
+   | Setting | Value |
+   |---|---|
+   | **Name** | `On Ticket Status Changed` |
+   | **Endpoint** | `https://messaging-handoff-api.us-1.platform.polyai.app/handoff/webhooks/zendesk/PLATFORM/<PROJECT_ID>/live/status` (production – confirm the right base with your PolyAI contact) |
+   | **Request method** | `POST` |
+   | **Request format** | `JSON` |
+
+3. Under **Authentication**, select **API key** and use the secret key shared with PolyAI (or generate one and pass it back to your PolyAI contact).
+4. On the **Event subscription** tab, add **Status changed**.
+5. Make sure the webhook shows **Active**.
+
+## 3. Connect from Studio
+
+In Agent Studio, open **Configure > Integrations** and click **Connect** on the **Zendesk Messaging** tile. Paste:
+
+- **App ID**, **Integration ID**, **Webhook ID**, **Shared secret** (from the Conversations Integration).
+- **Webhook secret key** (from the Ticket Status Webhook).
+- **Zendesk subdomain** (the part before `.zendesk.com`, e.g. `d3v-polyai`).
+
+## 4. Write the handoff function
+
+```python
+def transfer_to_zendesk(conv: Conversation):
+    return {
+        "utterance": "No problem, I'll transfer you to one of our agents now.",
+        "handoff": {
+            "text_chat": {
+                "zendesk_integration": {}
+            }
+        }
+    }
+```
+
+## 5. Assign the function to a topic
+
+Open the Knowledge topic that should escalate, add an **Action**, and select `transfer_to_zendesk`. The same function can be reused from any flow step.
+
+## 6. Verify
+
+- **Conversations Integration:** Trigger the topic from your widget. Confirm a new conversation appears for the configured Zendesk routing rule. Then reply from Zendesk and confirm the message lands back in the widget.
+- **Logs:** In Zendesk, go to **Apps and integrations > Integrations > Logs** to see events delivered to the PolyAI endpoint.
+- **Ticket Status Webhook:** Change a ticket's status in Zendesk and check the webhook's **Activity** tab for a successful `200` response.
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="Zendesk Ticketing" href="/integrations/zendesk-ticketing-solutions" icon="ticket">
+    REST API integration for creating and updating tickets.
+  </Card>
+  <Card title="Zendesk Talk" href="/integrations/zendesk" icon="phone">
+    Voice handoff to Zendesk agents over SIP.
+  </Card>
+  <Card title="Chat handoff overview" href="/integrations/chat/introduction" icon="message">
+    All chat handoff integrations and the shared payload shape.
+  </Card>
+</CardGroup>

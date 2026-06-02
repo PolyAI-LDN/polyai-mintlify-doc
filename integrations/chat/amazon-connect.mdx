@@ -1,0 +1,88 @@
+---
+title: Amazon Connect chat handoff
+sidebarTitle: Amazon Connect
+description: "Hand off a webchat or SMS conversation from PolyAI to an Amazon Connect chat agent."
+---
+
+Hand off a live webchat or SMS conversation from your PolyAI agent to an Amazon Connect chat agent. PolyAI calls the Connect [`StartChatContact`](https://docs.aws.amazon.com/connect/latest/APIReference/API_StartChatContact.html) API and then proxies messages between the end user and the Connect agent for the rest of the session.
+
+<Note>This integration is available from **Configure > Integrations > Amazon Connect** in Agent Studio. For voice routing into the same Connect instance, see the [Amazon Connect voice integration](/integrations/voice/amazon-connect/amazon-connect).</Note>
+
+## Prerequisites
+
+- An Amazon Connect instance with chat enabled.
+- A chat contact flow in Connect that routes the conversation to the queue you want PolyAI to escalate into.
+- An IAM role PolyAI can assume that grants `connect:StartChatContact` and the matching session policies. The role's trust policy must allow `sts:AssumeRole` **and** `sts:TagSession` from the PolyAI worker account (PolyAI uses IRSA, which adds session tags on the assume-role call).
+
+## 1. Configure Amazon Connect
+
+1. In the AWS console, open Amazon Connect and note the **Instance ID** for the instance you want PolyAI to hand off into.
+2. Open or create the chat contact flow that should receive PolyAI's handoff and note the **Contact flow ID**. Make sure the flow routes to a queue that has live agents assigned.
+3. Create or reuse an IAM role for PolyAI (for example `PolyAIAccessConnect`) and note the **Role ARN**.
+
+## 2. Connect from Studio
+
+In Agent Studio, open **Configure > Integrations** and click **Connect** on the **Amazon Connect** tile. Paste:
+
+| Field | Required | Description |
+|---|---|---|
+| `instance_id` | Yes | The Amazon Connect instance ID. |
+| `contact_flow_id` | Yes | The contact flow that routes the chat to a queue. |
+| `role_arn` | Yes | IAM role PolyAI assumes to call `StartChatContact`. |
+| `aws_region` | No | Region of the Connect instance (for example `eu-west-2`). Set this if your Connect instance is not in the PolyAI worker's default region. |
+| `api_url` | No | Override for the Connect API endpoint. |
+| `headers` | No | Static headers to include on API calls. |
+
+<Tip>
+If your worker defaults to `us-east-1` but your Connect instance lives in `eu-west-2`, set `aws_region` explicitly. Without it the handoff fails with `ResourceNotFoundException`.
+</Tip>
+
+```json
+{
+  "instance_id": "12345678-aaaa-bbbb-cccc-1234567890ab",
+  "contact_flow_id": "abcdef12-3456-7890-abcd-ef1234567890",
+  "role_arn": "arn:aws:iam::123456789012:role/PolyAIAccessConnect",
+  "aws_region": "eu-west-2"
+}
+```
+
+## 3. Write the handoff function
+
+```python
+def transfer_to_connect(conv: Conversation):
+    return {
+        "utterance": "No problem, I'll transfer you to one of our agents now.",
+        "handoff": {
+            "text_chat": {
+                "amazon_connect_integration": {}
+            }
+        }
+    }
+```
+
+## 4. Assign the function to a topic
+
+Open the Knowledge topic that should escalate, add an **Action**, and select `transfer_to_connect`. The same function can be called from any flow step or directly via `conv.call_handoff()` for dynamic routing.
+
+## 5. Verify
+
+1. Start a session in your webchat widget and steer the conversation into the topic you wired the handoff to.
+2. Confirm a new chat contact appears in the Amazon Connect agent workspace (Contact Control Panel) for the queue the contact flow routes to.
+3. Reply from Connect and confirm the message is delivered back to the user inside the same widget.
+4. End the contact from Connect and confirm the widget shows the conversation as closed.
+
+If you see `ResourceNotFoundException`, the region is almost certainly wrong – set `aws_region` on the integration. If you see assume-role errors, confirm the trust policy allows both `sts:AssumeRole` and `sts:TagSession` from the PolyAI worker account.
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="Amazon Connect (Voice)" href="/integrations/voice/amazon-connect/amazon-connect" icon="aws">
+    Voice routing, IAM, and full Connect setup.
+  </Card>
+  <Card title="Chat handoff overview" href="/integrations/chat/introduction" icon="message">
+    All chat handoff integrations and the shared payload shape.
+  </Card>
+  <Card title="Managed Topic actions" href="/managed-topics/how-to-setup-action/handoff" icon="bolt">
+    Wire a function into a Knowledge topic.
+  </Card>
+</CardGroup>

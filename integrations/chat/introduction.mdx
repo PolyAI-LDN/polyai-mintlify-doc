@@ -1,0 +1,89 @@
+---
+title: Chat handoff integrations
+sidebarTitle: Overview
+description: "Hand off webchat and SMS conversations from your PolyAI agent to a live agent in your CCaaS or CRM."
+---
+
+Use a chat handoff integration to escalate a webchat or SMS conversation from your PolyAI agent to a live agent in your existing CCaaS or CRM. PolyAI continues to proxy messages between the end user and the live agent, so the conversation stays in the same widget the user started in.
+
+<Note>All chat handoff integrations are configured from **Configure > Integrations** in Agent Studio. The handoff is triggered from a Python tool returning a `handoff` payload, then assigned to the Knowledge topic (or flow step) that should escalate.</Note>
+
+## Available integrations
+
+<CardGroup cols={3}>
+  <Card title="Salesforce" href="/integrations/chat/salesforce" icon="cloud">
+    Hand off to Salesforce Service Cloud Messaging.
+  </Card>
+  <Card title="Zendesk" href="/integrations/chat/zendesk" icon="ticket">
+    Hand off to Zendesk Messaging through a Conversations Integration.
+  </Card>
+  <Card title="NICE CXone" href="/integrations/chat/nice-cxone" icon="headset">
+    Hand off to NICE CXone Digital using Brand ID and Channel ID.
+  </Card>
+  <Card title="Amazon Connect" href="/integrations/chat/amazon-connect" icon="aws">
+    Hand off to an Amazon Connect chat contact flow via `StartChatContact`.
+  </Card>
+  <Card title="Genesys Cloud" href="/integrations/chat/genesys" icon="headset">
+    Hand off through Genesys Open Messaging.
+  </Card>
+  <Card title="Webex by Cisco" href="/integrations/chat/webex" icon="webex">
+    Hand off to Webex Contact Center. Generally available 19 June 2026.
+  </Card>
+</CardGroup>
+
+## How it works
+
+1. **Set up the integration on the CCaaS or CRM side.** Each platform expects a webhook, channel, or messaging app to be created so PolyAI has a place to deliver the conversation.
+2. **Connect from Studio.** Go to **Configure > Integrations**, click **Connect** on the relevant tile, and paste the IDs and secrets generated in step 1.
+3. **Write a handoff function.** Return a structured `handoff` payload from a Python tool – the payload tells PolyAI which integration to hand off to.
+4. **Assign the function to a topic.** Add the tool to the Knowledge topic (or flow step) that should trigger the handoff. When that topic fires, PolyAI announces the transfer, sends the conversation to the live agent, and continues to proxy turns.
+
+## The handoff payload
+
+All chat handoff integrations share the same payload shape. Replace `<integration>` with the integration key (e.g. `salesforce_integration`, `nice_integration`, `amazon_connect_integration`, `genesys_integration`, `zendesk_integration`, `webex_integration`):
+
+```python
+def transfer_to_agent(conv: Conversation):
+    return {
+        "utterance": "No problem, I'll transfer you to a live agent now.",
+        "handoff": {
+            "text_chat": {
+                "<integration>_integration": {}
+            }
+        }
+    }
+```
+
+The `utterance` is the message the agent sends to the user immediately before the handoff. The empty object `{}` is where integration-specific parameters go – most integrations accept routing hints such as a queue ID, skill, or department.
+
+<Tip>
+The same conversation continues in the same widget after handoff – PolyAI relays each side's messages through the same WebSocket connection. The end user never has to switch tools or re-authenticate.
+</Tip>
+
+## Choosing an integration
+
+| If your live agents work in… | Use |
+|---|---|
+| Salesforce Service Cloud Messaging | [Salesforce](/integrations/chat/salesforce) |
+| Zendesk Messaging | [Zendesk](/integrations/chat/zendesk) |
+| NICE CXone Digital | [NICE CXone](/integrations/chat/nice-cxone) |
+| Amazon Connect chat | [Amazon Connect](/integrations/chat/amazon-connect) |
+| Genesys Cloud (Open Messaging) | [Genesys Cloud](/integrations/chat/genesys) |
+| Webex Contact Center | [Webex by Cisco](/integrations/chat/webex) |
+| Anything else | [Contact your PolyAI account manager](/integrations/managed-services) to scope a custom integration. |
+
+Five9 chat handoff is on the roadmap but is currently blocked on the Five9 side. Talkdesk and other CCaaS providers can be scoped as custom integrations.
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="Call handoff" href="/call-handoff/introduction" icon="phone-arrow-right">
+    Voice (SIP-based) handoff configuration and the handoff context model.
+  </Card>
+  <Card title="Handoff API" href="/api-reference/handoff/introduction" icon="code">
+    Retrieve handoff context programmatically for screen-pop or CRM enrichment.
+  </Card>
+  <Card title="Chat API" href="/api-reference/chat/introduction" icon="message">
+    Integrate PolyAI into a custom chat surface and observe the `handoff` object.
+  </Card>
+</CardGroup>
