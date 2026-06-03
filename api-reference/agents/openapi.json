@@ -1750,6 +1750,228 @@
           "expiresInSeconds",
           "text"
         ]
+      },
+      "AudioCacheEntryResponse": {
+        "description": "A single cached audio entry.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Audio cache entry ID",
+            "type": "string"
+          },
+          "transcript": {
+            "description": "Transcript used for cache lookup",
+            "type": "string"
+          },
+          "cachedAt": {
+            "description": "ISO 8601 timestamp of when the entry was cached",
+            "type": "string"
+          },
+          "hitCount": {
+            "description": "Number of times this cached audio has been served",
+            "type": "integer"
+          },
+          "duration": {
+            "description": "Audio duration in seconds",
+            "type": "number"
+          },
+          "regenerated": {
+            "description": "Whether this entry has been regenerated since first cached",
+            "type": "boolean"
+          },
+          "provider": {
+            "description": "TTS provider that produced the cached audio. One of: eleven_labs, google, play_ht, cartesia, hume, minimax, rime, poly_tts, resemble, nemo, microsoft.",
+            "type": "string"
+          },
+          "providerVoiceId": {
+            "description": "Voice ID in the provider's catalog (e.g. '21m00Tcm4TlvDq8ikWAM' for ElevenLabs, 'en-US-Neural2-A' for Google).",
+            "type": "string"
+          },
+          "audioFilename": {
+            "description": "Original audio filename, if known",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imported": {
+            "description": "Whether the audio was uploaded by a user rather than synthesized",
+            "type": "boolean"
+          },
+          "languageCode": {
+            "description": "BCP-47 language code, e.g. 'en-US'",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "transcript",
+          "cachedAt",
+          "hitCount",
+          "duration",
+          "regenerated",
+          "provider",
+          "providerVoiceId",
+          "imported",
+          "languageCode"
+        ]
+      },
+      "ListAudioCacheResponse": {
+        "description": "Paginated list of audio cache entries.",
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AudioCacheEntryResponse"
+            }
+          },
+          "totalCount": {
+            "description": "Total matching entries before pagination",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "entries",
+          "totalCount"
+        ]
+      },
+      "VoiceTuningSettingsResponse": {
+        "description": "Voice tuning settings used when generating a cached audio entry. Fields are provider-dependent — not all fields apply to every TTS provider.",
+        "type": "object",
+        "properties": {
+          "stability": {
+            "description": "Controls voice consistency between regenerations. Higher values produce more consistent output.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "similarityBoost": {
+            "description": "Controls how closely the generated voice matches the original voice sample. Higher values increase similarity.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "speed": {
+            "description": "Playback speed multiplier. 1.0 is normal speed.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "modelId": {
+            "description": "Provider-specific TTS model used for generation (e.g. 'eleven_turbo_v2').",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "AudioCacheDetailResponse": {
+        "description": "Extended details for a single audio cache entry.",
+        "type": "object",
+        "properties": {
+          "generationTranscript": {
+            "description": "Transcript used for audio generation (may differ from the cache lookup transcript).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "voiceTuningSettings": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/VoiceTuningSettingsResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "SynthesizeAudioRequest": {
+        "description": "Request body to synthesize a preview without saving to the cache.",
+        "type": "object",
+        "properties": {
+          "text": {
+            "description": "Text to synthesize",
+            "type": "string"
+          },
+          "config": {
+            "description": "Voice tuning settings (provider-specific). See VoiceTuningSettingsResponse for common fields.",
+            "type": "object",
+            "additionalProperties": true
+          },
+          "language": {
+            "description": "BCP-47 language tag, e.g. 'en-US'",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "text",
+          "config"
+        ]
+      },
+      "BulkDeleteAudioCacheRequest": {
+        "description": "Request body for bulk deleting audio cache entries.",
+        "type": "object",
+        "properties": {
+          "ids": {
+            "description": "Audio cache entry IDs to delete. Up to 100 per request.",
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "BulkDeleteAudioCacheResponse": {
+        "description": "Per-ID results for a bulk delete request.",
+        "type": "object",
+        "properties": {
+          "deleted": {
+            "description": "IDs that were deleted successfully",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "failed": {
+            "description": "IDs that failed to delete",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "deleted",
+          "failed"
+        ]
+      },
+      "DeleteAudioCacheResponse": {
+        "description": "Response confirming an audio cache entry was deleted.",
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ]
       }
     }
   },
@@ -3837,6 +4059,429 @@
           "schema": {
             "type": "string"
           }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/audio-cache": {
+      "get": {
+        "summary": "List audio cache entries",
+        "description": "List cached audio entries for an agent with pagination, sorting, and filtering. Defaults to sorting by `hitCount` descending.",
+        "tags": [
+          "Audio Cache"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "description": "Maximum entries to return (1-200)."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "description": "Pagination offset."
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Sort expression, e.g. `hit_count:desc` or `duration:asc`. Sortable fields: `hit_count`, `cached_at`, `duration`, `provider`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListAudioCacheResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/audio-cache/bulk-delete": {
+      "post": {
+        "summary": "Bulk delete audio cache entries",
+        "description": "Delete up to 100 audio cache entries in a single request. Failures are reported per ID; the request succeeds even if some IDs cannot be deleted.",
+        "tags": [
+          "Audio Cache"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkDeleteAudioCacheRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Per-ID results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkDeleteAudioCacheResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/audio-cache/{entryId}": {
+      "delete": {
+        "summary": "Delete an audio cache entry",
+        "description": "Permanently delete a cached audio entry and its underlying audio file.",
+        "tags": [
+          "Audio Cache"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteAudioCacheResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "entryId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Audio cache entry ID"
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/audio-cache/{entryId}/details": {
+      "get": {
+        "summary": "Get audio cache entry details",
+        "description": "Return extended details for a cached audio entry, including the generation transcript and voice tuning settings used.",
+        "tags": [
+          "Audio Cache"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioCacheDetailResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update audio cache entry details and file",
+        "description": "Replace both the audio file and the voice tuning settings for a cache entry in a single request. Send as `multipart/form-data` with a `file` part containing the WAV audio and a `settings` part containing a JSON object with `text` and `config` (voice tuning settings).",
+        "tags": [
+          "Audio Cache"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Replacement WAV audio file"
+                  },
+                  "settings": {
+                    "type": "string",
+                    "description": "JSON-encoded object with `text` (string) and `config` (voice tuning settings)."
+                  }
+                },
+                "required": [
+                  "file",
+                  "settings"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Updated"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "entryId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Audio cache entry ID"
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/audio-cache/{entryId}/file": {
+      "get": {
+        "summary": "Download audio cache file",
+        "description": "Download the cached audio as a binary WAV file.",
+        "tags": [
+          "Audio Cache"
+        ],
+        "responses": {
+          "200": {
+            "description": "WAV audio file",
+            "content": {
+              "audio/wav": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Replace audio cache file",
+        "description": "Upload a replacement WAV file for a cached entry. Send the raw audio bytes as the request body with `Content-Type: audio/wav`. Optionally include an `X-Filename` header to record the original filename.",
+        "tags": [
+          "Audio Cache"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "audio/wav": {
+              "schema": {
+                "type": "string",
+                "format": "binary",
+                "description": "Raw WAV audio bytes"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Updated"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "entryId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Audio cache entry ID"
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/audio-cache/{entryId}/synthesize": {
+      "post": {
+        "summary": "Synthesize an audio preview",
+        "description": "Synthesize audio with the supplied text and voice tuning settings without saving it to the cache. Returns a binary WAV file. Useful for previewing voice tuning changes before persisting them.",
+        "tags": [
+          "Audio Cache"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SynthesizeAudioRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "WAV audio file",
+            "content": {
+              "audio/wav": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized – missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "entryId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Audio cache entry ID"
         }
       ]
     }
