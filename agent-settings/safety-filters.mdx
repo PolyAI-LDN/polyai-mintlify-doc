@@ -1,0 +1,133 @@
+---
+title: 'Safety filters'
+sidebarTitle: 'Safety filters'
+description: 'Per-channel content filters that classify user input and agent output across hate, sexual, violence, and self-harm – and always-on jailbreak detection.'
+keywords:
+  - safety filters
+  - content filters
+  - content safety
+  - hate
+  - sexual
+  - violence
+  - self-harm
+  - jailbreak detection
+  - moderation
+---
+
+Safety filters are PolyAI's content classifiers. They inspect every user input and every agent output in real time and block anything that exceeds the severity threshold you set for each category. Filters combine PolyAI's models with third-party services such as [Azure OpenAI content safety](https://learn.microsoft.com/en-us/azure/ai-services/content-safety/).
+
+Configure project-wide defaults in **Configure > General**, then override them per channel in **Channels > Voice > Voice configuration** and **Channels > Chat > Chat configuration**.
+
+<Frame caption="Safety filter sliders on the voice channel">
+  <img src="/images/voice/safety-filters-voice.png" alt="Safety filter settings showing severity sliders for hate, sexual, violence, and self-harm on the voice channel" />
+</Frame>
+
+## How filters run
+
+Filters run on both sides of every turn:
+
+- **User input** – classifies what the caller or visitor says before the agent sees it. Blocked input is replaced with a safe fallback response.
+- **Agent output** – classifies what the agent is about to say. Blocked output is suppressed and the agent recovers with a safe response.
+
+Filtering is independent of the LLM prompt – it's a separate model layer, so it works regardless of agent behavior, flow, or prompt changes.
+
+## Categories and severity levels
+
+Each category has four severity levels. Pick the level per category that matches your use case and compliance requirements.
+
+| Severity | Behavior |
+|----------|----------|
+| **Off** | Category is not enforced. |
+| **Lenient** | Block high severity content only. |
+| **Moderate** | Block medium and high severity content. |
+| **Strict** | Block low, medium, and high severity content. |
+
+<AccordionGroup>
+  <Accordion title="Hate" icon="ban">
+    Content that attacks or discriminates based on race, ethnicity, nationality, religion, gender identity, sexual orientation, disability, or appearance. Includes bullying, harassment, and slurs.
+  </Accordion>
+  <Accordion title="Sexual" icon="triangle-exclamation">
+    Content involving explicit anatomy, sexual acts, or romantic/erotic themes – including abusive or exploitative content.
+  </Accordion>
+  <Accordion title="Violence" icon="skull-crossbones">
+    Physical harm, threats, weapons, terrorism, and other violent acts or intimidation.
+  </Accordion>
+  <Accordion title="Self-harm" icon="heart-crack">
+    Mentions of suicide, self-injury, eating disorders, or content about hurting oneself.
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+**Jailbreak detection is always on.** A separate jailbreak attack filter watches for attempts to bypass or disable safety features. It can't be turned off and is independent of the per-channel severity sliders.
+</Note>
+
+## Project defaults vs. channel overrides
+
+Safety filters are configured on a **per-channel basis** with project-wide defaults as a fallback.
+
+- **Project defaults** – set in **Configure > General**. Apply to any channel that does not have its own overrides enabled.
+- **Voice channel** – override in **Channels > Voice > Voice configuration**. See [Voice configuration → Safety filters](/voice/voice-configuration#safety-filters).
+- **Chat channel** – override in **Channels > Chat > Chat configuration**. See [Chat configuration → Safety filters](/webchat/chat-configuration#safety-filters).
+
+When a channel has its own filters enabled, the channel values win for that channel. When a channel has filters disabled, the project defaults apply.
+
+<Warning>
+More lenient settings allow a wider range of content through. Review your use case and compliance requirements before relaxing any category.
+</Warning>
+
+## Edit filters
+
+1. Open **Configure > General** and find the **Safety filter defaults** section to set the project-wide baseline.
+2. To override for a specific channel, open the channel's configuration page (**Channels > Voice** or **Channels > Chat**), enable safety filters, and adjust the sliders.
+3. Save. Voice and project-level changes follow the standard [environment branching](/environments-and-versions/introduction); chat changes take effect immediately on save.
+4. Test with **Chat with Agent** or a sandbox phone number before promoting.
+
+## Monitor filter activity
+
+Every filter trigger is recorded on the conversation. Monitor across conversations from the [Safety dashboard](/analytics/dashboards/safety):
+
+- **Calls managed for risk** – how often filters fired (count and percentage).
+- **Caller utterance category** – breakdown by hate, sexual, violence, and self-harm.
+- **Caller utterance risk level** – risk distribution of incoming messages.
+- **Distribution of flagged calls** – trend over time.
+
+To inspect a single conversation, open it in [Conversation review](/analytics/conversations/review) – flagged turns are annotated inline. Filter the conversations list by safety category in the **QA category** filter.
+
+## Language support
+
+Filters have been trained and tested in English, German, Japanese, Spanish, French, Italian, Portuguese, and Chinese. Other languages are supported but performance may vary – test thoroughly in your target language before going live.
+
+## How safety filters fit with Guardrails
+
+Safety filters and [platform Guardrails](/agent-settings/guardrails) protect different layers and are designed to run together:
+
+- **Safety filters** classify each input and output against hate, sexual, violence, and self-harm before/after the LLM. They block content at the model layer.
+- **Guardrails** are prompt-level instructions that shape how the LLM responds – for example, refusing to disclose its identity or escalating on a crisis signal.
+- **Jailbreak detection** (always-on filter) blocks malicious input upstream; the **Jailbreak & Prompt Defence** guardrail tells the LLM how to respond if anything slips through.
+- **Emergency & Crisis Escalation** (a guardrail) catches conversational distress signals that the self-harm filter misses – for example, "I don't want to be here anymore" said in a measured tone.
+
+Use both. They're complementary, not redundant.
+
+## Best practices
+
+- **Test thoroughly** – run your own tests to validate filter behavior against representative content from your domain.
+- **Don't default to Strict** – find the level that prevents harm without over-filtering legitimate calls. Over-filtering causes safe fallbacks that hurt CX.
+- **Be consistent across variants** – when running [A/B tests](/environments-and-versions/ab-testing) or multiple agents, keep filter levels aligned so reporting is comparable.
+- **Review flagged calls weekly** – use the [Safety dashboard](/analytics/dashboards/safety) to catch drift before it becomes a compliance issue.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Guardrails" icon="shield-check" href="/agent-settings/guardrails">
+    Platform-level prompt protections that run alongside safety filters.
+  </Card>
+  <Card title="Safety dashboard" icon="shield" href="/analytics/dashboards/safety">
+    Monitor flagged conversations and filter trigger trends.
+  </Card>
+  <Card title="Voice configuration" icon="phone" href="/voice/voice-configuration">
+    Per-channel filter overrides for voice.
+  </Card>
+  <Card title="Chat configuration" icon="comments" href="/webchat/chat-configuration">
+    Per-channel filter overrides for chat.
+  </Card>
+</CardGroup>
