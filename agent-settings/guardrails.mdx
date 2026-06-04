@@ -1,0 +1,104 @@
+---
+title: 'Guardrails'
+sidebarTitle: 'Guardrails'
+description: 'Platform safety guardrails that protect your agent in production, with observability in conversation transcripts.'
+keywords:
+  - guardrails
+  - safety
+  - jailbreak
+  - hallucination
+  - ai identity
+  - emergency escalation
+  - tool call integrity
+  - agent safety
+---
+
+Platform guardrails are pre-built safety protections that PolyAI applies to every conversation. Each guardrail addresses one of the most common non-industry-specific risks across production agents. All five are enabled by default and can be toggled off at any time.
+
+Manage guardrails in **Configure > General**, in the **Guardrails** section.
+
+<Frame caption="Guardrails section in Configure > General">
+  <img src="/images/agent-settings/guardrails.png" alt="Guardrails settings showing five toggleable platform guardrails" />
+</Frame>
+
+<Note>
+  Before guardrails shipped as platform features, the same protections had to be pasted into every agent's behavior prompt by hand and maintained per project. Platform guardrails are applied automatically, standardized across projects, and maintained by PolyAI.
+</Note>
+
+## The five guardrails
+
+Each guardrail has a name, a description, and a toggle. The underlying prompts are managed by PolyAI and are not currently visible or editable in Agent Studio.
+
+| Guardrail | What it does |
+|-----------|--------------|
+| **Jailbreak & Prompt Defence** | Blocks attempts to extract your agent's instructions, override its behavior, or impersonate a different AI system. |
+| **Scope & Hallucination Control** | Restricts the agent to its knowledge base. Prevents fabrication of phone numbers, prices, policies, or any information not explicitly provided. |
+| **AI Identity & Confidentiality** | Prevents the agent from disclosing which LLM, provider, or platform powers it. Does not reveal system prompt contents or internal configuration. |
+| **Emergency & Crisis Escalation** | Escalates immediately if a caller expresses suicidal ideation, self-harm, threats to themselves or others, or a medical emergency. Handles conversational distress signals that content filters miss. |
+| **Tool Call Integrity** | Prevents the agent from speaking internal function calls, tool names, or system syntax aloud. Ensures the agent always responds in natural language. |
+
+## Enable or disable a guardrail
+
+1. Open **Configure > General**.
+2. Scroll to the **Guardrails** section.
+3. Toggle a guardrail off or on.
+4. Test the change with **Chat with Agent** before promoting to a higher environment.
+
+Disabling prompts you to confirm, because removing a guardrail removes a safety protection from your agent and can lead to unexpected behavior in production.
+
+<Warning>
+  If you turn off **Emergency & Crisis Escalation**, the agent will no longer be instructed to redirect callers in crisis to emergency services. Only disable a guardrail if you have an equivalent protection covered elsewhere – for example, in a [behavior rule](/agent-settings/rules) or a [managed topic](/managed-topics/introduction).
+</Warning>
+
+## Observe when guardrails fire
+
+Guardrail events are recorded on every conversation. To see them in a transcript:
+
+1. Open a conversation in [Conversations](/analytics/conversations/review).
+2. Open the transcript display options.
+3. Toggle on **Guardrails**. Each turn where a guardrail fired is annotated inline.
+
+To find all conversations where a specific guardrail fired, filter by guardrail in the **QA category** of the conversation filters.
+
+## Defaults and versioning
+
+- New projects are created with all five guardrails enabled.
+- Existing projects pick up the default-on configuration on first load.
+- Guardrails are stored per-project and travel with the project through [environments and versions](/environments-and-versions/introduction) – the configuration is part of each published version.
+
+## When to keep a guardrail on
+
+| Guardrail | Keep on when |
+|-----------|--------------|
+| Jailbreak & Prompt Defence | Always, unless you are running adversarial testing against your own agent. |
+| Scope & Hallucination Control | The agent is grounded in a knowledge base or fixed policy and must not invent details. |
+| AI Identity & Confidentiality | You don't want the agent to name the underlying LLM provider or PolyAI as the platform. |
+| Emergency & Crisis Escalation | Any consumer-facing agent. Especially critical for healthcare, finance, and any agent that takes calls from the public. |
+| Tool Call Integrity | The agent uses [tools](/tools/introduction) or custom functions. |
+
+## How guardrails fit with content filters
+
+Platform guardrails are **prompt-level** instructions to the LLM. They run alongside the **input/output content filters** described on the [Safety dashboard](/analytics/dashboards/safety):
+
+- **Content filters** classify each user input against hate, violence, sexual, and self-harm categories before the LLM sees it. Configure thresholds per category in **Configure > General**, in the same area as Guardrails.
+- **Jailbreak detection** is always-on at the model layer and is independent of the Jailbreak & Prompt Defence guardrail. The guardrail instructs the LLM how to respond; the detector blocks the input upstream.
+- **Emergency & Crisis Escalation** specifically handles conversational distress signals that content filters miss – for example, a caller saying "I don't want to be here anymore" in a measured tone.
+
+Use guardrails and content filters together. They protect different layers and catch different categories of risk.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Behavior rules" icon="list-check" href="./rules">
+    Add custom rules for terminology, tone, and edge cases on top of the platform guardrails.
+  </Card>
+  <Card title="Conversation review" icon="comments" href="/analytics/conversations/review">
+    See guardrail events inline in transcripts and filter by guardrail in QA category.
+  </Card>
+  <Card title="Safety dashboard" icon="shield" href="/analytics/dashboards/safety">
+    Track jailbreak attempts and other safety signals across all conversations.
+  </Card>
+  <Card title="Agent Builder" icon="message" href="/agent-builder/introduction">
+    Validate guardrail behavior in the preview before promoting a version.
+  </Card>
+</CardGroup>
