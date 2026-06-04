@@ -30,23 +30,14 @@ In Agent Studio, open **Configure > Integrations** and click **Connect** on the 
 | `contact_flow_id` | Yes | The contact flow that routes the chat to a queue. |
 | `role_arn` | Yes | IAM role PolyAI assumes to call `StartChatContact`. |
 | `aws_region` | No | Region of the Connect instance (for example `eu-west-2`). Set this if your Connect instance is not in the PolyAI worker's default region. |
-| `api_url` | No | Override for the Connect API endpoint. |
-| `headers` | No | Static headers to include on API calls. |
 
 <Tip>
 If your worker defaults to `us-east-1` but your Connect instance lives in `eu-west-2`, set `aws_region` explicitly. Without it the handoff fails with `ResourceNotFoundException`.
 </Tip>
 
-```json
-{
-  "instance_id": "12345678-aaaa-bbbb-cccc-1234567890ab",
-  "contact_flow_id": "abcdef12-3456-7890-abcd-ef1234567890",
-  "role_arn": "arn:aws:iam::123456789012:role/PolyAIAccessConnect",
-  "aws_region": "eu-west-2"
-}
-```
-
 ## 3. Write the handoff function
+
+The handoff payload can include the Connect configuration inline. This is useful for testing or when different topics hand off to different Connect instances:
 
 ```python
 def transfer_to_connect(conv: Conversation):
@@ -54,11 +45,17 @@ def transfer_to_connect(conv: Conversation):
         "utterance": "No problem, I'll transfer you to one of our agents now.",
         "handoff": {
             "text_chat": {
-                "amazon_connect_integration": {}
+                "amazon_connect_integration": {
+                    "instance_id": "12345678-aaaa-bbbb-cccc-1234567890ab",
+                    "contact_flow_id": "abcdef12-3456-7890-abcd-ef1234567890",
+                    "role_arn": "arn:aws:iam::123456789012:role/PolyAIAccessConnect",
+                }
             }
         }
     }
 ```
+
+You can also pass an optional `user_display_name` to set the name the live agent sees for the user.
 
 ## 4. Assign the function to a topic
 
