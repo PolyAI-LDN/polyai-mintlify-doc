@@ -109,6 +109,33 @@ You can configure barge-in at a granular level using the experimental JSON confi
 
 Overrides follow a precedence order: **step > flow > global**. For example, you can have barge-in off globally, enabled for a specific flow, and disabled again for a sensitive step within that flow.
 
+### Interruption handling for the LLM
+
+When a caller barges in, the agent often stops mid-sentence. By default, the LLM still sees the *full* planned response in conversation history, which can mislead it into thinking the caller heard text they never actually heard.
+
+Three independent experimental flags under `barge_in.experimental_config` control what the LLM sees for interrupted turns:
+
+| Flag | Controls | Default |
+|---|---|---|
+| `interruption_display_llm` | How the assistant message is formatted: `"tags"` (wrap unsaid text in `<interrupted>…</interrupted>`), `"strip"` (drop unsaid text entirely), or `"ellipsis"` (mark with `...`) | `""` (legacy formatting) |
+| `truncate_interrupted_utterances` | Truncate function-call utterances to only the spoken portion, so unsaid text doesn't leak as a clean assistant message | `false` |
+| `annotate_interrupted_function_calls` | Prepend a `[INTERRUPTED: Said "…" \| Unsaid "…"]` notice to function outputs so the LLM knows the turn was cut off | `false` |
+
+Each flag can be enabled independently. Choose the combination that matches how you want your prompt to handle interruptions.
+
+**Example – hide everything unsaid:**
+
+```yaml
+barge_in:
+  is_enabled: true
+  experimental_config:
+    interruption_display_llm: "strip"
+    truncate_interrupted_utterances: true
+    annotate_interrupted_function_calls: false
+```
+
+With this config, the LLM only sees what the caller actually heard — no `<interrupted>` tags, no `[INTERRUPTED: …]` notices, and no unsaid text from function utterances. Use this when you want to prompt the agent to behave as if the unspoken portion never existed.
+
 <Note>
 Barge-in behavior cannot be fully tested in the chat panel. Always verify with a real phone call.
 </Note>
