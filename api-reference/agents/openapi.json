@@ -192,7 +192,7 @@
         ]
       },
       "BatchUpdateConnectorsBody": {
-        "description": "Ordered list of connector updates.\n\nEach update is applied independently — partial success is possible.",
+        "description": "Ordered list of connector updates.\n\nEach update is applied independently \u2014 partial success is possible.",
         "type": "object",
         "properties": {
           "updates": {
@@ -771,7 +771,7 @@
         ]
       },
       "DeletePhoneNumbersResponse": {
-        "description": "Per-number results of a batch release — phone numbers that were\nsuccessfully released, plus any that couldn't be and why.",
+        "description": "Per-number results of a batch release \u2014 phone numbers that were\nsuccessfully released, plus any that couldn't be and why.",
         "type": "object",
         "properties": {
           "deleted": {
@@ -1619,7 +1619,7 @@
         "title": "UpdateVariantBody"
       },
       "UpdateVoiceRequest": {
-        "description": "Request schema for updating a voice.\n\nAll fields are optional — only provided fields are patched.",
+        "description": "Request schema for updating a voice.\n\nAll fields are optional \u2014 only provided fields are patched.",
         "type": "object",
         "properties": {
           "name": {
@@ -1750,6 +1750,210 @@
           "expiresInSeconds",
           "text"
         ]
+      },
+      "AudioCacheEntry": {
+        "type": "object",
+        "required": [
+          "id",
+          "transcript",
+          "cachedAt",
+          "hitCount",
+          "duration",
+          "regenerated",
+          "provider",
+          "providerVoiceId",
+          "imported"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Audio cache entry ID. Although serialized as a string, the ID is numeric — endpoints that accept an `entryId` path parameter return `400 Invalid ID` if the value cannot be parsed as an integer."
+          },
+          "transcript": {
+            "type": "string",
+            "description": "Transcript used for cache lookup"
+          },
+          "cachedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp of when entry was cached"
+          },
+          "hitCount": {
+            "type": "integer",
+            "description": "Number of cache hits"
+          },
+          "duration": {
+            "type": "number",
+            "format": "float",
+            "description": "Audio duration in seconds"
+          },
+          "regenerated": {
+            "type": "boolean",
+            "description": "Whether this entry has been regenerated"
+          },
+          "provider": {
+            "type": "string",
+            "description": "TTS provider tied to this audio cache entry (e.g. 'eleven_labs', 'google', 'play_ht', 'cartesia', 'hume', 'minimax', 'rime', 'poly_tts', 'resemble', 'nemo', 'microsoft')"
+          },
+          "providerVoiceId": {
+            "type": "string",
+            "description": "The ID of the voice cataloged in the TTS provider's system. If your TTS provider is PolyAI, this is an internally assigned voice ID. If you are using a third-party provider, this is the voice ID from that provider's catalog (e.g. '21m00Tcm4TlvDq8ikWAM' for ElevenLabs, 'en-US-Neural2-A' for Google)."
+          },
+          "audioFilename": {
+            "type": "string",
+            "nullable": true,
+            "description": "Original audio filename, if any."
+          },
+          "imported": {
+            "type": "boolean",
+            "description": "Whether this entry was imported"
+          },
+          "languageCode": {
+            "type": "string",
+            "default": "",
+            "description": "BCP-47 language code. May be an empty string for legacy entries created before language was tracked."
+          }
+        }
+      },
+      "ListAudioCacheResponse": {
+        "type": "object",
+        "required": [
+          "entries",
+          "totalCount"
+        ],
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AudioCacheEntry"
+            }
+          },
+          "totalCount": {
+            "type": "integer",
+            "description": "Total matching entries before pagination"
+          }
+        }
+      },
+      "VoiceTuningConfig": {
+        "type": "object",
+        "description": "Provider-specific voice tuning settings. All fields are optional \u2014 each TTS provider uses a different subset.",
+        "properties": {
+          "stability": {
+            "type": "number",
+            "format": "float",
+            "description": "Controls voice consistency between regenerations (ElevenLabs)"
+          },
+          "similarityBoost": {
+            "type": "number",
+            "format": "float",
+            "description": "Controls how closely the output matches the original voice sample (ElevenLabs)"
+          },
+          "speed": {
+            "type": "number",
+            "format": "float",
+            "description": "Playback speed multiplier. 1.0 is normal speed"
+          },
+          "modelId": {
+            "type": "string",
+            "description": "TTS model ID, specific to the provider (e.g. 'eleven_turbo_v2')"
+          },
+          "engine": {
+            "type": "string",
+            "description": "TTS engine identifier"
+          },
+          "emotion": {
+            "type": "string",
+            "description": "Emotion preset for the voice (Cartesia)"
+          },
+          "volume": {
+            "type": "number",
+            "format": "float",
+            "description": "Output volume level (Cartesia)"
+          },
+          "version": {
+            "type": "string",
+            "description": "Model version"
+          },
+          "voiceDescription": {
+            "type": "string",
+            "description": "Natural language voice description (Hume)"
+          },
+          "instantMode": {
+            "type": "boolean",
+            "description": "Enable instant mode for lower latency (Hume)"
+          }
+        }
+      },
+      "SynthesizeAudioRequest": {
+        "type": "object",
+        "required": [
+          "text",
+          "config"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Text to synthesize"
+          },
+          "config": {
+            "$ref": "#/components/schemas/VoiceTuningConfig"
+          },
+          "language": {
+            "type": "string",
+            "description": "BCP-47 language tag, e.g. 'en-US'"
+          }
+        }
+      },
+      "BulkDeleteAudioCacheRequest": {
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 20,
+            "description": "List of audio cache entry IDs to delete (max 20)"
+          }
+        }
+      },
+      "BulkDeleteAudioCacheResponse": {
+        "type": "object",
+        "required": [
+          "deleted",
+          "failed"
+        ],
+        "properties": {
+          "deleted": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "IDs that were successfully deleted"
+          },
+          "failed": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "IDs that failed to delete"
+          }
+        }
+      },
+      "DeleteAudioCacheEntryResponse": {
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          }
+        }
       }
     }
   },
@@ -1872,10 +2076,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -1912,10 +2116,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -1951,10 +2155,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -1991,10 +2195,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -2038,10 +2242,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -2783,10 +2987,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           }
         }
       },
@@ -2819,10 +3023,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           }
         }
       },
@@ -2868,10 +3072,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           }
         }
       },
@@ -3043,10 +3247,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           }
         }
       },
@@ -3079,10 +3283,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -3139,10 +3343,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -3199,10 +3403,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -3246,10 +3450,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           }
         }
       },
@@ -3295,10 +3499,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           }
         }
       },
@@ -3332,10 +3536,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           }
         }
       },
@@ -3381,10 +3585,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           }
         }
       },
@@ -3417,10 +3621,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -3444,10 +3648,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -3484,10 +3688,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -3545,10 +3749,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           }
         }
       },
@@ -3582,10 +3786,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           }
         }
       },
@@ -3619,10 +3823,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           }
         }
       },
@@ -3668,10 +3872,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           }
         }
       },
@@ -3704,10 +3908,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -3744,10 +3948,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -3771,10 +3975,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -3811,10 +4015,10 @@
             "description": "Validation error"
           },
           "401": {
-            "description": "Unauthorized – missing or invalid API key"
+            "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden – insufficient permissions"
+            "description": "Forbidden \u2013 insufficient permissions"
           },
           "404": {
             "description": "Resource not found"
@@ -3832,6 +4036,414 @@
         },
         {
           "name": "phoneNumber",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/audio-cache": {
+      "get": {
+        "summary": "List cached audio entries",
+        "description": "List cached TTS audio entries for an agent with metadata including transcript, provider, voice, duration, and hit count.",
+        "tags": [
+          "Audio Cache"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "description": "Max entries to return (1-200)"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "description": "Pagination offset"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Sort expression, e.g. 'hit_count:desc', 'duration:asc'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListAudioCacheResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request \u2013 the `sort` or `filter` expression could not be parsed"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 the API key does not have `read` permission on the audio cache resource"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/audio-cache/{entryId}": {
+      "delete": {
+        "summary": "Delete a cached audio entry",
+        "description": "Delete a cached audio entry and its associated audio file from storage. The entry is permanently removed and cannot be recovered.",
+        "tags": [
+          "Audio Cache"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteAudioCacheEntryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request \u2013 `entryId` is not a numeric ID"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 the API key does not have `write` permission on the audio cache resource"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "entryId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Audio cache entry ID"
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/audio-cache/{entryId}/file": {
+      "get": {
+        "summary": "Download cached audio file",
+        "description": "Download the cached audio file as a WAV binary. Returns the raw audio bytes for the given cache entry ID.",
+        "tags": [
+          "Audio Cache"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "audio/wav": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request \u2013 `entryId` is not a numeric ID"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 the API key does not have `read` permission on the audio cache resource"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Replace cached audio file",
+        "description": "Replace the audio file for an existing cache entry. Send raw WAV bytes as the request body with `Content-Type: audio/wav`. Optionally include an `X-Filename` header to name the file, otherwise defaults to `<entryId>.wav`. Maximum file size is 6 MB.",
+        "tags": [
+          "Audio Cache"
+        ],
+        "parameters": [
+          {
+            "name": "X-Filename",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional filename for the uploaded audio. Defaults to <entryId>.wav."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "audio/wav": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Audio file replaced"
+          },
+          "400": {
+            "description": "Invalid request. Returned when the request body is empty, the file exceeds the 6 MB limit, or `entryId` is not a numeric ID."
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 the API key does not have `write` permission on the audio cache resource"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "entryId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Audio cache entry ID"
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/audio-cache/{entryId}/details": {
+      "put": {
+        "summary": "Replace audio file and voice tuning settings",
+        "description": "Replace both the audio file and voice tuning settings for a cache entry in a single request. Sent as `multipart/form-data` with a `file` part containing the WAV audio (max 6 MB) and a `settings` part containing a JSON object with `text` and `config` fields.",
+        "tags": [
+          "Audio Cache"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file",
+                  "settings"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "WAV audio file (max 6 MB)"
+                  },
+                  "settings": {
+                    "type": "string",
+                    "description": "JSON string with shape `{\"text\": string, \"config\": VoiceTuningConfig}`, where `VoiceTuningConfig` matches the [VoiceTuningConfig](#/components/schemas/VoiceTuningConfig) schema. `text` is the transcript to associate with the cache entry; `config` carries provider-specific voice tuning settings."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Audio and settings updated"
+          },
+          "400": {
+            "description": "Invalid request. Returned when the `file` part is missing, the file exceeds the 6 MB limit, the `settings` part is not valid JSON, or the `entryId` is not a numeric ID."
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 the API key does not have `write` permission on the audio cache resource"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "entryId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Audio cache entry ID"
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/audio-cache/{entryId}/synthesize": {
+      "post": {
+        "summary": "Synthesize audio preview",
+        "description": "Generate a TTS audio preview using an existing cache entry's voice and provider configuration. Returns WAV audio without saving to cache, allowing you to preview how different text or tuning settings would sound before committing changes.",
+        "tags": [
+          "Audio Cache"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SynthesizeAudioRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Synthesized audio",
+            "content": {
+              "audio/wav": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request. Returned when the request body fails validation against `SynthesizeAudioRequest`, or when `entryId` is not a numeric ID."
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 the API key does not have `read` permission on the audio cache resource"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "entryId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Audio cache entry ID"
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/audio-cache/bulk-delete": {
+      "post": {
+        "summary": "Bulk delete cached audio entries",
+        "description": "Delete multiple audio cache entries by ID in a single request. Operates best-effort \u2014 returns which IDs were successfully deleted and which failed, so partial failures can be retried. Maximum 20 IDs per request.",
+        "tags": [
+          "Audio Cache"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkDeleteAudioCacheRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Per-ID delete results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkDeleteAudioCacheResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request \u2013 `ids` must contain between 1 and 20 entries"
+          },
+          "401": {
+            "description": "Unauthorized \u2013 missing or invalid API key"
+          },
+          "403": {
+            "description": "Forbidden \u2013 the API key does not have `write` permission on the audio cache resource"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
           "in": "path",
           "required": true,
           "schema": {
