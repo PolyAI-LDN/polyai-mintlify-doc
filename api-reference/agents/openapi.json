@@ -1762,13 +1762,12 @@
           "regenerated",
           "provider",
           "providerVoiceId",
-          "imported",
-          "languageCode"
+          "imported"
         ],
         "properties": {
           "id": {
             "type": "string",
-            "description": "Audio cache entry ID"
+            "description": "Audio cache entry ID. Although serialized as a string, the ID is numeric — endpoints that accept an `entryId` path parameter return `400 Invalid ID` if the value cannot be parsed as an integer."
           },
           "transcript": {
             "type": "string",
@@ -1798,12 +1797,12 @@
           },
           "providerVoiceId": {
             "type": "string",
-            "description": "Voice ID in the TTS provider's catalog"
+            "description": "The ID of the voice cataloged in the TTS provider's system. If your TTS provider is PolyAI, this is an internally assigned voice ID. If you are using a third-party provider, this is the voice ID from that provider's catalog (e.g. '21m00Tcm4TlvDq8ikWAM' for ElevenLabs, 'en-US-Neural2-A' for Google)."
           },
           "audioFilename": {
             "type": "string",
             "nullable": true,
-            "description": "Original audio filename, if any"
+            "description": "Original audio filename, if any."
           },
           "imported": {
             "type": "boolean",
@@ -1811,7 +1810,8 @@
           },
           "languageCode": {
             "type": "string",
-            "description": "BCP-47 language code"
+            "default": "",
+            "description": "BCP-47 language code. May be an empty string for legacy entries created before language was tracked."
           }
         }
       },
@@ -4100,7 +4100,7 @@
             "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden \u2013 the API key does not have `read` permission on the audio cache resource"
           },
           "404": {
             "description": "Resource not found"
@@ -4136,11 +4136,14 @@
               }
             }
           },
+          "400": {
+            "description": "Invalid request \u2013 `entryId` is not a numeric ID"
+          },
           "401": {
             "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden \u2013 the API key does not have `write` permission on the audio cache resource"
           },
           "404": {
             "description": "Resource not found"
@@ -4186,11 +4189,14 @@
               }
             }
           },
+          "400": {
+            "description": "Invalid request \u2013 `entryId` is not a numeric ID"
+          },
           "401": {
             "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden \u2013 the API key does not have `read` permission on the audio cache resource"
           },
           "404": {
             "description": "Resource not found"
@@ -4230,13 +4236,13 @@
             "description": "Audio file replaced"
           },
           "400": {
-            "description": "Invalid request (missing body, file too large, etc.)"
+            "description": "Invalid request. Returned when the request body is empty, the file exceeds the 6 MB limit, or `entryId` is not a numeric ID."
           },
           "401": {
             "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden \u2013 the API key does not have `patch` permission on the audio cache resource"
           },
           "404": {
             "description": "Resource not found"
@@ -4288,7 +4294,7 @@
                   },
                   "settings": {
                     "type": "string",
-                    "description": "JSON string with shape `{\"text\": string, \"config\": VoiceTuningConfig}`"
+                    "description": "JSON string with shape `{\"text\": string, \"config\": VoiceTuningConfig}`, where `VoiceTuningConfig` matches the [VoiceTuningConfig](#/components/schemas/VoiceTuningConfig) schema. `text` is the transcript to associate with the cache entry; `config` carries provider-specific voice tuning settings."
                   }
                 }
               }
@@ -4300,13 +4306,13 @@
             "description": "Audio and settings updated"
           },
           "400": {
-            "description": "Invalid request"
+            "description": "Invalid request. Returned when the `file` part is missing, the file exceeds the 6 MB limit, the `settings` part is not valid JSON, or the `entryId` is not a numeric ID."
           },
           "401": {
             "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden \u2013 the API key does not have `write` permission on the audio cache resource"
           },
           "404": {
             "description": "Resource not found"
@@ -4363,13 +4369,13 @@
             }
           },
           "400": {
-            "description": "Invalid request"
+            "description": "Invalid request. Returned when the request body fails validation against `SynthesizeAudioRequest`, or when `entryId` is not a numeric ID."
           },
           "401": {
             "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden \u2013 the API key does not have `read` permission on the audio cache resource"
           },
           "404": {
             "description": "Resource not found"
@@ -4425,13 +4431,13 @@
             }
           },
           "400": {
-            "description": "Invalid request"
+            "description": "Invalid request \u2013 `ids` must contain between 1 and 20 entries"
           },
           "401": {
             "description": "Unauthorized \u2013 missing or invalid API key"
           },
           "403": {
-            "description": "Forbidden \u2013 insufficient permissions"
+            "description": "Forbidden \u2013 the API key does not have `write` permission on the audio cache resource"
           },
           "404": {
             "description": "Resource not found"
