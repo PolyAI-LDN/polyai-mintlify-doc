@@ -1,0 +1,135 @@
+---
+title: 'Trigger an outbound SMS'
+api: 'POST /public_api/sms/outbound'
+description: 'Start an outbound SMS conversation by sending an agent-authored opening message.'
+---
+
+Starts a new outbound SMS conversation. The supplied `message` is sent to the recipient as the agent's first SMS, and any replies continue the conversation with your agent.
+
+The endpoint returns `202 Accepted` as soon as the request passes validation. Delivery to Twilio happens asynchronously, so a `202` confirms that the request was queued, not that the SMS was delivered.
+
+<Warning>
+It is your responsibility to ensure that SMS is sent in compliance with TCPA, A2P 10DLC, GDPR, and any other applicable laws in the recipient's jurisdiction.
+</Warning>
+
+## Request
+
+### Headers
+
+<ParamField header="X-PolyAi-Auth-Token" type="string" required>
+  Aegis API key. Must be active, not expired, and belong to the same account as the connector.
+</ParamField>
+
+<ParamField header="X-TOKEN-ID" type="string" required>
+  Connector ID for the project and environment to send from. Determines which provisioned Twilio numbers are eligible as the sender.
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  Must be `application/json`.
+</ParamField>
+
+### Body
+
+The request body is limited to 64 KB.
+
+<ParamField body="message" type="string" required>
+  The opening SMS the agent sends to the recipient. This is the first message in the conversation.
+</ParamField>
+
+<ParamField body="user_number" type="string" required>
+  Recipient phone number in E.164 format (e.g. `+14155552671`). Other formats are rejected with `400 Bad Request`.
+</ParamField>
+
+## Response
+
+`202 Accepted` is returned with no response body once the request has been accepted for asynchronous delivery.
+
+## Example
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.us-1.platform.polyai.app/public_api/sms/outbound \
+  -H "X-PolyAi-Auth-Token: YOUR_AUTH_TOKEN" \
+  -H "X-TOKEN-ID: YOUR_CONNECTOR_ID" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Hi Paul, this is a reminder of your appointment tomorrow at 2pm. Reply YES to confirm or STOP to unsubscribe.",
+    "user_number": "+14155552671"
+  }'
+```
+
+```python Python
+import requests
+
+url = "https://api.us-1.platform.polyai.app/public_api/sms/outbound"
+headers = {
+    "X-PolyAi-Auth-Token": "YOUR_AUTH_TOKEN",
+    "X-TOKEN-ID": "YOUR_CONNECTOR_ID",
+    "Content-Type": "application/json",
+}
+payload = {
+    "message": "Hi Paul, this is a reminder of your appointment tomorrow at 2pm. Reply YES to confirm or STOP to unsubscribe.",
+    "user_number": "+14155552671",
+}
+
+response = requests.post(url, json=payload, headers=headers)
+response.raise_for_status()
+print(f"Outbound SMS queued: HTTP {response.status_code}")
+```
+
+```javascript JavaScript
+const response = await fetch(
+  'https://api.us-1.platform.polyai.app/public_api/sms/outbound',
+  {
+    method: 'POST',
+    headers: {
+      'X-PolyAi-Auth-Token': 'YOUR_AUTH_TOKEN',
+      'X-TOKEN-ID': 'YOUR_CONNECTOR_ID',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      message:
+        'Hi Paul, this is a reminder of your appointment tomorrow at 2pm. Reply YES to confirm or STOP to unsubscribe.',
+      user_number: '+14155552671',
+    }),
+  }
+);
+
+console.log('Outbound SMS queued:', response.status);
+```
+
+</CodeGroup>
+
+## Error responses
+
+<ResponseField name="400 Bad Request">
+  The request body is missing, malformed, or larger than 64 KB; `message` or `user_number` is missing; `user_number` is not a valid E.164 number; or the `X-TOKEN-ID` header is missing.
+</ResponseField>
+
+<ResponseField name="401 Unauthorized">
+  The `X-PolyAi-Auth-Token` header is missing, invalid, inactive, or expired.
+</ResponseField>
+
+<ResponseField name="403 Forbidden">
+  The API key's account does not match the account that owns the connector identified by `X-TOKEN-ID`.
+</ResponseField>
+
+<ResponseField name="404 Not Found">
+  No Twilio numbers are provisioned for the connector's project. Provision at least one number under **Build > SMS** or via the Twilio integration first.
+</ResponseField>
+
+<ResponseField name="429 Too Many Requests">
+  The per-project outbound SMS rate limit has been exceeded. Retry with exponential backoff.
+</ResponseField>
+
+<ResponseField name="500 Internal Server Error">
+  Failed to resolve the connector or look up provisioned phone numbers. Retry with exponential backoff.
+</ResponseField>
+
+## Notes
+
+- The sender number is selected automatically from the project's provisioned Twilio numbers. You cannot specify a from-number on the request.
+- Replies from the recipient route to the same agent session that sent the opening message, so the agent can continue the conversation.
+- `STOP`, `START`, and `HELP` replies are intercepted by PolyAI and never reach your agent. See [SMS compliance keywords](/sms/introduction#compliance-keywords-stop-start-help) for the full list of accepted variants and default replies.
+- Outbound SMS to recipients who have previously replied `STOP` is silently dropped until they reply `START`.

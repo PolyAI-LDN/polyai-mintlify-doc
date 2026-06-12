@@ -1,0 +1,64 @@
+---
+title: 'Outbound SMS API'
+sidebarTitle: 'Overview'
+description: 'Start outbound SMS conversations programmatically for reminders, notifications, and follow-ups.'
+---
+
+The Outbound SMS API lets you start an SMS conversation with a recipient by sending an agent-authored opening message. The agent then continues the exchange over SMS using the same Twilio number, so the recipient can reply and have a full conversation with your agent.
+
+Use it for appointment reminders, confirmations, status updates, and other proactive outreach where you want the recipient to be able to reply and continue the conversation.
+
+## Prerequisites
+
+- An active PolyAI project with SMS configured. See the [SMS setup guide](/sms/introduction).
+- At least one Twilio phone number provisioned on the project. The endpoint picks one of these numbers automatically as the sender.
+- An Aegis API key (`X-PolyAi-Auth-Token`) issued for the account that owns the project.
+- The connector ID (`X-TOKEN-ID`) for the project and environment you want to send from.
+
+<Note>Contact your PolyAI representative to enable the Outbound SMS API for your project and obtain the necessary credentials.</Note>
+
+## Base URL
+
+Your base URL is provided by PolyAI. Regional endpoints include:
+
+| Region | Base URL |
+| ------ | -------- |
+| US     | `https://api.us-1.platform.polyai.app` |
+| UK     | `https://api.uk-1.platform.polyai.app` |
+| EUW    | `https://api.euw-1.platform.polyai.app` |
+
+## Authentication
+
+Outbound SMS requests require two headers:
+
+| Header | Purpose |
+| ------ | ------- |
+| `X-PolyAi-Auth-Token` | Aegis API key. Must be active, not expired, and belong to the same account as the connector. |
+| `X-TOKEN-ID` | Connector ID for the project and environment to send from. Determines which provisioned Twilio numbers are used. |
+
+```bash
+curl -X POST https://api.us-1.platform.polyai.app/public_api/sms/outbound \
+  -H "X-PolyAi-Auth-Token: YOUR_AUTH_TOKEN" \
+  -H "X-TOKEN-ID: YOUR_CONNECTOR_ID" \
+  -H "Content-Type: application/json"
+```
+
+## How it works
+
+1. **Trigger the SMS** – `POST /public_api/sms/outbound` with the recipient `user_number` and the opening `message`.
+2. **Number selection** – PolyAI picks one of the Twilio numbers provisioned on the project as the sender. You do not supply the from-number; this guarantees only approved numbers are used.
+3. **Conversation start** – PolyAI creates a messaging session and sends `message` as the agent's first SMS to the recipient.
+4. **Replies route to the agent** – Any reply from the recipient continues the conversation with your agent under the same session, exactly as if they had texted in first.
+
+## Rate limits
+
+Outbound SMS is subject to a per-project rate limit to protect tenants from runaway loops. If you exceed it, requests return `429 Too Many Requests` until the window resets. Contact your PolyAI representative to adjust limits for your use case.
+
+## Best practices
+
+- **Use E.164 format** – `user_number` must start with `+` and a country code (e.g. `+14155552671`). Other formats are rejected with `400 Bad Request`.
+- **Keep messages concise** – The opening `message` is the first SMS the recipient sees. Identify your brand, state the purpose, and explain how to opt out. Messages of 160 characters or fewer send as a single SMS segment.
+- **Disclose STOP/HELP at opt-in** – PolyAI handles [`STOP`, `START`, and `HELP` replies automatically](/sms/introduction#compliance-keywords-stop-start-help), but disclosure during opt-in is your responsibility.
+- **Register A2P 10DLC** – If you are sending to US or Canadian numbers, register your Twilio numbers for [A2P 10DLC](/sms/introduction#a2p-10dlc-registration-us-and-canada) before going live.
+- **Handle 429 with backoff** – Retry rate-limited requests with exponential backoff rather than tight retry loops.
+- **Send lawfully** – It is your responsibility to ensure outbound SMS complies with TCPA, GDPR, and any other applicable regulations in the recipient's jurisdiction.

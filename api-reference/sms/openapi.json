@@ -1,0 +1,157 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "PolyAI Outbound SMS API",
+    "version": "1.0.0",
+    "description": "Trigger outbound SMS conversations programmatically"
+  },
+  "servers": [
+    {
+      "url": "https://api.us-1.platform.polyai.app",
+      "description": "US Region"
+    },
+    {
+      "url": "https://api.uk-1.platform.polyai.app",
+      "description": "UK Region"
+    },
+    {
+      "url": "https://api.euw-1.platform.polyai.app",
+      "description": "EU West Region"
+    }
+  ],
+  "security": [
+    {
+      "PolyAiAuthToken": [],
+      "TokenId": []
+    }
+  ],
+  "paths": {
+    "/public_api/sms/outbound": {
+      "post": {
+        "summary": "Trigger an outbound SMS conversation",
+        "description": "Starts an outbound SMS conversation by sending the supplied message as the agent's opening message to the recipient. The agent number is selected automatically from the Twilio numbers provisioned for the project. The endpoint returns 202 Accepted as soon as the request passes validation; the SMS is delivered asynchronously.",
+        "operationId": "triggerOutboundSMS",
+        "tags": ["Outbound SMS"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["message", "user_number"],
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "description": "The opening message the agent sends to the recipient. This is the first SMS the user receives.",
+                    "example": "Hi Paul, this is a reminder of your appointment tomorrow at 2pm. Reply to confirm."
+                  },
+                  "user_number": {
+                    "type": "string",
+                    "description": "Recipient phone number in E.164 format.",
+                    "example": "+14155552671"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted - The outbound SMS conversation has been queued for delivery. No response body is returned."
+          },
+          "400": {
+            "description": "Bad Request - Missing or invalid request body (e.g. missing message, missing user_number, non-E.164 user_number, missing X-TOKEN-ID header, body exceeds 64 KB)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Missing, invalid, inactive, or expired X-PolyAi-Auth-Token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - The API key's account does not match the account that owns the connector identified by X-TOKEN-ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found - No Twilio numbers are provisioned for the connector's project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests - Per-project outbound SMS rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error - Failed to resolve the connector or look up provisioned phone numbers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "PolyAiAuthToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-PolyAi-Auth-Token",
+        "description": "Aegis API key. The key's account must match the account that owns the connector identified by X-TOKEN-ID."
+      },
+      "TokenId": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-TOKEN-ID",
+        "description": "Connector ID used to scope the request to the correct account, project, and environment."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message"
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code"
+          }
+        }
+      }
+    }
+  }
+}
