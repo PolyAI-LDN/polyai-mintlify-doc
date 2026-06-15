@@ -1,0 +1,60 @@
+---
+title: 'SMS API'
+sidebarTitle: 'Overview'
+description: 'Programmatically start outbound SMS conversations from your backend systems.'
+---
+
+The SMS API lets you trigger an outbound SMS conversation from your own backend. The agent sends the first message you provide, then handles the reply thread end-to-end — just like an inbound SMS conversation.
+
+Use it for proactive outreach where you already know the recipient and want the agent to open the thread: appointment reminders, delivery updates, payment follow-ups, or re-engagement campaigns.
+
+## Prerequisites
+
+- An active PolyAI project with SMS configured. See the [SMS setup guide](/sms/introduction).
+- At least one provisioned Twilio number on the project (the agent number is selected automatically from this pool).
+- A PolyAI API key (`X-PolyAi-Auth-Token`) scoped to the same account as the project.
+- A connector ID (`X-TOKEN-ID`) for the project the conversation should run under. Get it from the [List connectors](/api-reference/agents/endpoint/connectors/list-all-connectors-for-a-project) endpoint or from your PolyAI representative.
+
+<Note>
+US and Canadian projects must complete [A2P 10DLC registration](/sms/introduction#a2p-10dlc-registration-us-and-canada) before outbound SMS will deliver. Carriers block unregistered traffic.
+</Note>
+
+## Base URL
+
+| Region | Base URL |
+| ------ | -------- |
+| US     | `https://api.us-1.platform.polyai.app` |
+| UK     | `https://api.uk-1.platform.polyai.app` |
+| EUW    | `https://api.euw-1.platform.polyai.app` |
+
+## Authentication
+
+Every SMS API request requires two headers:
+
+| Header | Purpose |
+| ------ | ------- |
+| `X-PolyAi-Auth-Token` | PolyAI API key. Must be active, unexpired, and issued to the same account as the target project. |
+| `X-TOKEN-ID` | Connector ID identifying which project, environment, and variant the conversation should run under. |
+
+The API key account and the connector account must match. If they do not, the request is rejected with `403 Forbidden`.
+
+## How outbound SMS works
+
+1. **Trigger** — `POST /public_api/sms/outbound` with the recipient phone number and the first message the agent should send.
+2. **Number selection** — PolyAI looks up the project's provisioned Twilio numbers and chooses one as the agent number. You do not pass a sender number.
+3. **Greeting delivered** — Twilio sends the `message` from the chosen agent number to `user_number`.
+4. **Conversation continues** — Replies from the recipient are routed back to the agent and handled like any other inbound SMS thread, including [compliance keywords](/sms/introduction#compliance-keywords-stop-start-help).
+
+The endpoint returns `202 Accepted` once the request is validated. The conversation is created asynchronously.
+
+## Rate limits
+
+Outbound SMS is rate-limited per project to protect tenants from accidental fan-out. Requests above the limit return `429 Too Many Requests`. Contact your PolyAI representative if you need a higher limit for a campaign.
+
+## Best practices
+
+- **Always send E.164 numbers.** `user_number` must match `^\+[1-9]\d{1,14}$` (e.g., `+14155552671`).
+- **Keep the first message short.** It is delivered as the agent's opening turn; if it exceeds 160 characters Twilio splits it into multiple segments.
+- **Disclose `STOP` and `HELP` at opt-in.** PolyAI auto-replies to compliance keywords, but the disclosure obligation is yours.
+- **Retry on `5xx` with backoff.** `202 Accepted` confirms the request was queued, not that the SMS was delivered — monitor delivery via the [Standard dashboard](/analytics/dashboards/standard) SMS widget.
+- **One connector per project.** If your account has multiple projects, send a separate request (with the matching `X-TOKEN-ID`) for each project.

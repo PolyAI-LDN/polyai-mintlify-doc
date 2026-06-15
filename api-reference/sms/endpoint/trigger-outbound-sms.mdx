@@ -1,0 +1,136 @@
+---
+title: 'Trigger an outbound SMS conversation'
+api: 'POST /public_api/sms/outbound'
+description: 'Send the first SMS in an outbound conversation. The agent then handles the reply thread.'
+---
+
+Starts an outbound SMS conversation. PolyAI selects an agent number from the project's provisioned Twilio numbers, sends your `message` to `user_number`, and routes any replies back into the agent.
+
+The endpoint returns `202 Accepted` as soon as the request is validated; the conversation is created in the background.
+
+<Warning>
+You are responsible for ensuring outbound SMS complies with TCPA, A2P 10DLC, and local carrier rules. PolyAI handles `STOP`, `START`, and `HELP` replies automatically — see [Compliance keywords](/sms/introduction#compliance-keywords-stop-start-help).
+</Warning>
+
+## Request
+
+### Headers
+
+<ParamField header="X-PolyAi-Auth-Token" type="string" required>
+  PolyAI API key. Must be active, unexpired, and scoped to the same account as the target project.
+</ParamField>
+
+<ParamField header="X-TOKEN-ID" type="string" required>
+  Connector ID identifying the project, environment, and variant the conversation runs under.
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  Must be `application/json`.
+</ParamField>
+
+### Body
+
+<ParamField body="user_number" type="string" required>
+  Recipient phone number in [E.164](https://en.wikipedia.org/wiki/E.164) format (e.g., `+14155552671`). Numbers that do not match `^\+[1-9]\d{1,14}$` are rejected with `400 Bad Request`.
+</ParamField>
+
+<ParamField body="message" type="string" required>
+  The first SMS the agent sends. Delivered as the agent's opening turn. Keep it under 160 characters to avoid being split into multiple Twilio segments.
+</ParamField>
+
+<Info>
+The agent number is selected server-side from the project's provisioned Twilio numbers — you do not pass a sender number. If the project has no provisioned numbers, the request returns `404 Not Found`.
+</Info>
+
+The request body is limited to **64 KB**. Larger payloads are rejected.
+
+## Response
+
+`202 Accepted` with an empty body. The conversation is started asynchronously; replies from the recipient appear in the agent's conversation history once the session is established.
+
+## Example
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.us-1.platform.polyai.app/public_api/sms/outbound \
+  -H "X-PolyAi-Auth-Token: YOUR_AUTH_TOKEN" \
+  -H "X-TOKEN-ID: YOUR_CONNECTOR_ID" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_number": "+14155552671",
+    "message": "Hi Alex, this is Acme Pharmacy — your prescription is ready. Reply YES to confirm pickup tomorrow at 10am."
+  }'
+```
+
+```python Python
+import requests
+
+url = "https://api.us-1.platform.polyai.app/public_api/sms/outbound"
+headers = {
+    "X-PolyAi-Auth-Token": "YOUR_AUTH_TOKEN",
+    "X-TOKEN-ID": "YOUR_CONNECTOR_ID",
+    "Content-Type": "application/json",
+}
+payload = {
+    "user_number": "+14155552671",
+    "message": "Hi Alex, this is Acme Pharmacy — your prescription is ready. Reply YES to confirm pickup tomorrow at 10am.",
+}
+
+response = requests.post(url, json=payload, headers=headers)
+response.raise_for_status()
+print("Outbound SMS queued")
+```
+
+```javascript JavaScript
+const response = await fetch(
+  'https://api.us-1.platform.polyai.app/public_api/sms/outbound',
+  {
+    method: 'POST',
+    headers: {
+      'X-PolyAi-Auth-Token': 'YOUR_AUTH_TOKEN',
+      'X-TOKEN-ID': 'YOUR_CONNECTOR_ID',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      user_number: '+14155552671',
+      message:
+        'Hi Alex, this is Acme Pharmacy — your prescription is ready. Reply YES to confirm pickup tomorrow at 10am.',
+    }),
+  }
+);
+
+if (!response.ok) {
+  throw new Error(`Outbound SMS failed: ${response.status}`);
+}
+```
+
+</CodeGroup>
+
+## Error responses
+
+<ResponseField name="400 Bad Request">
+  Missing or invalid body field. Common causes: `message` empty, `user_number` empty, `user_number` not in E.164 format, or malformed JSON.
+</ResponseField>
+
+<ResponseField name="401 Unauthorized">
+  Missing `X-PolyAi-Auth-Token`, invalid API key, the key is inactive, or the key has expired.
+</ResponseField>
+
+<ResponseField name="403 Forbidden">
+  The API key account does not match the connector account. Verify the `X-TOKEN-ID` belongs to the same account as the API key.
+</ResponseField>
+
+<ResponseField name="404 Not Found">
+  No Twilio numbers are provisioned for the project identified by `X-TOKEN-ID`, or the connector could not be resolved.
+</ResponseField>
+
+<ResponseField name="429 Too Many Requests">
+  The project has exceeded its per-tenant outbound SMS rate limit. Back off and retry, or contact your PolyAI representative to raise the limit.
+</ResponseField>
+
+## Notes
+
+- Inbound replies, opt-out handling, and session timeouts work the same as for SMS conversations started from a flow or Managed Topic — see the [SMS overview](/sms/introduction).
+- The `202 Accepted` response only confirms the request passed validation. To monitor delivery, watch the SMS widget on the [Standard dashboard](/analytics/dashboards/standard) or the conversation in [Conversations](/analytics/conversations/introduction).
+- The endpoint is intended for backend-to-backend integrations. Do not call it directly from a browser; the API key must not be exposed to end users.
