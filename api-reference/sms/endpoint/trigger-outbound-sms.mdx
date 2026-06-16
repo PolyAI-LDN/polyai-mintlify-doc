@@ -4,9 +4,13 @@ api: 'POST /public_api/sms/outbound'
 description: 'Send the first SMS in an outbound conversation. The agent then handles the reply thread.'
 ---
 
-Starts an outbound SMS conversation. PolyAI selects an agent number from the project's provisioned Twilio numbers, sends your `message` to `user_number`, and routes any replies back into the agent.
+Starts an outbound SMS conversation. PolyAI sends your `message` from one of the project's provisioned Twilio numbers (auto-selected, or pinned via `agent_number`) to `user_number`, and routes any replies back into the agent.
 
 The endpoint returns `202 Accepted` as soon as the request is validated; the conversation is created in the background.
+
+<Warning>
+**Not yet generally available.** Although the path is namespaced `/public_api/`, the route is not currently exposed on the public API gateway (`api.{region}.platform.polyai.app`). Contact your PolyAI representative before integrating against it — host and availability will be confirmed at GA.
+</Warning>
 
 <Warning>
 You are responsible for ensuring outbound SMS complies with TCPA, A2P 10DLC, and local carrier rules. PolyAI handles `STOP`, `START`, and `HELP` replies automatically — see [Compliance keywords](/sms/introduction#compliance-keywords-stop-start-help).
@@ -38,8 +42,12 @@ You are responsible for ensuring outbound SMS complies with TCPA, A2P 10DLC, and
   The first SMS the agent sends. Delivered as the agent's opening turn. Keep it under 160 characters to avoid being split into multiple Twilio segments.
 </ParamField>
 
+<ParamField body="agent_number" type="string">
+  Optional E.164 sender number. Must be one of the project's provisioned Twilio numbers — otherwise the request is rejected with `400 Bad Request`. Omit this field to let PolyAI pick a provisioned number automatically.
+</ParamField>
+
 <Info>
-The agent number is selected server-side from the project's provisioned Twilio numbers — you do not pass a sender number. If the project has no provisioned numbers, the request returns `404 Not Found`.
+If `agent_number` is omitted, the sender is chosen server-side from the project's provisioned Twilio numbers. If the project has no provisioned numbers, the request returns `404 Not Found`.
 </Info>
 
 The request body is limited to **64 KB**. Larger payloads are rejected.
