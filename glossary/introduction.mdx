@@ -23,6 +23,19 @@ An AI-driven voice agent built on PolyAI that interacts with customers in real t
 
 The primary interface for designing, configuring, and deploying AI agents. Agent Studio is organized into sections: **Build** (knowledge, flows, tools, variants, test suite), **Channels** (voice, chat, response control, audio management, speech recognition), **Configure** (settings, numbers, APIs, integrations, dashboards, user management), and **Deployments** (environments and project history). See [Getting started](/get-started/quickstart), [Build essentials](/essentials/order).
 
+## Abandonment
+
+A conversation that ends before the user's request is resolved and without a handoff to a human — for example, the caller hangs up mid-conversation.
+
+- **Chat:** tracked internally via the `CHAT_ABANDONED` metric on conversations that disengage without resolution or handoff.
+- **Voice:** no dedicated "abandonment rate" widget is surfaced out of the box; abandoned calls can be identified in [Conversation Review](/analytics/conversations/review) (short duration, no handoff, no task completion) or via the [Conversations API](/api-reference/conversations/introduction) using `total_duration`, handoff fields, and [PolyScore](/analytics/polyscore).
+
+For a business-specific definition, track it as a [custom metric](/settings/metrics).
+
+## AHT (Average Handle Time)
+
+The mean time spent handling a conversation end-to-end, computed as total conversation duration ÷ total conversations. Surfaced as the **Average handle time** widget on the [Standard dashboard](/analytics/dashboards/standard) and home page insights. Also accessible per-conversation via the [Conversations API](/api-reference/conversations/introduction) `total_duration` field (with `polyai_duration` for the agent-handled portion). For business-specific variants (e.g. excluding silence or hold), define a [custom metric](/settings/metrics).
+
 ## Annotation
 
 A manual tag applied during [Conversation Review](/analytics/conversations/review) to highlight issues like incorrect transcriptions or missing topics.
@@ -65,7 +78,15 @@ External knowledge sources (websites, PDFs, Zendesk) connected to your agent via
 
 ## Containment rate
 
-Percentage of conversations fully handled by the agent without human handoff. A key metric for agent effectiveness. See [Standard dashboards](/analytics/dashboards/standard).
+Percentage of conversations fully handled by the agent without human handoff. A key metric for agent effectiveness.
+
+Scope and caveats:
+
+- **Per-conversation**, not per-caller. Each conversation is counted independently, so a caller who hangs up and calls back is treated as two separate conversations. Recontact is **not** factored into the containment metric.
+- **Transfers are not contained.** Any conversation that ends in a handoff to a human (via flows, knowledge actions, or tools) is excluded from the contained count.
+- For caller-level views, use the [Conversations API](/api-reference/conversations/introduction) to group by caller identifier and apply your own recontact logic, or define a [custom metric](/settings/metrics).
+
+See [Standard dashboards](/analytics/dashboards/standard).
 
 ## Conversation metadata
 
