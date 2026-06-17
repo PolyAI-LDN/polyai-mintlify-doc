@@ -113,6 +113,26 @@ Overrides follow a precedence order: **step > flow > global**. For example, you 
 Barge-in behavior cannot be fully tested in the chat panel. Always verify with a real phone call.
 </Note>
 
+### Interruption display
+
+When the agent is interrupted, you can control how the partially-spoken utterance is rendered in transcripts shown in Agent Studio and passed to the LLM as conversation history. Set `interruption_display` in the experimental JSON config to one of the following modes:
+
+| Mode | Output for an interrupted turn |
+|------|--------------------------------|
+| `ellipsis` (default) | `I can help you with that. Let me check your account details....` |
+| `tags` | `I can help you with that. Let me check your account details. <interrupted>One moment please.</interrupted>` |
+| `strip` | `I can help you with that. Let me check your account details.` |
+| `none` | `I can help you with that. Let me check your account details. One moment please.` |
+| `barge` | `I can help you with that. Let me check your account details. [BARGE IN]` |
+
+In the example above, the agent was saying _"I can help you with that. Let me check your account details. One moment please."_ and the caller barged in during the second sentence.
+
+Use `tags` when you want the LLM to know exactly which words went unheard (for example, so it can repeat them on the next turn). Use `barge` for an unambiguous interruption marker that won't be confused with natural punctuation like `...`. Use `strip` or `none` to omit the interruption signal entirely.
+
+<Note>
+The `ellipsis` and `barge` modes drop the unsaid portion of the utterance from the LLM's view. If your prompt depends on the LLM seeing what the agent _was about to say_, use `tags` instead.
+</Note>
+
 ## Manage audio cache via API
 
 You can also manage the audio cache programmatically with the [Agents API](/api-reference/agents/introduction). The audio cache endpoints let you list cached entries, download or replace audio files, synthesize previews, and bulk-delete entries.
