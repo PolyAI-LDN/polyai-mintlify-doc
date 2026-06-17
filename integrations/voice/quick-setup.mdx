@@ -1,0 +1,127 @@
+---
+title: "CCaaS quick setup"
+sidebarTitle: "Quick setup"
+description: "Self-serve, click-based connection of telephony providers from Configure > Integrations in Agent Studio."
+---
+
+Connect a CCaaS or telephony provider to your project from **Configure > Integrations** in Agent Studio. The Studio UI walks you through credentials (when needed) and per-environment phone-number routing in a few clicks — no PolyAI engineering ticket required.
+
+<Note>
+Released in 26.02 (see [release notes](/releases/overview)). Available providers today: **Twilio**, **Five9**, **Dialpad**, **NICE CXone**, and **Zendesk Talk**. More providers (Genesys, Amazon Connect) ship through the same flow.
+</Note>
+
+## What "click-based" means
+
+When you complete the form in Studio, the **Telephony Gateway** service runs the full provisioning pipeline for you:
+
+1. Stores any credentials you provided in PolyAI's secret service.
+2. Calls the provider's API to provision resources (e.g. a Twilio SIP trunk).
+3. Creates a connector and inbound routes for each environment you configured (`sandbox`, `prerelease`, `live`).
+4. Persists the integration on your project so it survives deploys and is editable later.
+
+You don't need to share credentials over email or wait for a human to wire up a SIP trunk for the supported providers.
+
+## Before you start
+
+- A workspace and project in Agent Studio. The URL `studio.<region>.poly.ai/<workspace-slug>/<project-id>/` shows both — for example `studio.us.poly.ai/aaron-forinton-ws/PROJECT-E4ZVKDDM/`.
+- Admin access in the provider you're connecting (so you can create credentials or confirm phone numbers).
+- The phone numbers (in E.164, e.g. `+441234567890`) you want to route to PolyAI, grouped by environment.
+
+<Note>
+Workspace-scoped IDs (which appear as the `account_id` path parameter in PolyAI APIs) use the `ws-` prefix — e.g. `ws-fd112d8f`. The slug shown in the Studio URL (`aaron-forinton-ws`) is the human-readable form of the same workspace.
+</Note>
+
+## The flow
+
+<Steps>
+  <Step title="Open Configure > Integrations">
+    In Agent Studio, go to **Configure > Integrations** and pick the **Telephony** category. Click the card for your provider.
+  </Step>
+  <Step title="Enter credentials (provider-dependent)">
+    Twilio asks for an Account SID and (optionally) an API Key + Secret. Five9, Dialpad, and Zendesk Talk skip this step and go straight to routing. See the [provider matrix](#provider-matrix) below.
+  </Step>
+  <Step title="Configure inbound routing">
+    Add the phone numbers you want to route to PolyAI for each environment:
+
+    - **Sandbox** — used while building your agent.
+    - **Pre-release** — used during pre-prod / staging tests.
+    - **Live** — used in production.
+
+    Numbers must be E.164-formatted with a country code (`^\+[1-9]\d{6,14}$`).
+  </Step>
+  <Step title="Submit">
+    Studio submits to Telephony Gateway, which stores credentials, provisions provider resources, and creates a connector + inbound routes per environment. On success you're routed to **Build > Call handoffs** to map outbound transfer destinations.
+  </Step>
+</Steps>
+
+## Provider matrix
+
+| Provider | Credentials needed | Provisioning behavior |
+|---|---|---|
+| **[Twilio](/integrations/voice/twilio)** | Account SID; optional API Key + Secret (omit for PolyAI-managed sub-accounts) | Stores credentials, creates a SIP trunk on Twilio against PolyAI's primary + secondary Kamailio FQDNs, creates connector + inbound routes per env. |
+| **[Five9](/integrations/voice/sip/five9)** | None (uses PolyAI's shared SIP trunk + `X-PolyAi-Auth-Token`) | Creates the integration record + inbound routes per env. |
+| **[Dialpad](/integrations/voice/dialpad)** | None (Dialpad SIP trunk provisioning team gives you the routes) | Creates the integration record + inbound routes per env. |
+| **[NICE CXone](/integrations/voice/sip/NICECXone)** | Access Key ID + Secret, Client ID + Secret | Creates the integration record + inbound routes per env. |
+| **Zendesk Talk** | SIP URL, username, API key | Creates the integration record. Routing is managed inside Zendesk. |
+
+## What it looks like under the hood
+
+The Studio form is a thin client over the Telephony Gateway HTTP API. Each provider has its own endpoint under your project:
+
+```
+POST   /api/v1/{account_id}/{project_id}/{provider}
+GET    /api/v1/{account_id}/{project_id}/{provider}
+PATCH  /api/v1/{account_id}/{project_id}/{provider}        # not all providers
+DELETE /api/v1/{account_id}/{project_id}/{provider}
+```
+
+For the SIP-style providers (Five9, Dialpad), the request body is the same routing shape:
+
+```json
+{
+  "sandbox": ["+15551110001"],
+  "prerelease": ["+15551110002"],
+  "live": ["+15551110003"]
+}
+```
+
+For Twilio, credentials are added at the top of the body:
+
+```json
+{
+  "account_sid": "AC...",
+  "api_key": "SK...",
+  "api_secret": "...",
+  "sandbox": ["+15551110001"],
+  "prerelease": [],
+  "live": []
+}
+```
+
+Omit `api_key` / `api_secret` to use a **PolyAI-managed sub-account** — Telephony Gateway will create a restricted API key against your sub-account using PolyAI's master credentials and store it for you.
+
+<Note>
+The Telephony Gateway API is internal — it's reached through the same authenticated Studio session that's already gating Configure > Integrations. There is no public, customer-facing wrapper for these endpoints today.
+</Note>
+
+## After integration
+
+- **Routing**: inbound calls to the numbers you added now reach PolyAI through the connector + inbound route created for that environment.
+- **Handoffs**: configure outbound transfers in **Build > Call handoffs**. See [Call handoffs](/call-handoff/introduction).
+- **Editing routing**: re-open the provider card to add/remove numbers per environment.
+- **Disconnecting**: the **Disconnect** action removes the integration, deletes the routes/connector, and (for Twilio) revokes the restricted API key on the sub-account.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Phone-number validation fails | Number not E.164 with country code | Use `+<country><number>`, e.g. `+441234567890`. |
+| Twilio integration submit returns 500 | Account SID lacks SIP trunking, or API key has insufficient scope | Verify the Twilio sub-account has Voice + SIP trunking enabled. |
+| Calls don't reach PolyAI after setup | Provider not yet routing the number to the SIP trunk / connector | Confirm with the provider's trunk/routing team (Five9, Dialpad). |
+| "Integration already exists" on create | One integration per provider per project is supported | PATCH the existing integration to update routing instead of POST. |
+
+## Related pages
+
+- [Voice integrations overview](/integrations/voice/introduction)
+- [Twilio](/integrations/voice/twilio) · [Five9](/integrations/voice/sip/five9) · [Dialpad](/integrations/voice/dialpad) · [NICE CXone](/integrations/voice/sip/NICECXone)
+- [Call handoffs](/call-handoff/introduction)

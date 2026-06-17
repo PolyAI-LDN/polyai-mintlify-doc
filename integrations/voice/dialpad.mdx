@@ -3,69 +3,96 @@ title: "Dialpad"
 description: "Connect your PolyAI agent to Dialpad for voice automation and handoffs."
 ---
 
-Connect PolyAI to Dialpad to automate voice interactions through Dialpad's cloud communications platform. Handle inbound calls and route complex issues to live agents.
+Connect PolyAI to Dialpad to automate voice interactions through Dialpad's cloud communications platform. Setup is fully self-serve from Agent Studio — see [CCaaS quick setup](/integrations/voice/quick-setup) for the shared flow.
 
 <Note>
-Dialpad integration is available through the quick setup flow in Agent Studio. Go to **Configure > Integrations** and click **Dialpad** to get started.
+Dialpad uses a SIP trunk provisioned by the Dialpad side. PolyAI does not need any Dialpad credentials — only the phone numbers Dialpad will route to PolyAI per environment.
 </Note>
-
-## Quick setup
-
-Agent Studio provides click-based integration with Dialpad:
-
-1. Go to **Configure > Integrations** in the sidebar.
-2. Click the **Dialpad** card.
-3. Follow the guided setup flow to connect your Dialpad account.
-4. After setup, you're routed to the **Handoffs** page to configure call routing.
-
-<Tip>
-The quick setup handles authentication and basic configuration. For advanced settings, continue with the manual configuration below.
-</Tip>
 
 ## Prerequisites
 
-Before integrating:
+- Active Dialpad account with admin access.
+- A PolyAI project (you'll see its ID — `PROJECT-XXXXXXXX` — in the Studio URL).
+- A SIP trunk configured by the Dialpad SIP-trunk provisioning team to route to PolyAI. They will give you the phone numbers you'll enter in Studio.
 
-- Active Dialpad account with admin access
-- PolyAI project with a configured agent
-- Phone numbers provisioned in Dialpad
+## Quick setup
 
-## How it works
+<Steps>
+  <Step title="Open Configure > Integrations">
+    In Agent Studio (`studio.<region>.poly.ai/<workspace-slug>/<project-id>/`), go to **Configure > Integrations** and click the **Dialpad** card.
+  </Step>
+  <Step title="Enter the phone numbers per environment">
+    Add the numbers Dialpad will route to PolyAI for each environment:
 
-When integrated, PolyAI handles incoming calls routed from Dialpad:
+    - **Sandbox** — for development.
+    - **Pre-release** — for staging.
+    - **Live** — for production.
 
-1. Caller dials a Dialpad number
-2. Dialpad routes the call to PolyAI
-3. PolyAI agent handles the conversation
-4. If needed, the agent transfers back to Dialpad for human handoff
+    Numbers must be E.164 with a country code (e.g. `+441234567890`). The form validates against `^\+[1-9]\d{6,14}$`.
+  </Step>
+  <Step title="Submit">
+    PolyAI creates the integration record and an inbound route per environment. You're then redirected to **Build > Call handoffs** to map outbound transfers back to Dialpad.
+  </Step>
+</Steps>
+
+## What happens on submit
+
+The Studio form posts to PolyAI's Telephony Gateway:
+
+```
+POST /api/v1/{account_id}/{project_id}/dialpad
+```
+
+```json
+{
+  "sandbox": ["+15551110001"],
+  "prerelease": ["+15551110002"],
+  "live": ["+15551110003"]
+}
+```
+
+Telephony Gateway creates the `dialpad` integration on your project and an inbound route per environment in PolyAI's connector service. Calls to those numbers, once Dialpad's SIP trunk forwards them, will reach your PolyAI agent.
+
+## How calls flow
+
+1. Caller dials a Dialpad number.
+2. Dialpad's SIP trunk routes the call to PolyAI.
+3. The PolyAI agent handles the conversation.
+4. If the call needs a human, PolyAI sends a SIP REFER back to Dialpad to transfer.
 
 ## Configuring handoffs
 
-After integration, configure how calls transfer back to human agents:
+Dialpad uses **SIP REFER** as the default transfer method (no configurable handoff method).
 
 1. Go to **Build > Call handoffs**.
-2. Create handoff destinations for different scenarios.
-3. Map destinations to Dialpad queues or agents.
+2. Create handoff destinations (each maps to a Dialpad target — e.g. a queue or extension).
+3. Reference those destinations in your agent flow.
 
-See [Call handoffs](/call-handoff/introduction) for detailed configuration options.
+See [Call handoffs](/call-handoff/introduction) for full configuration options.
 
-## Testing the integration
+## Editing or removing the integration
 
-1. Make a test call to your Dialpad number.
-2. Verify the call routes to your PolyAI agent.
-3. Test a handoff scenario to confirm transfers work.
+- **Update routing**: re-open the Dialpad card in Configure > Integrations to add or remove numbers per environment.
+- **Disconnect**: the **Disconnect** button calls `DELETE /api/v1/{account_id}/{project_id}/dialpad`, which removes the integration and tears down its inbound routes.
+
+## Testing
+
+1. Place a test call to a sandbox number.
+2. Verify the call reaches your agent.
+3. Trigger a handoff in the conversation and confirm Dialpad transfers to the right destination.
 4. Review the call in **Analytics > Conversations > Voice**.
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| Calls not reaching PolyAI | Verify Dialpad routing configuration |
-| Handoffs failing | Check handoff destination mapping in Call Handoffs |
-| Audio quality issues | Review network connectivity and codec settings |
+| Issue | Likely cause | Fix |
+|---|---|---|
+| Form rejects a phone number | Not E.164 with country code | Use `+<country><number>` (e.g. `+441234567890`). |
+| Calls not reaching PolyAI | Dialpad SIP trunk not routing yet, or wrong number | Confirm with Dialpad's trunk provisioning team and double-check the number was entered in Studio for that environment. |
+| Handoffs failing | Destination misconfigured in Call handoffs | Check the destination mapping in **Build > Call handoffs**. |
+| "Integration already exists" | One Dialpad integration per project | Use **Edit** in Studio (PATCH) instead of creating a new one. |
 
 ## Related pages
 
-- [Integrations overview](/integrations/introduction) – All available integrations
-- [Call handoffs](/call-handoff/introduction) – Configure call transfers
-- [Voice integrations](/integrations/voice/introduction) – Other voice platform integrations
+- [CCaaS quick setup](/integrations/voice/quick-setup) — the shared self-serve flow
+- [Call handoffs](/call-handoff/introduction) — outbound transfer configuration
+- [Voice integrations](/integrations/voice/introduction) — other voice platforms

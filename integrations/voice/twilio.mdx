@@ -9,6 +9,57 @@ For basic Twilio setup, see the [Configure > Numbers > Twilio guide](/telephony/
 
 Route calls to PolyAI through [Twilio Flex](https://www.twilio.com/en-us/flex/use-cases/contact-center) and manage [handoffs](/call-handoff/introduction) to live agents through SIP or Twilio Studio. Handle complex customer queries automatically or escalate to human agents.
 
+<Note>
+For most setups you no longer need to request a connector — use the self-serve flow from **Configure > Integrations** in Agent Studio. See [Click-based setup](#click-based-setup) below or the shared [CCaaS quick setup](/integrations/voice/quick-setup) page. The legacy "Set up connector" flow further down is still supported for advanced cases.
+</Note>
+
+## Click-based setup
+
+Connect Twilio to your project from Agent Studio without filing a PolyAI ticket.
+
+<Steps>
+  <Step title="Open Configure > Integrations">
+    In Agent Studio (`studio.<region>.poly.ai/<workspace-slug>/<project-id>/`), go to **Configure > Integrations** and click the **Twilio** card.
+  </Step>
+  <Step title="Enter Twilio account credentials">
+    Enter your Twilio **Account SID**. You have two options:
+
+    - **PolyAI-managed sub-account (recommended)**: leave **API Key** and **API Secret** empty. PolyAI will create a restricted API key on your sub-account using its master credentials and store it securely.
+    - **Customer-owned account**: provide both **API Key** and **API Secret**. PolyAI will store them in its secret service.
+  </Step>
+  <Step title="Configure inbound routing">
+    Add the phone numbers Twilio should send to PolyAI for **Sandbox**, **Pre-release**, and **Live**. Numbers must be E.164 with a country code.
+  </Step>
+  <Step title="Submit">
+    PolyAI's Telephony Gateway:
+
+    1. Stores the credentials.
+    2. Provisions a SIP trunk on Twilio (`PolyAI SIP trunk for {account_id} {project_id}`) pointing at PolyAI's primary and secondary Kamailio FQDNs.
+    3. Creates a connector and inbound routes per environment in PolyAI's connector service.
+
+    You're then redirected to **Build > Call handoffs**.
+  </Step>
+</Steps>
+
+Under the hood, Studio posts to:
+
+```
+POST /api/v1/{account_id}/{project_id}/twilio
+```
+
+```json
+{
+  "account_sid": "AC...",
+  "api_key": "SK...",
+  "api_secret": "...",
+  "sandbox": ["+15551110001"],
+  "prerelease": [],
+  "live": []
+}
+```
+
+To update routing later, re-open the Twilio card (which calls `PATCH /api/v1/{account_id}/{project_id}/twilio/routing`). To disconnect, use the Disconnect button — for PolyAI-managed sub-accounts, the restricted API key created during setup is revoked at the same time.
+
 <CardGroup cols={3}>
   <Card title="Set up connector" icon="square-1">
     Create a [PolyAI Connector](#set-up-connector) and retrieve your Connector Token.
