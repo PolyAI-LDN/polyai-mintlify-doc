@@ -1,0 +1,124 @@
+---
+title: 'Numbers'
+sidebarTitle: 'Overview'
+description: 'Connect phone numbers to your agent using PolyAI, Twilio, or outbound calling'
+mode: wide
+keywords:
+  - phone numbers
+  - telephony
+  - numbers
+  - SIP
+  - Twilio
+  - phone
+---
+
+Numbers is how PolyAI connects your agent to the public phone network. Provision a number directly through PolyAI, bring your own Twilio number, or route through your existing contact-centre provider — every option terminates on the same agent runtime so the conversation logic is identical across channels. Manage everything in **Configure > Numbers**.
+
+| Option | Best for | What you get |
+|--------|---------|-------------|
+| **[Buy a number](./how-to-buy-number)** | No existing provider | Purchase directly from PolyAI. |
+| **[Twilio integration](./twilio/introduction)** | Existing Twilio setup | Connect your Twilio numbers. Voice, SMS, and Flex routing. |
+| **[Outbound calling](./outbound-calling)** | Proactive outreach | Agent-initiated calls through API or SIP. |
+
+<Note>
+You can also connect through other contact center platforms like [Genesys](/integrations/voice/sip/genesys), [Five9](/integrations/voice/sip/five9), or [NICE CXone](/integrations/voice/sip/NICECXone) with SIP. See [Integrations](/integrations/introduction) for the full list.
+</Note>
+
+## Integration options
+
+<CardGroup cols={2}>
+  <Card title="Buy a number" icon="cart-shopping" href="./how-to-buy-number">
+    Purchase a number directly from PolyAI.
+  </Card>
+  <Card title="Twilio integration" icon="phone" href="./twilio/introduction">
+    Voice, SMS, and contact center routing with Twilio.
+  </Card>
+  <Card title="Outbound calling" icon="phone-arrow-up-right" href="./outbound-calling">
+    Agent-initiated calls for reminders and follow-ups.
+  </Card>
+</CardGroup>
+
+## Twilio integration guides
+
+- **[Twilio overview](./twilio/introduction)** – Benefits and setup overview
+- **[Phone number integration](./twilio/how-to-integrate-voice)** – Connect a Twilio-hosted number
+- **[SMS integration](/messaging-channel/sms)** – Set up SMS messaging with Twilio
+- **[Twilio Flex integration](/integrations/voice/twilio)** – Advanced contact center routing
+
+## Outbound calling
+
+Agent-initiated calls for reminders, follow-ups, and notifications.
+
+- **[Outbound calling overview](./outbound-calling)** – Methods and best practices
+
+<div className="full-only">
+
+- **[Outbound Calling API](/api-reference/outbound/introduction)** – Programmatically trigger calls
+- **[SIP integration](/integrations/voice/sip/custom-sip)** – Route through your SIP infrastructure
+
+</div>
+
+<div className="developer-only">
+
+## Automate with the Agents API
+
+Telephony plumbing is scriptable too — helpful for bulk provisioning and for reshaping routing as part of a broader deployment.
+
+<AccordionGroup>
+  <Accordion title="Provision numbers and connectors via the Agents API" icon="code">
+    Connectors bind phone numbers to voice infrastructure; phone numbers are E.164 strings routed through a connector. The [Agents API](/api-reference/agents/introduction) has CRUD for both.
+
+    <CodeGroup>
+    ```bash curl
+    # Import a phone number onto an existing connector
+    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/telephony/phone-numbers/+442071234567 \
+      -H "x-api-key: $POLYAI_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{ "connectorId": "conn_abc123" }'
+
+    # Reassign a number to a different connector
+    curl -X PATCH https://api.us.poly.ai/v1/agents/AGENT_ID/telephony/phone-numbers/+442071234567 \
+      -H "x-api-key: $POLYAI_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{ "connectorId": "conn_new456" }'
+    ```
+
+    ```python Python
+    import os, requests
+
+    BASE = "https://api.us.poly.ai"
+    HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
+
+    # Look up which connector serves a given number
+    resp = requests.post(
+        f"{BASE}/v1/agents/{AGENT_ID}/telephony/connectors/lookup",
+        headers=HEADERS,
+        json={"phoneNumber": "+442071234567"},
+    )
+    connector = resp.json()
+    ```
+    </CodeGroup>
+
+    See [Connectors](/api-reference/agents/endpoint/connectors/list-all-connectors-for-a-project) and [Phone numbers](/api-reference/agents/endpoint/phone-numbers/list-all-phone-numbers-for-a-project) for the full endpoint list.
+  </Accordion>
+</AccordionGroup>
+
+</div>
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Route management" icon="route" href="/voice-channel/numbers/route-management">
+    Configure how calls are routed to your agent
+  </Card>
+  <Card title="Integrations" icon="plug" href="/integrations/introduction">
+    Connect to Genesys, Five9, NICE, and other platforms
+  </Card>
+  <Card title="SMS" icon="message" href="/messaging-channel/sms">
+    Send text messages during voice conversations
+  </Card>
+  <Card title="Phone number endpoints" icon="square-terminal" href="/api-reference/agents/endpoint/phone-numbers/list-all-phone-numbers-for-a-project">
+    Import and reassign numbers via the Agents API.
+  </Card>
+</CardGroup>
+
