@@ -565,6 +565,10 @@ This is the most common reason for missing turn data. To check or update this se
 These settings apply at the **project level**, not per key. For data to appear in API responses, both conditions must be met: the API key must have **Conversations data** permission enabled, and the project must have the relevant metrics and transcript access enabled in the Configuration panel. See [API keys](/secrets/api-keys) for key setup details.
 </Warning>
 
+<Note>
+**Hybrid projects (intent + LLM).** Hybrid projects store their per-project response config in the project package alongside the rest of the agent definition, in addition to the API Keys → Configuration toggles. After flipping transcript or metric toggles on a hybrid project, **redeploy the project** so the updated config is picked up — otherwise responses may still come back stripped down to `id`, `account_id`, `project_id`, and `started_at` even though the UI shows the toggles as on. If a redeploy doesn't resolve it, contact your PolyAI representative to verify the project package config is in sync.
+</Note>
+
 ## Troubleshooting
 
 ### `turns` is empty but `num_turns` is greater than zero
@@ -607,6 +611,7 @@ If the response only contains a subset of expected fields:
 2. **Check your API key permissions.** On the **API Keys** tab of the workspace homepage, verify the API key has **Conversations data** permission enabled. The key must have the correct permission *and* the project must have the relevant metrics enabled.
 3. **Check metric configuration.** On the **API Keys** tab, click **Configuration** and verify the response metrics you expect are enabled (e.g. `CALL_IN_PROGRESS`, `CALL_COMPLETED`, `HANDOFF_TO`). If no metrics are selected, the `metrics` object in the response will be empty.
 4. **Check field whitelisting (v1 only).** Projects on v1 may have field whitelisting enabled in their project configuration (`enable_whitelist: true`). When active, the API only returns fields explicitly listed in the project's API config — typically just `id`, `started_at`, `account_id`, and `project_id`. If you are on v1 and see this behavior, migrate to v3 where field visibility is controlled through the [API Keys Configuration panel](#transcript-visibility) instead.
+5. **Hybrid project — redeploy after changing toggles.** Hybrid projects (intent + LLM) keep their response config inside the project package. Toggle changes made in API Keys → Configuration take effect only after the project is redeployed. If a sibling project in the same workspace returns full data and the hybrid one returns only the four basic fields, this is the most likely cause — redeploy and re-test. If it still fails, contact your PolyAI representative to check the project package config is in sync.
 
 ### `include_latency` is not adding data
 
