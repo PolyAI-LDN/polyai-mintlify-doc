@@ -200,6 +200,8 @@ The panel header displays the caller's email (webchat) or phone number (voice) w
 
 Audio playback in the Transcription tab follows the same [PII-level access](/tools/classes/conv-log#pii) rules as the rest of the panel. Users with PII access hear the original recording by default and can opt in to the redacted version. Users without PII access always hear the redacted recording — sensitive segments are muted server-side, and the option to fetch the unredacted audio is not available. The same rule applies to the public [Conversations API](/api-reference/conversations/introduction) `/audio` endpoint: requests from API keys without PII access return redacted audio regardless of the `redacted` query parameter.
 
+Redaction is fail-closed for safety. When you request redacted audio, PolyAI bleeps segments that match PII detected in the redacted transcript for that call. If the redacted transcript is not yet available — for example, immediately after a call ends, before post-call processing completes — the request returns no audio rather than falling back to the unredacted recording. Retry after a short delay once processing is complete.
+
 ## Matched topics and sources
 
 When the agent matches [Knowledge](/managed-topics/introduction) topics or retrieves content from [Connected Knowledge](/connected-knowledge/introduction) sources, both surfaces appear under the relevant turn:
