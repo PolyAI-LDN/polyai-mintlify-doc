@@ -1,0 +1,135 @@
+---
+title: 'Send an outbound SMS'
+api: 'POST /v1/outbound-sms'
+description: 'Send an SMS message and create a reply-enabled conversation session.'
+---
+
+Sends an SMS message to the specified user number and opens a new conversation session. The message behaves like a greeting message, so it is fully part of the conversation context that the agent can access. If the user replies, the agent handles the conversation as a normal SMS session.
+
+<Warning>
+It is your responsibility to ensure that messages are sent in compliance with applicable laws and regulations, including [A2P 10DLC registration](/voice-channel/message-templates#a2p-10dlc-registration-us-and-canada) for US and Canadian numbers.
+</Warning>
+
+## Request
+
+### Headers
+
+<ParamField header="X-PolyAi-Auth-Token" type="string" required>
+  Your PolyAI API key, provisioned in the **API keys** tab under your account section in Agent Studio.
+</ParamField>
+
+<ParamField header="X-TOKEN-ID" type="string" required>
+  Connector ID for the target project. Contact your PolyAI representative.
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  Must be `application/json`.
+</ParamField>
+
+### Body
+
+<ParamField body="message" type="string">
+  The plain-text message to send to the user.
+</ParamField>
+
+<ParamField body="user_number" type="string" required>
+  Recipient phone number in E.164 format (e.g. `+14155551234`).
+</ParamField>
+
+<ParamField body="agent_number" type="string">
+  Sender phone number in E.164 format. Must be one of the Twilio numbers provisioned for your project. If omitted, the API picks one automatically from the numbers available for the connector token's environment.
+</ParamField>
+
+## Response
+
+| Status | Description |
+| ------ | ----------- |
+| `202 Accepted` | Message will be sent and a conversation session will be created. |
+| `400 Bad Request` | Invalid body, missing fields, bad E.164 format, or `agent_number` not provisioned for the project. |
+| `401 Unauthorized` | Missing or invalid `X-PolyAi-Auth-Token`. |
+| `403 Forbidden` | API key account does not match the connector's account. |
+| `404 Not Found` | Connector not found, or no Twilio numbers provisioned for this project. |
+| `429 Too Many Requests` | Per-project rate limit exceeded. |
+| `500 Internal Server Error` | Unexpected server error. |
+
+The `202` response has an empty body.
+
+## Example
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.us-1.platform.polyai.app/v1/outbound-sms \
+  -H "X-PolyAi-Auth-Token: YOUR_API_KEY" \
+  -H "X-TOKEN-ID: YOUR_CONNECTOR_ID" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Hi Jane, your appointment is confirmed for tomorrow at 2pm. Reply to this message if you need to reschedule.",
+    "user_number": "+14155551234"
+  }'
+```
+
+```python Python
+import requests
+
+url = "https://api.us-1.platform.polyai.app/v1/outbound-sms"
+headers = {
+    "X-PolyAi-Auth-Token": "YOUR_API_KEY",
+    "X-TOKEN-ID": "YOUR_CONNECTOR_ID",
+    "Content-Type": "application/json",
+}
+payload = {
+    "message": "Hi Jane, your appointment is confirmed for tomorrow at 2pm. Reply to this message if you need to reschedule.",
+    "user_number": "+14155551234",
+}
+
+response = requests.post(url, json=payload, headers=headers)
+print(response.status_code)  # 202
+```
+
+```javascript JavaScript
+const response = await fetch(
+  'https://api.us-1.platform.polyai.app/v1/outbound-sms',
+  {
+    method: 'POST',
+    headers: {
+      'X-PolyAi-Auth-Token': 'YOUR_API_KEY',
+      'X-TOKEN-ID': 'YOUR_CONNECTOR_ID',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      message:
+        'Hi Jane, your appointment is confirmed for tomorrow at 2pm. Reply to this message if you need to reschedule.',
+      user_number: '+14155551234',
+    }),
+  }
+);
+
+console.log(response.status); // 202
+```
+
+</CodeGroup>
+
+This can lead to a conversation like:
+
+| Direction | Message |
+| --------- | ------- |
+| **Agent →** | Hi Jane, your appointment is confirmed for tomorrow at 2pm. Reply to this message if you need to reschedule. |
+| **← User** | Can I move it to 3pm instead? |
+| **Agent →** | Of course — I've rescheduled your appointment to 3pm tomorrow. See you then! |
+
+## Error response format
+
+All error responses return a JSON object:
+
+```json
+{
+  "detail": "A human-readable description of the error."
+}
+```
+
+## Notes
+
+- **Agent number selection** — by default the API picks from the Twilio numbers provisioned for your project for the environment linked to the connector token. Pass `agent_number` to override; it must be one of the provisioned numbers or the request is rejected with a `400`.
+- **Rate limits** are applied per project. If you hit a `429`, back off and retry.
+- **Inactivity timeout** — if the conversation is engaged (the user has replied), after 24 hours of inactivity a warning message is sent. If the user replies within 10 minutes, the conversation stays open and a new 24-hour inactivity timer starts. Otherwise the session terminates.
