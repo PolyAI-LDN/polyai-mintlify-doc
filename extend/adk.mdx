@@ -1,7 +1,7 @@
 ---
 title: Agent Development Kit (ADK)
 sidebarTitle: ADK
-description: Python CLI and package for building, managing, and deploying PolyAI agents locally.
+description: Python CLI for building, managing, and deploying PolyAI agents locally with a Git-like pull-edit-push workflow.
 tag: "Code"
 mode: wide
 keywords:
@@ -13,67 +13,120 @@ keywords:
   - Python
   - poly pull
   - poly push
+  - poly init
+  - poly chat
+  - poly branch
   - enterprise
   - scale
 ---
 
-The Agent Development Kit (ADK) is a Python CLI (`polyai-adk` on PyPI) for building PolyAI agents locally. Pull your Agent Studio project as YAML and Python files, edit in your IDE (or with a coding assistant like Claude), version with Git, and push from the command line.
+The Agent Development Kit (ADK) is a Python CLI for building PolyAI agents locally. Pull your Agent Studio project as YAML and Python files, edit in your IDE (or with a coding assistant like Claude), version with Git, and push from the command line.
 
-API keys are self-serve — sign up at [studio.poly.ai](https://studio.poly.ai) and generate one from your account.
-
-<Note>
-For installation, authentication, and usage instructions, see the [ADK documentation](https://polyai.github.io/adk/).
-</Note>
+<Card title="Full ADK documentation" icon="book" href="https://polyai.github.io/adk/">
+  Installation, tutorials, CLI reference, and examples.
+</Card>
 
 ## How it works
 
-ADK uses a pull-edit-push workflow:
+ADK uses a Git-like workflow: init → pull → branch → edit → validate → push → review → merge.
 
 <Steps>
   <Step title="Initialize">
-    Link a local directory to an Agent Studio project with `poly init`.
+    Link a local directory to an Agent Studio project with `poly init`. Select your region, account, and project interactively or pass them as flags.
   </Step>
   <Step title="Pull">
-    Run `poly pull` to download your project as structured YAML files organized by resource type: topics, flows, entities, and agent settings.
+    Run `poly pull` to download your project as structured YAML and Python files organized by resource type.
+  </Step>
+  <Step title="Branch">
+    Use `poly branch switch <name>` to work on a branch, keeping your changes isolated from the live agent.
   </Step>
   <Step title="Edit">
-    Edit with any tool: IDE, scripts, or AI coding assistants. YAML handles configuration, Python handles functions.
+    Edit with any tool — VS Code, Cursor, or AI coding assistants. YAML handles configuration, Python handles functions.
   </Step>
-  <Step title="Push">
-    Run `poly push` to diff your local changes against the remote state and send updates to Agent Studio. Your agent updates immediately in the target environment.
+  <Step title="Validate and push">
+    Run `poly validate` to check your changes locally, then `poly push` to diff against the remote state and send updates to Agent Studio.
+  </Step>
+  <Step title="Test">
+    Run `poly chat` to start an interactive chat session with your agent and verify behavior before merging.
   </Step>
 </Steps>
 
 ADK is fully compatible with Agent Studio and the APIs. Switch between surfaces at any time.
+
+## Prerequisites
+
+<Steps>
+  <Step title="Install uv">
+    ADK uses [uv](https://docs.astral.sh/uv/) to manage Python and virtual environments.
+
+    ```bash
+    # macOS
+    brew install uv
+
+    # Linux / WSL
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    ```
+  </Step>
+  <Step title="Authenticate">
+    **Self-serve accounts** — run `poly start` to sign in automatically.
+
+    **Enterprise accounts** — run `poly login --region <region>`, or export your API key directly:
+
+    ```bash
+    export POLY_ADK_KEY=<your-api-key>
+    ```
+
+    Generate API keys from your account at [studio.poly.ai](https://studio.poly.ai).
+  </Step>
+</Steps>
 
 ## CLI commands
 
 | Command | Description |
 | --- | --- |
 | `poly init` | Link a local directory to an Agent Studio project |
-| `poly pull` | Download the current project state as YAML files |
+| `poly pull` | Download the current project state as YAML and Python files |
 | `poly push` | Diff local changes against remote and send updates |
+| `poly status` | View changed, new, and deleted files |
+| `poly diff` | Show differences between local and remote |
+| `poly validate` | Validate project configuration locally |
+| `poly branch` | Manage project branches (`switch`, `delete`, `merge`) |
+| `poly chat` | Start an interactive chat session with your agent |
+| `poly format` | Format project resources |
+| `poly review` | Create a GitHub gist for reviewing changes |
+| `poly revert` | Revert local changes |
 | `poly docs` | Print documentation for any ADK resource type |
+
+Run `poly --help` for the full list, or `poly <command> --help` for flags and options.
 
 ## Project structure
 
-After pulling, your local directory contains human-readable YAML files organized by resource type:
+After pulling, your local directory contains human-readable files organized by resource type:
 
 ```text
-topics/
+agent_settings/        # Identity, behavior, personality, rules
+  role.yaml
+  personality.yaml
+  rules.txt
+topics/                # Knowledge base content (RAG-retrieved)
   Frequently Asked Questions.yaml
   Billing Issues.yaml
-flows/
+functions/             # Python business logic
+  check_billing.py
+flows/                 # Multi-step guided conversations
   greeting/
     flow_config.yaml
     flow_step_welcome.yaml
     flow_step_billing_check.yaml
-entities/
-  billing_amount.yaml
-agent_settings/
-  role.yaml
-  personality.yaml
-  rules.yaml
+config/                # Entities, handoffs, SMS templates, translations
+  entities/
+    billing_amount.yaml
+  handoffs/
+  sms_templates.yaml
+  variant_attributes.yaml
+voice/                 # Voice channel settings
+chat/                  # Chat channel settings
+test_suite/            # Conversation tests
 ```
 
 Each YAML file represents a single resource. For example, a topic file:
@@ -90,23 +143,49 @@ example_queries:
   - Can I pay with PayPal?
 ```
 
-Cross-references between resources use human-readable name tags like `{{fn:check_billing}}` rather than raw IDs. ADK resolves these automatically at push time.
+## Resource references
 
-## Get started
+Cross-references between resources use human-readable placeholder tags. ADK resolves these automatically at push time.
 
-Installation, authentication, and usage instructions:
+| Syntax | Reference type |
+| --- | --- |
+| `{{fn:function_name}}` | Global functions |
+| `{{entity:entity_name}}` | Collected entity values |
+| `{{attr:attribute_name}}` | Variant attributes |
+| `{{ho:handoff_name}}` | Handoff destinations |
+| `{{vrbl:variable_name}}` | State variables |
 
-<Card title="ADK documentation" icon="book" href="https://polyai.github.io/adk/">
-  Guides, CLI reference, and examples.
-</Card>
+## Resource architecture
 
-## Related
+ADK resources fall into two categories:
+
+| Category | Resources | Purpose |
+| --- | --- | --- |
+| **Knowledge / facts** | Topics | Subject-specific content retrieved via RAG when contextually relevant |
+| **Behavior / logic** | Rules, flows, functions | Define what the agent does and when |
+
+**Quick guide:** Always-true instructions belong in `rules.txt`. Subject-specific information belongs in topics. Comparisons, calculations, or API calls belong in functions.
+
+<Warning>
+**Common mistakes to avoid:**
+- Putting behavioral instructions in topic `content` instead of topic `actions`
+- Putting facts in `rules.txt` — this wastes context; keep facts in topics
+- Using prose conditionals for branching — use Python functions instead, since models can't reliably detect empty variables
+</Warning>
+
+## Next steps
 
 <CardGroup cols={2}>
-  <Card title="Extend with code" icon="code" href="/extend/introduction">
-    Write Python functions and connect APIs in Agent Studio
+  <Card title="Secrets management" icon="key" href="/secrets/introduction">
+    Store API keys and credentials securely for use in your functions
   </Card>
-  <Card title="API reference" icon="square-terminal" href="/api-reference/introduction">
-    Update and configure agents with PolyAI's REST APIs
+  <Card title="Code-driven flows" icon="diagram-project" href="/flows/transition-functions">
+    Build flows with transition functions for complex conversation paths
+  </Card>
+  <Card title="Agents API" icon="square-terminal" href="/api-reference/agents/introduction">
+    Create, configure, and deploy agents programmatically via REST
+  </Card>
+  <Card title="Full ADK docs" icon="book" href="https://polyai.github.io/adk/">
+    Tutorials, examples, and complete CLI reference
   </Card>
 </CardGroup>

@@ -1,0 +1,68 @@
+---
+title: NICE CXone chat handoff
+sidebarTitle: NICE CXone
+description: "Hand off a webchat or SMS conversation from PolyAI to a NICE CXone Digital agent."
+---
+
+Hand off a live webchat or SMS conversation from your PolyAI agent to a NICE CXone agent through a Digital messaging channel. PolyAI continues to proxy messages between the end user and the CXone agent.
+
+<Note>This integration is available from **Configure > Integrations > NICE CXone Messaging** in Agent Studio.</Note>
+
+## Prerequisites
+
+- A NICE CXone tenant with administrator access to **Digital > Points of Contact Digital**.
+- A messaging channel created (or available) in CXone.
+- A PolyAI project with at least one Knowledge topic that should escalate to a human.
+
+## 1. Create the CXone Digital channel
+
+PolyAI integrates with NICE CXone through a Digital First Omnichannel (DFO) messaging channel. You will need to create or identify a messaging channel in CXone and collect the IDs PolyAI needs to connect. Your PolyAI contact will confirm the exact fields required.
+
+Configure routing on the CXone side (queues, skills, agent assignments) the way you'd handle any other Digital channel.
+
+## 2. Connect from Studio
+
+In Agent Studio, open **Configure > Integrations** and click **Connect** on the **NICE CXone Messaging** tile. Paste the values from the CXone channel configuration.
+
+## 3. Write the handoff function
+
+```python
+def transfer_to_nice(conv: Conversation):
+    return {
+        "utterance": "No problem, I'll transfer you to one of our agents now.",
+        "handoff": {
+            "text_chat": {
+                "nice_integration": {}
+            }
+        }
+    }
+```
+
+## 4. Assign the function to a topic
+
+Open the Knowledge topic that should escalate, add an **Action**, and select `transfer_to_nice`. When that topic fires, PolyAI delivers the `utterance`, opens a CXone Digital conversation, and proxies subsequent turns between the two sides.
+
+The same function can be called from any flow step or directly via `conv.call_handoff()` for dynamic routing.
+
+## 5. Verify
+
+1. Start a session in your webchat widget and steer the conversation into the topic you wired the handoff to.
+2. Confirm a new chat appears in the CXone agent inbox for the queue or skill you configured.
+3. Reply from CXone and confirm the message is delivered back to the user inside the same widget.
+4. End the session from CXone and confirm the widget shows the conversation as closed.
+
+If the conversation never reaches CXone, double-check **Configure > Integrations > NICE CXone Messaging** for connection errors, and verify the Brand ID, Channel ID, and Environment match the channel you opened in step 1.
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="NICE CXone (Voice)" href="/integrations/voice/sip/NICECXone" icon="headset">
+    Voice routing into CXone over SIP.
+  </Card>
+  <Card title="Chat handoff overview" href="/integrations/chat/introduction" icon="message">
+    All chat handoff integrations and the shared payload shape.
+  </Card>
+  <Card title="Managed Topic actions" href="/managed-topics/how-to-setup-action/handoff" icon="bolt">
+    Wire a function into a Knowledge topic.
+  </Card>
+</CardGroup>
