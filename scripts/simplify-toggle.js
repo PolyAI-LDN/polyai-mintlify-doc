@@ -33,65 +33,42 @@
   var DRAG_THRESHOLD = 4; // px — movement before we treat a pointerdown as a drag
 
   // Sidebar group names to dim in Open platform mode.
-  var ENTERPRISE_GROUPS = ['Developer tools', 'Secrets', 'Code-driven flows'];
+  var ENTERPRISE_GROUPS = ['Testing', 'Real-time config', 'Account'];
 
   // Sidebar groups that should render ONLY when Open platform mode is on,
   // hidden completely otherwise. This is the dedicated "separate product"
   // landing area — a curated path that becomes the entire sidebar for
   // self-serve users so they don't see the rest of the enterprise IA.
   // Marked with data-open-platform-only="true".
-  var OPEN_PLATFORM_ONLY_GROUPS = ['Agent Builder'];
+  var OPEN_PLATFORM_ONLY_GROUPS = ['Home'];
 
   // When Open platform mode is on, every sidebar group whose name is NOT in
   // this list gets hidden. Keeping the list to just ['Open platform'] makes
   // the experience a single focused group; add 'FAQ' / 'Glossary' here if we
   // ever want to keep those visible to self-serve users.
-  var OPEN_PLATFORM_KEEP_GROUPS = ['Agent Builder'];
+  var OPEN_PLATFORM_KEEP_GROUPS = ['Home'];
 
   // Collapsed sub-group button labels to dim in Open platform mode.
   //
-  // Derived from the live PLG sidebar component in platform_ui:
-  //   apps/jupiter/src/components/organisms/ProjectSidebar/index.tsx (PlgContent)
-  //   apps/jupiter/src/components/organisms/ProjectNavigation/components/{Build,Settings,Analytics}Section.tsx
-  // The actual PLG sidebar renders:
-  //   Home · Analytics (= standard Dashboard only) · Conversations ·
-  //   Build {Agent, Knowledge, Flows, Tools} ·
-  //   Configure {General, Agent voice, Web Calling, Numbers, Integrations} ·
-  //   Operations (= Environments).
-  // Everything not in that list is dimmed in the docs sidebar below.
+  // Updated for the 24 June 2026 IA redesign. The new sidebar groups are:
+  //   Home · Analytics · Conversations · Custom Dashboards · Behavior ·
+  //   Knowledge · Flows · Tools · Testing · Real-time config · Voice ·
+  //   Messaging · Integrations · Deployments · Widgets · Account
   //
-  // Intentionally excluded:
-  //  - SMS, Call handoffs, Flows — intro pages are visible with developer
-  //    content behind an accordion; Flows contains a No-code sub-group that
-  //    must stay visible.
-  //  - Tools, Knowledge — both are part of the Open platform Build sidebar
-  //    (BuildSection.tsx renders these even when isPlgProd is true); custom
-  //    Python tools and managed-topic knowledge bases are first-class
-  //    self-serve features.
-  //  - Conversations — surfaced as a top-level item in the PLG sidebar.
+  // Sub-groups within those that are enterprise-only get dimmed here.
   var ENTERPRISE_SUBGROUPS = [
-    // Build group — enterprise-only sub-groups (BuildSection.tsx gates these
-    // on !isPlgProd)
-    'Variant management',
-    'Test suite',
-    // Channels group — entirely absent from the PLG sidebar; voice settings
-    // move into Configure (Agent voice + Web Calling).
-    'Chat', 'Widgets',
-    'Speech recognition', 'Response control', 'Audio management',
-    // Configure group — enterprise-only sub-groups (SettingsSection.tsx
-    // renders a stripped-down Configure for PLG with General, Agent voice,
-    // Web Calling, Numbers, and Integrations). Numbers is rendered but gated:
-    // the page opens with an enterprise banner because PSTN provisioning
-    // is contracted on the enterprise cluster.
-    'Numbers',
-    'APIs', 'API and export',
-    'Configuration builder',
-    'Metrics', 'Dashboards', 'CSAT',
-    'User management', 'API keys',
-    'Call data',
-    // Analytics group — only Conversations and the standard Dashboard appear
-    // in the PLG sidebar; everything else under Analytics is enterprise-only.
-    'Smart analyst', 'Agent analysis', 'PolyScore',
+    // Knowledge — Sources (Connected Knowledge / Source Hub) and Variants
+    // are enterprise-only; FAQs are self-serve.
+    'Sources', 'Variants',
+    // Voice — Numbers (PSTN provisioning) and Advanced (speech recognition,
+    // response control, audio management) are enterprise-only.
+    'Numbers', 'Advanced',
+    // Account — User management, API keys, Call data are enterprise-only.
+    'User management', 'API keys', 'Call data', 'API and export',
+    // Behavior — Models sub-group (BYOM, model picker) is enterprise-only.
+    'Models',
+    // Integrations — Chat handoffs and voice telephony are enterprise.
+    'Chat handoffs',
     // PolyAcademy levels 2/3 are enterprise-tier training content.
     'PolyAcademy level 2', 'PolyAcademy level 3',
     // Integration directories that only apply to enterprise managed services.
@@ -108,7 +85,7 @@
   // user mid-trial. Academy is PolyAcademy training built around the
   // enterprise IA (Level 2/3 are explicitly enterprise-tier content). Both
   // hidden in Open platform mode.
-  var HIDDEN_TABS = ['Developer', 'API reference', 'Advanced', 'Release notes', 'Academy'];
+  var HIDDEN_TABS = ['Advanced', 'API reference', 'Release notes', 'Academy'];
 
   // Path prefixes for "enterprise/developer" pages. Visiting one in
   // Open platform mode shows the page with the content grayed out behind a
@@ -120,63 +97,54 @@
   // Open platform users. Specific sub-pages that are enterprise-only
   // (e.g. /secrets/api-keys) are listed in ENTERPRISE_EXACT below.
   var ENTERPRISE_PREFIXES = [
-    // Build — enterprise-only sub-groups
-    '/configuration-builder/',
-    '/variant-management/',
-    '/analytics/test-suite/',
-    // Channels (entire group is absent from the PLG sidebar) — voice tuning
-    // pages, audio management, and webchat all land here. /widgets/ is
-    // explicitly NOT locked: it covers Web Calling configuration, install,
-    // test, and troubleshooting, which are the primary OP deployment flow.
-    '/speech-recognition/', '/response-control/', '/audio-management/',
-    '/webchat/',
-    // Configure — enterprise-only sub-groups. Numbers is rendered in the
-    // PLG sidebar but every telephony page (the Numbers landing page and
-    // its sub-pages, including the Twilio guide) opens with an enterprise
-    // banner because PSTN provisioning is enterprise-only.
-    '/telephony/',
-    '/call-data/conversations-api/',
-    // API reference: lock the whole tree. PATs authenticate the Agents API
-    // for OP users from the CLI, but the API reference pages themselves are
-    // documentation we don't want self-serve users acting on directly.
-    // /api/ is the older custom-integration doc set, also all enterprise.
+    // Real-time config (was Configuration builder) — enterprise-only.
+    '/real-time-config/',
+    // Knowledge Sources (was Connected Knowledge / Source Hub) — enterprise.
+    '/knowledge/sources/',
+    // Knowledge Variants — enterprise-only.
+    '/knowledge/variants/',
+    // Testing (was Test suite) — enterprise-only.
+    '/simulation-testing/',
+    // Voice > Advanced (speech recognition, response control, audio) —
+    // enterprise voice-tuning features.
+    '/voice-channel/advanced/',
+    // Voice > Numbers (PSTN provisioning) — enterprise-only.
+    '/voice-channel/numbers/',
+    // Messaging (was Webchat/Chat) — enterprise-only channel config.
+    '/messaging-channel/',
+    // Call data export — enterprise-only.
+    '/call-data/',
+    // API reference — enterprise documentation.
     '/api-reference/',
-    '/api/',
-    '/analytics/csat/',
-    '/user-management/',
-    // Analytics — services not deployed on the Open platform cluster
-    '/smart-analyst/',
-    '/agent-analysis/',
-    // Connected Knowledge is the Source Hub: live document syncing from
-    // Confluence, SharePoint, Google Drive, etc. Enterprise-only — Open
-    // platform users build knowledge with Managed Topics instead.
-    '/connected-knowledge/',
-    // Telephony providers under /integrations/voice/ — same gating as
-    // /telephony/ (PSTN provisioning is contracted). Sub-pages under
-    // amazon-connect/, sip/, etc. all locked by this prefix.
+    // API integrations — enterprise custom integrations.
+    '/integrations/api/',
+    // Chat handoff integrations — enterprise-only.
+    '/integrations/chat/',
+    '/integrations/messaging/',
+    // Voice telephony integrations — enterprise PSTN.
     '/integrations/voice/',
-    // Agent settings: on the Open platform you change personality, rules,
-    // model, etc. through Studio Assistant rather than the direct config
-    // pages. The pages themselves are enterprise-flavoured (model picker,
-    // BYOM, Language Hub, Agents API automation), so the whole directory
-    // is locked. The Raven page is allowlisted below in SIMPLIFIED_INTROS
-    // because it appears in the OP sidebar as 'What model does PolyAI use?'.
-    '/agent-settings/'
+    // Analytics — CSAT, custom metrics, KPIs, PolyScore are enterprise.
+    '/analytics/csat/',
+    '/analytics/kpis/',
+    '/analytics/custom-metrics/',
+    // User management — enterprise-only.
+    '/user-management/',
+    // Smart Analyst — enterprise analytics service.
+    '/smart-analyst/',
+    // Behavior — on the Open platform, personality/rules are set through
+    // Studio Assistant. Direct config pages are enterprise-flavoured
+    // (model picker, BYOM, Language Hub). Raven is allowlisted below.
+    '/behavior/',
+    // Secrets — API keys are enterprise-only (OP uses PATs).
+    '/secrets/'
   ];
   var ENTERPRISE_EXACT = [
     '/call-data/s3-to-s3',
-    // Workspace-scoped API keys are enterprise-only — Open platform users use
-    // personal access tokens (/secrets/personal-access-tokens) instead.
+    // Workspace-scoped API keys are enterprise-only.
     '/secrets/api-keys',
-    // (Model selection, BYOM, Language Hub, and the rest of /agent-settings/
-    // are now covered by the /agent-settings/ prefix above. Raven stays open
-    // via SIMPLIFIED_INTROS.)
-    // PolyScore is a single page; the underlying scoring service isn't
-    // deployed on the Open platform cluster.
+    // PolyScore — scoring service not on Open platform cluster.
     '/analytics/polyscore',
-    // Dashboards: only the standard dashboard is part of the Open platform
-    // (per the PLG_ANALYTICS_DASHBOARD branch in PlgContent). The custom-
-    // dashboard builder and the safety dashboard are enterprise-only.
+    // Custom and safety dashboards are enterprise-only.
     '/analytics/dashboards/custom',
     '/analytics/dashboards/safety',
     // Code-driven flow pages — the no-code subdirectory stays visible.
@@ -187,9 +155,9 @@
     '/flows/asr-biasing',
     '/flows/dtmf',
     '/flows/few-shot-prompting',
-    // Managed-topic actions that depend on enterprise channels.
-    '/managed-topics/how-to-setup-action/send-sms',
-    '/managed-topics/how-to-setup-action/handoff',
+    // Knowledge FAQ actions that depend on enterprise channels.
+    '/knowledge/faqs/actions/send-sms',
+    '/knowledge/faqs/actions/handoff',
     // Managed-service integration pages (not in Studio UI)
     '/integrations/managed-services',
     '/integrations/zoom',
@@ -215,10 +183,11 @@
   //     surfaced in the OP sidebar as 'What model does PolyAI use?' even
   //     though the parent /agent-settings/ directory is locked).
   var SIMPLIFIED_INTROS = [
-    '/call-handoff/introduction',
-    '/sms/introduction',
+    '/voice-channel/handoffs',
+    '/voice-channel/message-templates',
     '/flows/introduction',
-    '/agent-settings/raven'
+    '/behavior/models/raven',
+    '/call-data/introduction'
   ];
 
   // Pages that carry a "Code" / "Advanced" tag pill in the docs but are
@@ -236,7 +205,10 @@
   var OPEN_PLATFORM_ONLY_PATHS = [
     '/studio-assistant/introduction',
     '/studio-assistant/prompting',
-    '/studio-assistant/usage-and-limits'
+    '/studio-assistant/usage-and-limits',
+    '/agent-builder/introduction',
+    '/agent-builder/prompting',
+    '/agent-builder/usage-and-limits'
   ];
 
   function isOpenPlatformOnlyPath(pathname) {
@@ -246,8 +218,8 @@
   function isEnterprisePath(pathname) {
     if (SIMPLIFIED_INTROS.indexOf(pathname) !== -1) return false;
     if (ENTERPRISE_EXACT.indexOf(pathname) !== -1) return true;
-    // Sub-pages of call-handoff and sms (other than introduction) are still gated
-    if (pathname.startsWith('/call-handoff/') || pathname.startsWith('/sms/')) return true;
+    // Sub-pages of voice-channel number-availability are gated (PSTN)
+    if (pathname === '/voice-channel/number-availability') return true;
     return ENTERPRISE_PREFIXES.some(function (p) { return pathname.startsWith(p); });
   }
 
@@ -1126,7 +1098,7 @@
   function applyTabClass() {
     var path = window.location.pathname;
     var tab = 'helpcenter';
-    if (/^\/(tools|secrets|extend|configuration-builder|call-handoff|call-data|flows\/(transition|object|asr|dtmf|few-shot)|api\/|developer)/.test(path)) {
+    if (/^\/(tools|secrets|extend|real-time-config|call-data|flows\/(transition|object|asr|dtmf|few-shot)|developer)/.test(path)) {
       tab = 'developer';
     } else if (/^\/learn\//.test(path)) {
       tab = 'academy';
