@@ -1,0 +1,76 @@
+---
+title: Genesys Cloud chat handoff
+sidebarTitle: Genesys Cloud
+description: "Hand off a webchat or SMS conversation from PolyAI to a Genesys Cloud agent through Open Messaging."
+---
+
+Hand off a live webchat or SMS conversation from your PolyAI agent to a Genesys Cloud agent through an [Open Messaging](https://help.mypurecloud.com/articles/open-messaging-overview/) integration. PolyAI continues to proxy messages between the end user and the Genesys agent for the rest of the session.
+
+<Note>
+This integration is available from **Configure > Integrations > Genesys Messaging** in Agent Studio. For voice routing into the same Genesys tenant, see the [Genesys Cloud voice integration](/integrations/voice/sip/genesys).
+</Note>
+
+## Prerequisites
+
+- A Genesys Cloud organization with administrator access to **Admin > Message > Platforms**.
+- An [Architect inbound message flow](https://help.mypurecloud.com/articles/about-message-flows/) that routes incoming Open Messaging conversations to a queue with live agents assigned.
+- A PolyAI project with at least one Knowledge topic that should escalate to a human.
+
+## 1. Create the Open Messaging platform in Genesys
+
+1. In Genesys Cloud, go to **Admin > Message > Platforms** and click **+ New Integration**.
+2. Choose **Open Messaging** and name it (for example `PolyAI Handoff`).
+3. Set the **Outbound Notification Webhook URL** to the PolyAI endpoint provided by your PolyAI contact. Genesys will deliver agent messages to this URL.
+4. Save the integration and note:
+   - **Integration ID** (sometimes called the Open Messaging integration GUID).
+   - **Webhook signature secret** (the secret Genesys signs outbound webhook calls with).
+5. In **Routing > Message Routing**, assign the new integration to the Architect inbound message flow you want chats to enter on.
+
+<Tip>
+Make sure the message flow ends in **Transfer to ACD** with a queue that has live agents subscribed – otherwise PolyAI's handoff will land in Genesys with nowhere to go.
+</Tip>
+
+## 2. Connect from Studio
+
+In Agent Studio, open **Configure > Integrations** and click **Connect** on the **Genesys Messaging** tile. Paste the **Integration ID** and **Webhook signature secret** from step 1, plus the Genesys Cloud region (for example `mypurecloud.com`, `mypurecloud.ie`, `mypurecloud.de`).
+
+## 3. Write the handoff function
+
+```python
+def transfer_to_genesys(conv: Conversation):
+    return {
+        "utterance": "No problem, I'll transfer you to one of our agents now.",
+        "handoff": {
+            "text_chat": {
+                "genesys_integration": {}
+            }
+        }
+    }
+```
+
+## 4. Assign the function to a topic
+
+Open the Knowledge topic that should escalate, add an **Action**, and select `transfer_to_genesys`. The same function can be called from any flow step or directly via `conv.call_handoff()` for dynamic routing.
+
+## 5. Verify
+
+1. Start a session in your webchat widget and steer the conversation into the topic you wired the handoff to.
+2. Confirm a new Open Messaging conversation appears in the Genesys agent workspace for the queue your Architect flow routes to.
+3. Reply from Genesys and confirm the message is delivered back to the user inside the same widget.
+4. End the interaction from Genesys and confirm the widget shows the conversation as closed.
+
+If the conversation never reaches Genesys, check the **Outbound Notification Webhook URL** in the Open Messaging platform, and verify the signature secret in Studio matches the one in Genesys.
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="Genesys Cloud (Voice)" href="/integrations/voice/sip/genesys" icon="headset">
+    BYOC voice setup and SIP routing.
+  </Card>
+  <Card title="Chat handoff overview" href="/integrations/chat/introduction" icon="message">
+    All chat handoff integrations and the shared payload shape.
+  </Card>
+  <Card title="Managed Topic actions" href="/managed-topics/how-to-setup-action/handoff" icon="bolt">
+    Wire a function into a Knowledge topic.
+  </Card>
+</CardGroup>
