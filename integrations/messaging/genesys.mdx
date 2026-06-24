@@ -1,0 +1,162 @@
+---
+title: 'Genesys Cloud'
+sidebarTitle: 'Genesys Cloud'
+description: 'Connect a Genesys Cloud org to PolyAI Agent Studio via Open Messaging, with handoff routed to an ACD queue.'
+---
+
+Connect a Genesys Cloud org to PolyAI Agent Studio over [Open Messaging](https://help.mypurecloud.com/articles/open-messaging-overview/). Genesys forwards inbound conversation events to PolyAI, PolyAI replies through the same channel, and an [Architect inbound message flow](https://help.mypurecloud.com/articles/about-message-flows/) routes any agent handoff to an ACD queue.
+
+<Note>This integration is available from **Configure > Integrations > Genesys Messaging** in Agent Studio. For voice routing into the same Genesys tenant, see the [Genesys Cloud voice integration](/integrations/voice/sip/genesys).</Note>
+
+## Prerequisites
+
+- **Genesys Cloud Admin access** to create roles, OAuth clients, messaging integrations, queues, and Architect flows.
+- Your **PolyAI account ID and project ID** (e.g. `ACCOUNT-27a33660` / `PROJECT-c4876e30`).
+- Your **PolyAI messaging webhook URL** and **webhook secret** — both are generated in the Agent Studio Genesys setup wizard (see [Supply credentials to Agent Studio](#supply-credentials-to-agent-studio)).
+- A place to store the webhook secret token securely. PolyAI stores it in AWS Secrets Manager.
+
+## 1. Create the PolyAI role and assign permissions
+
+Create a dedicated role so the OAuth client used by PolyAI has exactly the permissions it needs and no more.
+
+1. Go to **Admin > People & Permissions > Roles / Permissions**.
+2. Click **Add Role** and give it a name (e.g. `PolyAI Integration`).
+3. Assign the permissions in the table below, then save.
+
+| Domain | Permission | Purpose |
+| --- | --- | --- |
+| Agent UI → Conversation Details | All Permissions / View | View the Agent UI Conversation Details panel |
+| Analytics → Conversation Detail | All Permissions / View | Query for conversation details |
+| Architect → Datatable | Add / Edit / View | Add, edit, and view data tables |
+| Conversation → Communication | Disconnect | Disconnect a communication |
+| Conversation → Message | All Permissions, Accept, Assign, Create, Monitor, Park, Pull, Receive, View | Full inbound/outbound message handling |
+| Messaging → Integration | All Permissions, Add, Delete, Edit, View | Create and manage the messaging provider integration |
+| Messaging → Setting | All Permissions, Add, Delete, Edit, View | Create and manage settings associated with an integration |
+| Routing → Message | All Permissions, Manage | Manage messaging workflow configurations |
+| Routing → Queue | Add, Delete, Edit, Join, View | Create and manage the ACD queue and its membership |
+
+## 2. Create the OAuth client
+
+PolyAI authenticates to the Genesys Platform API using a **Client Credentials** OAuth grant scoped to the role created above.
+
+1. Go to **Admin > Integrations > OAuth**.
+2. Click **Add Client**.
+3. Enter a **Name** and **Description** (e.g. `PolyAI Open Messaging`).
+4. Set **Grant Type** to **Client Credentials**.
+5. Under **Roles**, assign the role created in [step 1](#1-create-the-polyai-role-and-assign-permissions).
+6. Leave **Token Duration** at the default.
+7. Save, then record the **Client ID** and **Client Secret** — you will supply these to Agent Studio in [step 8](#supply-credentials-to-agent-studio).
+
+## 3. Create the messaging Platform Configuration
+
+The platform configuration controls messaging behaviour such as typing indicators.
+
+1. Go to **Admin > Message > Platform Configurations** (under Digital & Telephony).
+2. Create a new configuration with **typing indicators** enabled.
+3. Save. You will select this configuration when creating the Open Messaging integration in the next step.
+
+## 4. Create the Open Messaging platform integration
+
+This integration is the channel over which Genesys forwards inbound messages to PolyAI and PolyAI sends replies back.
+
+1. Go to **Admin > Message > Platform Integrations** (under Digital & Telephony).
+2. Create a new **Open Messaging** integration and give it a name.
+3. Set the **Outbound Notification Webhook URL** to your PolyAI messaging webhook URL. The pattern is:
+
+   ```
+   https://messaging.<CLUSTER>.poly.ai/webhooks/genesys/<ACCOUNT_ID>/<PROJECT_ID>/<CLIENT_ENV>/events
+   ```
+
+   Replace `<CLUSTER>`, `<ACCOUNT_ID>`, `<PROJECT_ID>`, and `<CLIENT_ENV>` (e.g. `live`) with your values, and adjust the base domain for your environment (`dev` vs `us-1` / `uk-1` / `euw-1`). This URL is shown in the Agent Studio Genesys setup wizard.
+4. Enter the **Outbound Notification Webhook Signature Secret Token** provided by Agent Studio. Store this secret securely — PolyAI keeps it in AWS Secrets Manager.
+5. Click **Save**.
+6. Select the **Platform Configuration** created in [step 3](#3-create-the-messaging-platform-configuration).
+7. Select a **Content Profile** (use the default, or configure one if your deployment needs specific content types).
+8. Click **Save**, then record the **Integration ID** from the URL — you will supply it to Agent Studio.
+
+## 5. Create the ACD queue
+
+Conversations that hand off from the PolyAI agent to a human are routed to an ACD queue.
+
+1. Go to **Admin > Contact Center > Queues**.
+2. Click **New Queue** (e.g. `PolyAI Test Queue`).
+3. Set the **Division** (e.g. `Home`).
+4. Create the queue and add members — the agents who will receive handed-off conversations.
+
+## 6. Build the Architect inbound message flow
+
+An Architect inbound message flow receives the conversation and transfers it to the ACD queue.
+
+1. Go to **Admin > Architect** and create a new **Inbound Message** flow (e.g. `PolyAI Handoff Flow`).
+2. Edit the flow so that **Flow Start → Transfer to ACD**.
+3. In the **Transfer to ACD** action, set the **Queue** to the queue created in [step 5](#5-create-the-acd-queue).
+4. **Save** and **Publish** the flow.
+
+<Tip>If the message flow does not end in a Transfer to ACD with a queue that has live agents subscribed, PolyAI's handoff will land in Genesys with nowhere to go.</Tip>
+
+## 7. Attach the flow via message routing
+
+Routing binds the published flow to the Open Messaging integration address so inbound messages enter the flow.
+
+1. Go to **Admin > Routing > Message Routing** (Orchestration).
+2. Click **Attach new addresses**.
+3. Select the published flow from [step 6](#6-build-the-architect-inbound-message-flow) and the Open Messaging integration from [step 4](#4-create-the-open-messaging-platform-integration) as the address.
+4. **Attach** the address and **Save**.
+
+## Supply credentials to Agent Studio
+
+In the Agent Studio Genesys setup wizard, credentials are entered across two screens.
+
+### Genesys Cloud credentials
+
+Open Messaging credentials never leave PolyAI infrastructure.
+
+| Field | Source |
+| --- | --- |
+| Region | From the URL bar when signed into Genesys |
+| Integration ID | From the Open Messaging integration ([step 4](#4-create-the-open-messaging-platform-integration)) |
+| Client ID | From the OAuth client ([step 2](#2-create-the-oauth-client)) |
+| Client Secret | From the OAuth client ([step 2](#2-create-the-oauth-client)) |
+
+### Genesys Cloud setup info (generated by Agent Studio)
+
+Agent Studio generates the values you paste back into Genesys in [step 4](#4-create-the-open-messaging-platform-integration):
+
+| Field | Use |
+| --- | --- |
+| Webhook Secret | Enter as the **Outbound Notification webhook signature secret token** in the Open Messaging integration |
+| Webhook URL | Set as the **Outbound Notification Webhook URL** in the Open Messaging integration: `https://messaging.<CLUSTER>.poly.ai/webhooks/genesys/<ACCOUNT_ID>/<PROJECT_ID>/<CLIENT_ENV>/events` |
+
+## Verify
+
+- **Open Messaging integration**: Send a test message through the messaging channel and confirm Genesys forwards events to the PolyAI webhook URL (check the integration / OAuth client activity).
+- **Handoff routing**: Trigger a handoff and confirm the conversation lands in the queue created in [step 5](#5-create-the-acd-queue) via the published Architect flow.
+- **Permissions**: If calls into the Platform API fail, re-check that the OAuth client's role includes the required permissions listed in [step 1](#1-create-the-polyai-role-and-assign-permissions).
+
+## Genesys Admin paths
+
+Quick reference for the Genesys Admin paths used in this guide.
+
+| Resource | Genesys Admin path |
+| --- | --- |
+| Role & permissions | Admin → People & Permissions → Roles / Permissions |
+| OAuth client | Admin → Integrations → OAuth |
+| Platform Configuration | Admin → Message → Platform Configurations |
+| Open Messaging integration | Admin → Message → Platform Integrations |
+| Queue | Admin → Contact Center → Queues |
+| Inbound message flow | Admin → Architect → Inbound Message |
+| Message routing | Admin → Routing → Message Routing |
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="Genesys Cloud (voice)" href="/integrations/voice/sip/genesys" icon="headset">
+    BYOC voice setup and SIP routing.
+  </Card>
+  <Card title="Webchat" href="/webchat/introduction" icon="message">
+    Configure and embed the PolyAI webchat widget.
+  </Card>
+  <Card title="Integrations overview" href="/integrations/introduction" icon="puzzle-piece">
+    All Agent Studio integrations.
+  </Card>
+</CardGroup>
