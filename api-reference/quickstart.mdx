@@ -1,0 +1,431 @@
+---
+title: "API quickstart"
+sidebarTitle: "Quickstart"
+description: "Make your first PolyAI API call, walk a real end-to-end integration, and subscribe to webhook events — in under 15 minutes."
+keywords:
+  - quickstart
+  - getting started
+  - first API call
+  - tutorial
+  - end to end
+  - integration
+---
+
+This guide takes you from an empty terminal to a working post-call data pipeline: pull yesterday's conversations, fetch one with full transcript and audio, and subscribe to a webhook so you don't have to poll. Every step uses real endpoints and copy-pasteable code.
+
+If you just want the conceptual map of the API families (Build & deploy vs. Runtime & data vs. Monitoring), read the [API overview](/api-reference/introduction) first. This page assumes you've picked the [Conversations](/api-reference/conversations/introduction) and [Webhooks](/api-reference/webhooks/introduction) APIs and want to ship.
+
+## What you'll build
+
+By the end of this guide you'll have:
+
+1. Authenticated against the PolyAI API
+2. Listed conversations from the last 24 hours
+3. Fetched a single conversation with its full turn-by-turn transcript
+4. Downloaded the audio recording for that call
+5. Registered a webhook endpoint so PolyAI pushes new conversations to you in real time
+
+Everything below uses the recommended Conversations API **v3** and the Webhooks API. Replace the placeholder values where indicated.
+
+## Prerequisites
+
+<Steps>
+  <Step title="Get an API key">
+    PolyAI provisions API keys — they aren't self-serve yet for runtime APIs.
+
+    - Ask your PolyAI representative for a **v3 Conversations API key** scoped to the project and region you want to query.
+    - The same key works for the [Data API](/api-reference/data/introduction), [Handoff](/api-reference/handoff/introduction), [Chat](/api-reference/chat/introduction), and other runtime APIs on the `platform.polyai.app` host.
+    - For the [Agents API](/api-reference/agents/introduction), [Alerts](/api-reference/alerts/introduction), and [Webhooks](/api-reference/webhooks/introduction), email [developers@poly.ai](mailto:developers@poly.ai) for a separate workspace-scoped key.
+
+    Treat the key like a password. Never commit it or embed it in client-side code.
+  </Step>
+
+  <Step title="Find your account ID and project ID">
+    Open Agent Studio. Your IDs are the first two segments of the URL after the host:
+
+    ```
+    https://studio.{region}.poly.ai/{account_id}/{project_id}/agent
+    ```
+
+    For example, `https://studio.uk.poly.ai/acme-uk/acme-team-4/agent` gives `account_id=acme-uk` and `project_id=acme-team-4`. Both the slug form and the prefixed form (`ws-xxxxxxxx`, `PROJECT-xxxxxxxx`) are valid in API paths. The `account_id` workspace prefix is `ws-`, not `ACCOUNT-`.
+  </Step>
+
+  <Step title="Pick the right base URL">
+    Runtime and data APIs live on regional hosts under `platform.polyai.app`. Match the region your project is provisioned in:
+
+    | Region | Base URL                                  |
+    | ------ | ----------------------------------------- |
+    | US     | `https://api.us-1.platform.polyai.app`    |
+    | UK     | `https://api.uk-1.platform.polyai.app`    |
+    | EUW    | `https://api.euw-1.platform.polyai.app`   |
+
+    <Warning>
+    The Webhooks API uses a different host family (`api.{region}.poly.ai`, no `-1` suffix). Don't mix them up — it's the most common source of 404s. See [base URLs](/api-reference/introduction#base-urls) for the full table.
+    </Warning>
+  </Step>
+
+  <Step title="Set environment variables">
+    Stash your key and IDs in environment variables so they stay out of code samples and source control.
+
+    ```bash
+    export POLYAI_API_KEY="your_api_key_here"
+    export POLYAI_BASE_URL="https://api.us-1.platform.polyai.app"
+    export POLYAI_ACCOUNT_ID="ws-xxxxxxxx"
+    export POLYAI_PROJECT_ID="PROJECT-xxxxxxxx"
+    ```
+
+    Every example below assumes these are set.
+  </Step>
+</Steps>
+
+## Step 1: Make your first call
+
+A quick smoke test confirms the key, IDs, region, and network path all line up. List a single conversation from the last 24 hours:
+
+<CodeGroup>
+
+```bash curl
+START=$(date -u -d "24 hours ago" +"%Y-%m-%dT%H:%M:%SZ")
+END=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+curl -X GET \
+  "$POLYAI_BASE_URL/v3/$POLYAI_ACCOUNT_ID/$POLYAI_PROJECT_ID/conversations?start_time=$START&end_time=$END&limit=1" \
+  -H "x-api-key: $POLYAI_API_KEY"
+```
+
+```python Python
+import os
+from datetime import datetime, timedelta, timezone
+import requests
+
+base_url = os.environ["POLYAI_BASE_URL"]
+account_id = os.environ["POLYAI_ACCOUNT_ID"]
+project_id = os.environ["POLYAI_PROJECT_ID"]
+headers = {"x-api-key": os.environ["POLYAI_API_KEY"]}
+
+end = datetime.now(timezone.utc)
+start = end - timedelta(hours=24)
+
+response = requests.get(
+    f"{base_url}/v3/{account_id}/{project_id}/conversations",
+    headers=headers,
+    params={
+        "start_time": start.isoformat().replace("+00:00", "Z"),
+        "end_time": end.isoformat().replace("+00:00", "Z"),
+        "limit": 1,
+    },
+)
+response.raise_for_status()
+print(response.json())
+```
+
+```typescript TypeScript
+const baseUrl = process.env.POLYAI_BASE_URL!;
+const accountId = process.env.POLYAI_ACCOUNT_ID!;
+const projectId = process.env.POLYAI_PROJECT_ID!;
+const headers = { "x-api-key": process.env.POLYAI_API_KEY! };
+
+const end = new Date();
+const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+
+const params = new URLSearchParams({
+  start_time: start.toISOString(),
+  end_time: end.toISOString(),
+  limit: "1",
+});
+
+const res = await fetch(
+  `${baseUrl}/v3/${accountId}/${projectId}/conversations?${params}`,
+  { headers },
+);
+if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+console.log(await res.json());
+```
+
+</CodeGroup>
+
+A successful response returns a JSON object with a `conversations` array and a `cursor` field. If you get `401`, the key is wrong or missing. If you get `404`, the region host or IDs are wrong. See [troubleshooting](#troubleshooting) below.
+
+<Tip>
+No conversations in the last 24 hours? Place a test call against your sandbox agent — see [Quickstart > Test your agent](/get-started/quickstart) — and re-run the request.
+</Tip>
+
+## Step 2: Page through a full day of calls
+
+The smoke test used `limit=1`. For real workloads, use a larger `limit` and walk pages with the opaque `cursor` field. Cursors stay stable as new conversations arrive, so the iteration is safe to run during business hours.
+
+<CodeGroup>
+
+```python Python
+def iter_conversations(start, end, page_size=200):
+    cursor = None
+    while True:
+        params = {
+            "start_time": start,
+            "end_time": end,
+            "limit": page_size,
+            "client_env": "live",
+        }
+        if cursor:
+            params["cursor"] = cursor
+
+        page = requests.get(
+            f"{base_url}/v3/{account_id}/{project_id}/conversations",
+            headers=headers,
+            params=params,
+        )
+        page.raise_for_status()
+        body = page.json()
+
+        for conv in body["conversations"]:
+            yield conv
+
+        cursor = body.get("cursor")
+        if not cursor:
+            return
+
+for conv in iter_conversations(start.isoformat(), end.isoformat()):
+    print(conv["id"], conv["num_turns"], conv["total_duration"])
+```
+
+```typescript TypeScript
+async function* iterConversations(startIso: string, endIso: string, pageSize = 200) {
+  let cursor: string | null = null;
+  do {
+    const params = new URLSearchParams({
+      start_time: startIso,
+      end_time: endIso,
+      limit: String(pageSize),
+      client_env: "live",
+    });
+    if (cursor) params.set("cursor", cursor);
+
+    const res = await fetch(
+      `${baseUrl}/v3/${accountId}/${projectId}/conversations?${params}`,
+      { headers },
+    );
+    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+    const body = await res.json();
+
+    for (const conv of body.conversations) yield conv;
+    cursor = body.cursor;
+  } while (cursor);
+}
+
+for await (const conv of iterConversations(start.toISOString(), end.toISOString())) {
+  console.log(conv.id, conv.num_turns, conv.total_duration);
+}
+```
+
+</CodeGroup>
+
+<Tip>
+Use `client_env=live` (the default) for production traffic, `sandbox` for your test calls, or `pre-release` for staging. Mixing environments is a common source of "no results" confusion.
+</Tip>
+
+## Step 3: Fetch one conversation with its transcript
+
+The list response includes per-conversation summaries plus the `turns` array — but if you want a single conversation in detail, hit the by-ID endpoint:
+
+<CodeGroup>
+
+```bash curl
+curl -X GET \
+  "$POLYAI_BASE_URL/v3/$POLYAI_ACCOUNT_ID/$POLYAI_PROJECT_ID/conversations/CONVERSATION_ID" \
+  -H "x-api-key: $POLYAI_API_KEY"
+```
+
+```python Python
+conv_id = "your_conversation_id"
+res = requests.get(
+    f"{base_url}/v3/{account_id}/{project_id}/conversations/{conv_id}",
+    headers=headers,
+)
+res.raise_for_status()
+conv = res.json()
+
+for turn in conv["turns"]:
+    speaker = "USER " if turn["user_input"] else "AGENT"
+    text = turn["user_input"] or turn["agent_response"]
+    print(f"{turn['user_input_datetime']}  {speaker}  {text}")
+```
+
+```typescript TypeScript
+const convId = "your_conversation_id";
+const convRes = await fetch(
+  `${baseUrl}/v3/${accountId}/${projectId}/conversations/${convId}`,
+  { headers },
+);
+const conv = await convRes.json();
+
+for (const turn of conv.turns) {
+  const speaker = turn.user_input ? "USER " : "AGENT";
+  const text = turn.user_input || turn.agent_response;
+  console.log(`${turn.user_input_datetime}  ${speaker}  ${text}`);
+}
+```
+
+</CodeGroup>
+
+See the [conversation object reference](/api-reference/conversations/introduction#response-structure) for the full field list (latency metrics, intents, entities, handoff metadata, translation outputs).
+
+<Warning>
+If `num_turns > 0` but `turns` is empty, transcript visibility is disabled at the project level. Open **API Keys > Configuration** on the workspace homepage and enable **Conversation transcript**. See [transcript visibility](/api-reference/conversations/introduction#transcript-visibility) for the full diagnosis.
+</Warning>
+
+## Step 4: Download the audio recording
+
+Voice calls have an audio recording, fetched via a separate endpoint. The response is a binary stream — write it to disk or pipe it to your storage.
+
+<CodeGroup>
+
+```bash curl
+curl -X GET \
+  "$POLYAI_BASE_URL/v3/$POLYAI_ACCOUNT_ID/$POLYAI_PROJECT_ID/conversations/CONVERSATION_ID/audio" \
+  -H "x-api-key: $POLYAI_API_KEY" \
+  --output conversation.wav
+```
+
+```python Python
+res = requests.get(
+    f"{base_url}/v3/{account_id}/{project_id}/conversations/{conv_id}/audio",
+    headers=headers,
+    stream=True,
+)
+res.raise_for_status()
+
+with open(f"{conv_id}.wav", "wb") as f:
+    for chunk in res.iter_content(chunk_size=1 << 14):
+        f.write(chunk)
+```
+
+```typescript TypeScript
+const audioRes = await fetch(
+  `${baseUrl}/v3/${accountId}/${projectId}/conversations/${convId}/audio`,
+  { headers },
+);
+if (!audioRes.ok) throw new Error(`${audioRes.status}`);
+
+import { writeFile } from "node:fs/promises";
+const buf = Buffer.from(await audioRes.arrayBuffer());
+await writeFile(`${convId}.wav`, buf);
+```
+
+</CodeGroup>
+
+Recordings are only generated for voice channels (`VOICE-SIP`). Chat conversations (`WEBCHAT`, `CHAT`) return `404` on this endpoint — filter on `channel` before calling.
+
+## Step 5: Stop polling, subscribe to webhooks
+
+Polling the list endpoint every few minutes works, but it wastes requests and adds lag. PolyAI can push a JSON payload to a URL of yours every time a call ends, an alert fires, or a handoff happens. Set it up once and your pipeline becomes event-driven.
+
+The Webhooks API lives on the `poly.ai` host family — base URL changes:
+
+```bash
+export POLYAI_PLATFORM_URL="https://api.us.poly.ai"  # not us-1
+```
+
+### Register an endpoint
+
+<CodeGroup>
+
+```bash curl
+curl -X POST "$POLYAI_PLATFORM_URL/v1/webhooks/endpoints" \
+  -H "x-api-key: $POLYAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://your-service.example.com/polyai-events",
+    "description": "Post-call ingestion",
+    "events": ["conversation.completed", "handoff.created"]
+  }'
+```
+
+```python Python
+res = requests.post(
+    f"{os.environ['POLYAI_PLATFORM_URL']}/v1/webhooks/endpoints",
+    headers={**headers, "Content-Type": "application/json"},
+    json={
+        "url": "https://your-service.example.com/polyai-events",
+        "description": "Post-call ingestion",
+        "events": ["conversation.completed", "handoff.created"],
+    },
+)
+res.raise_for_status()
+endpoint = res.json()
+print(endpoint["id"], endpoint["signing_secret"])
+```
+
+</CodeGroup>
+
+Store the `signing_secret` securely — you'll need it to verify every incoming request.
+
+### Verify the signature
+
+PolyAI signs each delivery with HMAC-SHA256 in the `X-PolyAI-Signature` header. Reject any request whose signature doesn't match.
+
+```python Python
+import hashlib
+import hmac
+from flask import Flask, request, abort
+
+app = Flask(__name__)
+SIGNING_SECRET = os.environ["POLYAI_WEBHOOK_SECRET"].encode()
+
+@app.post("/polyai-events")
+def handle():
+    body = request.get_data()
+    sig = request.headers.get("X-PolyAI-Signature", "")
+
+    expected = hmac.new(SIGNING_SECRET, body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(sig, expected):
+        abort(401)
+
+    event = request.get_json()
+    if event["type"] == "conversation.completed":
+        process_conversation(event["data"]["conversation_id"])
+    return "", 204
+```
+
+Respond with a 2xx status within 5 seconds. PolyAI retries on non-2xx responses with exponential backoff — keep the handler thin and offload work to a queue. See the [Webhooks API](/api-reference/webhooks/introduction) for the full event catalog, retry semantics, and signing-secret rotation.
+
+## Step 6: Promote from sandbox to live
+
+You probably built and tested against your sandbox environment. To run against production traffic, change one parameter:
+
+```python
+params["client_env"] = "live"  # was "sandbox" or "pre-release"
+```
+
+Webhook endpoints fire across all environments by default. If you only want production events, filter on `data.environment == "live"` in your handler, or register separate endpoints per environment.
+
+## Troubleshooting
+
+| Symptom                                        | Likely cause                                                                                       | Fix                                                                                                                  |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `401 Unauthorized`                             | Missing or wrong `x-api-key` header, or key revoked.                                               | Check the env var is set; ask PolyAI to confirm the key is active.                                                   |
+| `403 Forbidden`                                | Key is valid but lacks permission for this project or scope.                                       | Confirm the key was provisioned for the project ID in the URL.                                                       |
+| `404 Not Found` on conversations endpoint      | Wrong base URL (most often `api.us.poly.ai` instead of `api.us-1.platform.polyai.app`).            | Use the `platform.polyai.app` host with the regional `-1` suffix for runtime/data APIs.                              |
+| `404 Not Found` on webhooks endpoint           | You hit the runtime host. Webhooks live on `api.{region}.poly.ai`.                                 | Use `api.us.poly.ai` (no `-1`) for Agents, Alerts, Webhooks.                                                          |
+| Empty `conversations` array                    | Time window has no calls, or wrong `client_env` (live vs. sandbox).                                | Place a test call, widen the time window, or set `client_env=sandbox`.                                               |
+| `turns` is empty but `num_turns > 0`           | Transcript visibility is off at the project level.                                                 | Enable **Conversation transcript** under **API Keys > Configuration** in Agent Studio.                               |
+| `429 Too Many Requests`                        | You hit the rate limit.                                                                            | Back off using the `Retry-After` header; switch from offset to cursor pagination for large pulls.                    |
+| Webhook handler never fires                    | Endpoint not yet active, or signature verification rejecting valid requests.                       | Hit your handler URL directly; log the request body and computed signature; confirm the secret matches what you saved. |
+
+For the full error-code reference, see [Error codes](/api-reference/error-codes).
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="API overview" icon="map" href="/api-reference/introduction">
+    The three API families, base URLs, and version policy.
+  </Card>
+  <Card title="Conversations API reference" icon="comments" href="/api-reference/conversations/introduction">
+    Full schema, retrieval modes, pagination, and streaming.
+  </Card>
+  <Card title="Agents API" icon="hammer" href="/api-reference/agents/introduction">
+    Build and deploy agents programmatically.
+  </Card>
+  <Card title="Webhooks API" icon="bell" href="/api-reference/webhooks/introduction">
+    Event types, retries, and signature verification in depth.
+  </Card>
+</CardGroup>
