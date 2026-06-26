@@ -1,0 +1,249 @@
+---
+title: "Real-time config"
+sidebarTitle: "Overview"
+description: "Let non-technical managers update agent settings without publishing new versions using structured configuration forms."
+keywords: ["real time configuration", "configuration builder", "config", "feature flags", "real-time config"]
+tag: "Code"
+---
+
+Use the Configuration Builder to let non-technical managers update agent settings – opening hours, feature toggles, fallback phone numbers – without publishing a new version or writing code. Changes take effect immediately in each environment, avoiding the need for developers to edit code and promote through the deployment pipeline.
+
+Schema definition requires Python familiarity — a developer defines the configuration schema (fields, types, defaults). Once the schema is set up, non-technical users can update values in the Data tab without writing code.
+
+The **Configuration builder** is found under **Real-time config**.
+
+## How it works
+
+Configuration Builder separates **structure** (schema) from **values** (data).
+
+| Tab     | Purpose                                |
+|----------|----------------------------------------|
+| **Schema** | Define what fields exist (like opening hours, toggles) |
+| **Data**   | Fill in the environment-specific values |
+
+The schema enforces structure and validation. The data defines what the agent uses at runtime.
+
+<img src="/images/configuration-builder/config-builder-main.png" alt="Configuration builder UI with schema/data tabs" />
+
+<Warning>
+The configuration builder is not tied to the main publish lifecycle.
+
+The builder sits **outside the agent's draft/publish system**, so data value changes take effect immediately within each environment. Changes to Live values affect all active calls instantly – verify values in Sandbox or Pre-release first.
+
+This means:
+- An empty config file that receives a schema will instantly expose real-time fields to fill.
+- **Data** changes take effect immediately within the environment where they are made.
+- **Schemas** must be created separately in each environment (they do not propagate automatically).
+</Warning>
+
+### Two tasks: schema definition and value entry
+
+This page covers both schema definition (requires Python familiarity) and value entry (UI only). If you only need to fill in runtime values, skip to [step 2](#2-optional-add-environment-specific-values). For the full technical setup including Python code, continue reading from the top.
+
+The Configuration Builder serves two different tasks:
+
+- **Schema definition** – Define the structure and wire up `conv.real_time_config` in functions. This requires Python familiarity and is done in the **Configuration Builder** tab.
+- **Value entry** – Fill in runtime values via the **Real Time Configuration** UI. No code required.
+
+These tasks may be performed by different people with different access levels. For customers who self-manage their configuration (for example, updating settings across many locations), the distinction matters – value entry is done through the UI without touching the schema definition.
+
+## Step-by-step
+
+### 1. Create a schema
+
+<img src="/images/configuration-builder/config-schema.png" alt="Live config UI showing example values" />
+
+In **Configuration Builder → Schema**, define the fields. For example:
+
+- A text field for `opening_hours`
+- A toggle for `after_hours_enabled`
+- A validated phone number for `fallback_number`
+
+These fields are written in JSON Schema format. The schema drives the form layout in the next step. Use clear `title` values – these labels will be visible in the real-time UI.
+
+
+```json
+{
+  "title": "Agent Settings",
+  "description": "Set call handling parameters for this agent",
+  "type": "object",
+  "properties": {
+    "opening_hours": {
+      "type": "string",
+      "title": "Opening Hours",
+      "description": "Hours during which the agent should be available"
+    },
+    "after_hours_enabled": {
+      "type": "boolean",
+      "title": "After Hours Message",
+      "description": "Enable this toggle to play a message outside business hours"
+    },
+    "fallback_number": {
+      "type": "string",
+      "title": "Fallback Contact Number",
+      "description": "Phone number to call if no agent is available",
+      "pattern": "^\\+44\\d{10}$"
+    }
+  }
+}
+```
+
+Boolean toggles are also useful as **feature flags**, so you can enable or disable capabilities in live environments without a deployment. For example, you could add a `transfer_enabled` toggle to control whether the agent offers call transfers.
+
+<Warning>
+**The schema must be created separately in each [environment](/environments-and-versions/introduction).** If you build a schema in Sandbox, it does not automatically exist in Live. You need to set up the schema in every environment where you want the configuration UI to appear.
+</Warning>
+
+### 2. (Optional) Add environment-specific values
+
+<img src="/images/configuration-builder/config-data.png" alt="Live config UI showing example values" />
+
+Once a schema is saved, the Real Time Configuration UI will appear automatically, even if no values are set.
+
+You *can*, however, populate values manually, at any time, in the **Data** tab, where each environment (Sandbox, Pre-release, Live) maintains its own data.
+
+```json
+{
+  "opening_hours": "Mon–Fri, 9am to 6pm",
+  "after_hours_enabled": true,
+  "fallback_number": "+442071234567"
+}
+```
+
+Fields can be left blank unless marked required.
+
+### 3. Publish
+
+You **do not need to publish** your agent for configuration changes to take effect.
+However, publishing may still be useful if you want to include these changes in a documented release.
+
+Once your schema is added, the **Real Time Configuration** tab becomes available:
+
+- **Draft and Sandbox**
+- **Pre-release**
+- **Live**
+
+<img src="/images/configuration-builder/config-schema-data-finished.png" alt="Live config UI showing example values" />
+
+### 4. Add the read config in your functions
+
+Use the [conv.real_time_config](/tools/classes/conv-object/#real-time-config) helper to read real-time values.
+
+```python
+config = conv.real_time_config
+hours = config.get("opening_hours")
+after_hours = config.get("after_hours_enabled")
+fallback = config.get("fallback_number")
+
+if after_hours:
+    conv.say("We're currently closed. Please call back during business hours.")
+    conv.transfer_call(fallback)
+```
+
+All values are returned as a dictionary. Use `.get("key")` to safely access fields.
+
+### Working with nested and complex schemas
+
+The Configuration Builder supports arrays and nested objects in addition to flat fields. This is useful for projects that manage per-site settings, employee directories, or structured data.
+
+For example, a schema might define an array of site-specific hours:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "site_hours": {
+      "type": "array",
+      "title": "Site hours",
+      "items": {
+        "type": "object",
+        "properties": {
+          "site_name": { "type": "string", "title": "Site name" },
+          "hours": { "type": "string", "title": "Opening hours" }
+        }
+      }
+    }
+  }
+}
+```
+
+To access nested values in your functions, index into the structure:
+
+```python
+sites = conv.real_time_config.get("site_hours", [])
+first_site_hours = sites[0]["hours"] if sites else None
+```
+
+## Programmatic management via API
+
+For deployments managing configuration across many locations, the [Agents API](/api-reference/agents/introduction) exposes the same real-time config surface the UI uses:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | [`/v1/agents/{agentId}/real-time-configs`](/api-reference/agents/endpoint/real-time-configs/list-all-config-pages) | List configs across environments |
+| `GET` | [`/v1/agents/{agentId}/real-time-configs/{clientEnv}`](/api-reference/agents/endpoint/real-time-configs/get-a-config-page-by-environment) | Get config for a specific environment |
+| `PATCH` | [`/v1/agents/{agentId}/real-time-configs/{clientEnv}/variables`](/api-reference/agents/endpoint/real-time-configs/update-config-variables-for-an-environment) | Update config variables |
+| `PUT` | [`/v1/agents/{agentId}/real-time-configs/{clientEnv}/schema`](/api-reference/agents/endpoint/real-time-configs/upsert-the-json-schema-for-a-config-page) | Update the config schema |
+
+This is especially useful when customers need to update settings themselves at scale, rather than editing values manually in the UI.
+
+<AccordionGroup>
+  <Accordion title="Example: sync real-time config from an external source of truth" icon="code">
+    ```python Python
+    import os, requests
+
+    BASE = "https://api.us.poly.ai"
+    HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
+
+    # Push the latest opening hours from your internal scheduling system
+    requests.patch(
+        f"{BASE}/v1/agents/{AGENT_ID}/real-time-configs/live/variables",
+        headers=HEADERS,
+        json={
+            "variables": {
+                "opening_hours": scheduling.get_hours_for_today(),
+                "after_hours_enabled": scheduling.is_out_of_hours(),
+            }
+        },
+    )
+    ```
+
+    Changes take effect immediately in the target environment — no promotion required.
+  </Accordion>
+</AccordionGroup>
+
+## Best practices
+
+<Icon icon="check" iconType="solid" color="#2D8C66" /> Design schemas for clarity. Labels help non-technical users navigate the configuration UI.
+
+<Icon icon="check" iconType="solid" color="#2D8C66" /> Validate critical fields (like phone numbers) with regex.
+
+<Icon icon="check" iconType="solid" color="#2D8C66" /> Test behavior across all environments before deploying to Live.
+
+<Icon icon="check" iconType="solid" color="#2D8C66" /> Keep track of which flows and functions use which configuration fields.
+
+<Icon icon="check" iconType="solid" color="#2D8C66" /> Set up the schema in every environment where you need the config UI – schemas are not shared across environments.
+
+<Icon icon="check" iconType="solid" color="#2D8C66" /> Standard JSON Schema features including arrays, nested objects, and validation patterns are supported.
+
+## What happens if the schema changes?
+
+If the schema is edited in a way that invalidates existing data, the system will prevent publishing until all environments are valid again.
+
+## Can each environment have different values?
+
+Yes. For example, you can test one phone number in **pre-release** while using a different one in **live**.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Environments" icon="server" href="/environments-and-versions/introduction">
+    Understand sandbox, pre-release, and live deployment.
+  </Card>
+  <Card title="Functions" icon="code" href="/tools/introduction">
+    Access configuration data in your agent logic with conv.real_time_config.
+  </Card>
+  <Card title="Real-time config endpoints" icon="square-terminal" href="/api-reference/agents/endpoint/real-time-configs/list-all-config-pages">
+    Manage schema and variables per environment via the Agents API.
+  </Card>
+</CardGroup>

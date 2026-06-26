@@ -1,0 +1,196 @@
+---
+title: "Post-call reporting"
+sidebarTitle: "Post-call reporting"
+description: "Capture real-time metrics during the call and run LLM-based extraction queries after the call to produce structured reporting data."
+keywords:
+  - post-call reporting
+  - extraction queries
+  - post-call extraction
+  - metrics
+  - end function
+  - prompt_llm
+---
+
+Every call your agent handles produces structured reporting data automatically. There are two layers, both configured by you in Agent Studio:
+
+- **Real-time metrics** are written during the call from your flow functions using [`conv.write_metric`](/tools/classes/conv-object#write-metric).
+- **Post-call AI extraction** runs after the call ends. The full transcript is sent to an LLM via [`conv.utils.prompt_llm`](/tools/classes/conv-utils#prompt_llm) so you can pull out fields that can only be determined by reviewing the whole conversation.
+
+Together they cover the two questions builders typically need to answer for reporting: *"What happened at specific moments in the call?"* and *"What does the call mean once it's over?"*.
+
+## Layer 1: Real-time metrics
+
+Inside your [flow functions](/flows/introduction), write metrics at key moments using a single line of code:
+
+```python
+conv.write_metric("BOOKING_CONFIRMED")
+conv.write_metric("HANDOFF_REASON", "billing_dispute")
+conv.write_metric("LANGUAGE", "Spanish")
+```
+
+Each call fires in real time as the conversation progresses and is immediately available in [Dashboards](/analytics/dashboards/introduction), [Smart Analyst](/smart-analyst/introduction), and the [Conversations API](/api-reference/conversations/introduction).
+
+Common examples:
+
+| Metric | When it fires |
+| --- | --- |
+| `APPOINTMENT_BOOKED` | Caller confirms an appointment |
+| `PAYMENT_PROCESSED` | Payment completes on the call |
+| `HANDOFF_BILLING` | Caller is transferred to your billing team |
+| `SMS_SENT` | An SMS confirmation is sent during the call |
+| `INSURANCE_VERIFIED` | Insurance is confirmed on the call |
+
+You decide what to track. Add `conv.write_metric()` calls anywhere in your flow functions. See [Metrics](/analytics/kpis/introduction) for naming conventions and how metric definitions affect Smart Analyst.
+
+## Layer 2: Post-call AI extraction
+
+After the call ends, the platform can run the full transcript through an LLM to extract structured data that depends on the whole conversation – call reasons, sentiment, summaries, follow-up flags, and so on. You configure this in your [End tool](/tools/end-tool) (`end_function.py`).
+
+The pattern has three pieces: a dictionary of extraction queries, a helper function that builds the prompt and calls the LLM, and a call from `end_function` itself.
+
+<Steps>
+
+<Step title="Define what you want to extract">
+
+Define each field as a key with a plain-English instruction. The key becomes the metric name; the value tells the LLM what to look for.
+
+```python
+EXTRACTION_QUERIES = {
+    "CALL_REASON": "Categorize why the customer called (e.g. appointment scheduling, billing dispute, prescription refill).",
+    "RESOLUTION": "Was the caller's issue resolved? Answer: yes, no, or partial.",
+    "SENTIMENT": "Rate the caller's overall sentiment: positive, neutral, or frustrated.",
+    "REPEAT_CONTACT": "Did the caller mention they've called about this before? Answer: yes or no.",
+    "ESCALATION_COUNT": "Count how many times the caller asked to speak to a human agent.",
+    "AGENT_QUALITY": "Score 0 or 1: 1 = the call was handled well, 0 = repeated misunderstandings or inappropriate responses.",
+}
+```
+
+</Step>
+
+<Step title="Build the prompt and call the LLM">
+
+Format the transcript from `conv.history`, embed the queries, and call [`conv.utils.prompt_llm`](/tools/classes/conv-utils#prompt_llm) with `return_json=True` so the response is parsed into a `dict`.
+
+```python
+def post_call_extraction(conv):
+    # Format the conversation transcript
+    conversation_text = "\n".join(
+        f"{event.role.capitalize()}: {event.text}"
+        for event in conv.history if event.text
+    )
+
+    # Build the prompt
+    prompt = f"""You are analyzing a completed voice conversation.
+
+## Transcript
+{conversation_text}
+
+## Extract the following
+{chr(10).join(f'- **{k}**: {v}' for k, v in EXTRACTION_QUERIES.items())}
+
+Return a JSON object with one key per metric."""
+
+    # Call the LLM — returns parsed JSON
+    return conv.utils.prompt_llm(prompt, return_json=True, show_history=False)
+```
+
+<Note>
+`prompt_llm` requires activation on your account. If you receive a `NotImplementedError`, contact your PolyAI representative to enable it.
+</Note>
+
+</Step>
+
+<Step title="Call it from end_function">
+
+Run the extraction from `end_function`, alongside any real-time metrics that depend on final call state.
+
+```python
+def end_function(conv):
+    # Real-time metrics
+    if conv.state.booking_completed:
+        conv.write_metric("OUTCOME_BOOKING_COMPLETED")
+
+    # Post-call extraction
+    results = conv.functions.post_call_extraction()
+    # results = {"CALL_REASON": "appointment scheduling", "RESOLUTION": "yes", ...}
+
+    for key, value in results.items():
+        conv.write_metric(key, value)
+```
+
+Writing each extracted field back with `conv.write_metric` is what makes the extracted values available in dashboards, Smart Analyst, and API exports alongside your real-time metrics.
+
+</Step>
+
+</Steps>
+
+The extraction runs automatically after every call. You can add or change queries any time by editing the dictionary – no extra configuration beyond shipping your update.
+
+### Example queries
+
+| Query | What it extracts |
+| --- | --- |
+| `CALL_SUMMARY` | One-line summary, e.g. *"Patient called to reschedule a cleaning, booked for June 18th"* |
+| `CALL_REASON` | Categorized reason for the call |
+| `RESOLUTION` | `yes` / `no` / `partial` |
+| `SENTIMENT` | `positive` / `neutral` / `frustrated` |
+| `FOLLOW_UP_NEEDED` | Free-text note, e.g. *"Patient asked about a referral to an oral surgeon – needs callback"* |
+| `NO_SHOW_RISK` | Free-text note, e.g. *"Patient mentioned they might not make it depending on work schedule"* |
+| `ESCALATION_COUNT` | Number of times the caller asked for a human |
+
+You write the extraction instructions in plain English. The LLM does the rest.
+
+## When to use each layer
+
+Use real-time metrics when the outcome is known at a specific point in the call – a function succeeded, a booking was confirmed, a handoff happened. Use post-call extraction when the answer depends on the full transcript – sentiment, summaries, categorized reasons, or counts that span the whole conversation.
+
+For each extraction query you plan to expose in dashboards, register a matching [metric](/analytics/kpis/introduction) and write the result back with `conv.write_metric`. This keeps real-time and post-call data in a single, queryable column per conversation.
+
+<Warning>
+`end_function` runs asynchronously and its errors do not surface to the caller. Wrap your extraction logic in `try/except` and log failures externally so silent regressions don't corrupt downstream reporting. See [End tool](/tools/end-tool#best-practices-for-end-tool-design) for details.
+</Warning>
+
+## Where the data goes
+
+Both real-time metrics and post-call extractions land in the same surfaces:
+
+| Surface | What it does |
+| --- | --- |
+| [Dashboards](/analytics/dashboards/introduction) | Visual analytics in Agent Studio – call volumes, outcomes, trends |
+| [Smart Analyst](/smart-analyst/introduction) | Built-in AI analyst. Ask *"What are the top reasons callers request a human this week?"* and get answers linked to actual conversations |
+| [Conversations API](/api-reference/conversations/introduction) | Programmatic export of transcripts and structured data to your BI tools, data warehouse, or CRM |
+
+Once metrics are written, your team can query Smart Analyst directly with questions like:
+
+- *"How many callers mentioned insurance concerns this month?"*
+- *"What percentage of calls resulted in a booked appointment?"*
+- *"Show me all calls where follow-up was flagged."*
+
+No separate analytics integration is needed – it's all native to the platform.
+
+## End-to-end flow
+
+Your agent handles a call → real-time metrics fire during the call → the call ends → post-call extraction runs automatically → all data lands in dashboards, Smart Analyst, and the Conversations API.
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="Metrics" icon="chart-bar" href="/analytics/kpis/introduction">
+    Define the custom metrics that hold your reporting data.
+  </Card>
+  <Card title="End tool" icon="flag-checkered" href="/tools/end-tool">
+    Run post-call processing asynchronously after every conversation.
+  </Card>
+  <Card title="prompt_llm" icon="sparkles" href="/tools/classes/conv-utils#prompt_llm">
+    Standalone LLM call used by the extraction pattern.
+  </Card>
+  <Card title="Smart Analyst" icon="magnifying-glass-chart" href="/smart-analyst/introduction">
+    Natural-language queries over your metrics and transcripts.
+  </Card>
+  <Card title="Conversations API" icon="code" href="/api-reference/conversations/introduction">
+    Export metrics and transcripts to external systems.
+  </Card>
+  <Card title="Dashboards" icon="chart-line" href="/analytics/dashboards/introduction">
+    Visualize metric trends and outcomes.
+  </Card>
+</CardGroup>

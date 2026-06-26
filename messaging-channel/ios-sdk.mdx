@@ -1,0 +1,162 @@
+---
+title: "iOS SDK"
+sidebarTitle: "iOS SDK"
+description: "Embed a PolyAI messaging agent natively in your iOS app with a headless Swift library."
+mode: wide
+keywords:
+  - iOS
+  - SDK
+  - Swift
+  - mobile
+  - in-app messaging
+  - native
+  - CocoaPods
+  - Swift Package Manager
+---
+
+The iOS SDK is a native Swift library that embeds PolyAI's messaging agent directly inside your iOS app. It's **headless by design** — you own the UI, PolyAI provides the AI layer underneath. Your app connects to the same agent logic used across voice, webchat, and other channels.
+
+<Info>
+The iOS SDK uses the [Messaging API](/api-reference/messaging/introduction) under the hood. All WebSocket events, streaming, and handoff behavior documented in the API reference apply.
+</Info>
+
+## How it works
+
+The SDK handles authentication, session management, WebSocket connections, and reconnection logic. Your app sends and receives messages through the SDK and renders them however you choose.
+
+<Steps>
+  <Step title="Install the SDK">
+    Add the SDK to your project via **Swift Package Manager** or **CocoaPods**.
+  </Step>
+  <Step title="Configure authentication">
+    Add your API key (from Agent Studio) and register your app's **bundle identifier** in Agent Studio. The backend rejects connections from unregistered bundle identifiers.
+  </Step>
+  <Step title="Start a session">
+    Initialize the SDK and start a messaging session. The SDK handles access token exchange and WebSocket connection automatically.
+  </Step>
+  <Step title="Build your UI">
+    Listen for incoming messages and events from the SDK, and send user messages through it. Render the conversation in your own UI components.
+  </Step>
+</Steps>
+
+## Installation
+
+The SDK is distributed as a native Swift package. Choose either method:
+
+<Tabs>
+  <Tab title="Swift Package Manager">
+    In Xcode, go to **File > Add Package Dependencies** and enter the repository URL:
+
+    ```
+    https://github.com/PolyAI-LDN/poly_messaging_ios
+    ```
+
+    Select the latest version and add the package to your target.
+  </Tab>
+  <Tab title="CocoaPods">
+    Add the pod to your `Podfile`:
+
+    ```ruby
+    pod 'PolyMessaging'
+    ```
+
+    Then run:
+
+    ```bash
+    pod install
+    ```
+  </Tab>
+</Tabs>
+
+## Authentication setup
+
+The iOS SDK authenticates using a connector token and your app's bundle identifier.
+
+<Steps>
+  <Step title="Generate a connector token">
+    In Agent Studio, go to **Messaging > API Configuration** and generate a new Messaging API key.
+  </Step>
+  <Step title="Register your bundle identifier">
+    When generating the token, set the **host identifier** to your app's bundle identifier (e.g. `com.yourcompany.app`). This must match the `CFBundleIdentifier` in your app's `Info.plist`. The backend rejects connections from apps with a mismatched bundle identifier.
+  </Step>
+</Steps>
+
+<Warning>
+Never embed the connector token directly in your app binary. Use a backend service to mint short-lived access tokens and pass them to the SDK. See [security best practices](/api-reference/messaging/best-practices#security).
+</Warning>
+
+## Key features
+
+### Session persistence
+
+Sessions persist across app launches. If the user leaves and returns, the SDK reconnects to the existing session and replays the conversation history automatically. Network changes (Wi-Fi to cellular, brief drops) are handled with automatic reconnection and retry.
+
+### Streaming responses
+
+Enable streaming when creating a session to show agent responses as they're generated, word by word. The SDK surfaces streaming chunks as they arrive — your UI can render them incrementally.
+
+### Handoff to live agents
+
+The full [handoff flow](/api-reference/messaging/handoff) is supported. When the PolyAI agent triggers a handoff, the SDK delivers the same handoff events (`HANDOFF_ACCEPTED`, `HANDOFF_QUEUE_STATUS`, `LIVE_AGENT_JOINED`, etc.) so your app can show queue status and live agent messages.
+
+### Response suggestions
+
+Agent messages can include `response_suggestions` — pre-written reply options. Render these as tappable buttons in your UI. When the user taps one, send its text as a message through the SDK.
+
+### Attachments
+
+Agent messages may include rich content like links and images via the `attachments` field. Render these inline in your chat UI.
+
+## Platform values
+
+When the SDK creates a session, it sets `platform` to `ios` automatically. This is visible in Agent Studio analytics and can be used in your agent logic to tailor behavior for mobile users.
+
+| Platform value | Source |
+|---|---|
+| `ios` | iOS SDK (native) |
+| `android` | Android SDK (native) |
+| `ios-web` | Webchat widget on iOS Safari |
+| `web` | Webchat widget on desktop |
+
+## Limitations
+
+<Note>
+These limitations apply to the initial release. Check the [release notes](/releases/overview) for updates.
+</Note>
+
+| Limitation | Details |
+|---|---|
+| **Text only** | Voice input is not supported in V1. WebRTC voice support is planned for a future release and will require declaring microphone permissions (`NSMicrophoneUsageDescription`) in your `Info.plist`. |
+| **No push notifications** | While the app is active, the SDK delivers messages in real time. When the app is backgrounded, the SDK cannot receive messages. You can listen for incoming messages and trigger your own local notifications while the app is in the foreground, but true remote push notifications (APNs) are not yet supported. |
+| **iOS only** | The SDK is native Swift. There is no React Native or Flutter wrapper. Cross-platform frameworks would require a separate SDK. |
+
+## Multichannel
+
+The iOS SDK connects to the same agent project as your voice and webchat channels. Agent behavior, knowledge, and flows are shared — only channel-specific settings (greetings, formatting) differ. See [multichannel agents](/messaging-channel/multichannel) for how to tailor behavior per channel.
+
+In your agent's start function, detect the mobile channel using `conv.channel_type`:
+
+```python
+def start(conv):
+    if conv.channel_type == "ios":
+        conv.state.greet_message = "Hi! How can I help you today?"
+    elif conv.channel_type.startswith("webchat"):
+        conv.state.greet_message = "Hi there! 👋 How can I help?"
+```
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Messaging API reference" icon="plug" href="/api-reference/messaging/introduction">
+    Full WebSocket protocol, events, streaming, and handoff
+  </Card>
+  <Card title="Sessions and authentication" icon="key" href="/api-reference/messaging/sessions">
+    Access tokens, session creation, and platform values
+  </Card>
+  <Card title="Multichannel agents" icon="layer-group" href="/messaging-channel/multichannel">
+    Build agents that work across voice, webchat, and mobile
+  </Card>
+  <Card title="Best practices" icon="star" href="/api-reference/messaging/best-practices">
+    Connection management, UX, and security recommendations
+  </Card>
+</CardGroup>
