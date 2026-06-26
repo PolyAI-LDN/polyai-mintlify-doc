@@ -1,0 +1,344 @@
+---
+sidebarTitle: Handoffs
+title: Handoff
+description: "Set up handoff destinations to transfer users to human agents during conversations."
+tag: "Code"
+keywords:
+  - handoff
+  - call transfer
+  - escalation
+  - live agent transfer
+  - routing
+---
+
+Use handoffs to transfer callers to human agents when the conversation requires human intervention — billing disputes, complaints, or requests outside the agent's scope. A correctly configured handoff routes the caller to the right team and preserves conversation context. A missing or misconfigured handoff fails the transfer.
+
+![Call handoff configuration](/images/call-handoff/handoff-1.png)
+
+**Prerequisites:** Understanding of SIP telephony or your contact center's routing setup. UI-based handoff configuration (adding destinations, setting SIP headers) does not require code. The `transfer_call` function path requires Python — see the [comparison table below](#comparison-call-handoff-and-the-transfer_call-function).
+
+**Use Call Handoffs (UI-based)** for fixed transfer destinations with straightforward routing. **Use `transfer_call` (code-based)** for dynamic routing logic, custom SIP headers, or integrations like Zendesk. See the [comparison table](#comparison-call-handoff-and-the-transfer_call-function) for details.
+
+The SIP-based handoff methods described below apply to voice interactions. Webchat handoffs use HTTP-based integrations with your live chat platform. To manage handoff states programmatically, visit the [Handoff API documentation](/api-reference/handoff/introduction).
+
+Handoff is the primary [human-in-the-loop (HITL)](/glossary/introduction#hitl-human-in-the-loop) mechanism in Agent Studio: the agent runs autonomously by default and escalates to a human only when needed. Configure *when* the agent escalates with [Managed Topic actions](/knowledge/faqs/actions/handoff) and [flow actions](/flows/no-code/advanced-steps); configure *what context the human receives* with the fields documented in [Handoff context handover](#handoff-context-handover) below.
+
+## Related handoff documentation
+
+- **[Handoff actions in FAQs](/knowledge/faqs/actions/handoff)** - Add handoff triggers to Knowledge topics
+- **[Handoff States API guide](/call-data/conversations-api/handoff-states)** - Monitor transitions between automated and live agents
+- **[Handoff API reference](/api-reference/handoff/introduction)** - Retrieve handoff context for downstream systems
+
+### Adding a handoff destination
+
+To create a new handoff destination:
+
+1. Go to **Voice > Handoffs** in the sidebar.
+2. Click **Add Handoff**.
+3. Fill in the following details:
+   - **Name**: Enter a descriptive name (e.g., "Front desk").
+   - **Description**: Add a note about when to use this handoff (e.g., "When the user needs to speak with an operator").
+   - **Method**: Choose the SIP method to use for call routing. Options include:
+     - **[SIP REFER](https://www.ietf.org/rfc/rfc3515.txt)** (default) – PolyAI specifies a transfer destination to the client <Tooltip tip="This is a network element that manages and secures SIP calls. SBCs handle call routing, security, and interoperability between different VoIP networks.">Session Border Controller</Tooltip> (SBC), then drops from the call.
+     - **[SIP INVITE](https://datatracker.ietf.org/doc/html/rfc3261#section-13.3.1)** – PolyAI creates a new call with the destination and acts as a bridge between the client SBC and the destination.
+     - **[SIP BYE](https://www.rfc-editor.org/rfc/rfc3261.html)** – PolyAI signals that its call leg is over, allowing the client SBC to take the call back over.
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant PolyAI
+    participant SBC as Client SBC
+    participant Dest as Destination
+
+    rect rgb(240, 248, 255)
+        Note over Caller,Dest: SIP REFER
+        Caller->>PolyAI: Active call
+        PolyAI->>SBC: REFER (transfer to Dest)
+        PolyAI--xCaller: Drops from call
+        SBC->>Dest: Routes call
+        Caller->>Dest: Connected
+    end
+
+    rect rgb(255, 248, 240)
+        Note over Caller,Dest: SIP INVITE
+        Caller->>PolyAI: Active call
+        PolyAI->>Dest: INVITE (new call)
+        PolyAI->>PolyAI: Bridges both legs
+        Caller->>PolyAI: Leg 1
+        PolyAI->>Dest: Leg 2
+    end
+
+    rect rgb(240, 255, 240)
+        Note over Caller,Dest: SIP BYE
+        Caller->>PolyAI: Active call
+        PolyAI->>SBC: BYE (end PolyAI leg)
+        SBC->>SBC: Takes over call
+        Caller->>SBC: Continues with SBC
+    end
+```
+   - **Route**: Specify the destination SIP URI or extension (only applies to SIP INVITE and SIP REFER).
+   - **SIP headers**: Add optional [SIP headers](https://www.iana.org/assignments/sip-parameters/sip-parameters.xhtml) to include metadata or routing instructions.
+
+4. Click **Add** to save the destination.
+
+![Adding a handoff destination](/images/call-handoff/handoff-2.png)
+
+### Configuring SIP headers
+
+SIP headers can be used to send additional metadata when making a handoff. To add SIP headers:
+
+1. Click **Add SIP Header** in the handoff setup modal.
+2. Enter a **Header Name** (e.g., `X-Customer-ID`).
+   - Custom headers should start with an `X-` prefix.
+3. Enter a **Value** (e.g., `abc123`).
+4. You can use variables prefixed with `$` in the SIP header values for dynamic data. Example:
+
+   `X-Caller-ID: $caller_id`
+
+5. Repeat as needed for multiple headers.
+
+SIP headers allow for custom integrations with external telephony systems and can help manage call behavior dynamically.
+
+### Default handoff
+
+One handoff destination can be marked as the **default**. This is the fallback destination used when no specific routing matches – for example, when the caller requests a transfer but no topic or flow step maps to a specific handoff.
+
+- The first handoff you create is automatically set as the default.
+- To change the default, open the actions menu on a handoff card and select **Set as default**.
+- If the default handoff is deleted, you should assign a new default to avoid unrouted transfers.
+
+### Managing handoffs
+
+Once a handoff destination is created, it will appear in the list of destinations. From the actions menu on each card, you can:
+
+- **Edit** – modify the name, description, method, route, or SIP headers
+- **Duplicate** – create a copy of an existing handoff for a similar destination
+- **Delete** – remove the handoff (requires typing the name to confirm)
+- **Set as default** – mark as the fallback handoff destination
+
+### Encryption options
+
+When using **SIP INVITE**, you can choose the transport encryption:
+
+| Option | Description |
+|--------|-------------|
+| **TLS/SRTP** (default) | Encrypted transport. Use this unless your destination requires unencrypted traffic. |
+| **UDP/RTP** | Unencrypted transport. Some legacy systems require this. |
+
+Encryption only applies to SIP INVITE. SIP REFER and SIP BYE delegate transport to the carrier or SBC.
+
+### Integration-level constraints
+
+Your telephony integration (e.g. Twilio, SIP trunk) may impose constraints on handoff configuration. When constraints are active:
+
+- The **SIP method dropdown may be locked** to a specific method (e.g. all handoffs must use SIP REFER)
+- The **route/phone number field** may be hidden if routing is handled by the carrier
+- The **SIP headers section** may be hidden if the integration does not support custom headers
+
+If a handoff's method does not match the integration's required method, a warning appears on the handoff card. Update the handoff to match, or the transfer may not work as expected.
+
+### Best practices for call handoffs
+
+- **Use clear descriptions** – label handoffs with their intended use (e.g. "Billing disputes" not "Team A")
+- **Always have a default** – ensure one handoff is marked as default so unmatched transfers have a destination
+- **Test in sandbox** – verify handoff destinations route correctly before promoting to Live
+- **Use SIP headers for context** – pass metadata like `X-Customer-ID` or `X-Reason` so the receiving system can route or display caller context
+
+### Handoff reason and utterance
+
+<Accordion title="Handoff reason and utterance" icon="phone">
+
+The built-in **handoff** template and the [`conv.call_handoff()`](/tools/classes/conv-object) helper accept two optional, structured fields:
+
+| Field | Purpose | Example |
+|-------|---------|---------|
+| `reason` | Machine-readable code explaining *why* the call is being escalated (e.g. `policy_violation`, `needs_human`, `no_availability`). Surfaces in Conversation Review and the Conversations API. | `policy_violation` |
+| `utterance` | A short message the agent delivers *before* transfer begins (spoken for voice, displayed for webchat). Logged alongside the handoff for QA review. | "Let me transfer you to a specialist who can help." |
+
+<Warning>
+When using SIP REFER, the utterance may not play before the transfer completes because the REFER fires at the same time as function execution. If you need the utterance to be spoken reliably before transfer, use SIP INVITE instead.
+</Warning>
+
+**Where it shows up**
+
+* **Flows & KB actions** – Selecting **builtin-handoff** displays *Reason* and *Pre-handoff utterance* fields.
+* **Functions** – Call [`conv.call_handoff(destination="...", reason="...", utterance="...")`](/tools/classes/conv-object) to escalate programmatically.
+* **Conversation Review** – Both fields appear in the metadata panel for quick troubleshooting.
+* **Conversations API** – Returned inside the `handoff` object for BI dashboards or CRM routing.
+
+**Benefits**
+
+* Removes guesswork when diagnosing handoffs – no more relying on LLM summaries alone.
+* Enables fine-grained routing rules in telephony or CRM systems.
+* Gives QA teams full visibility into the exact wording customers heard.
+
+</Accordion>
+
+### Handoff context handover
+
+When the agent transfers a caller to a human, the human-side system needs context about what already happened. PolyAI exposes that context through three complementary channels — pick whichever your contact-center platform supports.
+
+| Channel | Best for | What you get |
+|---------|----------|--------------|
+| **SIP headers** | Lightweight metadata embedded in the transfer signal itself; supported by most SBCs and Twilio Flex. | Custom `X-` headers (e.g. `X-Customer-ID`, `X-Reason`, `X-Caller-ID`) populated from `conv.state` variables at transfer time. See [Configuring SIP headers](#configuring-sip-headers). |
+| **[Handoff API](/api-reference/handoff/introduction)** | Larger structured payloads that don't fit in headers, or when the destination needs a "screen pop" with full context. | The `handoff` object stored in `conv.state.handoff` (or written via `conv.call_handoff()`), retrievable by `id` or `shared_id`. The `data` field is free-form JSON, so you control the shape. |
+| **[Conversations API](/api-reference/conversations/introduction)** | Post-handoff CRM enrichment, BI, and QA workflows. | Full conversation including the `handoff` object with `destination`, `reason`, `utterance`, plus the entire transcript, [`conv.log`](/tools/classes/conv-log) entries, and any [custom metrics](/tools/classes/conv-object#write_metric) the agent recorded. |
+
+The data the agent writes (and the human therefore sees) is whatever you choose to store. Common fields:
+
+- **Identifiers** – `customer_id`, `account_number`, `shared_id` linking the PolyAI conversation to a record in your CRM
+- **Verification status** – `successfully_identified`, `auth_method`, `verification_attempts` so the agent doesn't ask the caller to re-verify
+- **Reason for escalation** – machine-readable `reason` (e.g. `policy_violation`, `complaint_escalation`, `customer_refund`); see [Handoff reason and utterance](#handoff-reason-and-utterance)
+- **Pre-handoff utterance** – the exact wording the agent used before transferring, logged for QA
+- **Caller intent and slots** – any entities collected during the AI portion of the call (order ID, refund amount, preferred callback time)
+
+<Tip>
+Choose **one** channel as the source of truth and keep the others consistent with it. Changes made in `conv.state.handoff` are reflected in both the Handoff API and the Conversations API automatically; SIP headers must be set explicitly on each handoff destination or via `conv.call_handoff(sip_headers={...})`.
+</Tip>
+
+#### Writing context from a function
+
+```python
+def transfer_to_billing(conv):
+    return conv.call_handoff(
+        destination="billing",
+        reason="refund_request",
+        utterance="Let me transfer you to a billing specialist who can help with that refund.",
+        sip_headers={
+            "X-Customer-ID": conv.state.customer_id,
+            "X-Verified": "true",
+            "X-Reason": "refund_request",
+        },
+    )
+```
+
+The `destination` parameter must match a handoff configured under **Voice > Handoffs**. The `reason` and `utterance` surface in [Conversation Review](/analytics/conversations/review) and the [Conversations API](/api-reference/conversations/introduction); the `sip_headers` are merged with any headers configured on the destination, with values passed here taking precedence.
+
+#### Webchat and SMS handoffs
+
+Webchat and SMS use the same conceptual model but signal the handoff over the [Chat API](/api-reference/chat/introduction): the `chat/respond` response includes a `handoff` object with `destination` and `reason`, and `end_conversation` is set to `true`. Your widget or SMS connector then routes the session to your live-chat platform and retrieves the full context via the Handoff API. See [Webchat and SMS handoff via the Chat API](/call-data/conversations-api/handoff-states#webchat-and-sms-handoff-via-the-chat-api) for the integration steps.
+
+#### Feedback loops from the human side
+
+Once a human has handled the escalation, you can close the loop in two ways:
+
+1. **Tag the conversation in Conversation Review.** Live agents (or QA reviewers) can apply [annotations](/analytics/conversations/annotations) such as *Escalated unnecessarily* or *Wrong topic* directly on the PolyAI conversation. Tagged calls surface in [QA workflows](/learn/maintain/qa-analytics) and Smart Analyst queries.
+2. **Push outcomes back via the Conversations API.** If your CRM captures a resolution code on the human-handled portion, attach it back to the conversation by `shared_id`. This pairs the agent's `reason` field with the human's actual outcome, which is what [Smart Analyst](/smart-analyst/introduction) needs to answer questions like *"What share of complaint escalations were resolved on first contact?"*.
+
+### Using your own Twilio number
+
+If you're bringing your own Twilio phone number to route calls, follow these steps to integrate it as a handoff destination:
+
+1. **Connect your Twilio account**:
+   - Ensure your [Twilio account](https://www.twilio.com/login) is set up and you have the necessary credentials ([Account SID](https://help.twilio.com/articles/14726256820123-What-is-a-Twilio-Account-SID-and-where-can-I-find-it-), [Auth Token](https://www.twilio.com/docs/iam/api/authtoken)).
+   - Go to **[Voice > Numbers](/voice-channel/numbers/introduction)** in the Agent Studio.
+   - Enter your Twilio credentials to connect your account securely.
+
+2. **Assign a Twilio number**:
+   - Choose a number from your Twilio account to use for routing calls.
+   - If necessary, provision new numbers directly using the Twilio console.
+
+3. **Set up routing in Twilio**:
+   - Configure your Twilio number to route calls to your PolyAI agent by setting the **Webhook URL** in your Twilio console. Example:
+     - **Voice Webhook URL**: `https://your-polyai-instance-url/voice/call`
+   - Make sure your webhook supports **POST** requests and uses the correct authentication methods.
+
+4. **Add the Twilio number as a handoff destination**:
+   - In the **Call Handoffs** section, use the Twilio number as the "Extension / Number" field when creating a new destination.
+   - Add a description specifying its purpose (e.g., "Route to Twilio-based live agent team").
+
+<Note>
+US-based Twilio SMS numbers must be [registered for A2P 10DLC](https://www.twilio.com/docs/messaging/compliance/a2p-10dlc#who-needs-to-register-for-a2p-10dlc). See the [Twilio handoff guide](/voice-channel/numbers/twilio/how-to-handoff) for details.
+</Note>
+
+<div className="developer-only">
+
+## Comparison: Call Handoff and the `transfer_call` function
+
+These two methods serve similar purposes – routing the user to another endpoint – but are mutually exclusive and differ in flexibility and implementation.
+
+In the table below, <Icon icon="check" iconType="solid" /> means the feature is supported and **–** means it is not supported.
+
+| Feature                         | `Call Handoff` (UI-based)                          | `transfer_call` (code-based)                          |
+|---------------------------------|---------------------------------------------------|--------------------------------------------------------|
+| Ease of setup                   | <Icon icon="check" iconType="solid" /> UI form    | – Requires Python editing                              |
+| Works in flow builder           | <Icon icon="check" iconType="solid" />            | <Icon icon="check" iconType="solid" />                |
+| Works in Function Editor        | –                                                 | <Icon icon="check" iconType="solid" />                |
+| Dynamic routing logic           | –                                                 | <Icon icon="check" iconType="solid" /> Full control   |
+| Supports custom metrics         | –                                                 | <Icon icon="check" iconType="solid" />                |
+| Supports soft-handoff           | –                                                 | <Icon icon="check" iconType="solid" />                |
+| Best for static SIP integration | <Icon icon="check" iconType="solid" />            | –                                                      |
+| Best for dynamic integrations   | –                                                 | <Icon icon="check" iconType="solid" /> (e.g. Zendesk) |
+
+<Warning>
+The two methods can't be combined in one step — `transfer_call` overrides any UI-configured Call Handoff. If you use it, keep destination mappings in sync manually; UI changes don't propagate to function-based transfers.
+</Warning>
+
+The UI-based Call Handoff does not support custom metrics. Use `transfer_call` with [`conv.write_metric()`](/tools/classes/conv-object) if you need handoff reason codes for analytics.
+
+### When to use each method
+
+Use `Call Handoff` if:
+- You want a quick setup through Agent Studio with minimal code.
+- Your routing needs are straightforward and based on static values.
+
+Use `transfer_call` if:
+- You need to pass dynamic SIP headers (e.g., customer metadata).
+- You want to use soft handoffs or log custom handoff metrics.
+- You're integrating with a platform that does not support SIP REFER (e.g. Zendesk).
+
+</div>
+
+<div className="simplified-only">
+
+<Info>
+**Need code-based routing?** There is a `transfer_call` Python function for dynamic handoff logic, custom SIP headers, and integrations like Zendesk. Switch to **Full docs** in the top navigation to compare both methods.
+</Info>
+
+</div>
+
+---
+
+## Voicemail detection
+
+PolyAI can detect voicemail in certain scenarios, but the behavior depends on the call direction and handoff method.
+
+### Outbound calls
+
+For outbound calls, PolyAI supports project-level voicemail detection. A detection flow at the start of the call classifies what the agent hears before the conversation begins. Common classifications include human, IVR, voicemail, and number not in service – though the exact categories depend on how the project is configured.
+
+Based on the classification, the agent typically routes into the appropriate path. For example:
+
+- **Human** – proceed to the greeting and main conversation flow
+- **IVR** – enter an IVR traversal flow (DTMF navigation, hold loops)
+- **Voicemail** – leave a message or hang up, depending on project requirements
+- **Number not in service** – end the call
+
+Detection uses barge-in on the first turn, since voicemail systems and IVRs do not wait for the agent to finish speaking. This is a project-level configuration – contact your PolyAI representative to set it up.
+
+See [Outbound calling](/voice-channel/numbers/outbound-calling) for more on outbound call configuration.
+
+### Inbound SIP handoffs
+
+When PolyAI transfers an inbound call to an agent (via SIP REFER, SIP INVITE, or SIP BYE), voicemail detection on the *destination side* is **not available by default**. The behavior depends on the handoff method:
+
+- **SIP REFER / SIP BYE** – PolyAI drops from the call after initiating the transfer, so it has no visibility into whether the destination answers or goes to voicemail.
+- **SIP INVITE** – PolyAI bridges both call legs, which provides more visibility during the transfer. However, automated voicemail detection on the destination side is not a standard feature.
+
+If you need voicemail detection as part of your inbound handoff workflow, contact your PolyAI representative to discuss what's possible for your specific setup.
+
+---
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="Handoff States API" icon="right-left" href="/call-data/conversations-api/handoff-states">
+    Monitor transitions between automated and live agents.
+  </Card>
+  <Card title="Handoff API reference" icon="code" href="/api-reference/handoff/introduction">
+    Retrieve handoff context programmatically.
+  </Card>
+  <Card title="Twilio handoff" icon="phone" href="/voice-channel/numbers/twilio/how-to-handoff">
+    Twilio-specific handoff configuration.
+  </Card>
+</CardGroup>

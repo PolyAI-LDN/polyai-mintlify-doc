@@ -1,0 +1,159 @@
+---
+title: 'CSV imports'
+description: 'Bulk import and update variants using CSV files'
+tag: "Advanced"
+keywords:
+  - CSV import
+  - bulk import
+  - variant upload
+  - spreadsheet
+---
+
+CSV imports let you create or update multiple variants at once, whether you're managing multi-site deployments or making bulk changes to variant attributes.
+
+## Export your current variants
+
+Before importing, export your existing variants to understand the file format:
+
+1. Navigate to **Knowledge > Variants** in Agent Studio
+2. Click **Export CSV**
+3. Save the file to your local machine
+
+The exported CSV contains all your variants with their attributes and configurations.
+
+Always use the exported file as your starting template. The exported format may use a different delimiter than a standard comma-separated file. If you edit the CSV in a spreadsheet application, re-export it in the same format to avoid import errors.
+
+## CSV file format
+
+The CSV file must include these columns:
+
+| Column | Required | Description |
+| ------ | -------- | ----------- |
+| `id` | No | Leave empty for new variants. Include existing IDs to update variants. |
+| `name` | Yes | Unique name for the variant |
+| `is_default` | Yes | `true` or `false`. Only one variant can be default. See [note below](#default-variant-behavior). |
+| `attribute_*` | No | Custom attributes (e.g., `attribute_phone_number`, `attribute_address`) |
+
+### Default variant behavior
+
+<Warning>
+The `is_default` field is included in the CSV format but does not control which variant is used as the default. The platform assigns the default variant based on creation order. To control which variant is active for each conversation, use `conv.set_variant()` in your [start function](/tools/start-tool).
+</Warning>
+
+### Example CSV
+
+```csv
+id,name,is_default,attribute_phone_number,attribute_opening_hours
+,London Bridge,false,+440000000001,9am-5pm Mon-Fri
+,Manchester,false,+440000000002,9am-6pm Mon-Sat
+,Birmingham,true,+440000000003,24/7
+```
+
+## Import process
+
+<Steps>
+  <Step title="Prepare your CSV">
+    - Keep column headers exactly as exported
+    - Leave `id` empty for new variants
+    - Include `id` values for variants you want to update
+    - Include `is_default` values as required by the format
+  </Step>
+  <Step title="Upload the file">
+    Navigate to **Knowledge > Variants**, click **Import CSV**, and select your file.
+  </Step>
+  <Step title="Review changes">
+    The platform shows a diff of what will change. New variants are highlighted and updated fields are shown side-by-side.
+  </Step>
+  <Step title="Confirm import">
+    Review the diff carefully and click **Confirm import**. Changes take effect immediately in the current environment.
+  </Step>
+</Steps>
+
+If you are working in a sandbox environment, changes only apply to sandbox. Promote your sandbox to live when you are ready. See the [variants overview](/knowledge/variants/introduction) for more on testing workflows.
+
+## Best practices
+
+- **Test in sandbox first** - Import to your sandbox environment before production
+- **Keep a backup** - Export before importing to preserve your current state
+- **Validate data** - Check phone numbers, URLs, and other data before importing
+- **Use consistent naming** - Follow a naming convention that scales (e.g., `City-Location`)
+- **One default only** - Include exactly one variant with `is_default=true` in your CSV
+
+## Common use cases
+
+### Adding new locations
+
+Export your CSV, add new rows with empty `id` fields, and import to create new variants.
+
+### Updating phone numbers
+
+Export, update the `attribute_phone_number` column, keep the `id` values, and import.
+
+### Changing default variant
+
+To control which variant is active, use `conv.set_variant()` in your [start function](/tools/start-tool). See [default variant behavior](#default-variant-behavior).
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Import fails with 'duplicate name' error">
+    Variant names must be unique. Check for duplicate entries in your CSV.
+  </Accordion>
+
+  <Accordion title="Changes don't appear after import">
+    Refresh the page. If changes still don't appear, check the import confirmation screen for errors.
+  </Accordion>
+
+  <Accordion title="Can't set a variant as default / is_default doesn't apply">
+    The `is_default` CSV field does not control the default variant at runtime. The platform assigns the default based on creation order. Use `conv.set_variant()` in your [start function](/tools/start-tool) to control which variant is active for each conversation.
+  </Accordion>
+
+  <Accordion title="Attribute columns not recognized">
+    Attribute columns must start with `attribute_`. Check your column headers.
+  </Accordion>
+
+  <Accordion title="Import fails with 'Error saving your changes'">
+    This can occur when the CSV contains invalid data. Check for:
+    - Empty variant name fields (every row must have a `name` value)
+    - Duplicate variant names
+    - Malformed attribute values
+
+    If the error persists, try importing fewer rows at a time to isolate the problematic entry.
+  </Accordion>
+
+  <Accordion title="Validation error: 'too_small'">
+    This usually means a row has an empty required field, such as `name`. Ensure every row in your CSV has a value in all required columns. Remove any blank rows at the end of the file.
+  </Accordion>
+</AccordionGroup>
+
+## Limits
+
+- Maximum 1000 variants per project
+- Maximum 50 custom attributes per variant
+- CSV file size limit: 10MB
+
+For larger imports or complex migrations, contact your PolyAI representative for assistance.
+
+## Automate with the Agents API
+
+CSV is the right tool for human-curated edits. If the source of truth lives elsewhere — a CRM, a locations database, a provisioning system — syncing via the API is usually a better fit.
+
+<AccordionGroup>
+  <Accordion title="Sync variants from code instead of CSV" icon="code">
+    The [Agents API](/api-reference/agents/introduction) has CRUD for [attributes](/api-reference/agents/endpoint/variants/list-attributes) and [variants](/api-reference/agents/endpoint/variants/list-variants), which usually fits the job better than CSV round-tripping once the source of truth lives in another system.
+  </Accordion>
+</AccordionGroup>
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Variants" icon="layer-group" href="/knowledge/variants/introduction">
+    Learn about multi-site configurations and variant attributes.
+  </Card>
+  <Card title="Functions" icon="code" href="/tools/introduction">
+    Access variant data programmatically in your agent logic.
+  </Card>
+  <Card title="Variants endpoints" icon="square-terminal" href="/api-reference/agents/endpoint/variants/list-variants">
+    CRUD for variants and attributes in the Agents API.
+  </Card>
+</CardGroup>

@@ -1,0 +1,124 @@
+---
+title: 'Use more than one voice'
+sidebarTitle: 'Multi-voice'
+description: "Assign multiple voices to simulate a team of agents."
+keywords:
+  - multi-voice
+  - multiple voices
+  - voice weighting
+  - voice distribution
+---
+
+Use multi-voice when you want callers to hear different voices across interactions – simulating a team of agents or varying the experience for repeat callers. You can configure this through the UI or programmatically in Python.
+
+![multi-voice-ui](/images/voice/multi-voice-ui.png)
+
+<Tabs>
+<Tab title="Add voices">
+
+Click **New voice** to add additional voices to your agent. You can select from the available languages, genders, and styles or [add a new voice](/voice-channel/add-a-new-voice).
+
+Once added, all voices will appear in the list and can be configured independently.
+
+![multi-voice-add-voice](/images/voice/multi-voice-add-voice.png)
+
+</Tab>
+
+<Tab title="Adjust weights">
+
+After adding multiple voices, use the weight sliders to define how frequently each voice is selected during conversations. All weights must add up to 100%.
+
+For example:
+- 80% main voice
+- 10% each for two alternates
+
+![multi-voice-configure](/images/voice/multi-voice-configure.png)
+
+</Tab>
+
+<Tab title="Configure settings">
+
+For each voice, you can fine-tune the advanced settings:
+
+- **Stability (%):** Control how consistent the voice sounds across generations.
+- **Clarity and Similarity (%):** Balance naturalness and similarity to the target voice.
+
+![multi-voice-settings](/images/voice/multi-voice-configure.png)
+
+</Tab>
+
+</Tabs>
+
+<div className="developer-only">
+
+## Using Python in a code field
+
+You can configure this in any function, though this guide assumes you're using the [start function](/tools/start-tool).
+
+To use multiple voices, you need their voice IDs from your chosen TTS provider. Refer to the [function TTS provider configuration](/tools/classes) for full details on supported providers and their configuration options.
+
+Here is an example of how to configure multiple voices, where the agent is randomly assigned a voice at the start of each interaction:
+
+```python
+def start_function(conv: Conversation):
+    conv.randomize_voice([
+        VoiceWeighting(
+            voice=ElevenLabsVoice(
+                voice_id="LcfCDJNUPlGQjkzn1xUU",
+                similarity_boost=0.2,
+                stability=0.4
+            ),
+            weight=0.5
+        ),
+        VoiceWeighting(
+            voice=RimeVoice(
+                provider_voice_id="s3://path-to-manifest.json",
+                style="neutral"
+            ),
+            weight=0.5
+        )
+    ])
+```
+
+- `conv.randomize_voice([...])`: Selects a voice at random based on the assigned weights.
+- `VoiceWeighting`: Associates a voice with a probability of being selected.
+- **Weights** define selection probability:
+  - The sum of all weights must equal 1.0.
+
+</div>
+
+## Understanding voice weights
+
+You can add a maximum of **ten voices** to an AI agent.
+
+<Note>
+In the UI, weights are displayed as percentages (must total 100%). In code, weights are decimal values (must total 1.0).
+</Note>
+
+The `weight` parameter determines how often each voice is selected. The sum of all weights must equal **1.0** (or 100% in the UI).
+
+Examples:
+- One voice at `1.0`: Always uses that voice.
+- Two voices at `0.5` each: Each is selected 50% of the time.
+- Four voices at `0.25` each.
+
+## Personalizing repeat caller experiences
+
+Assigning different voices to repeat callers can help create a sense of interacting with different team members, which may reduce escalation requests. Use the `conv.randomize_voice()` method in your [start function](/tools/start-tool) to vary voice selection across interactions.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Voice library" icon="list" href="/voice-channel/voice-library">
+    Browse and select voices
+  </Card>
+  <Card title="Choosing a good voice" icon="ear-listen" href="/voice-channel/choosing-a-good-voice">
+    Guidelines for voice selection and matching
+  </Card>
+  <Card title="Add a voice" icon="plus" href="/voice-channel/add-a-new-voice">
+    Configure custom voices programmatically
+  </Card>
+  <Card title="Agent Voice" icon="user" href="/voice-channel/agent">
+    Configure voice settings and fine-tuning
+  </Card>
+</CardGroup>

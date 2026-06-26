@@ -1,0 +1,164 @@
+---
+title: "Agent"
+sidebarTitle: "Personality and role"
+description: "Define your agent's personality and role."
+keywords:
+  - agent personality
+  - role
+  - greeting
+  - agent behavior
+  - persona
+  - character
+  - tone
+---
+
+Use the Agent page to control your agent's character – its **personality** and **role**. These two fields shape how the LLM phrases responses across every conversation.
+
+![agent](/images/get-started/agent.png)
+
+Configure personality and role in **Behavior > General**. The same page also contains the [Behavior](/behavior/general/rules) section for hard rules and constraints.
+
+<Note>
+  **Where is the greeting?** Configured per channel — **Voice > Advanced > Call settings** or **Messaging > Advanced > Chat configuration**. Legacy projects without channel-specific settings still configure it on this page.
+</Note>
+
+## Greeting
+
+The agent's opening line is configured per-channel:
+
+- **Voice greeting** – set under **Voice > [Voice configuration](/voice-channel/advanced/call-settings)**.
+- **Webchat greeting** – set under **Messaging > Advanced > Chat configuration**.
+
+<Warning>
+The greeting goes directly to [TTS](https://en.wikipedia.org/wiki/Speech_synthesis) without LLM processing — write it exactly as you want it spoken. See [conversation flow](/essentials/order).
+</Warning>
+
+You can include [tool calls](/tools/introduction) and [variant attributes](/knowledge/variants/introduction) in the greeting to make it dynamic – for example, to greet callers by location or time of day.
+
+If you need to override the greeting at runtime based on caller data (e.g. personalized "Welcome back, [name]" messages), return an `utterance` from your [start function](/tools/start-tool) instead.
+
+## Personality
+
+This field sets the tone and communication style across every response. Pick one or more built-in tags – `Polite`, `Kind`, `Funny`, `Energetic`, `Calm`, `Thoughtful` – or select **Other** to write a free-form personality string that matches your brand voice.
+
+### How the tags are used
+
+The selected adjectives are joined together and inserted into the system prompt as a single sentence of the form:
+
+```text
+You are a polite, kind, energetic [role].
+```
+
+So selecting `Polite` and `Kind` produces `"You are a polite, kind [role]."`. There's no hidden behavior tied to specific words – they're literal adjectives in the prompt. Choose combinations that read as a coherent description of how you want the agent to come across.
+
+When you select **Other**, the custom string replaces the joined adjectives entirely – the built-in tags are ignored. Use **Other** if you need phrasing that goes beyond simple adjectives (for example, _"You are fun and energetic, always polite and kind to all callers"_).
+
+The personality informs how the LLM phrases responses – it does not override specific instructions in [Behavior](/behavior/general/rules) or [Knowledge](/knowledge/faqs/introduction).
+
+## Role
+
+Specifies the agent's stated function – for example, customer service agent, booking agent, or technical support specialist. The role appears in the system prompt and shapes how the LLM frames its responses.
+
+Use [Behavior](/behavior/general/rules) to define more specific behavioral constraints: terminology, compliance guardrails, and edge-case handling.
+
+## Behavior prompt structure
+
+A well-structured behavior prompt produces consistent interactions. Organize it into these sections:
+
+### Task and context
+
+Establish the agent's identity and functional scope, including tool usage instructions:
+
+```text
+Your task is to assist users with their queries about [Organization].
+[Organization] is a [brief description] that specializes in [services].
+You have the ability to [list of capabilities].
+
+You have the ability to call functions when explicitly instructed.
+Always execute tool calls properly. Do not output tool calls as text.
+In a given turn, output either a tool call or text – never both.
+```
+
+<Warning>
+Prompting for only one of tool call or text per turn is critical. Returning both leads to worse performance.
+</Warning>
+
+### Conversational style
+
+```text
+Keep your answers short and conversational. Always be polite but assertive.
+Format responses as natural conversational paragraphs rather than lists.
+When reading phone numbers, convert digits to words.
+Do not ask more than one question in a single turn.
+```
+
+### Special case handling
+
+- **Out of scope queries:** Acknowledge limitations and offer to transfer
+- **ASR mistranscriptions:** Use a graduated approach – ask the user to repeat 2-3 times before transferring to a human
+- **Jailbreak attempts:** Redirect firmly but professionally to the agent's intended purpose
+
+### Smalltalk
+
+Define concise responses for common social interactions:
+
+```text
+- <the user says hello> "Hi! How can I help you today?"
+- <the user asks how you are> "I'm doing great, thanks! How can I help?"
+- <the user asks if you can hear them> "I can hear you loud and clear.
+  What can I do for you today?"
+```
+
+### Silence handling
+
+<Info>
+Agent Studio has a default silence prompt that handles repetitions automatically. You may not need silence handling in your behavior prompt, but you should handle silence-triggered hangups.
+</Info>
+
+### Call transfer and deflection
+
+- **Start of call:** Attempt to deflect – the user may not know the agent's capabilities
+- **Later in call:** Transfer immediately – the user likely has a specific need
+
+<div className="developer-only">
+
+### Goodbye handling
+
+Use the `end_call` function to control goodbye behavior and optionally transition to a CSAT flow:
+
+```python
+def end_call(conv: Conversation):
+    if not conv.state.csat_flow_in_history:
+        conv.goto_flow("csat")
+        conv.state.csat_flow_in_history = True
+        return "Before ending the call, move on to the CSAT survey first."
+
+    return {
+        "utterance": "Ok. I hope you have a great rest of your day. Goodbye!",
+        "hangup": True
+    }
+```
+
+</div>
+
+### Backout behavior
+
+Allow users to exit [flows](/flows/introduction) they didn't intend to start. If the user indicates they want to stop, immediately call the backout function to exit the flow.
+
+### Dynamic information
+
+Use `$variable` syntax to insert information that changes per conversation. Place variable information at the end of the prompt for efficient caching.
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="Behavior" icon="list-check" href="/behavior/general/rules">
+    Set global behavioral constraints for tone, compliance, and terminology.
+  </Card>
+  <Card title="Model" icon="brain" href="/behavior/models/model-use">
+    Choose the LLM backbone that powers your agent's responses.
+  </Card>
+  <Card title="Start tool" icon="play" href="/tools/start-tool">
+    Override the greeting dynamically based on caller data.
+  </Card>
+</CardGroup>

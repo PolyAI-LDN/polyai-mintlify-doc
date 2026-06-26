@@ -1,0 +1,65 @@
+---
+title: "RAG"
+description: "How retrieval-augmented generation powers topic matching."
+keywords:
+  - RAG
+  - retrieval augmented generation
+  - topic matching
+  - retrieval
+  - semantic search
+---
+
+This page explains how your agent finds the right topic to answer a caller's question. You do not need to configure RAG directly – it works automatically based on how you structure your [FAQs](/knowledge/faqs/introduction) and [Sources](/knowledge/sources/introduction).
+
+## What is RAG?
+
+Retrieval-Augmented Generation (RAG) is a technique where the system first searches a knowledge source for relevant content, then feeds that content to a language model to generate an accurate response.
+
+## Components of RAG
+
+1. **Retrieval component**: Searches the knowledge for relevant information based on the input query.
+2. **Augmentation**: Uses retrieved information to enhance the original query with additional context.
+3. **Generation component**: Generates responses using a language model, integrating both the query and retrieved information.
+
+## How RAG works in Agent Studio
+
+PolyAI uses RAG to match user queries to Knowledge topics and generate contextual responses. Here is how it works in Agent Studio:
+
+```mermaid
+flowchart LR
+    A[User Query] --> B[Retriever]
+    B --> C[Knowledge Topics]
+    C --> D[Top Matches]
+    D --> E[LLM]
+    E --> F[Response]
+    E --> G[Action]
+```
+
+1. **Query processing**: When a caller provides a query, the RAG framework is initiated.
+2. **Retrieval**: The retriever component searches the structured knowledge to find matching topics. The knowledge is organized to optimize retrieval performance and ensure precise matches.
+3. **Generation**: The LLM uses the retrieved information to select and generate the response.
+
+<Tip>
+Write clear, specific topic names and realistic sample questions for best results. These are key signals the retriever uses to find the right match. You can add up to **20** sample questions per topic – more questions help the retriever find the right match. For best retrieval and generation quality, use PolyAI's [Raven](/behavior/models/raven) model – it is robust to irrelevant retrieved content and will say "I don't know" rather than hallucinate when information isn't available.
+</Tip>
+
+## Managed Topic structure for RAG
+
+Each Managed Topic is structured for effective retrieval. A topic includes:
+
+- **Topic name**: The FAQ name or category of the information.
+- **Sample Questions**: Example queries that callers might use. These help RAG understand user intent and improve matching accuracy.
+- **Content**: The information you want the agent to provide to users.
+- **Action**: Specific actions triggered by the query, such as calling a function, initiating a workflow, or handing off to a human agent.
+
+## Disabling topics at runtime
+
+For deterministic control over which topics are available during a conversation, you can disable specific FAQs from a Python function using `conv.disable_kb_topics()`. Disabled topics are excluded from retrieval until the conversation ends or you re-enable them. See [Disable KB topics](/tools/classes/disable-kb-topics).
+
+## Why RAG?
+
+You do not need to retrain a model when you update your Knowledge. RAG retrieves from the current Knowledge at query time, so updates are available as soon as they are [promoted to the target environment](/environments-and-versions/introduction).
+
+<Note>
+Behavior may vary depending on your agent's configuration. For example, agents using the real-time (speech-to-speech) model may trigger retrieval differently than standard voice agents. For multilingual agents, see [multilingual configuration](/behavior/language/multilingual) for guidance on setting up Knowledge topics across languages.
+</Note>
