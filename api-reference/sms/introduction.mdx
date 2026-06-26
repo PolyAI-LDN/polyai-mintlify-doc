@@ -1,0 +1,73 @@
+---
+title: 'SMS API'
+sidebarTitle: 'Overview'
+description: 'Send and receive SMS messages through your PolyAI agent.'
+---
+
+The SMS API lets you programmatically send SMS messages to end users and handle inbound replies through your PolyAI agent. It supports two directions:
+
+- **Outbound** — your system triggers an SMS to a user via the [Send SMS](/api-reference/sms/endpoint/send-sms) endpoint. Each request creates a new conversation session.
+- **Inbound** — users reply to an outbound SMS (or message your agent's number directly). The agent handles the conversation automatically over SMS.
+
+## Prerequisites
+
+- An API key provisioned via Agent Studio — create one in the **API keys** tab under your account section (passed as `X-PolyAi-Auth-Token`)
+- A connector ID for the target project (passed as `X-TOKEN-ID`). Contact your PolyAI representative.
+- At least one Twilio phone number provisioned for the project. The API automatically selects from the project's available numbers for the token's environment (dev, sandbox, live) unless you specify one via `agent_number`.
+
+## Base URL
+
+Replace `<cluster>` with the region for your deployment:
+
+| Cluster | Region | Base URL |
+| ------- | ------ | -------- |
+| `us-1`  | United States | `https://api.us-1.platform.polyai.app` |
+| `uk-1`  | United Kingdom | `https://api.uk-1.platform.polyai.app` |
+| `euw-1` | EU West | `https://api.euw-1.platform.polyai.app` |
+
+## Authentication
+
+All requests require two headers for authentication:
+
+```bash
+curl -X POST https://api.<cluster>.platform.polyai.app/v1/outbound-sms \
+  -H "X-PolyAi-Auth-Token: YOUR_API_KEY" \
+  -H "X-TOKEN-ID: YOUR_CONNECTOR_ID" \
+  -H "Content-Type: application/json"
+```
+
+## How it works
+
+### Outbound flow
+
+1. **Send message** — POST to `/v1/outbound-sms` with the recipient number and message text.
+2. **Session created** — The API creates a new conversation session. The message behaves like a greeting message, so it is fully part of the conversation context that the agent can access.
+3. **User replies** — If the user replies, the agent handles the conversation as a normal SMS session.
+4. **Inactivity timeout** — If the conversation is engaged (the user has replied) and goes idle for 24 hours, a warning message is sent. If the user replies within 10 minutes the session stays open; otherwise it terminates.
+
+### Inbound flow
+
+When a user sends an SMS to one of your provisioned Twilio numbers:
+
+1. **Twilio routes the message** — Twilio forwards the inbound SMS to PolyAI via the configured webhook.
+2. **Session created or resumed** — If there's an active session with that user number, the message is added to the existing conversation. Otherwise, a new session is created.
+3. **Agent responds** — The agent processes the message and replies via SMS automatically.
+4. **Conversation continues** — The user and agent exchange messages over SMS until the conversation ends or times out.
+
+<Note>
+Inbound SMS requires Twilio webhook configuration. This is handled automatically when you provision a number through PolyAI. No additional API calls are needed — the agent handles inbound messages through the same conversation engine used for voice and webchat.
+</Note>
+
+## Agent number selection
+
+By default the API picks from the Twilio numbers provisioned for the connector token's environment. You can override this by passing `agent_number` in the request body — the number must be one of the provisioned numbers or the request is rejected with a `400`.
+
+## Number availability & compliance
+
+Not every country supports SMS, and the number type you use affects throughput, cost, and lead time. Before sending SMS in a new country, check [Number availability & compliance](/voice-channel/number-availability) for country-by-country details, regulatory links, and the [A2P Campaign Pre-Scanner](https://www.a2pcheck.com/) to validate your setup against carrier requirements.
+
+For US and Canadian numbers, [A2P 10DLC registration](/voice-channel/message-templates#a2p-10dlc-registration-us-and-canada) is required — carriers block messages entirely without it.
+
+## Rate limits
+
+Rate limits are applied per project. If you receive a `429`, back off and retry with exponential backoff.

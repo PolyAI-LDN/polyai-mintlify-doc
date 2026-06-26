@@ -1,0 +1,71 @@
+---
+title: 'Inbound SMS'
+sidebarTitle: 'Inbound SMS'
+description: 'Handle incoming SMS messages from users through your PolyAI agent.'
+---
+
+Inbound SMS allows users to start or continue conversations with your PolyAI agent by sending a text message to one of your provisioned Twilio numbers. The agent processes the message and replies automatically — no API calls are needed from your side.
+
+## How it works
+
+<Steps>
+  <Step title="User sends an SMS">
+    A user texts one of the Twilio numbers provisioned for your project.
+  </Step>
+  <Step title="Twilio routes to PolyAI">
+    Twilio forwards the message to PolyAI via a pre-configured webhook. This webhook is set up automatically when you provision a number through PolyAI.
+  </Step>
+  <Step title="Session handling">
+    If there's an active conversation session with that user's number, the message is added to the existing session. Otherwise, a new session is created and the agent greets the user (or processes the message directly, depending on your agent configuration).
+  </Step>
+  <Step title="Agent responds">
+    The agent processes the message using the same conversation engine as voice and webchat, and sends a reply via SMS.
+  </Step>
+</Steps>
+
+## Session behavior
+
+| Scenario | Behavior |
+|---|---|
+| **New user** | A new conversation session is created. The agent's start function runs with `conv.channel_type = "sms"`. |
+| **Active session exists** | The message is added to the existing conversation. The agent continues where it left off. |
+| **Previous session timed out** | A new session is created. |
+| **Reply to an outbound SMS** | The message is added to the session created by the [Send SMS](/api-reference/sms/endpoint/send-sms) endpoint. The outbound message is part of the conversation context. |
+
+## Inactivity timeout
+
+Once a conversation is engaged (at least one user reply), an inactivity timer starts:
+
+1. After **24 hours** of no messages, a warning message is sent to the user.
+2. If the user replies within **10 minutes**, the session stays open and the timer resets.
+3. If no reply, the session terminates.
+
+## Channel detection
+
+In your agent's start function, detect inbound SMS using `conv.channel_type`:
+
+```python
+def start(conv):
+    if conv.channel_type == "sms":
+        conv.state.greet_message = "Hi, you've reached [Company]. How can I help?"
+    elif conv.channel_type == "voice":
+        conv.state.greet_message = "Thanks for calling. How can I help you today?"
+```
+
+## Setup
+
+Inbound SMS requires:
+
+1. **A provisioned Twilio number** — the number must be SMS-capable and provisioned for your project in Agent Studio.
+2. **Webhook configuration** — handled automatically when you provision the number through PolyAI. No manual Twilio webhook setup is needed.
+3. **Agent configuration** — your agent should handle the `sms` channel type appropriately (greeting, conversation flow, formatting for text-based interaction).
+
+<Note>
+Not every country supports inbound SMS. Check [Number availability & compliance](/voice-channel/number-availability) for 2-way SMS support by country, number types, and regulatory requirements.
+</Note>
+
+## Number availability & compliance
+
+For US and Canadian numbers, [A2P 10DLC registration](/voice-channel/message-templates#a2p-10dlc-registration-us-and-canada) is required for both outbound and inbound SMS — carriers block messages entirely without it.
+
+See [Number availability & compliance](/voice-channel/number-availability) for the full country-by-country breakdown.
