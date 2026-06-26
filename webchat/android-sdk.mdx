@@ -1,0 +1,403 @@
+---
+title: "Android SDK"
+sidebarTitle: "Android SDK"
+description: "Embed a PolyAI messaging agent natively in your Android app with a headless Kotlin library."
+mode: wide
+keywords:
+  - Android
+  - SDK
+  - Kotlin
+  - mobile
+  - in-app messaging
+  - native
+  - Jetpack Compose
+  - Views
+  - Maven Central
+---
+
+The Android SDK is a native Kotlin library that embeds PolyAI's messaging agent directly inside your Android app. It's **headless by design** — you own the UI, PolyAI provides the AI layer underneath. Your app connects to the same agent logic used across voice, webchat, and other channels.
+
+<Info>
+The Android SDK uses the [Messaging API](/api-reference/messaging/introduction) under the hood. All WebSocket events, streaming, and handoff behavior documented in the API reference apply.
+</Info>
+
+## How it works
+
+The SDK handles authentication, session management, WebSocket connections, and reconnection logic. Your app sends and receives messages through the SDK and renders them however you choose — in **Jetpack Compose** or **Android Views**.
+
+<Steps>
+  <Step title="Install the SDK">
+    Add the SDK to your project via **Maven Central**.
+  </Step>
+  <Step title="Configure authentication">
+    Add your API key (from Agent Studio) and ensure your app's **package name** (`applicationId`) matches the host registered in Agent Studio for your API key.
+  </Step>
+  <Step title="Initialize and start a session">
+    Initialize the SDK once in `Application.onCreate()`, then call `PolyMessaging.chat()` to get a `ChatSession`. The SDK handles access token exchange and WebSocket connection automatically.
+  </Step>
+  <Step title="Build your UI">
+    Observe `ChatSession` state via Kotlin `StateFlow` — collect messages, connection status, typing indicators, and more. Render the conversation in your own UI components.
+  </Step>
+</Steps>
+
+## Installation
+
+The SDK is published to Maven Central as `ai.poly:messaging`. Ensure `mavenCentral()` is in your repositories (it's there by default in new Android projects).
+
+<Tabs>
+  <Tab title="Kotlin DSL (recommended)">
+    ```kotlin
+    // build.gradle.kts
+    dependencies {
+        implementation("ai.poly:messaging:0.8.0")
+    }
+    ```
+  </Tab>
+  <Tab title="Groovy DSL">
+    ```groovy
+    // build.gradle
+    dependencies {
+        implementation 'ai.poly:messaging:0.8.0'
+    }
+    ```
+  </Tab>
+  <Tab title="Version catalog">
+    ```toml
+    # libs.versions.toml
+    [versions]
+    polyMessaging = "0.8.0"
+
+    [libraries]
+    poly-messaging = { module = "ai.poly:messaging", version.ref = "polyMessaging" }
+    ```
+
+    ```kotlin
+    // build.gradle.kts
+    dependencies {
+        implementation(libs.poly.messaging)
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Requirements
+
+| Requirement | Minimum |
+|---|---|
+| **Android** | API 24 (Android 7.0) |
+| **compileSdk** | 36 |
+| **Kotlin** | 2.2+ |
+| **JDK** (to build) | 17 |
+| **Java consumers** | Supported |
+
+No permissions to declare — the SDK's manifest merges `INTERNET` and `ACCESS_NETWORK_STATE` into your app automatically. R8/minify works out of the box.
+
+## Authentication setup
+
+The Android SDK authenticates using a connector token and your app's package name.
+
+<Steps>
+  <Step title="Generate a connector token">
+    In Agent Studio, go to **Messaging > API Configuration** and generate a new Messaging API key.
+  </Step>
+  <Step title="Register your package name">
+    Your app's `applicationId` is sent as the `X-Host` header. It must match the host registered in Agent Studio for your API key.
+  </Step>
+</Steps>
+
+<Warning>
+Never embed the connector token directly in your app binary. Use a backend service to mint short-lived access tokens and pass them to the SDK. See [security best practices](/api-reference/messaging/best-practices#security).
+</Warning>
+
+## Quick start
+
+Initialize the SDK once in `Application.onCreate()`, then create a `ChatSession` and render messages.
+
+### Initialize once
+
+```kotlin
+// HelloApplication.kt
+import ai.poly.messaging.Configuration
+import ai.poly.messaging.PolyMessaging
+import android.app.Application
+
+class HelloApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        PolyMessaging.initialize(
+            this,
+            Configuration(apiKey = "YOUR_API_KEY"),
+        )
+    }
+}
+```
+
+Register it in your manifest with `android:name=".HelloApplication"`. No network happens at init — the work starts when you call `chat()`.
+
+### Build the chat UI
+
+<Tabs>
+  <Tab title="Jetpack Compose">
+    ```kotlin
+    // MainActivity.kt
+    import ai.poly.messaging.ChatMessage
+    import ai.poly.messaging.ChatSession
+    import ai.poly.messaging.PolyMessaging
+    import androidx.compose.foundation.layout.*
+    import androidx.compose.foundation.lazy.LazyColumn
+    import androidx.compose.foundation.lazy.items
+    import androidx.compose.material3.*
+    import androidx.compose.runtime.*
+    import androidx.compose.ui.Alignment
+    import androidx.compose.ui.Modifier
+    import androidx.compose.ui.unit.dp
+    import androidx.lifecycle.compose.collectAsStateWithLifecycle
+    import kotlinx.coroutines.launch
+
+    @Composable
+    fun ChatScreen() {
+        val session: ChatSession = remember { PolyMessaging.chat() }
+        val messages by session.messages.collectAsStateWithLifecycle()
+        val scope = rememberCoroutineScope()
+        var input by remember { mutableStateOf("") }
+
+        Column(Modifier.fillMaxSize().imePadding()) {
+            LazyColumn(Modifier.weight(1f)) {
+                items(messages, key = { it.id }) { message ->
+                    val mine = message is ChatMessage.User
+                    Box(Modifier.fillMaxWidth().padding(vertical = 4.dp, horizontal = 8.dp)) {
+                        Text(
+                            message.text ?: "",
+                            Modifier.align(if (mine) Alignment.CenterEnd else Alignment.CenterStart),
+                        )
+                    }
+                }
+            }
+            Row(Modifier.padding(8.dp)) {
+                TextField(value = input, onValueChange = { input = it }, modifier = Modifier.weight(1f))
+                Button(onClick = {
+                    val body = input.trim()
+                    if (body.isNotEmpty()) {
+                        input = ""
+                        scope.launch { runCatching { session.send(body) } }
+                    }
+                }) { Text("Send") }
+            }
+        }
+    }
+    ```
+  </Tab>
+  <Tab title="Android Views (XML)">
+    ```kotlin
+    // ChatActivity.kt
+    import ai.poly.messaging.ChatMessage
+    import ai.poly.messaging.ChatSession
+    import ai.poly.messaging.PolyMessaging
+    import androidx.lifecycle.Lifecycle
+    import androidx.lifecycle.lifecycleScope
+    import androidx.lifecycle.repeatOnLifecycle
+    import kotlinx.coroutines.launch
+
+    class ChatActivity : ComponentActivity() {
+        private val session: ChatSession by lazy { PolyMessaging.chat() }
+        private val adapter = MessageAdapter()
+
+        override fun onCreate(savedInstanceState: Bundle?) {
+            super.onCreate(savedInstanceState)
+            binding = ActivityChatBinding.inflate(layoutInflater)
+            setContentView(binding.root)
+
+            binding.list.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
+            binding.list.adapter = adapter
+
+            binding.send.setOnClickListener {
+                val body = binding.composer.text.toString().trim()
+                if (body.isNotEmpty()) {
+                    binding.composer.setText("")
+                    lifecycleScope.launch { runCatching { session.send(body) } }
+                }
+            }
+
+            lifecycleScope.launch {
+                repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    session.messages.collect { messages ->
+                        adapter.submit(messages)
+                        if (messages.isNotEmpty()) binding.list.scrollToPosition(messages.size - 1)
+                    }
+                }
+            }
+        }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Key features
+
+### Session persistence
+
+Sessions persist across app launches. If the user leaves and returns, the SDK reconnects to the existing session and replays the conversation history automatically. Use `PolyMessaging.chat()` to resume or `PolyMessaging.start()` to always start fresh.
+
+```kotlin
+val session = if (PolyMessaging.hasResumableSession()) {
+    PolyMessaging.chat()    // resume the previous conversation
+} else {
+    PolyMessaging.start()   // start a new one
+}
+```
+
+### Streaming responses
+
+Streaming is **on by default** — agent replies grow token-by-token. The SDK reassembles chunks and updates `session.messages` automatically. To switch to complete-message bubbles, set `streamingEnabled = false` on the `Configuration`.
+
+```kotlin
+PolyMessaging.initialize(
+    this,
+    Configuration(apiKey = "YOUR_API_KEY", streamingEnabled = false),
+)
+```
+
+### Handoff to live agents
+
+The full [handoff flow](/api-reference/messaging/handoff) is supported. When the PolyAI agent triggers a handoff, the SDK delivers the same handoff events via `ChatMessage.System` messages with typed `SystemEvent` cases (`HandoffStarted`, `QueueStatus`, `LiveAgentJoined`, etc.). Live agent messages arrive as `ChatMessage.Agent` with `agentKind == AgentKind.LIVE`.
+
+### Response suggestions
+
+Agent messages can include `suggestions` — pre-written reply options. Render these as tappable chips in your UI. When the user taps one, call `clearSuggestions(messageId)` then `send(suggestion.messageText)`.
+
+### Attachments
+
+Agent messages may include rich content via the `attachments` field — images (`AttachmentContentType.IMAGE`), link cards (`AttachmentContentType.URL`), and call-to-action phone buttons (`callActions`).
+
+### Delivery tracking
+
+User messages appear immediately as `Delivery.PENDING`, then settle to `SENT` or `FAILED`. The SDK retries automatically (every 3s, up to 3 times). On `FAILED`, call `removeMessage(draftId)` then re-send.
+
+### Connection & reconnect
+
+The SDK reconnects automatically with exponential backoff and jitter. Observe `session.connection` to show a reconnect banner:
+
+```kotlin
+// StateFlow<ConnectionStatus> — Connecting / Open / Reconnecting(attempt) / Failed(reason)
+session.connection.collect { status ->
+    showBanner = status is ConnectionStatus.Reconnecting
+}
+```
+
+When the reconnect budget is exhausted (`ConnectionStatus.Failed`), recover with `session.client.startNewSession()`.
+
+## Configuration reference
+
+| Field | Default | Description |
+|---|---|---|
+| `apiKey` | — (required) | API key from Agent Studio |
+| `environment` | `Environment.US` | `US` / `UK` / `EUW` / `cluster("name")` / `custom(restUrl, wsUrl)` |
+| `hostIdentifier` | package name | `X-Host` for connector validation |
+| `streamingEnabled` | `true` | Token-by-token (`true`) or complete bubbles (`false`) |
+| `logLevel` | `LogLevel.ERROR` | `NONE` / `ERROR` / `WARN` / `INFO` / `DEBUG` |
+| `maxReconnectAttempts` | `10` | Reconnect budget before `Failed` |
+
+### Environments
+
+| Environment | Endpoint |
+|---|---|
+| `Environment.US` (default) | `messaging.us-1.poly.ai` |
+| `Environment.UK` | `messaging.uk-1.poly.ai` |
+| `Environment.EUW` | `messaging.euw-1.poly.ai` |
+| `Environment.cluster("name")` | `messaging.<name>.poly.ai` |
+
+## ChatSession reference
+
+### State (read-only `StateFlow` properties)
+
+| Property | Type | Description |
+|---|---|---|
+| `messages` | `StateFlow<List<ChatMessage>>` | Full transcript — `ChatMessage.User` / `.Agent` / `.System` |
+| `isReady` | `StateFlow<Boolean>` | Connected and ready to send |
+| `connection` | `StateFlow<ConnectionStatus>` | Socket state |
+| `isAgentTyping` | `StateFlow<Boolean>` | Show typing indicator |
+| `agentAvatarUrl` | `StateFlow<URI?>` | Latest agent avatar |
+| `hasEnded` | `StateFlow<Boolean>` | Conversation is over |
+| `failureReason` | `StateFlow<PolyError?>` | Terminal failure (invalid key, reconnect exhausted, session expired) |
+
+### Methods
+
+| Method | Description |
+|---|---|
+| `suspend send(text)` | Send a user message (optimistic) |
+| `suspend sendTyping()` | Broadcast typing (throttled internally) |
+| `suspend end()` | End the conversation |
+| `removeMessage(draftId)` | Drop a failed draft before re-sending |
+| `clearSuggestions(messageId)` | Clear quick-reply pills for a message |
+| `clearChat()` | Wipe the transcript |
+| `close()` | Tear down this session's observers |
+
+## Platform values
+
+When the SDK creates a session, it sets `platform` to `android` automatically. This is visible in Agent Studio analytics and can be used in your agent logic to tailor behavior for mobile users.
+
+| Platform value | Source |
+|---|---|
+| `android` | Android SDK (native) |
+| `ios` | iOS SDK (native) |
+| `ios-web` | Webchat widget on iOS Safari |
+| `web` | Webchat widget on desktop |
+
+## Limitations
+
+<Note>
+These limitations apply to the initial release. Check the [release notes](/releases/overview) for updates.
+</Note>
+
+| Limitation | Details |
+|---|---|
+| **Text only** | Voice input is not supported in V1. WebRTC voice support is planned for a future release. |
+| **No push notifications** | While the app is active, the SDK delivers messages in real time. When the app is killed by the system, no messages arrive. Local notifications work as a workaround while the process is alive. Remote push (FCM) is not yet supported. |
+| **No React Native or Flutter** | The SDK is native Kotlin (Java-compatible). Cross-platform frameworks would require a separate SDK. |
+
+## Example apps
+
+The SDK ships with a 7-rung example ladder, mirrored across Jetpack Compose and Android Views:
+
+| Level | What it adds |
+|---|---|
+| **01 Hello** | Initialize, render, send |
+| **02 Standard** | Typing, suggestions, delivery, reconnect, end + start-new |
+| **03 Rich Content** | Attachments, link cards, tel: actions, Markdown |
+| **04 Resilience** | Offline banner, loading skeleton, terminal error + retry |
+| **05 Handoff** | Full live-agent ladder |
+| **06 Full Reference** | Production resume + start-new flows |
+| **07 Playground** | Diagnostics, runtime config, streaming toggle |
+
+Browse the examples on [GitHub](https://github.com/polyai/android-sdk/tree/main/examples).
+
+## Multichannel
+
+The Android SDK connects to the same agent project as your voice and webchat channels. Agent behavior, knowledge, and flows are shared — only channel-specific settings (greetings, formatting) differ. See [multichannel agents](/webchat/multichannel) for how to tailor behavior per channel.
+
+In your agent's start function, detect the mobile channel using `conv.channel_type`:
+
+```python
+def start(conv):
+    if conv.channel_type == "android":
+        conv.state.greet_message = "Hi! How can I help you today?"
+    elif conv.channel_type.startswith("webchat"):
+        conv.state.greet_message = "Hi there! 👋 How can I help?"
+```
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Messaging API reference" icon="plug" href="/api-reference/messaging/introduction">
+    Full WebSocket protocol, events, streaming, and handoff
+  </Card>
+  <Card title="Sessions and authentication" icon="key" href="/api-reference/messaging/sessions">
+    Access tokens, session creation, and platform values
+  </Card>
+  <Card title="Multichannel agents" icon="layer-group" href="/webchat/multichannel">
+    Build agents that work across voice, webchat, and mobile
+  </Card>
+  <Card title="Best practices" icon="star" href="/api-reference/messaging/best-practices">
+    Connection management, UX, and security recommendations
+  </Card>
+</CardGroup>
