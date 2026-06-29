@@ -1,6 +1,6 @@
 ---
 title: 'Trigger an outbound call'
-api: 'POST /v1/outbound-calling'
+api: 'POST /v1/agents/{project_id}/telephony/outbound-calls'
 description: 'Initiate an outbound call to a phone number'
 ---
 
@@ -16,22 +16,43 @@ It is your responsibility to ensure that calls are placed in compliance with app
 
 ### Headers
 
-<ParamField header="X-PolyAi-Auth-Token" type="string" required>
-  Authentication token provided by your PolyAI representative
+<ParamField header="x-api-key" type="string" required>
+  API key provisioned by your PolyAI representative
 </ParamField>
 
 <ParamField header="Content-Type" type="string" required>
   Must be `application/json`
 </ParamField>
 
-### Body
+### Path parameters
 
-<ParamField body="to_number" type="string" required>
-  Phone number to call. Provide it in E.164 format (e.g., `+14155552671`), or supply `country_code` and pass a national-format number for that country.
+<ParamField path="project_id" type="string" required>
+  The project identifier. Found in your Agent Studio URL: `https://studio.{region}.poly.ai/{account_id}/{project_id}/...`
 </ParamField>
 
-<ParamField body="country_code" type="string">
-  Optional ISO 3166-1 alpha-2 country code (e.g., `US`, `GB`) used to parse a non-E.164 `to_number`. Leave unset when `to_number` is already in E.164 format.
+### Body
+
+<ParamField body="toNumber" type="string" required>
+  Phone number to call in E.164 format (e.g., `+442012345678`). If the number lacks a country prefix, also supply `countryCode`.
+</ParamField>
+
+<ParamField body="environment" type="string" required>
+  Target environment for the call. One of:
+  - `sandbox`
+  - `pre-release`
+  - `live`
+</ParamField>
+
+<ParamField body="countryCode" type="string">
+  ISO 3166-1 alpha-2 country code (e.g., `GB`, `US`) used to parse a non-E.164 `toNumber`. Leave unset when `toNumber` is already in E.164 format.
+</ParamField>
+
+<ParamField body="variantId" type="string">
+  Variant ID to use for the call. If omitted, the default connector for the environment is used.
+</ParamField>
+
+<ParamField body="encryption" type="string" default="tls_srtp">
+  Telephony encryption mode for the outbound leg. Defaults to `tls_srtp`.
 </ParamField>
 
 <ParamField body="metadata" type="object">
@@ -44,18 +65,14 @@ It is your responsibility to ensure that calls are placed in compliance with app
   ```
 </ParamField>
 
-<ParamField body="encryption" type="string" default="TLS/SRTP">
-  Telephony encryption type for the outbound leg. One of:
-  - `TLS/SRTP` (default)
-  - `TLS/RTP`
-  - `UDP/SRTP`
-  - `UDP/RTP`
-</ParamField>
-
 ## Response
 
-<ResponseField name="call_sid" type="string">
+<ResponseField name="callSid" type="string">
   Unique identifier for the triggered call. Always prefixed with `OUT-`. Use this to check call status.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Initial call status. Will be `QUEUED` on success.
 </ResponseField>
 
 ## Example
@@ -63,20 +80,17 @@ It is your responsibility to ensure that calls are placed in compliance with app
 <CodeGroup>
 
 ```bash cURL
-curl -X POST https://api.us-1.platform.polyai.app/v1/outbound-calling \
-  -H "X-PolyAi-Auth-Token: YOUR_AUTH_TOKEN" \
+curl -X POST "https://api.us.poly.ai/v1/agents/PROJECT-xxx/telephony/outbound-calls" \
+  -H "x-api-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "to_number": "+16176451984",
+    "toNumber": "+16176451984",
+    "environment": "live",
     "metadata": {
       "patient_first_name": "Paul",
       "patient_last_name": "Smith",
       "patient_dob": "1981-August-26",
-      "referred_by_name": "Dr. Alex Deerman",
-      "variant": "Inpatient at St Charles",
-      "patient_address_street": "13 Main Street",
-      "patient_city_state": "Colonia, New Jersey",
-      "patient_zip_code": "07676"
+      "referred_by_name": "Dr. Alex Deerman"
     }
   }'
 ```
@@ -84,52 +98,50 @@ curl -X POST https://api.us-1.platform.polyai.app/v1/outbound-calling \
 ```python Python
 import requests
 
-url = "https://api.us-1.platform.polyai.app/v1/outbound-calling"
+url = "https://api.us.poly.ai/v1/agents/PROJECT-xxx/telephony/outbound-calls"
 headers = {
-    "X-PolyAi-Auth-Token": "YOUR_AUTH_TOKEN",
-    "Content-Type": "application/json"
+    "x-api-key": "YOUR_API_KEY",
+    "Content-Type": "application/json",
 }
 payload = {
-    "to_number": "+16175551212",
+    "toNumber": "+16175551212",
+    "environment": "live",
     "metadata": {
         "patient_first_name": "Paul",
         "patient_last_name": "Smith",
         "patient_dob": "1981-August-26",
         "referred_by_name": "Dr. Alex Deerman",
-        "variant": "Inpatient at St Charles",
-        "patient_address_street": "13 Main Street",
-        "patient_city_state": "Colonia, New Jersey",
-        "patient_zip_code": "07676"
-    }
+    },
 }
 
 response = requests.post(url, json=payload, headers=headers)
-call_sid = response.json()["call_sid"]
-print(f"Call triggered: {call_sid}")
+data = response.json()
+print(f"Call triggered: {data['callSid']}")
 ```
 
 ```javascript JavaScript
 const response = await fetch(
-  'https://api.us-1.platform.polyai.app/v1/outbound-calling',
+  'https://api.us.poly.ai/v1/agents/PROJECT-xxx/telephony/outbound-calls',
   {
     method: 'POST',
     headers: {
-      'X-PolyAi-Auth-Token': 'YOUR_AUTH_TOKEN',
-      'Content-Type': 'application/json'
+      'x-api-key': 'YOUR_API_KEY',
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      to_number: '+16175551212',
+      toNumber: '+16175551212',
+      environment: 'live',
       metadata: {
         patient_first_name: 'Paul',
         patient_last_name: 'Glynn',
-        patient_dob: '1981-August-26'
-      }
-    })
+        patient_dob: '1981-August-26',
+      },
+    }),
   }
 );
 
 const data = await response.json();
-console.log('Call triggered:', data.call_sid);
+console.log('Call triggered:', data.callSid);
 ```
 
 </CodeGroup>
@@ -138,18 +150,23 @@ console.log('Call triggered:', data.call_sid);
 
 ```json
 {
-  "call_sid": "OUT-550e8400-e29b-41d4-a716-446655440000"
+  "callSid": "OUT-550e8400-e29b-41d4-a716-446655440000",
+  "status": "QUEUED"
 }
 ```
 
 ## Error responses
 
 <ResponseField name="400 Bad Request">
-  Invalid request parameters – for example, an unparseable `to_number`, a metadata value that isn't a string, or metadata that exceeds the 26 KB base64 size limit.
+  Invalid request parameters — for example, an unparseable `toNumber`, an invalid `environment`, a metadata value that isn't a string, or metadata that exceeds the 26 KB base64 size limit.
 </ResponseField>
 
 <ResponseField name="401 Unauthorized">
-  Invalid or missing authentication token, or the connector behind the token is not configured for outbound calling.
+  Invalid or missing API key.
+</ResponseField>
+
+<ResponseField name="404 Not Found">
+  No connector found for the specified environment, or connector token could not be resolved.
 </ResponseField>
 
 <ResponseField name="500 Internal Server Error">
@@ -158,7 +175,8 @@ console.log('Call triggered:', data.call_sid);
 
 ## Notes
 
-- Phone numbers must be in E.164 format unless you also pass `country_code`.
+- Phone numbers must be in E.164 format unless you also pass `countryCode`.
 - All `metadata` values must be strings; nested objects, numbers, and booleans are rejected.
+- The `environment` field is required and must be one of `sandbox`, `pre-release`, or `live`.
 - Use the [Get call status](/api-reference/outbound/endpoint/get-call-status) endpoint to monitor call progress.
 - Call status data is retained for approximately 2 hours after the call ends.
