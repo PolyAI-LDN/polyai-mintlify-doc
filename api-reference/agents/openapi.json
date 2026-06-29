@@ -1767,7 +1767,7 @@
         "properties": {
           "id": {
             "type": "string",
-            "description": "Audio cache entry ID. Although serialized as a string, the ID is numeric — endpoints that accept an `entryId` path parameter return `400 Invalid ID` if the value cannot be parsed as an integer."
+            "description": "Audio cache entry ID. Although serialized as a string, the ID is numeric \u2014 endpoints that accept an `entryId` path parameter return `400 Invalid ID` if the value cannot be parsed as an integer."
           },
           "transcript": {
             "type": "string",
@@ -1952,6 +1952,97 @@
         "properties": {
           "success": {
             "type": "boolean"
+          }
+        }
+      },
+      "InitiateOutboundCallBody": {
+        "type": "object",
+        "required": [
+          "toNumber",
+          "environment"
+        ],
+        "properties": {
+          "toNumber": {
+            "type": "string",
+            "description": "Phone number to dial in E.164 format (e.g. +442012345678). If the number lacks a country prefix, also supply countryCode.",
+            "example": "+442012345678"
+          },
+          "environment": {
+            "type": "string",
+            "description": "Target environment for the call.",
+            "enum": [
+              "sandbox",
+              "pre-release",
+              "live"
+            ],
+            "example": "live"
+          },
+          "countryCode": {
+            "type": "string",
+            "description": "ISO 3166-1 alpha-2 country code (e.g. GB) for parsing a non-E.164 toNumber.",
+            "example": "GB"
+          },
+          "variantId": {
+            "type": "string",
+            "description": "Variant ID to use for the call. If omitted, the default connector for the environment is used."
+          },
+          "encryption": {
+            "type": "string",
+            "description": "Telephony encryption mode for the outbound leg.",
+            "default": "tls_srtp",
+            "example": "tls_srtp"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Arbitrary key/value pairs delivered to the agent as SIP headers. All values must be strings. The base64 representation must be under 26 KB.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "example": {
+              "customer_name": "Paul Smith",
+              "appointment_date": "2026-08-26"
+            }
+          }
+        }
+      },
+      "OutboundCallResponse": {
+        "type": "object",
+        "properties": {
+          "callSid": {
+            "type": "string",
+            "description": "Unique call identifier (prefixed with OUT-). Use this to poll status.",
+            "example": "OUT-550e8400-e29b-41d4-a716-446655440000"
+          },
+          "status": {
+            "type": "string",
+            "description": "Initial call status.",
+            "example": "QUEUED"
+          }
+        }
+      },
+      "OutboundCallStatusResponse": {
+        "type": "object",
+        "properties": {
+          "callSid": {
+            "type": "string",
+            "description": "The unique call identifier.",
+            "example": "OUT-550e8400-e29b-41d4-a716-446655440000"
+          },
+          "status": {
+            "type": "string",
+            "description": "Current call status.",
+            "enum": [
+              "QUEUED",
+              "CALLING",
+              "SUCCESS",
+              "FAILURE"
+            ],
+            "example": "SUCCESS"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Human-readable reason for the current status. Typically populated for failure states; empty otherwise.",
+            "example": ""
           }
         }
       }
@@ -4446,6 +4537,130 @@
           "name": "agentId",
           "in": "path",
           "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/telephony/outbound-calls": {
+      "post": {
+        "summary": "Trigger an outbound call",
+        "description": "Triggers the PolyAI voice agent to dial a phone number. The agent will call the provided number and conduct the conversation autonomously. Returns a callSid that can be used to poll status.",
+        "tags": [
+          "Outbound Calls"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InitiateOutboundCallBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Call accepted and queued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutboundCallResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request \u2014 malformed phone number, invalid environment, metadata too large, or outbound calling not configured for this environment."
+          },
+          "401": {
+            "description": "Unauthorized \u2014 missing or invalid API key."
+          },
+          "403": {
+            "description": "Forbidden \u2014 insufficient permissions."
+          },
+          "404": {
+            "description": "No connector found for the specified environment."
+          },
+          "502": {
+            "description": "Outbound calling service unavailable. Retry with exponential backoff."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/telephony/outbound-calls/{callSid}/status": {
+      "get": {
+        "summary": "Get the status of an outbound call",
+        "description": "Retrieves the current status of an outbound call. Call status data is retained for approximately 2 hours after the call ends.",
+        "tags": [
+          "Outbound Calls"
+        ],
+        "parameters": [
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "description": "Target environment. Must match the environment used when triggering the call.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sandbox",
+                "pre-release",
+                "live"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Call status retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutboundCallStatusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters \u2014 missing environment, invalid call SID, or no connector found."
+          },
+          "401": {
+            "description": "Unauthorized \u2014 missing or invalid API key."
+          },
+          "403": {
+            "description": "Forbidden \u2014 insufficient permissions."
+          },
+          "502": {
+            "description": "Outbound calling service unavailable. Retry with exponential backoff."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "callSid",
+          "in": "path",
+          "required": true,
+          "description": "The unique call identifier returned from the trigger endpoint (prefixed with OUT-).",
           "schema": {
             "type": "string"
           }

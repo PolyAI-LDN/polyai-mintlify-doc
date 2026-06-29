@@ -1,71 +1,97 @@
 {
-  "openapi": "3.1.0",
+  "openapi": "3.0.0",
   "info": {
     "title": "PolyAI Outbound Calling API",
     "version": "1.0.0",
-    "description": "Trigger outbound calls and check call status programmatically."
+    "description": "Trigger outbound calls and check call status programmatically"
   },
   "servers": [
     {
-      "url": "https://api.us.poly.ai",
-      "description": "US region"
+      "url": "https://api.us-1.platform.polyai.app",
+      "description": "US Region"
     },
     {
-      "url": "https://api.uk.poly.ai",
-      "description": "UK region"
+      "url": "https://api.uk-1.platform.polyai.app",
+      "description": "UK Region"
     },
     {
-      "url": "https://api.eu.poly.ai",
-      "description": "EU region"
+      "url": "https://api.euw-1.platform.polyai.app",
+      "description": "EU West Region"
     }
   ],
   "security": [
     {
-      "polyApiKey": []
+      "PolyAiAuthToken": []
     }
   ],
   "paths": {
-    "/v1/agents/{projectId}/telephony/outbound-calls": {
+    "/v1/outbound-calling": {
       "post": {
         "summary": "Trigger an outbound call",
         "description": "Initiates a new outbound call to the specified phone number. When the request is accepted, the call is placed close to immediately. The start tool (start_function) executes after the call connects. It is the caller's responsibility to ensure that calls are placed lawfully.",
         "operationId": "triggerOutboundCall",
-        "tags": ["Outbound Calls"],
-        "parameters": [
-          {
-            "name": "projectId",
-            "in": "path",
-            "required": true,
-            "description": "The project identifier, visible in your Agent Studio URL.",
-            "schema": {
-              "type": "string",
-              "example": "PROJECT-xxx"
-            }
-          }
-        ],
+        "tags": ["Outbound Calling"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/InitiateOutboundCallBody"
+                "type": "object",
+                "required": ["to_number"],
+                "properties": {
+                  "to_number": {
+                    "type": "string",
+                    "description": "Phone number to call in E.164 format (e.g., +14155552671). If country_code is supplied, this can also be a national-format number for that country.",
+                    "example": "+14155552671"
+                  },
+                  "country_code": {
+                    "type": "string",
+                    "description": "Optional ISO 3166-1 alpha-2 country code (e.g., US, GB) used to parse a non-E.164 to_number. Leave unset when to_number is already in E.164 format.",
+                    "example": "US"
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "description": "Arbitrary key/value pairs delivered to the agent as SIP headers and accessible via conv.sip_headers.get('key_name'). All values must be strings. The base64 representation of the metadata must be less than 26 KB.",
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "example": {
+                      "patient_first_name": "Paul",
+                      "patient_last_name": "Glynn",
+                      "appointment_date": "2026-08-26"
+                    }
+                  },
+                  "encryption": {
+                    "type": "string",
+                    "description": "Telephony encryption type for the outbound leg.",
+                    "enum": ["UDP/RTP", "UDP/SRTP", "TLS/RTP", "TLS/SRTP"],
+                    "default": "TLS/SRTP"
+                  }
+                }
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Call accepted and queued",
+            "description": "Call accepted",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutboundCallResponse"
+                  "type": "object",
+                  "properties": {
+                    "call_sid": {
+                      "type": "string",
+                      "description": "Unique identifier for the triggered call (prefixed with `OUT-`). Use this to check call status.",
+                      "example": "OUT-550e8400-e29b-41d4-a716-446655440000"
+                    }
+                  }
                 }
               }
             }
           },
           "400": {
-            "description": "Invalid request — malformed phone number, invalid environment, metadata too large, or outbound calling not configured for this environment.",
+            "description": "Bad Request - Invalid request parameters (e.g. malformed phone number, metadata too large, non-string metadata value)",
             "content": {
               "application/json": {
                 "schema": {
@@ -75,7 +101,7 @@
             }
           },
           "401": {
-            "description": "Invalid or missing API key.",
+            "description": "Unauthorized - Invalid or missing authentication token, or the connector is not configured for outbound calling",
             "content": {
               "application/json": {
                 "schema": {
@@ -84,18 +110,8 @@
               }
             }
           },
-          "404": {
-            "description": "No connector found for the specified environment.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Outbound calling service unavailable. Retry with exponential backoff.",
+          "500": {
+            "description": "Internal Server Error - Failed to place the outbound call",
             "content": {
               "application/json": {
                 "schema": {
@@ -107,58 +123,55 @@
         }
       }
     },
-    "/v1/agents/{projectId}/telephony/outbound-calls/{callSid}/status": {
+    "/v1/outbound-calling/{call_sid}/status": {
       "get": {
-        "summary": "Get the status of an outbound call",
-        "description": "Retrieves the current status of an outbound call. Use this endpoint to monitor call progress after triggering a call. Call status data is retained for approximately 2 hours after the call ends.",
-        "operationId": "getOutboundCallStatus",
-        "tags": ["Outbound Calls"],
+        "summary": "Get call status",
+        "description": "Retrieves the current status for an outbound call. Use this endpoint to monitor call progress after triggering a call. Note: Call status data is retained for approximately 2 hours after the call ends.",
+        "operationId": "getCallStatus",
+        "tags": ["Outbound Calling"],
         "parameters": [
           {
-            "name": "projectId",
+            "name": "call_sid",
             "in": "path",
             "required": true,
-            "description": "The project identifier.",
-            "schema": {
-              "type": "string",
-              "example": "PROJECT-xxx"
-            }
-          },
-          {
-            "name": "callSid",
-            "in": "path",
-            "required": true,
-            "description": "The unique call identifier returned from the trigger endpoint (prefixed with OUT-).",
+            "description": "The unique call identifier returned from the trigger endpoint",
             "schema": {
               "type": "string",
               "example": "OUT-550e8400-e29b-41d4-a716-446655440000"
-            }
-          },
-          {
-            "name": "environment",
-            "in": "query",
-            "required": true,
-            "description": "Target environment. Must match the environment used when triggering the call.",
-            "schema": {
-              "type": "string",
-              "enum": ["sandbox", "pre-release", "live"],
-              "example": "live"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Call status retrieved successfully.",
+            "description": "Call status retrieved successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutboundCallStatusResponse"
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "description": "Current status of the call",
+                      "enum": [
+                        "queued",
+                        "calling",
+                        "success",
+                        "failure"
+                      ],
+                      "example": "success"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "description": "Human-readable reason for the current status (typically populated for terminal failure states; empty otherwise).",
+                      "example": ""
+                    }
+                  }
                 }
               }
             }
           },
           "400": {
-            "description": "Invalid parameters — missing environment, invalid call SID, or no connector found.",
+            "description": "Bad Request - Invalid call SID format",
             "content": {
               "application/json": {
                 "schema": {
@@ -168,7 +181,7 @@
             }
           },
           "401": {
-            "description": "Invalid or missing API key.",
+            "description": "Unauthorized - Invalid or missing authentication token",
             "content": {
               "application/json": {
                 "schema": {
@@ -177,8 +190,18 @@
               }
             }
           },
-          "502": {
-            "description": "Outbound calling service unavailable. Retry with exponential backoff.",
+          "404": {
+            "description": "Not Found - Call SID not found or status data has expired (data retained for ~2 hours)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error - Failed to retrieve call status",
             "content": {
               "application/json": {
                 "schema": {
@@ -193,104 +216,24 @@
   },
   "components": {
     "securitySchemes": {
-      "polyApiKey": {
+      "PolyAiAuthToken": {
         "type": "apiKey",
         "in": "header",
-        "name": "x-api-key",
-        "description": "API key provisioned by your PolyAI representative."
+        "name": "X-PolyAi-Auth-Token",
+        "description": "Authentication token for outbound calls"
       }
     },
     "schemas": {
-      "InitiateOutboundCallBody": {
-        "type": "object",
-        "required": ["toNumber", "environment"],
-        "properties": {
-          "toNumber": {
-            "type": "string",
-            "description": "Phone number to dial in E.164 format (e.g. +442012345678). If the number lacks a country prefix, also supply countryCode.",
-            "example": "+442012345678"
-          },
-          "environment": {
-            "type": "string",
-            "description": "Target environment for the call.",
-            "enum": ["sandbox", "pre-release", "live"],
-            "example": "live"
-          },
-          "countryCode": {
-            "type": "string",
-            "description": "ISO 3166-1 alpha-2 country code (e.g. GB) for parsing a non-E.164 toNumber. Leave unset when toNumber is already in E.164 format.",
-            "example": "GB"
-          },
-          "variantId": {
-            "type": "string",
-            "description": "Variant ID to use for the call. If omitted, the default connector for the environment is used."
-          },
-          "encryption": {
-            "type": "string",
-            "description": "Telephony encryption mode for the outbound leg.",
-            "default": "tls_srtp",
-            "example": "tls_srtp"
-          },
-          "metadata": {
-            "type": "object",
-            "description": "Arbitrary key/value pairs delivered to the agent as SIP headers, accessible via conv.sip_headers.get('key_name'). All values must be strings. The base64 representation must be under 26 KB.",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "example": {
-              "patient_first_name": "Paul",
-              "patient_last_name": "Glynn",
-              "appointment_date": "2026-08-26"
-            }
-          }
-        }
-      },
-      "OutboundCallResponse": {
-        "type": "object",
-        "properties": {
-          "callSid": {
-            "type": "string",
-            "description": "Unique call identifier (prefixed with OUT-). Use this to poll status.",
-            "example": "OUT-550e8400-e29b-41d4-a716-446655440000"
-          },
-          "status": {
-            "type": "string",
-            "description": "Initial call status.",
-            "example": "QUEUED"
-          }
-        }
-      },
-      "OutboundCallStatusResponse": {
-        "type": "object",
-        "properties": {
-          "callSid": {
-            "type": "string",
-            "description": "The unique call identifier.",
-            "example": "OUT-550e8400-e29b-41d4-a716-446655440000"
-          },
-          "status": {
-            "type": "string",
-            "description": "Current call status.",
-            "enum": ["QUEUED", "CALLING", "SUCCESS", "FAILURE"],
-            "example": "SUCCESS"
-          },
-          "reason": {
-            "type": "string",
-            "description": "Human-readable reason for the current status. Typically populated for failure states; empty otherwise.",
-            "example": ""
-          }
-        }
-      },
       "Error": {
         "type": "object",
         "properties": {
           "error": {
             "type": "string",
-            "description": "Error message."
+            "description": "Error message"
           },
           "code": {
             "type": "string",
-            "description": "Error code."
+            "description": "Error code"
           }
         }
       }

@@ -9,54 +9,54 @@ The Outbound Calling API lets you programmatically initiate outbound calls and m
 ## Prerequisites
 
 - An active PolyAI project with outbound calling enabled
-- A PolyAI API key (provisioned by your PolyAI representative)
-- Your `account_id` and `project_id` (visible in your Agent Studio URL)
+- An authentication token provided by your PolyAI representative
+- Your base URL (provided per project by PolyAI)
 
 <Note>Contact your PolyAI representative to enable outbound calling for your project and obtain the necessary credentials.</Note>
 
 ## Base URL
 
-Outbound calling endpoints are part of the Agents API family and use your regional base URL:
+Your base URL is provided by PolyAI when outbound calling is configured for your project. Regional endpoints include:
 
 | Region | Base URL |
 | ------ | -------- |
-| US     | `https://api.us.poly.ai` |
-| UK     | `https://api.uk.poly.ai` |
-| EU     | `https://api.eu.poly.ai` |
+| US     | `https://api.us-1.platform.polyai.app` |
+| UK     | `https://api.uk-1.platform.polyai.app` |
+| EUW    | `https://api.euw-1.platform.polyai.app` |
 
 ## Endpoint paths
 
 Outbound calling endpoints use the following path structure:
 
 ```
-/v1/agents/{project_id}/telephony/outbound-calls
+/{version}/outbound-calling/...
 ```
 
 ## Authentication
 
-All outbound calling endpoints require authentication using the `x-api-key` header:
+All outbound calling endpoints require authentication using the `X-PolyAi-Auth-Token` header:
 
 ```bash
-curl -X POST https://api.{region}.poly.ai/v1/agents/{project_id}/telephony/outbound-calls \
-  -H "x-api-key: YOUR_API_KEY" \
+curl -X POST https://api.{region}.platform.polyai.app/v1/outbound-calling \
+  -H "X-PolyAi-Auth-Token: YOUR_AUTH_TOKEN" \
   -H "Content-Type: application/json"
 ```
 
 ## Call flow
 
-1. **Trigger call** — POST to `/v1/agents/{project_id}/telephony/outbound-calls` with the destination phone number, environment, and optional parameters
-2. **Receive call SID** — API returns a unique call identifier (`callSid`, prefixed with `OUT-`) and initial status
-3. **Check status** — GET `/v1/agents/{project_id}/telephony/outbound-calls/{call_sid}/status?environment={env}` to monitor call progress
-4. **Handle completion** — Call status updates to `SUCCESS` or `FAILURE`
+1. **Trigger call** - POST to `/v1/outbound-calling` with the destination phone number (and optional `metadata` and `encryption`)
+2. **Receive call SID** - API returns a unique call identifier (`call_sid`, prefixed with `OUT-`)
+3. **Check status** - GET `/v1/outbound-calling/{call_sid}/status` to monitor call progress
+4. **Handle completion** - Call status updates to `success` or `failure`
 
 ## Call statuses
 
 | Status | Description |
 | ------ | ----------- |
-| `QUEUED` | Call has been queued for processing |
-| `CALLING` | Call is being placed to the destination |
-| `SUCCESS` | Call completed successfully |
-| `FAILURE` | Call failed to connect or was not answered |
+| `queued` | Call has been queued for processing |
+| `calling` | Call is being placed to the destination |
+| `success` | Call completed successfully |
+| `failure` | Call failed to connect or was not answered |
 
 ## Status data retention
 
@@ -70,8 +70,8 @@ Outbound calling is subject to rate limits based on your account configuration. 
 
 ## Best practices
 
-- **Validate phone numbers** — Ensure numbers are in E.164 format before triggering calls
-- **Handle failures gracefully** — Implement retry logic with exponential backoff
-- **Monitor status promptly** — Poll the status endpoint within 2 hours of call completion
-- **Store status data** — If you need call status beyond 2 hours, store it in your own system
-- **Respect time zones** — Schedule calls during appropriate hours for the destination region
+- **Validate phone numbers** - Ensure numbers are in E.164 format before triggering calls
+- **Handle failures gracefully** - Implement retry logic with exponential backoff
+- **Monitor status promptly** - Poll the status endpoint within 2 hours of call completion
+- **Store status data** - If you need call status beyond 2 hours, store it in your own system
+- **Respect time zones** - Schedule calls during appropriate hours for the destination region
