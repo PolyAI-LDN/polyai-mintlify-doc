@@ -40,13 +40,13 @@
   // landing area — a curated path that becomes the entire sidebar for
   // self-serve users so they don't see the rest of the enterprise IA.
   // Marked with data-open-platform-only="true".
-  var OPEN_PLATFORM_ONLY_GROUPS = ['Home'];
+  var OPEN_PLATFORM_ONLY_GROUPS = [];
 
   // When Open platform mode is on, every sidebar group whose name is NOT in
   // this list gets hidden. Keeping the list to just ['Open platform'] makes
   // the experience a single focused group; add 'FAQ' / 'Glossary' here if we
   // ever want to keep those visible to self-serve users.
-  var OPEN_PLATFORM_KEEP_GROUPS = ['Home'];
+  var OPEN_PLATFORM_KEEP_GROUPS = ['Studio Assistant'];
 
   // Collapsed sub-group button labels to dim in Open platform mode.
   //
@@ -129,8 +129,6 @@
     '/analytics/custom-metrics/',
     // User management — enterprise-only.
     '/user-management/',
-    // Smart Analyst — enterprise analytics service.
-    '/smart-analyst/',
     // Behavior — on the Open platform, personality/rules are set through
     // Studio Assistant. Direct config pages are enterprise-flavoured
     // (model picker, BYOM, Language Hub). Raven is allowlisted below.
@@ -197,19 +195,10 @@
   var SIMPLIFIED_ALLOWED_TAGGED = ['/extend/adk'];
 
   // Inverse of ENTERPRISE_PREFIXES: pages that are ONLY available on the
-  // Open platform tier (e.g. Studio Assistant, which ships on the Open
-  // platform and reaches enterprise via separate availability). When an
-  // enterprise reader (not in Open platform mode) lands on one of these
-  // pages, we inject an Open-platform-only banner that mirrors the
-  // enterprise banner shown in the opposite direction.
-  var OPEN_PLATFORM_ONLY_PATHS = [
-    '/studio-assistant/introduction',
-    '/studio-assistant/prompting',
-    '/studio-assistant/usage-and-limits',
-    '/agent-builder/introduction',
-    '/agent-builder/prompting',
-    '/agent-builder/usage-and-limits'
-  ];
+  // Open platform tier. When an enterprise reader (not in Open platform
+  // mode) lands on one of these pages, we inject an Open-platform-only
+  // banner. Currently empty — Studio Assistant is now available to all users.
+  var OPEN_PLATFORM_ONLY_PATHS = [];
 
   function isOpenPlatformOnlyPath(pathname) {
     return OPEN_PLATFORM_ONLY_PATHS.indexOf(pathname) !== -1;
