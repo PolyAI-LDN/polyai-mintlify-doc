@@ -1,59 +1,163 @@
 ---
-title: "Voice configuration"
-sidebarTitle: "Configuration"
-description: "Configure model selection, greeting, disclaimer, safety filters, and call handling settings."
+title: "Advanced voice settings"
+sidebarTitle: "Advanced settings"
+description: "Configure model selection, barge-in, filler phrases, safety filters, keyphrases, transcript corrections, and pronunciation for voice agents."
 keywords:
   - voice configuration
   - voice settings
-  - greeting
-  - disclaimer
+  - model selection
+  - barge-in
+  - filler phrases
+  - CSAT
   - safety filters
-  - call handling
+  - keyphrase boosting
+  - transcript corrections
+  - pronunciations
+  - speech recognition
+  - ASR
+  - stop keywords
+  - turn-taking
 ---
 
-The **Voice Configuration** page (**Voice > Advanced > Call settings**) controls voice-specific settings including model selection, greeting, and disclaimer behavior.
+The **Advanced settings** page controls voice-specific configuration that goes beyond basic voice selection. Open it from the **Advanced settings** link in the top-right corner of the Voice page.
 
-**Greeting and disclaimer settings are in Voice Configuration**, separate from shared agent configuration in **Behavior > General**.
+The page has three tabs: **Model**, **Call**, and **Speech**.
 
-## Model selection
+## Model
 
-Select the language model that powers your voice agent.
+### Voice mode
 
-<ParamField path="Large language model" type="dropdown">
+Choose between two architectures for your voice agent:
+
+| Mode | Description |
+|------|-------------|
+| **Traditional** | Separate components handle speech recognition, language processing, and speech synthesis. |
+| **End-to-end** | A unified model directly maps input (audio, text, or multimodal signals) to speech output. |
+
+### Language model
+
+Select the LLM that powers your voice agent.
+
+<ParamField path="Model" type="dropdown">
   Choose the LLM for voice conversations. PolyAI's **Raven** models are recommended for voice – they are designed for conversational AI and deliver the most natural, grounded responses.
+</ParamField>
+
+<ParamField path="Temperature" type="slider">
+  Controls response variability. Lower values (toward **Deterministic**) produce more consistent, predictable responses. Higher values (toward **Creative**) produce more varied output. Default is 0.4.
 </ParamField>
 
 **Recommended for voice:** PolyAI's [Raven 3.5](/behavior/models/raven) is designed for conversational AI. It produces concise, natural responses without needing example utterances in your prompts — just add raw information and Raven converts it into conversational speech. Raven 3.5 supports 24+ languages, delivers sub-300ms latency, and includes auto-reasoning, out-of-domain detection, and built-in safety.
 
 For a full list of available models, see the [Model](/behavior/models/model-use) page.
 
-## Voice greeting
+### Speech recognition
 
-Configure what your agent says when a call begins.
+Choose the primary transcription engine and target language for your voice agent.
 
-<ParamField path="Greeting message" type="string">
-  The first thing your agent says when answering a call.
-  
-  **Example:** "Thank you for calling. How can I help you today?"
+<ParamField path="Model" type="dropdown">
+  Select the ASR model used to transcribe caller speech. The model you choose affects transcription accuracy, latency, and language support.
 </ParamField>
 
-Keep your greeting concise. Long greetings can frustrate callers who want to get to the point quickly.
+### Turn-taking
 
-## Voice disclaimer
+Control when the agent starts speaking after the caller stops.
 
-Configure a disclaimer message that plays at the start of calls.
-
-<ParamField path="Disclaimer message" type="string">
-  A message informing callers about call recording or other legal requirements.
-  
-  **Example:** "This call may be recorded for quality and training purposes."
+<ParamField path="Speech end delay" type="slider">
+  How long to wait (in milliseconds) after the caller stops speaking before the agent begins its response. **Fast** (200ms) responds quickly but may cut off pauses. **Tolerant** (1000ms) waits longer through pauses but adds latency.
 </ParamField>
 
-<ParamField path="Disclaimer voice" type="string">
-  You can use a separate voice for the disclaimer to distinguish it from the main agent voice. Configure this in [Agent Voice](/voice-channel/agent).
+### AI-coustics
+
+<ParamField path="AI-coustics" type="boolean">
+  Removes background noise and enhances audio quality. Enable this for callers in noisy environments.
 </ParamField>
 
-## Safety filters
+---
+
+## Call
+
+### Barge-in
+
+Allow callers to interrupt the agent mid-utterance. When enabled, the agent stops speaking as soon as it detects caller speech, shortening [VAD](https://en.wikipedia.org/wiki/Voice_activity_detection) time and reducing response latency.
+
+<ParamField path="Enable barge-in" type="boolean">
+  Toggle on to let callers interrupt the agent mid-sentence.
+</ParamField>
+
+<ParamField path="Enable on first turn" type="boolean">
+  When enabled, barge-in is active from the very first agent utterance (including the greeting). When disabled, barge-in activates after the first turn completes.
+</ParamField>
+
+<ParamField path="Maximum barge-ins per call" type="number">
+  Limit how many times a caller can interrupt per call. Set to 0 for unlimited.
+</ParamField>
+
+#### How barge-in works
+
+When barge-in is enabled:
+1. The agent begins speaking its response.
+2. If the caller starts talking, the agent stops its current utterance and begins listening.
+3. The agent processes the caller's input and responds as a new turn.
+
+This also applies to [delay control](/tools/delay-control) responses – if the caller speaks during a filler phrase, the delay sequence is interrupted.
+
+#### When to use barge-in
+
+Barge-in works well for:
+- FAQ-heavy agents where callers may already know what they need
+- Long agent responses where the caller wants to redirect the conversation
+- Fast interaction styles where responsiveness is a priority
+
+#### When to disable barge-in
+
+Consider disabling barge-in (globally or per flow/step) when:
+- The agent is executing a function with **external side effects** (bookings, payments, form submissions) – the caller may interrupt after the action completes but before hearing the confirmation
+- The agent must deliver a **mandatory disclosure or disclaimer** that cannot be skipped
+- The environment is **noisy**, causing false barge-in triggers from background sounds
+
+#### Per-flow and per-step overrides
+
+You can configure barge-in at a granular level using the experimental JSON config. This lets you enable barge-in globally while disabling it for specific flows or steps where interruption would be problematic.
+
+Overrides follow a precedence order: **step > flow > global**. For example, you can have barge-in off globally, enabled for a specific flow, and disabled again for a sensitive step within that flow.
+
+<Note>
+Barge-in behavior cannot be fully tested in the chat panel. Always verify with a real phone call.
+</Note>
+
+### Filler phrases
+
+Configure brief sounds or words the agent uses while processing the user's input — "One moment...", "Just a second...", etc. These fill the gap between the caller finishing and the agent responding, preventing awkward silence.
+
+<ParamField path="Enable filler phrases" type="boolean">
+  Toggle on to enable filler phrases during processing delays.
+</ParamField>
+
+<ParamField path="Randomize filler phrases" type="boolean">
+  When enabled, the agent picks randomly from the configured phrases instead of cycling in order.
+</ParamField>
+
+<ParamField path="Initial interval (s)" type="number">
+  How many seconds to wait before the first filler phrase plays.
+</ParamField>
+
+<ParamField path="Interval between filler phrases (s)" type="number">
+  How many seconds between subsequent filler phrases if the agent is still processing.
+</ParamField>
+
+### Customer satisfaction survey (CSAT)
+
+<ParamField path="Enable in-call voice survey" type="boolean">
+  Enable to collect customer feedback during voice calls. Additional options appear once enabled.
+</ParamField>
+
+When enabled, the agent can route callers into a CSAT survey flow at the end of the conversation. For full configuration details — survey questions, scoring, and dashboard integration — see [CSAT surveys](/analytics/csat/introduction).
+
+---
+
+## Speech
+
+### Safety filters
 
 Safety filters are configured on a **per-channel basis**. The voice channel has its own safety filter settings, separate from the chat channel and the project-wide defaults. See [Safety filters](/behavior/guardrails/safety-filters) for the full reference on categories, severity levels, and how filters interact with [Guardrails](/behavior/guardrails/introduction).
 
@@ -78,17 +182,286 @@ The jailbreak attack filter is always enabled and cannot be turned off.
 More lenient settings allow a wider range of content through. Review your use case and compliance requirements when adjusting these settings.
 </Warning>
 
-## Call handling settings
+### Keyphrases
 
-Additional settings that affect how calls are handled:
+Keyphrase boosting improves [ASR](https://en.wikipedia.org/wiki/Speech_recognition) recognition of domain-specific terms like product names, locations, or specialized vocabulary. It biases the ASR model toward recognizing specific words during transcription.
 
-- **Silence timeout** - How long to wait during silence before prompting the caller
-- **Max call duration** - Maximum length of a call before automatic termination
-- **End of call behavior** - What happens when a call ends (e.g., trigger CSAT survey)
+<Warning>
+Biasing the ASR can cause unwanted side effects. Adding too many keyphrases or setting bias too high may cause the model to over-correct natural speech. For example, boosting the word `flimsy` at Maximum strength could cause unrelated words like `Lindsay` to be transcribed as `flimsy`. Always test thoroughly in sandbox before deploying changes to production.
+</Warning>
+
+#### Configuring keyphrases
+
+1. Open the **Keyphrases** section on the Speech tab.
+2. Add, edit, or remove keyphrases.
+3. Adjust the **bias strength** for each keyphrase using the slider.
+4. Save your changes. Updated keyphrases are applied immediately.
+
+#### Bias strength levels
+
+| Level | Behavior |
+|-------|----------|
+| **Default** | Light bias. Balances recognition accuracy with overall ASR performance. |
+| **Boosted** | Moderate bias. Increases recognition of the keyphrase without heavily impacting general transcription. |
+| **Maximum** | Strong bias. Prioritizes the keyphrase but may interfere with natural speech patterns. |
+
+Maximum bias does not always produce better results. In some cases it can cause the model to misrecognize unrelated words. Start with Default or Boosted and only escalate to Maximum after testing confirms it is needed.
+
+#### Example keyphrases
+
+| Keyphrase | Use case | Suggested strength |
+|-----------|----------|-------------------|
+| `flexi-access` | Financial product name | Boosted |
+| `BlueStar` | Brand name frequently misheard as "blue star" | Maximum |
+| `hablas español` | Spanish phrase in an English-language agent | Boosted |
+| `isotretinoin` | Medical term | Maximum |
+| `pension` | Domain-specific term | Default |
+
+<Note>
+**Keyphrase boosting and ASR biasing are the same mechanism.** Keyphrase boosting is the *global* level of ASR biasing – it applies to every turn of the conversation. ASR biasing also has *per-step* and *dynamic* levels for more targeted control. See [ASR biasing in flows](/flows/asr-biasing) and [ASR biasing from functions](/tools/classes/asr-from-conv).
+</Note>
+
+#### Global vs. per-step vs. dynamic biasing
+
+The Speech tab configures **global** keyphrase boosting, which applies to every turn of the conversation. Two additional levels of biasing are available for more targeted control:
+
+- **Per-step biasing** – configure ASR biasing on individual flow steps for contextual precision (e.g. biasing for doctor names only during a name-collection step). See [ASR biasing in flows](/flows/asr-biasing).
+- **Dynamic biasing from functions** – set biasing at runtime using `conv.set_asr_biasing()` when you need to bias toward values retrieved from an API or database. See [ASR biasing from functions](/tools/classes/asr-from-conv).
+
+**Precedence rules:** When multiple levels of biasing are active, they are merged with the following priority (highest first):
+
+1. **Dynamic** – biasing set via `conv.set_asr_biasing()` in functions
+2. **Per-step** – biasing configured on individual flow steps
+3. **Global** – biasing configured on the Speech tab
+
+If the same phrase appears at multiple levels, the highest-priority setting takes precedence.
+
+### Transcript corrections
+
+Fix common ASR misinterpretations using string matching and [regex](https://en.wikipedia.org/wiki/Regular_expression) patterns. Unlike keyphrases, transcript corrections run *after* the ASR model has produced a transcript – they replace text in the output rather than influencing what the model hears.
+
+<Warning>
+Transcript corrections can match broadly and introduce errors if the pattern is too wide. A correction like `blue star` → `BlueStar` could also fire on legitimate uses of "blue star" in other contexts. Use specific regex patterns and test corrections against a range of real transcripts before deploying.
+</Warning>
+
+#### Configuring transcript corrections
+
+1. Open the **Transcript corrections** section on the Speech tab.
+2. Click **Correction** to create a new rule.
+3. Give the correction a **name** (must be unique) and optional **description**.
+4. Add one or more regex rules within the correction:
+   - **Replacement type**: **Full transcript** (replaces the entire transcript if matched exactly) or **Partial transcript** (replaces only the matching portion).
+   - **Regex**: the regular expression to match the misinterpreted phrase.
+   - **Replacement**: the correct term or phrase (leave empty to delete the matched text).
+5. Changes auto-save as you edit.
+
+You can group multiple related regex rules under a single correction. For example, create a correction called "Brand names" containing rules for each brand your agent handles.
+
+#### Example configurations
+
+| Regex | Replacement | Type | Use case |
+|-------|-------------|------|----------|
+| `\bI\s?C\s?U\b` | `I see you` | Partial transcript | Medical abbreviation being misheard |
+| `\b(blue star\|bluestar)\b` | `BlueStar` | Partial transcript | Brand name correction |
+| `\bDr\.?\s?Amari\b` | `Dr. Amari` | Partial transcript | Proper noun / doctor name |
+| `\bfull fund is cash\b` | `full fund as cash` | Partial transcript | Financial term correction |
+
+#### Verifying corrections are applied
+
+1. Open a conversation in [Conversation Review](/analytics/conversations/review).
+2. Enable the **Transcript corrections** layer in [Conversation Diagnosis](/analytics/conversations/diagnosis).
+3. Check each turn to see whether your correction was triggered.
+
+If a correction is not firing as expected, compare the raw ASR transcript against your regex pattern. Common issues include unexpected whitespace, casing differences, or partial word boundaries.
+
+### Pronunciation
+
+Control how your agent pronounces specific terms using the [International Phonetic Alphabet (IPA)](https://pronunciationstudio.com/english-ipa-chart/) or SSML tags. Useful for brand names, proper nouns, and domain-specific vocabulary that TTS engines frequently mispronounce.
+
+<Info>
+Pronunciation rules apply to **voice agents only**. For text-channel agents, this section can be skipped.
+</Info>
+
+#### How it works
+
+Pronunciation rules use regex patterns to match text in the agent's response and replace it with IPA notation or SSML markup before it reaches the TTS engine. You can also use SSML such as `<break>`, `<prosody>`, and `<emphasis>` in the replacement string.
+
+#### Multilingual pronunciation rules
+
+For multilingual agents, pronunciation rules are organized by language. Each language has its own set of rules displayed as separate collapsible cards. Rules within a language card only apply to responses in that language.
+
+To add a rule for a specific language:
+1. Expand the language card.
+2. Add the regex pattern and replacement.
+3. The rule automatically scopes to that language.
+
+Rules with no language specified apply globally across all languages.
+
+#### Rule evaluation order
+
+Pronunciation rules are evaluated **from top to bottom**. Each rule runs on the text produced by the rule above it. Because rules are applied sequentially, later rules can modify or override earlier transformations.
+
+![Rule evaluation order](/images/response-control/response-order.png)
+
+#### Common pronunciation patterns
+
+![Pronunciation rules showing regex patterns for phone numbers, zip codes, and URLs](/images/response-control/regex-pronunciation-examples.png)
+
+<AccordionGroup>
+  <Accordion title="Simple text replacement">
+    Replace a specific string with a spoken equivalent.
+
+    - **Regex:** `3\-5`
+    - **Replacement:** `three to five`
+  </Accordion>
+  <Accordion title="Read a phone number digit by digit">
+    - **Regex:** `\b(\d)(\d)(\d)-(\d)(\d)(\d)-(\d)(\d)(\d)(\d)\b`
+    - **Replacement:** `\1 \2 \3, \4 \5 \6, \7 \8 \9 \10`
+
+    Produces "six five one, three five nine, two nine two three" for `651-359-2923`.
+  </Accordion>
+  <Accordion title="Read a zip code digit by digit">
+    - **Regex:** `\b(\d)(\d)(\d)(\d)(\d)\b`
+    - **Replacement:** `\1, \2, \3, \4, \5`
+  </Accordion>
+  <Accordion title="Make a URL speakable">
+    - **Regex:** `www\.`
+    - **Replacement:** `W, W, W, dot`
+  </Accordion>
+  <Accordion title="SSML pauses in phone numbers">
+    - **Regex:** `\(?(\d{3})\)?[ -]?(\d{3})[ -]?(\d{4})`
+    - **Replacement:** `\1 <break time="0.5s" /> \2 <break time="0.5s" /> \3`
+
+    Handles multiple formats — `(651) 359-2923`, `651-359-2923`, or `6513592923` — and inserts half-second pauses. See [SSML breaks](https://cloud.google.com/text-to-speech/docs/ssml#break) for more timing options.
+  </Accordion>
+  <Accordion title="IPA correction">
+    - **Regex:** `\bLouvre\b`
+    - **Replacement:** `/ˈluːvrə/`
+    - **Case sensitive:** `FALSE`
+  </Accordion>
+</AccordionGroup>
+
+![Example pronunciation rules](/images/response-control/tts-pronunciation.png)
+
+### Stop keywords
+
+When a response matches a stop keyword pattern, the system halts the response and logs the occurrence. Use stop keywords to catch sensitive content, remove unnecessary preambles, or enforce brand adherence.
+
+#### Stop keyword fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| **Title** | String | Unique name for the stop keyword rule (max 100 characters) |
+| **Description** | String | Optional note clarifying the keyword's purpose |
+| **Regular Expression** | String | One or more regex patterns that identify phrases to control |
+| **Say Phrases** | Boolean | `TRUE` – the agent speaks the text up to the matched phrase, then stops. `FALSE` – the agent is interrupted before speaking the phrase. |
+| **Language** | String | Which language this rule applies to. Defaults to "All languages". Only visible for multilingual agents. |
+| **Function** | Reference | Optional – a [function](/tools/introduction) to call when the phrase is detected |
+
+<Warning>
+When a function is triggered by a stop keyword, **caller input and LLM parameters are not passed** to the function. The function runs without conversation context, so it should return a static response or handle the absence of context gracefully.
+</Warning>
+
+#### Creating a stop keyword
+
+<Tabs>
+<Tab title="1. Create a function">
+![Creating a stop keyword function](/images/response-control/stop-keywords-function.png)
+
+Go to **[Tools](/tools/introduction)** to define a custom function for handling stop keywords.
+
+**Example setup**:
+- **Name**: restricted_phrase
+- **Description**: Respond when stop keywords are detected.
+- **Function definition**:
+
+```python
+def restricted_phrase(conv: Conversation):
+    return "I can only help with questions about our products and services."
+```
+
+</Tab>
+
+<Tab title="2. Configure the keyword">
+![Stop keyword configuration](/images/response-control/stop-keywords-response-control.png)
+
+In **Voice > Advanced settings > Speech**, add a new stop keyword.
+
+**Setup details**:
+- **ID**: restricted_phrase
+- **Description**: Restrict responses containing specific phrases.
+- **Regular Expression**: `\brestricted_term\b`
+- **Say Phrases**: `TRUE` (to halt responses when detected).
+- **Action**: Link to the `restricted_phrase` function.
+
+</Tab>
+
+<Tab title="3. Test">
+![Testing stop keyword](/images/response-control/stop-keywords-test.png)
+
+Go to the **Webchat** testing panel to validate your setup.
+
+**Steps**:
+1. Type a message containing the word "Ashmolean."
+2. Observe the agent's response: "The detected phrase is restricted. Please adjust your input."
+3. Confirm that the agent halts any further response generation.
+
+</Tab>
+</Tabs>
+
+#### Common use cases
+
+<AccordionGroup>
+  <Accordion title="Safety compliance" icon="shield-halved">
+    Prevent offensive or harmful language in user interactions.
+
+    | Field | Value |
+    |-------|-------|
+    | **ID** | `stop_inappropriate` |
+    | **Regex** | `\b(offensiveWord1\|offensiveWord2)\b` |
+    | **Say Phrases** | `TRUE` |
+  </Accordion>
+
+  <Accordion title="Remove LLM preambles" icon="scissors">
+    LLMs often add unnecessary meta-explanations before executing an action. Stop keywords cut these off instantly.
+
+    **Before:** "Let's start by gathering some information. Please hold on while I check your cancellation options. Here are your cancellation options."
+
+    **After:** "Here are your cancellation options."
+
+    Add a stop keyword in **Voice > Advanced settings > Speech**:
+
+    | Field | Value |
+    |-------|-------|
+    | **ID** | `flow_redundancy_cutoff` |
+    | **Regex** | `\b(let's start\|please hold on\|let me check)\b` |
+    | **Say Phrases** | `TRUE` |
+  </Accordion>
+
+  <Accordion title="Brand adherence" icon="badge-check">
+    Block responses with phrases outside approved messaging. Log matches for review in the [Analytics Dashboard](/analytics/dashboards/introduction).
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+  Use regex for complex patterns. See [regex101.com](https://regex101.com/) for a testing tool.
+</Tip>
+
+---
+
+## Diacritics
+
+If your agent operates in a language that uses [diacritics](https://www.sussex.ac.uk/informatics/punctuation/misc/diacritics) – such as **č, ć, š, ž, đ** – additional configuration is required before keyphrases and transcript corrections will work correctly.
+
+<Warning>
+Diacritics and multilingual ASR configuration cannot be self-served. **Contact your PolyAI representative before making changes** – they will configure the correct ASR language model, language codes, and any necessary preprocessing for your target language.
+</Warning>
+
+Transcript corrections can help with minor post-processing (e.g. fixing `Zeljko` → `Željko`) once the correct ASR model is in place, but they are not a substitute for proper language configuration.
 
 ## Environment behavior
 
-Voice configuration follows the same [branching behavior](/environments-and-versions/introduction) as other channel settings:
+Advanced voice settings follow the same [branching behavior](/environments-and-versions/introduction) as other channel settings:
 
 - Make changes in **Sandbox** for testing
 - Promote to **Pre-release** for UAT
@@ -96,15 +469,21 @@ Voice configuration follows the same [branching behavior](/environments-and-vers
 
 ## Related pages
 
-<CardGroup cols={2}>
-  <Card title="Agent Voice" icon="user" href="/voice-channel/agent">
-    Configure voice selection and settings
+<CardGroup cols={3}>
+  <Card title="Voice settings" icon="user" href="/voice-channel/agent">
+    Configure voice selection, greeting, and disclaimer
   </Card>
-  <Card title="Audio management" icon="volume-high" href="/voice-channel/audio-library">
-    Optimize latency and manage cached audio
+  <Card title="Audio library" icon="volume-high" href="/voice-channel/audio-library">
+    Manage cached audio files
   </Card>
-  <Card title="Response control" icon="shield-halved" href="/voice-channel/advanced/response-control">
-    Control response timing and behavior
+  <Card title="ASR biasing in flows" icon="diagram-project" href="/flows/asr-biasing">
+    Configure per-step biasing for structured input collection
+  </Card>
+  <Card title="CSAT surveys" icon="star" href="/analytics/csat/introduction">
+    Full CSAT configuration, scoring, and dashboard integration
+  </Card>
+  <Card title="Safety filters" icon="shield-halved" href="/behavior/guardrails/safety-filters">
+    Project-wide safety filter reference
   </Card>
   <Card title="Chat configuration" icon="message" href="/messaging-channel/advanced/chat-configuration">
     Configure the webchat channel equivalent
