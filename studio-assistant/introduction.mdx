@@ -1,7 +1,7 @@
 ---
 title: "Studio Assistant"
 sidebarTitle: Overview
-description: "Build, explore, and ship changes to your agent in natural language inside PolyAI Studio. Every change runs on a branch you can review before merging."
+description: "Build, test, debug, and analyze your agent in natural language from the Agent Studio home screen."
 keywords:
   - studio assistant
   - AI builder
@@ -9,44 +9,88 @@ keywords:
   - copilot
   - assistant
   - branches
+  - voice input
+  - debugging
+  - smart analyst
 ---
 
-Studio Assistant is the chat panel on the Agent Studio home screen. Describe what you want, it reads your project and proposes a plan, you approve or revise. Nothing changes until you approve. Every edit lands on a branch, not on the live agent.
+Studio Assistant is the chat panel on the Agent Studio home screen. Describe what you want — it reads your project, proposes a plan, and applies changes when you approve. Every edit lands on a branch, not on the live agent.
 
 <Note>
-**Availability (Beta).** Studio Assistant is available to **project admins** on enterprise clusters. During the Beta, non-admin members on a project can't access Studio Assistant — permissions will become more granular over time. See [Role permissions](/user-management/access-control-scope) for what each role can do. Bug reports and feedback are welcome in your usual PolyAI support channel.
+Studio Assistant is available to **all users** on a project. What you can do depends on your [role](/user-management/access-control-scope): users with edit access can build and apply changes, while read-only users can ask questions and analyze conversations.
 </Note>
 
-## How to ask
+## What you can do
 
-A few patterns produce noticeably better drafts:
+Studio Assistant groups its capabilities into four categories. The home screen surfaces prompt suggestions for each one.
 
-- **State the business rule, not just the action.** *"Add a refund flow with a 30-day window, original payment method only"* gets you a usable plan. *"Add a refund flow"* gets you something you'll need to rewrite.
-- **One unit of work per request.** One flow, one topic, one set of related changes. Easier to review and roll back.
-- **Name what to keep.** On rewrites and cleanups, call out anything that should stay. Or ask for a plan first and read it before approving.
+<CardGroup cols={2}>
+  <Card title="Build" icon="hammer">
+    Create and edit flows, topics, entities, functions, integrations, handoffs, behavior, and agent settings.
+  </Card>
+  <Card title="Test" icon="flask">
+    Generate simulation test scenarios, write and run test cases, and review results.
+  </Card>
+  <Card title="Ask" icon="circle-question">
+    Ask questions about your project config, debug production issues, and explore PolyAI concepts.
+  </Card>
+  <Card title="Analyze" icon="chart-line">
+    Investigate performance patterns, conversation trends, and caller behavior with Smart Analyst.
+  </Card>
+</CardGroup>
 
-More patterns and copy-paste examples in the [prompting guide](/studio-assistant/prompting).
+### Build and edit
 
-## What it can change
+Studio Assistant operates on the same building blocks you'd edit by hand. For any of these, it can read your current config, propose changes, and write them to a branch.
 
-Studio Assistant operates on the same building blocks you'd edit by hand: flows, topics, entities, functions, integrations, handoffs, and agent settings. For any of these, it can read your current config, propose changes, and write them to a branch.
-
-| Building block | Examples of what the assistant can do |
-|----------------|----------------------------------------|
+| Building block | Examples |
+|----------------|----------|
 | **Flows** | Create new flows; restructure steps, transitions, and conditions; rewrite step prompts |
-| **Topics** | Create knowledge-base topics from a description; update wording or scope |
+| **Topics** | Create knowledge-base topics from a description or a URL; update wording or scope |
 | **Entities** | Define entities and their values; update entity definitions used by flows |
 | **Functions** | Wire flows to existing functions; describe and create new function specs |
 | **Integrations** | Configure integrations and connect them to flows |
 | **Handoffs** | Add transfer-to-human steps with the right conditions and metadata |
 | **Behavior** | Set or update purpose, role, and personality |
-| **Simulation tests** | Author, run, and maintain [test cases](/simulation-testing/introduction) for flows and topics; keep coverage in step as the agent changes |
 
-Studio Assistant is **channel-aware**: on chat projects it pulls in chat-specific guidance (message length, formatting, async turn-taking) when planning and writing prompts; on voice projects it stays voice-first. The plan-and-approve workflow is identical across channels.
+The **Agent wizard** (under Build templates) bootstraps a brand-new agent from a single company URL — it scrapes the site, creates topics, sets up behavior, and gives you a working draft in minutes.
 
-Heavy requests are broken down into smaller reasoning steps internally. You do not manage these directly; they appear inline in the conversation log.
+Studio Assistant is **channel-aware**: on chat projects it pulls in chat-specific guidance (message length, formatting, async turn-taking); on voice projects it stays voice-first. The plan-and-approve workflow is identical across channels.
 
-## Modes
+### Test
+
+Studio Assistant can author, run, and manage [simulation tests](/testing/simulation-tests) directly from chat. Ask it to generate test scenarios for a flow, and the cases land in the **Simulation tests** workspace alongside anything you've saved by hand. It updates test cases as the underlying flows and topics change.
+
+- *"Add simulation tests for the refund flow, including the 30-day cutoff."*
+- *"Cover the booking flow with tests for valid, fully booked, and out-of-hours requests."*
+- *"Run the existing simulation tests against the current draft and summarize any regressions."*
+
+### Ask and debug
+
+Beyond answering questions about your project ("what does this flow do?", "which functions reference account_lookup?"), Studio Assistant can debug production conversations. Give it a conversation ID or describe a caller issue, and it walks through:
+
+- Step-by-step timings for each turn
+- Latency breakdown and model behavior
+- Tool calls and their responses
+- Where and why calls dropped or handed off
+
+This is the fastest way to investigate a single problematic call without digging through logs manually.
+
+### Analyze
+
+The **Analyze** category is powered by [Smart Analyst](/smart-analyst/introduction). Ask natural-language questions about your agent's conversations — *"What's causing handoffs?"*, *"How did my agent perform this week?"* — and get answers backed by transcript sampling of up to 500 conversations. Charts and visualizations are generated inline.
+
+You can also launch Smart Analyst from the **Home** dashboard by clicking **Generate insights** or **Create analysis** on any chart.
+
+## Voice input
+
+You can speak to Studio Assistant instead of typing. Click the microphone icon next to the message input to dictate your request. This is useful for longer prompts or when you want to describe a flow in natural language without typing it out.
+
+## How changes work
+
+### Plan and approve
+
+When you ask for a change, Studio Assistant proposes a plan. **Nothing is written until you approve.** You can expand the plan to see the full breakdown, provide feedback to revise it, or reject it entirely.
 
 | Mode | What it does | When to use it |
 |---|---|---|
@@ -54,19 +98,28 @@ Heavy requests are broken down into smaller reasoning steps internally. You do n
 | **Plan** | Plans a change but doesn't apply it. | Comparing approaches before committing. |
 | **Ask** | Read-only questions about your project. | *"What does this flow do?"*, *"Why did containment drop yesterday?"* |
 
-## What to expect
+### Branches
 
-Studio Assistant edits the branch you're on. It doesn't publish or promote between [environments](/environments-and-versions/introduction); merging and promotion stay manual.
+The first time you ask for a change, Studio Assistant creates a branch automatically and names it after the request. `Main` stays untouched. When you're ready, merge the branch back to `Main` and promote through the normal [Sandbox → Live](/environments-and-versions/introduction) pipeline.
 
-Business knowledge comes from you. The assistant won't invent prices, hours, policies, or names. If those are missing from your project, the plan surfaces them as questions.
+Every applied edit produces a tracked-changes summary you can inspect, tweak, or revert before merging.
 
-Every change is reviewable. Each applied edit produces a tracked-changes summary you can inspect, tweak, or revert before merging back to `Main`.
+### What it won't do
+
+- **Invent business knowledge.** Prices, hours, policies, names — if these aren't in your existing configuration or your message, the plan surfaces them as questions.
+- **Edit anything other than your draft.** It never publishes or promotes between [environments](/environments-and-versions/introduction).
+- **Access other projects.** Studio Assistant is scoped to the project you're in.
+- **Handle telephony, SMS, or handoff configuration.** These are managed through dedicated settings pages.
+
+## Availability
+
+Studio Assistant is available on all flow-based projects. It is **not available on intent-based projects**.
 
 ## Limits
 
 Studio Assistant has a fair-use limit so usage stays predictable. The size and reset cadence are managed by PolyAI on your account. Current usage shows next to the message input.
 
-When you hit the limit, the assistant pauses until the next reset. A rest card replaces the input, and manual editing in Studio still works normally.
+When you hit the limit, the assistant pauses until the next reset. Manual editing in Studio still works normally.
 
 [Usage and limits →](/studio-assistant/usage-and-limits)
 
@@ -154,19 +207,19 @@ Start a new chat when switching to unrelated work. Each chat carries its full hi
   <Card title="Prompting guide" icon="message-pen" href="/studio-assistant/prompting">
     Patterns for getting consistently good results.
   </Card>
-  <Card title="Usage and limits" icon="gauge" href="/studio-assistant/usage-and-limits">
-    Your fair-use allowance, reset cadence, and what to do when you hit it.
+  <Card title="Smart Analyst" icon="chart-line" href="/smart-analyst/introduction">
+    Analyze conversations with natural-language queries.
   </Card>
 </CardGroup>
 
 <CardGroup cols={3}>
-  <Card title="Flows" icon="diagram-project" href="/flows/introduction">
-    The building blocks the assistant uses to structure conversations.
+  <Card title="Simulation tests" icon="flask" href="/testing/simulation-tests">
+    Author and run test cases for your agent.
   </Card>
-  <Card title="FAQs" icon="book" href="/knowledge/faqs/introduction">
-    Knowledge the assistant reads from and writes to.
+  <Card title="Usage and limits" icon="gauge" href="/studio-assistant/usage-and-limits">
+    Your fair-use allowance, reset cadence, and what to do when you hit it.
   </Card>
   <Card title="Deployments" icon="layer-group" href="/environments-and-versions/introduction">
-    Promote the assistant's branches from `Main` to Live.
+    Promote branches from `Main` to Live.
   </Card>
 </CardGroup>
