@@ -7,7 +7,7 @@ description: 'Send and receive SMS messages through your PolyAI agent.'
 The SMS API lets you programmatically send SMS messages to end users and handle inbound replies through your PolyAI agent. It supports two directions:
 
 - **Outbound** — your system triggers an SMS to a user via the [Send SMS](/api-reference/sms/endpoint/send-sms) endpoint. Each request creates a new conversation session.
-- **Inbound** — users reply to an outbound SMS (or message your agent's number directly). The agent handles the conversation automatically over SMS.
+- **Inbound** — users reply to an outbound SMS (or message your agent's number directly). The agent handles the conversation automatically over SMS. No API calls are needed from your side.
 
 ## Prerequisites
 
@@ -49,14 +49,50 @@ curl -X POST https://api.<cluster>.platform.polyai.app/v1/outbound-sms \
 
 When a user sends an SMS to one of your provisioned Twilio numbers:
 
-1. **Twilio routes the message** — Twilio forwards the inbound SMS to PolyAI via the configured webhook.
-2. **Session created or resumed** — If there's an active session with that user number, the message is added to the existing conversation. Otherwise, a new session is created.
-3. **Agent responds** — The agent processes the message and replies via SMS automatically.
-4. **Conversation continues** — The user and agent exchange messages over SMS until the conversation ends or times out.
+<Steps>
+  <Step title="Twilio routes to PolyAI">
+    Twilio forwards the message to PolyAI via a pre-configured webhook. This webhook is set up automatically when you provision a number through PolyAI.
+  </Step>
+  <Step title="Session handling">
+    If there's an active conversation session with that user's number, the message is added to the existing session. Otherwise, a new session is created and the agent greets the user (or processes the message directly, depending on your agent configuration).
+  </Step>
+  <Step title="Agent responds">
+    The agent processes the message using the same conversation engine as voice and webchat, and sends a reply via SMS.
+  </Step>
+</Steps>
 
 <Note>
 Inbound SMS requires Twilio webhook configuration. This is handled automatically when you provision a number through PolyAI. No additional API calls are needed — the agent handles inbound messages through the same conversation engine used for voice and webchat.
 </Note>
+
+### Session behavior
+
+| Scenario | Behavior |
+|---|---|
+| **New user** | A new conversation session is created. The agent's start function runs with `conv.channel_type = "sms"`. |
+| **Active session exists** | The message is added to the existing conversation. The agent continues where it left off. |
+| **Previous session timed out** | A new session is created. |
+| **Reply to an outbound SMS** | The message is added to the session created by the [Send SMS](/api-reference/sms/endpoint/send-sms) endpoint. The outbound message is part of the conversation context. |
+
+### Inactivity timeout
+
+Once a conversation is engaged (at least one user reply), an inactivity timer starts:
+
+1. After **24 hours** of no messages, a warning message is sent to the user.
+2. If the user replies within **10 minutes**, the session stays open and the timer resets.
+3. If no reply, the session terminates.
+
+### Channel detection
+
+In your agent's start function, detect inbound SMS using `conv.channel_type`:
+
+```python
+def start(conv):
+    if conv.channel_type == "sms":
+        conv.state.greet_message = "Hi, you've reached [Company]. How can I help?"
+    elif conv.channel_type == "voice":
+        conv.state.greet_message = "Thanks for calling. How can I help you today?"
+```
 
 ## Agent number selection
 
