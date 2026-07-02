@@ -1,425 +1,318 @@
 ---
 title: "API quickstart"
 sidebarTitle: "Quickstart"
-description: "Get set up with the PolyAI API: list conversations, pull transcripts and audio, and wire up webhooks."
+description: "Build a PolyAI agent from the API: create it, configure its behavior and knowledge, test it in a live conversation, and ship it to production."
 keywords:
   - quickstart
   - getting started
   - first API call
   - tutorial
   - end to end
-  - integration
+  - build an agent
+  - create agent
 ---
 
-This guide walks through a typical post-call data integration: list conversations, pull a transcript with audio, and register a webhook so you don't need to poll.
+This guide builds an agent from scratch using only the API — no Agent Studio required. By the end you'll have created an agent, given it a behavior and a knowledge base topic, held a test conversation with it, and promoted it to production.
 
-For an overview of the API families, see the [API overview](/api-reference/introduction). This page focuses on the [Conversations](/api-reference/conversations/introduction) and [Webhooks](/api-reference/webhooks/introduction) APIs.
+For an overview of the API families, see the [API overview](/api-reference/introduction). This page uses the [Agents](/api-reference/agents/introduction) API to build and ship, and the [Data](/api-reference/data/introduction) API to test — the same API key and host work for both.
 
 ## What you'll build
 
-1. Authenticate and list conversations from the last 24 hours
-2. Fetch a single conversation with its turn-by-turn transcript
-3. Download the audio recording
-4. Register a webhook endpoint for real-time delivery
-
-All examples use Conversations API **v3** and the Webhooks API.
+1. Create an agent
+2. Configure its behavior and knowledge base
+3. Hold a test conversation with it
+4. Deploy it through sandbox → pre-release → live
+5. Pull the conversation data it generates
 
 ## Prerequisites
 
 <Steps>
   <Step title="Get an API key">
-    API keys aren't self-serve yet — ask your PolyAI representative for a **v3 Conversations API key** scoped to your project and region.
+    Self-serve API keys aren't available yet — ask your PolyAI representative for a **workspace-scoped API key**. The same key authenticates the Agents API (this guide's steps 1–4) and the Data API (step 3, and pulling call data in step 5).
 
-    - The same key covers the [Data](/api-reference/data/introduction), [Handoff](/api-reference/handoff/introduction), [Chat](/api-reference/chat/introduction), and other runtime APIs on the `platform.polyai.app` host.
-    - The [Agents](/api-reference/agents/introduction), [Alerts](/api-reference/alerts/introduction), and [Webhooks](/api-reference/webhooks/introduction) APIs need a separate workspace-scoped key — email [developers@poly.ai](mailto:developers@poly.ai).
+    - The [Chat](/api-reference/chat/introduction) and [Conversations v3](/api-reference/conversations/introduction) APIs need a separate, project-scoped key and, for Chat, a connector token — request those only once you're integrating a real channel (webchat, SMS, telephony). You don't need them for this guide.
 
     Treat the key like a password. Don't commit it or put it in client-side code.
   </Step>
 
-  <Step title="Find your account ID and project ID">
-    Open Agent Studio. Your IDs are in the URL:
+  <Step title="Find your account ID">
+    Open Agent Studio. Your account ID is the first path segment in the URL:
 
     ```
     https://studio.{region}.poly.ai/{account_id}/{project_id}/agent
     ```
 
-    For example, `https://studio.uk.poly.ai/acme-uk/acme-team-4/agent` → `account_id=acme-uk`, `project_id=acme-team-4`. Both slug and prefixed forms (`ws-xxxxxxxx`, `PROJECT-xxxxxxxx`) work in API paths. The workspace prefix is `ws-`, not `ACCOUNT-`.
+    For example, `https://studio.uk.poly.ai/acme-uk/acme-team-4/agent` → `account_id=acme-uk`.
+
+    <Note>
+    **"Account ID" and "Workspace ID" are the same thing.** Agent Studio's UI calls this the **Workspace ID** and shows it in a prefixed form (`ws-xxxxxxxx`). The API parameter is named `accountId` (Agents and Data APIs) or `account_id` (Conversations, Chat, Webhooks, and most other APIs) — same value, different casing convention depending on which API family you're calling. Both the slug form from the URL (`acme-uk`) and the prefixed form (`ws-xxxxxxxx`) work in API calls.
+    </Note>
   </Step>
 
   <Step title="Pick the right base URL">
-    Runtime and data APIs use regional hosts under `platform.polyai.app`:
+    The Agents and Data APIs — everything in steps 1–4 of this guide — share one regional host family:
 
-    | Region | Base URL                                  |
-    | ------ | ----------------------------------------- |
-    | US     | `https://api.us-1.platform.polyai.app`    |
-    | UK     | `https://api.uk-1.platform.polyai.app`    |
-    | EUW    | `https://api.euw-1.platform.polyai.app`   |
+    | Region | Base URL                     |
+    | ------ | ----------------------------- |
+    | US     | `https://api.us.poly.ai`      |
+    | UK     | `https://api.uk.poly.ai`      |
+    | EU     | `https://api.eu.poly.ai`      |
+    | Studio | `https://api.studio.poly.ai`  |
 
     <Warning>
-    The Webhooks API uses a different host (`api.{region}.poly.ai` — no `-1` suffix). Mixing these up is the most common cause of 404s. See [base URLs](/api-reference/introduction#base-urls) for the full table.
+    The Conversations v3 API (used in step 5) is on a *different* host — `api.{region}-1.platform.polyai.app`, with a `-1` suffix. Mixing these up is the most common cause of `404`s. See [base URLs](/api-reference/introduction#base-urls) for the full table across every API family.
     </Warning>
   </Step>
 
   <Step title="Set environment variables">
-    Export your key and IDs so they stay out of source control:
-
     ```bash
     export POLYAI_API_KEY="your_api_key_here"
-    export POLYAI_BASE_URL="https://api.us-1.platform.polyai.app"
+    export POLYAI_BASE_URL="https://api.us.poly.ai"
     export POLYAI_ACCOUNT_ID="ws-xxxxxxxx"
-    export POLYAI_PROJECT_ID="PROJECT-xxxxxxxx"
     ```
 
     All examples below assume these are set.
   </Step>
 </Steps>
 
-## Step 1: Make your first call
-
-Verify your credentials by listing a single conversation from the last 24 hours:
+## Step 1: Create an agent
 
 <CodeGroup>
 
 ```bash curl
-START=$(date -u -d "24 hours ago" +"%Y-%m-%dT%H:%M:%SZ")
-END=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-curl -X GET \
-  "$POLYAI_BASE_URL/v3/$POLYAI_ACCOUNT_ID/$POLYAI_PROJECT_ID/conversations?start_time=$START&end_time=$END&limit=1" \
-  -H "x-api-key: $POLYAI_API_KEY"
-```
-
-```python Python
-import os
-from datetime import datetime, timedelta, timezone
-import requests
-
-base_url = os.environ["POLYAI_BASE_URL"]
-account_id = os.environ["POLYAI_ACCOUNT_ID"]
-project_id = os.environ["POLYAI_PROJECT_ID"]
-headers = {"x-api-key": os.environ["POLYAI_API_KEY"]}
-
-end = datetime.now(timezone.utc)
-start = end - timedelta(hours=24)
-
-response = requests.get(
-    f"{base_url}/v3/{account_id}/{project_id}/conversations",
-    headers=headers,
-    params={
-        "start_time": start.isoformat().replace("+00:00", "Z"),
-        "end_time": end.isoformat().replace("+00:00", "Z"),
-        "limit": 1,
-    },
-)
-response.raise_for_status()
-print(response.json())
-```
-
-```typescript TypeScript
-const baseUrl = process.env.POLYAI_BASE_URL!;
-const accountId = process.env.POLYAI_ACCOUNT_ID!;
-const projectId = process.env.POLYAI_PROJECT_ID!;
-const headers = { "x-api-key": process.env.POLYAI_API_KEY! };
-
-const end = new Date();
-const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
-
-const params = new URLSearchParams({
-  start_time: start.toISOString(),
-  end_time: end.toISOString(),
-  limit: "1",
-});
-
-const res = await fetch(
-  `${baseUrl}/v3/${accountId}/${projectId}/conversations?${params}`,
-  { headers },
-);
-if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-console.log(await res.json());
-```
-
-</CodeGroup>
-
-You should get back a JSON object with a `conversations` array and a `cursor` field. `401` means a bad key; `404` usually means wrong base URL or IDs — see [troubleshooting](#troubleshooting).
-
-<Tip>
-No conversations? Place a test call against your sandbox agent ([Quickstart > Test your agent](/get-started/quickstart)) and retry.
-</Tip>
-
-## Step 2: Paginate through results
-
-For real workloads, bump `limit` and page with the opaque `cursor`. Cursors are stable — safe to iterate while new conversations are still coming in.
-
-<CodeGroup>
-
-```python Python
-def iter_conversations(start, end, page_size=200):
-    cursor = None
-    while True:
-        params = {
-            "start_time": start,
-            "end_time": end,
-            "limit": page_size,
-            "client_env": "live",
-        }
-        if cursor:
-            params["cursor"] = cursor
-
-        page = requests.get(
-            f"{base_url}/v3/{account_id}/{project_id}/conversations",
-            headers=headers,
-            params=params,
-        )
-        page.raise_for_status()
-        body = page.json()
-
-        for conv in body["conversations"]:
-            yield conv
-
-        cursor = body.get("cursor")
-        if not cursor:
-            return
-
-for conv in iter_conversations(start.isoformat(), end.isoformat()):
-    print(conv["id"], conv["num_turns"], conv["total_duration"])
-```
-
-```typescript TypeScript
-async function* iterConversations(startIso: string, endIso: string, pageSize = 200) {
-  let cursor: string | null = null;
-  do {
-    const params = new URLSearchParams({
-      start_time: startIso,
-      end_time: endIso,
-      limit: String(pageSize),
-      client_env: "live",
-    });
-    if (cursor) params.set("cursor", cursor);
-
-    const res = await fetch(
-      `${baseUrl}/v3/${accountId}/${projectId}/conversations?${params}`,
-      { headers },
-    );
-    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-    const body = await res.json();
-
-    for (const conv of body.conversations) yield conv;
-    cursor = body.cursor;
-  } while (cursor);
-}
-
-for await (const conv of iterConversations(start.toISOString(), end.toISOString())) {
-  console.log(conv.id, conv.num_turns, conv.total_duration);
-}
-```
-
-</CodeGroup>
-
-<Tip>
-`client_env` defaults to `live` (production). Use `sandbox` for test calls or `pre-release` for staging. Getting an empty result set? Check you're querying the right environment.
-</Tip>
-
-## Step 3: Fetch a conversation with its transcript
-
-To get a single conversation in full detail, use the by-ID endpoint:
-
-<CodeGroup>
-
-```bash curl
-curl -X GET \
-  "$POLYAI_BASE_URL/v3/$POLYAI_ACCOUNT_ID/$POLYAI_PROJECT_ID/conversations/CONVERSATION_ID" \
-  -H "x-api-key: $POLYAI_API_KEY"
-```
-
-```python Python
-conv_id = "your_conversation_id"
-res = requests.get(
-    f"{base_url}/v3/{account_id}/{project_id}/conversations/{conv_id}",
-    headers=headers,
-)
-res.raise_for_status()
-conv = res.json()
-
-for turn in conv["turns"]:
-    speaker = "USER " if turn["user_input"] else "AGENT"
-    text = turn["user_input"] or turn["agent_response"]
-    print(f"{turn['user_input_datetime']}  {speaker}  {text}")
-```
-
-```typescript TypeScript
-const convId = "your_conversation_id";
-const convRes = await fetch(
-  `${baseUrl}/v3/${accountId}/${projectId}/conversations/${convId}`,
-  { headers },
-);
-const conv = await convRes.json();
-
-for (const turn of conv.turns) {
-  const speaker = turn.user_input ? "USER " : "AGENT";
-  const text = turn.user_input || turn.agent_response;
-  console.log(`${turn.user_input_datetime}  ${speaker}  ${text}`);
-}
-```
-
-</CodeGroup>
-
-See the [conversation object reference](/api-reference/conversations/introduction#response-structure) for all available fields (latency, intents, entities, handoff metadata, etc.).
-
-<Warning>
-`num_turns > 0` but `turns` is empty? Transcript visibility is off at the project level. Enable **Conversation transcript** under **API Keys > Configuration** in Agent Studio. See [transcript visibility](/api-reference/conversations/introduction#transcript-visibility).
-</Warning>
-
-## Step 4: Download the audio recording
-
-Voice calls have a recording available on a separate endpoint. The response is a binary stream:
-
-<CodeGroup>
-
-```bash curl
-curl -X GET \
-  "$POLYAI_BASE_URL/v3/$POLYAI_ACCOUNT_ID/$POLYAI_PROJECT_ID/conversations/CONVERSATION_ID/audio" \
-  -H "x-api-key: $POLYAI_API_KEY" \
-  --output conversation.wav
-```
-
-```python Python
-res = requests.get(
-    f"{base_url}/v3/{account_id}/{project_id}/conversations/{conv_id}/audio",
-    headers=headers,
-    stream=True,
-)
-res.raise_for_status()
-
-with open(f"{conv_id}.wav", "wb") as f:
-    for chunk in res.iter_content(chunk_size=1 << 14):
-        f.write(chunk)
-```
-
-```typescript TypeScript
-const audioRes = await fetch(
-  `${baseUrl}/v3/${accountId}/${projectId}/conversations/${convId}/audio`,
-  { headers },
-);
-if (!audioRes.ok) throw new Error(`${audioRes.status}`);
-
-import { writeFile } from "node:fs/promises";
-const buf = Buffer.from(await audioRes.arrayBuffer());
-await writeFile(`${convId}.wav`, buf);
-```
-
-</CodeGroup>
-
-Only voice channels (`VOICE-SIP`) have recordings. Chat conversations (`WEBCHAT`, `CHAT`) return `404` — filter on `channel` before calling.
-
-## Step 5: Subscribe to webhooks
-
-Instead of polling, register a webhook and PolyAI will POST to your endpoint when a call ends, an alert fires, or a handoff occurs.
-
-The Webhooks API uses a different host — note the base URL change:
-
-```bash
-export POLYAI_PLATFORM_URL="https://api.us.poly.ai"  # not us-1
-```
-
-### Register an endpoint
-
-<CodeGroup>
-
-```bash curl
-curl -X POST "$POLYAI_PLATFORM_URL/v1/webhooks/endpoints" \
+curl -X POST "$POLYAI_BASE_URL/v1/accounts/$POLYAI_ACCOUNT_ID/agents" \
   -H "x-api-key: $POLYAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://your-service.example.com/polyai-events",
-    "description": "Post-call ingestion",
-    "events": ["conversation.completed", "handoff.created"]
+    "name": "Support Agent",
+    "responseSettings": {
+      "greeting": "Hi, thanks for calling Acme Corp. How can I help?"
+    }
   }'
 ```
 
 ```python Python
-res = requests.post(
-    f"{os.environ['POLYAI_PLATFORM_URL']}/v1/webhooks/endpoints",
-    headers={**headers, "Content-Type": "application/json"},
+import os
+import requests
+
+base_url = os.environ["POLYAI_BASE_URL"]
+account_id = os.environ["POLYAI_ACCOUNT_ID"]
+headers = {"x-api-key": os.environ["POLYAI_API_KEY"]}
+
+response = requests.post(
+    f"{base_url}/v1/accounts/{account_id}/agents",
+    headers=headers,
     json={
-        "url": "https://your-service.example.com/polyai-events",
-        "description": "Post-call ingestion",
-        "events": ["conversation.completed", "handoff.created"],
+        "name": "Support Agent",
+        "responseSettings": {
+            "greeting": "Hi, thanks for calling Acme Corp. How can I help?",
+        },
     },
 )
-res.raise_for_status()
-endpoint = res.json()
-print(endpoint["id"], endpoint["signing_secret"])
+response.raise_for_status()
+agent = response.json()
+print(agent["agentId"])
 ```
 
 </CodeGroup>
 
-Store the `signing_secret` — you'll need it to verify incoming requests.
+**Response**
 
-### Verify the signature
-
-Every delivery is signed with HMAC-SHA256 via the `X-PolyAI-Signature` header. Always verify before processing:
-
-```python Python
-import hashlib
-import hmac
-from flask import Flask, request, abort
-
-app = Flask(__name__)
-SIGNING_SECRET = os.environ["POLYAI_WEBHOOK_SECRET"].encode()
-
-@app.post("/polyai-events")
-def handle():
-    body = request.get_data()
-    sig = request.headers.get("X-PolyAI-Signature", "")
-
-    expected = hmac.new(SIGNING_SECRET, body, hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(sig, expected):
-        abort(401)
-
-    event = request.get_json()
-    if event["type"] == "conversation.completed":
-        process_conversation(event["data"]["conversation_id"])
-    return "", 204
+```json
+{
+  "accountId": "ws-xxxxxxxx",
+  "agentId": "PROJECT-58RP822I",
+  "agentName": "Support Agent",
+  "createdAt": "2026-07-02T10:00:00.000Z",
+  "updatedAt": "2026-07-02T10:00:00.000Z",
+  "branchCount": 1
+}
 ```
 
-Return `2xx` within 5 seconds. Non-2xx responses trigger retries with exponential backoff, so keep the handler thin and push work to a queue. See the [Webhooks API reference](/api-reference/webhooks/introduction) for the full event catalog and retry semantics.
+Save `agentId` — every remaining call in this guide uses it. The agent starts with one branch, `main`.
 
-## Step 6: Go live
-
-Once you've tested against sandbox, switch to production traffic:
-
-```python
-params["client_env"] = "live"  # was "sandbox" or "pre-release"
+```bash
+export POLYAI_AGENT_ID="PROJECT-58RP822I"  # use the agentId from your response
 ```
 
-Webhook endpoints fire for all environments by default. To limit to production events, filter on `data.environment == "live"` in your handler or register separate endpoints per environment.
+## Step 2: Configure it
+
+### Set the behavior
+
+The behavior is the system prompt that governs how the agent responds.
+
+```bash curl
+curl -X PATCH "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/branches/main/behavior" \
+  -H "x-api-key: $POLYAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "behavior": "You are a friendly, concise support agent for Acme Corp. Answer questions using the knowledge base. If you cannot help, offer to hand off to a human agent."
+  }'
+```
+
+### Add a knowledge base topic
+
+Topics are what the agent draws on to answer questions — each one pairs content with example queries that should trigger it.
+
+```bash curl
+curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/branches/main/knowledge-base/topics" \
+  -H "x-api-key: $POLYAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Password reset",
+    "content": "Users can reset their password at acme.com/reset. Resets take effect immediately and any active sessions are logged out.",
+    "exampleQueries": {
+      "queries": ["How do I reset my password?", "I forgot my password"]
+    }
+  }'
+```
+
+See [Knowledge base](/api-reference/agents/endpoint/knowledge-base/create-knowledge-base-topic) for the full schema, including `actions` and `isActive`.
+
+## Step 3: Test it
+
+Hold a test conversation using the Data API's debug chat — it authenticates with the same key and host as the Agents API, so there's no extra credential to request. Debug chat runs against the agent's current draft, which is why you can test before you've published anything.
+
+<Tip>
+Prefer a UI? Agent Studio has a built-in **Test** panel — see [Test in Sandbox](/environments-and-versions/introduction#test-in-sandbox).
+</Tip>
+
+**Start a session:**
+
+```bash curl
+curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/debug-chat" \
+  -H "x-api-key: $POLYAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "clientEnv": "sandbox" }'
+```
+
+```json
+{
+  "conversationId": "CONV-1234567890",
+  "userInput": "",
+  "response": "Hi, thanks for calling Acme Corp. How can I help?",
+  "metadata": { },
+  "conversationEnded": false,
+  "delayedResponse": false
+}
+```
+
+**Send a message** — try the knowledge base topic you just added:
+
+```bash curl
+curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/debug-chat/CONV-1234567890" \
+  -H "x-api-key: $POLYAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "clientEnv": "sandbox",
+    "message": "I forgot my password"
+  }'
+```
+
+If the response references `acme.com/reset`, the topic is wired up correctly. Keep sending messages against the same `conversationId` to continue the conversation.
+
+<Note>
+Building a real webchat, SMS, or in-app integration instead of a one-off test? Use the [Chat API](/api-reference/chat/introduction) — it's built for driving conversations from an end-user-facing client and requires its own connector token.
+</Note>
+
+## Step 4: Deploy it
+
+Once you're happy with a draft, publish it to Sandbox, then promote it through Pre-release to Live. See [Environments](/environments-and-versions/introduction) for the full model.
+
+**Publish the draft to sandbox:**
+
+```bash curl
+curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/deployments/publish" \
+  -H "x-api-key: $POLYAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "environment": "sandbox",
+    "deploymentMessage": "Initial support agent"
+  }'
+```
+
+The response's `deployment.id` identifies this deployment — save it as `$DEPLOYMENT_ID`.
+
+**Promote to pre-release, then live:**
+
+```bash curl
+# sandbox -> pre-release
+curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/deployments/$DEPLOYMENT_ID/promote" \
+  -H "x-api-key: $POLYAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "targetEnvironment": "pre-release" }'
+
+# pre-release -> live (use the deployment.id returned above)
+curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/deployments/$PRE_RELEASE_DEPLOYMENT_ID/promote" \
+  -H "x-api-key: $POLYAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "targetEnvironment": "live" }'
+```
+
+Each promote call returns a new deployment for the target environment — chain the returned `deployment.id` into the next call. `targetEnvironment` only accepts `pre-release` or `live`; you can't skip straight from sandbox to live.
+
+Made a mistake? [Roll back](/api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment) to the previous deployment in any environment.
+
+## Step 5: Work with the calls it takes
+
+Once your agent is live (or you've made test calls), pull the data back with the [Conversations API](/api-reference/conversations/introduction). This uses a different host and a project-scoped key — see [prerequisites](#prerequisites) above.
+
+<Note>
+The `project_id` this API expects is the same value as the `agentId` you've used throughout this guide — "Agent" and "Project" are the current and legacy names for the same resource.
+</Note>
+
+```bash curl
+curl -X GET \
+  "https://api.us-1.platform.polyai.app/v3/$POLYAI_ACCOUNT_ID/$POLYAI_AGENT_ID/conversations?limit=5" \
+  -H "x-api-key: $POLYAI_CONVERSATIONS_API_KEY"
+```
+
+This returns a `conversations` array and a `cursor` for pagination. Fetch one by ID to get its full turn-by-turn transcript:
+
+```bash curl
+curl -X GET \
+  "https://api.us-1.platform.polyai.app/v3/$POLYAI_ACCOUNT_ID/$POLYAI_AGENT_ID/conversations/CONVERSATION_ID" \
+  -H "x-api-key: $POLYAI_CONVERSATIONS_API_KEY"
+```
+
+From here:
+
+<CardGroup cols={2}>
+  <Card title="Download call audio" icon="waveform-lines" href="/api-reference/conversations/introduction">
+    Voice calls have a recording available on a separate binary endpoint.
+  </Card>
+  <Card title="Subscribe to webhooks" icon="webhook" href="/api-reference/webhooks/introduction">
+    Get a signed POST when a call completes instead of polling for it.
+  </Card>
+</CardGroup>
 
 ## Troubleshooting
 
 | Symptom                                        | Likely cause                                                                              | Fix                                                                                                  |
-| ---------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `401 Unauthorized`                             | Missing or wrong `x-api-key`, or key revoked.                                             | Check the env var; confirm with PolyAI the key is active.                                            |
-| `403 Forbidden`                                | Key lacks permission for this project.                                                    | Confirm the key was provisioned for the project ID in the URL.                                       |
-| `404` on conversations endpoint                | Wrong base URL — usually `api.us.poly.ai` instead of `api.us-1.platform.polyai.app`.      | Use the `platform.polyai.app` host with the `-1` suffix for runtime/data APIs.                       |
-| `404` on webhooks endpoint                     | You hit the runtime host. Webhooks use `api.{region}.poly.ai`.                            | Use `api.us.poly.ai` (no `-1`) for Agents, Alerts, and Webhooks.                                    |
-| Empty `conversations` array                    | No calls in the time window, or wrong `client_env`.                                       | Place a test call, widen the window, or try `client_env=sandbox`.                                    |
-| `turns` empty but `num_turns > 0`              | Transcript visibility disabled.                                                           | Enable **Conversation transcript** under **API Keys > Configuration** in Agent Studio.               |
-| `429 Too Many Requests`                        | Rate limit hit.                                                                           | Back off per the `Retry-After` header; use cursor pagination for large pulls.                        |
-| Webhook never fires                            | Endpoint inactive, or signature verification rejecting valid payloads.                    | Curl your handler directly; log the body and computed signature; check the secret matches.            |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `401 Unauthorized`                             | Missing or wrong `x-api-key`, or a key from the wrong region.                              | Confirm the key was issued for the region in your base URL — see [region mismatches](/api-reference/data/introduction#authentication). |
+| `403 Forbidden`                                | Key lacks permission for this account or agent.                                            | Confirm the key was provisioned for the account ID / agent ID you're using.                          |
+| `400` on create agent                          | Missing `responseSettings.greeting`, which is required.                                    | Include a non-empty `greeting` — it's the agent's opening line.                                       |
+| `404` on debug-chat message                    | Wrong or expired `conversationId`.                                                          | Start a new session with `POST /debug-chat` and use the returned `conversationId`.                    |
+| `404` on promote                               | Wrong `deploymentId`, or trying to promote a deployment that's already at that environment. | Use the `deployment.id` from the most recent publish/promote response, not an old one.                |
+| `400` on promote                               | `targetEnvironment` isn't `pre-release` or `live`, or you tried to skip a step.             | Promote sandbox → pre-release → live in order; no other values are accepted.                          |
+| `404` on Conversations endpoint (step 5)       | Wrong base URL — usually the build host (`api.us.poly.ai`) instead of the platform host.    | Conversations v3 uses `api.{region}-1.platform.polyai.app`, with the `-1` suffix.                     |
+| Empty `conversations` array                    | No calls yet in the time window, or wrong `client_env`.                                     | Place a test call via debug chat, widen the window, or try `client_env=sandbox`.                      |
+| `429 Too Many Requests`                        | Rate limit hit.                                                                             | Back off per the `Retry-After` header; use cursor pagination for large pulls.                          |
 
 See [Error codes](/api-reference/error-codes) for the full reference.
 
 ## Next steps
 
 <CardGroup cols={2}>
-  <Card title="API overview" icon="map" href="/api-reference/introduction">
-    API families, base URLs, and versioning.
-  </Card>
-  <Card title="Conversations API" icon="comments" href="/api-reference/conversations/introduction">
-    Full schema, pagination, and retrieval modes.
-  </Card>
   <Card title="Agents API" icon="hammer" href="/api-reference/agents/introduction">
-    Build and deploy agents programmatically.
+    Branches, telephony, real-time configs, and variants for multi-site agents.
+  </Card>
+  <Card title="Chat API" icon="comments" href="/api-reference/chat/introduction">
+    Wire a real webchat, web SDK, or SMS integration into a live conversation.
+  </Card>
+  <Card title="Conversations API" icon="database" href="/api-reference/conversations/introduction">
+    Full schema, pagination, and retrieval modes for call data.
   </Card>
   <Card title="Webhooks API" icon="bell" href="/api-reference/webhooks/introduction">
     Event types, retries, and signature verification.
