@@ -157,7 +157,13 @@ export const ErrorCodeExplorer = () => {
   }
 
   const copyCode = (code) => {
-    navigator.clipboard.writeText(code)
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).catch(() => {})
+      }
+    } catch (err) {
+      // Clipboard API unavailable or blocked -- still show feedback below, just don't copy.
+    }
     setCopied(code)
     setTimeout(() => setCopied(""), 1500)
   }
@@ -180,7 +186,7 @@ export const ErrorCodeExplorer = () => {
   })).filter((g) => g.rows.length > 0)
 
   return (
-    <div style={{ margin: "1.5rem 0" }}>
+    <div style={{ margin: "1.5rem 0", maxWidth: "100%", boxSizing: "border-box" }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center", marginBottom: "0.9rem" }}>
         <input
           type="text"
@@ -276,6 +282,8 @@ export const ErrorCodeExplorer = () => {
                       borderRadius: "10px",
                       border: "1px solid rgba(0,0,0,0.08)",
                       fontSize: "0.88rem",
+                      maxWidth: "100%",
+                      boxSizing: "border-box",
                     }}
                   >
                     <button
@@ -291,6 +299,12 @@ export const ErrorCodeExplorer = () => {
                         padding: "0.2rem 0.45rem",
                         cursor: "pointer",
                         color: "#3a6b08",
+                        maxWidth: "100%",
+                        minWidth: 0,
+                        overflowWrap: "anywhere",
+                        wordBreak: "break-word",
+                        whiteSpace: "normal",
+                        textAlign: "left",
                       }}
                     >
                       {copied === row.code ? "Copied!" : row.code}
@@ -302,11 +316,12 @@ export const ErrorCodeExplorer = () => {
                       color: c.fg,
                       fontSize: "0.78rem",
                       fontWeight: 600,
+                      flexShrink: 0,
                     }}>{row.http}</span>
                     {row.id !== "—" && (
-                      <span style={{ color: "#9ca3af", fontSize: "0.78rem" }}>ID {row.id}</span>
+                      <span style={{ color: "#9ca3af", fontSize: "0.78rem", flexShrink: 0 }}>ID {row.id}</span>
                     )}
-                    <span style={{ flexBasis: "100%", color: "#374151" }}>{renderErrorInline(row.description)}</span>
+                    <span style={{ flexBasis: "100%", minWidth: 0, overflowWrap: "anywhere", color: "#374151" }}>{renderErrorInline(row.description)}</span>
                   </div>
                 )
               })}
