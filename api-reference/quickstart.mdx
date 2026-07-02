@@ -28,9 +28,9 @@ For an overview of the API families, see the [API overview](/api-reference/intro
 
 <Steps>
   <Step title="Get an API key">
-    Self-serve API keys aren't available yet — ask your PolyAI representative for a **workspace-scoped API key**. The same key authenticates the Agents API (this guide's steps 1–4) and the Data API (step 3, and pulling call data in step 5).
+    Self-serve API keys aren't available yet — ask your PolyAI representative for a **workspace-scoped API key**. The same key authenticates the Agents API and the Data API's debug chat — everything through step 4 of this guide.
 
-    - The [Chat](/api-reference/chat/introduction) and [Conversations v3](/api-reference/conversations/introduction) APIs need a separate, project-scoped key and, for Chat, a connector token — request those only once you're integrating a real channel (webchat, SMS, telephony). You don't need them for this guide.
+    - Step 5 (pulling call data back out) uses the [Conversations v3](/api-reference/conversations/introduction) API, which needs a separate project-scoped key. The [Chat API](/api-reference/chat/introduction) needs its own connector token too. Request either only once you're integrating a real channel or data pipeline — you don't need them for steps 1–4.
 
     Treat the key like a password. Don't commit it or put it in client-side code.
   </Step>
@@ -171,10 +171,28 @@ See [Knowledge base](/api-reference/agents/endpoint/knowledge-base/create-knowle
 
 ## Step 3: Test it
 
-Hold a test conversation using the Data API's debug chat — it authenticates with the same key and host as the Agents API, so there's no extra credential to request. Debug chat runs against the agent's current draft, which is why you can test before you've published anything.
+<Note>
+**Publish before you test.** Behavior and knowledge base edits live on the draft until you publish — [changes apply to an environment only once they're promoted to it](/knowledge/faqs/RAG/introduction#why-rag). There's no way to hold a debug-chat conversation against the raw draft over the API, so publishing to Sandbox is the first move here, not an afterthought.
+</Note>
+
+**Publish the draft to Sandbox:**
+
+```bash curl
+curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/deployments/publish" \
+  -H "x-api-key: $POLYAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "environment": "sandbox",
+    "deploymentMessage": "Initial support agent"
+  }'
+```
+
+The response's `deployment.id` identifies this deployment — save it as `$DEPLOYMENT_ID`, you'll need it in the next step.
+
+Now hold a test conversation using the Data API's debug chat — it authenticates with the same key and host as the Agents API, so there's no extra credential to request.
 
 <Tip>
-Prefer a UI? Agent Studio has a built-in **Test** panel — see [Test in Sandbox](/environments-and-versions/introduction#test-in-sandbox).
+Prefer a UI? Agent Studio has a built-in **Test** panel that talks to the draft directly, no publish required — see [Test in Sandbox](/environments-and-versions/introduction#test-in-sandbox).
 </Tip>
 
 **Start a session:**
@@ -191,11 +209,13 @@ curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/debug-chat" \
   "conversationId": "CONV-1234567890",
   "userInput": "",
   "response": "Hi, thanks for calling Acme Corp. How can I help?",
-  "metadata": { },
+  "metadata": { "currentNode": "greeting", "nodeTrace": ["greeting"], "retrievedTopics": [] },
   "conversationEnded": false,
   "delayedResponse": false
 }
 ```
+
+(`metadata` has more fields than shown — trimmed here for readability.)
 
 **Send a message** — try the knowledge base topic you just added:
 
@@ -209,7 +229,7 @@ curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/debug-chat/CONV-123456
   }'
 ```
 
-If the response references `acme.com/reset`, the topic is wired up correctly. Keep sending messages against the same `conversationId` to continue the conversation.
+Check `metadata.citedTopic` (and `metadata.retrievedTopics`) in the response rather than eyeballing the reply text — it names the knowledge base topic the agent actually retrieved, which is a more reliable signal that "Password reset" is wired up than scanning for `acme.com/reset` in the wording. Keep sending messages against the same `conversationId` to continue the conversation, matching `clientEnv` to whichever environment you're checking.
 
 <Note>
 Building a real webchat, SMS, or in-app integration instead of a one-off test? Use the [Chat API](/api-reference/chat/introduction) — it's built for driving conversations from an end-user-facing client and requires its own connector token.
@@ -217,23 +237,7 @@ Building a real webchat, SMS, or in-app integration instead of a one-off test? U
 
 ## Step 4: Deploy it
 
-Once you're happy with a draft, publish it to Sandbox, then promote it through Pre-release to Live. See [Environments](/environments-and-versions/introduction) for the full model.
-
-**Publish the draft to sandbox:**
-
-```bash curl
-curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/deployments/publish" \
-  -H "x-api-key: $POLYAI_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "environment": "sandbox",
-    "deploymentMessage": "Initial support agent"
-  }'
-```
-
-The response's `deployment.id` identifies this deployment — save it as `$DEPLOYMENT_ID`.
-
-**Promote to pre-release, then live:**
+Sandbox is for testing, not customer traffic. Promote the same deployment through Pre-release and into Live — that's what real callers hit. See [Environments](/environments-and-versions/introduction) for the full model.
 
 ```bash curl
 # sandbox -> pre-release
@@ -242,14 +246,14 @@ curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/deployments/$DEPLOYMEN
   -H "Content-Type: application/json" \
   -d '{ "targetEnvironment": "pre-release" }'
 
-# pre-release -> live (use the deployment.id returned above)
+# pre-release -> live (use the deployment.id returned above, not $DEPLOYMENT_ID)
 curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/deployments/$PRE_RELEASE_DEPLOYMENT_ID/promote" \
   -H "x-api-key: $POLYAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "targetEnvironment": "live" }'
 ```
 
-Each promote call returns a new deployment for the target environment — chain the returned `deployment.id` into the next call. `targetEnvironment` only accepts `pre-release` or `live`; you can't skip straight from sandbox to live.
+Each promote call returns a new deployment for the target environment — chain the returned `deployment.id` into the next call. A sandbox deployment can promote straight to `live` too (skip the `targetEnvironment` field entirely and it defaults to the next stage in sequence: sandbox → pre-release → live) — going through pre-release first is a safety choice, not an API requirement.
 
 Made a mistake? [Roll back](/api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment) to the previous deployment in any environment.
 
@@ -293,9 +297,11 @@ From here:
 | `401 Unauthorized`                             | Missing or wrong `x-api-key`, or a key from the wrong region.                              | Confirm the key was issued for the region in your base URL — see [region mismatches](/api-reference/data/introduction#authentication). |
 | `403 Forbidden`                                | Key lacks permission for this account or agent.                                            | Confirm the key was provisioned for the account ID / agent ID you're using.                          |
 | `400` on create agent                          | Missing `responseSettings.greeting`, which is required.                                    | Include a non-empty `greeting` — it's the agent's opening line.                                       |
+| Debug chat replies with the old behavior/topic | You edited the draft but tested against an environment you haven't republished.             | Publish again — edits only take effect in an environment once you publish or promote into it.         |
 | `404` on debug-chat message                    | Wrong or expired `conversationId`.                                                          | Start a new session with `POST /debug-chat` and use the returned `conversationId`.                    |
-| `404` on promote                               | Wrong `deploymentId`, or trying to promote a deployment that's already at that environment. | Use the `deployment.id` from the most recent publish/promote response, not an old one.                |
-| `400` on promote                               | `targetEnvironment` isn't `pre-release` or `live`, or you tried to skip a step.             | Promote sandbox → pre-release → live in order; no other values are accepted.                          |
+| `409 Conflict` on publish                      | Nothing has changed since the last publish to this environment.                             | Publish is a no-op if the draft is already live there — make an edit first, or move on to promote.    |
+| `404` on promote                               | Wrong `deploymentId`.                                                                        | Use the `deployment.id` from the most recent publish/promote response, not an old one.                |
+| `400` on promote                               | `targetEnvironment` isn't a later stage than the deployment's current one.                   | Sandbox can promote to `pre-release` or `live`; pre-release can only promote to `live`.                |
 | `404` on Conversations endpoint (step 5)       | Wrong base URL — usually the build host (`api.us.poly.ai`) instead of the platform host.    | Conversations v3 uses `api.{region}-1.platform.polyai.app`, with the `-1` suffix.                     |
 | Empty `conversations` array                    | No calls yet in the time window, or wrong `client_env`.                                     | Place a test call via debug chat, widen the window, or try `client_env=sandbox`.                      |
 | `429 Too Many Requests`                        | Rate limit hit.                                                                             | Back off per the `Retry-After` header; use cursor pagination for large pulls.                          |
