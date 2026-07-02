@@ -199,6 +199,7 @@ export const ErrorCodeExplorer = () => {
         />
         {(query || activeStatuses.length > 0) && (
           <button
+            type="button"
             onClick={() => { setQuery(""); setActiveStatuses([]) }}
             style={{
               padding: "0.55rem 0.9rem",
@@ -222,6 +223,7 @@ export const ErrorCodeExplorer = () => {
           return (
             <button
               key={status}
+              type="button"
               onClick={() => toggleStatus(status)}
               style={{
                 padding: "0.25rem 0.65rem",
@@ -259,56 +261,55 @@ export const ErrorCodeExplorer = () => {
         grouped.map((group) => (
           <div key={group.category} style={{ marginBottom: "1.5rem" }}>
             <h4 style={{ fontSize: "0.95rem", margin: "0 0 0.5rem", color: "#374151" }}>{group.category}</h4>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.88rem" }}>
-                <thead>
-                  <tr style={{ textAlign: "left", borderBottom: "1px solid rgba(0,0,0,0.1)" }}>
-                    <th style={{ padding: "0.5rem 0.6rem" }}>Code</th>
-                    <th style={{ padding: "0.5rem 0.6rem" }}>ID</th>
-                    <th style={{ padding: "0.5rem 0.6rem" }}>HTTP</th>
-                    <th style={{ padding: "0.5rem 0.6rem" }}>Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {group.rows.map((row) => {
-                    const c = errorStatusColor(row.http)
-                    return (
-                      <tr key={row.code} style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-                        <td style={{ padding: "0.5rem 0.6rem", whiteSpace: "nowrap" }}>
-                          <button
-                            onClick={() => copyCode(row.code)}
-                            title="Copy error code"
-                            style={{
-                              fontFamily: "monospace",
-                              fontSize: "0.82rem",
-                              background: "rgba(74, 124, 16, 0.06)",
-                              border: "none",
-                              borderRadius: "6px",
-                              padding: "0.2rem 0.45rem",
-                              cursor: "pointer",
-                              color: "#3a6b08",
-                            }}
-                          >
-                            {copied === row.code ? "Copied!" : row.code}
-                          </button>
-                        </td>
-                        <td style={{ padding: "0.5rem 0.6rem", color: "#6b7280" }}>{row.id}</td>
-                        <td style={{ padding: "0.5rem 0.6rem" }}>
-                          <span style={{
-                            padding: "0.1rem 0.5rem",
-                            borderRadius: "999px",
-                            background: c.bg,
-                            color: c.fg,
-                            fontSize: "0.78rem",
-                            fontWeight: 600,
-                          }}>{row.http}</span>
-                        </td>
-                        <td style={{ padding: "0.5rem 0.6rem", color: "#374151" }}>{renderErrorInline(row.description)}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+              {group.rows.map((row) => {
+                const c = errorStatusColor(row.http)
+                return (
+                  <div
+                    key={row.code}
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: "0.4rem 0.6rem",
+                      padding: "0.55rem 0.7rem",
+                      borderRadius: "10px",
+                      border: "1px solid rgba(0,0,0,0.08)",
+                      fontSize: "0.88rem",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => copyCode(row.code)}
+                      title="Copy error code"
+                      style={{
+                        fontFamily: "monospace",
+                        fontSize: "0.82rem",
+                        background: "rgba(74, 124, 16, 0.06)",
+                        border: "none",
+                        borderRadius: "6px",
+                        padding: "0.2rem 0.45rem",
+                        cursor: "pointer",
+                        color: "#3a6b08",
+                      }}
+                    >
+                      {copied === row.code ? "Copied!" : row.code}
+                    </button>
+                    <span style={{
+                      padding: "0.1rem 0.5rem",
+                      borderRadius: "999px",
+                      background: c.bg,
+                      color: c.fg,
+                      fontSize: "0.78rem",
+                      fontWeight: 600,
+                    }}>{row.http}</span>
+                    {row.id !== "—" && (
+                      <span style={{ color: "#9ca3af", fontSize: "0.78rem" }}>ID {row.id}</span>
+                    )}
+                    <span style={{ flexBasis: "100%", color: "#374151" }}>{renderErrorInline(row.description)}</span>
+                  </div>
+                )
+              })}
             </div>
           </div>
         ))
