@@ -12,28 +12,43 @@ keywords:
 When a request fails, PolyAI APIs return a structured JSON error response. This page documents the HTTP status codes, error response format, and platform-specific error codes you may encounter.
 
 <div style={{
-  display: 'flex',
-  flexWrap: 'wrap',
-  justifyContent: 'center',
-  gap: '2rem',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+  gap: '1rem',
   margin: '1.5rem 0 2rem',
-  padding: '1rem 1.75rem',
-  borderRadius: '14px',
-  background: 'rgba(74, 124, 16, 0.05)',
-  border: '1px solid rgba(74, 124, 16, 0.15)',
 }}>
-  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: '#374151' }}>
-    <Icon icon="hashtag" iconType="solid" size={14} color="#4a7c10" />
-    <span><strong>63</strong> platform error codes</span>
+{[
+  { icon: 'hashtag', value: '63', label: 'Platform error codes', color: '#4a7c10', bg: 'linear-gradient(160deg, rgba(74, 124, 16, 0.07), rgba(74, 124, 16, 0.01))', border: 'rgba(74, 124, 16, 0.18)' },
+  { icon: 'folder-tree', value: '13', label: 'Categories', color: '#386dbf', bg: 'linear-gradient(160deg, rgba(56, 109, 191, 0.07), rgba(56, 109, 191, 0.01))', border: 'rgba(56, 109, 191, 0.2)' },
+  { icon: 'fingerprint', value: '1', label: 'Correlation ID per response', color: '#b45a1e', bg: 'linear-gradient(160deg, rgba(180, 90, 30, 0.08), rgba(180, 90, 30, 0.01))', border: 'rgba(180, 90, 30, 0.2)' },
+].map((s) => (
+  <div key={s.label} style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.9rem',
+    padding: '1rem 1.2rem',
+    borderRadius: '16px',
+    border: `1px solid ${s.border}`,
+    background: s.bg,
+  }}>
+    <div style={{
+      width: '44px',
+      height: '44px',
+      borderRadius: '12px',
+      background: s.color,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    }}>
+      <Icon icon={s.icon} iconType="solid" size={18} color="#fff" />
+    </div>
+    <div>
+      <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#1f2937', lineHeight: 1.15 }}>{s.value}</div>
+      <div style={{ fontSize: '0.82rem', color: '#6b7280' }}>{s.label}</div>
+    </div>
   </div>
-  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: '#374151' }}>
-    <Icon icon="folder-tree" iconType="solid" size={14} color="#4a7c10" />
-    <span><strong>13</strong> categories</span>
-  </div>
-  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: '#374151' }}>
-    <Icon icon="fingerprint" iconType="solid" size={14} color="#4a7c10" />
-    <span>Always paired with a correlation ID</span>
-  </div>
+))}
 </div>
 
 ## Error response format
@@ -64,7 +79,12 @@ All API errors return a JSON body with the following structure:
 
 These standard codes apply across all PolyAI APIs. Client errors (4xx) mean fix the request; server errors (5xx) mean retry or contact support.
 
-<div>
+<div style={{
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gap: '0.75rem',
+  margin: '1rem 0 1.5rem',
+}}>
 {[
   { status: 400, meaning: 'Bad request', when: 'The request body or query parameters failed validation.' },
   { status: 401, meaning: 'Unauthorized', when: 'Missing, expired, or invalid API key or token.' },
@@ -82,30 +102,26 @@ These standard codes apply across all PolyAI APIs. Client errors (4xx) mean fix 
   { status: 501, meaning: 'Not implemented', when: 'The requested functionality is not yet available.' },
   { status: 502, meaning: 'Bad gateway', when: 'An upstream service returned an error or timed out.' },
   { status: 503, meaning: 'Service unavailable', when: 'The service is temporarily unavailable.' },
-].map((s) => (
-  <div key={s.status} style={{
-    display: 'flex',
-    flexWrap: 'wrap',
-    alignItems: 'baseline',
-    gap: '0.4rem 0.75rem',
-    padding: '0.55rem 0',
-    borderBottom: '1px solid rgba(0,0,0,0.07)',
-  }}>
-    <span style={{
-      display: 'inline-block',
-      minWidth: '3.4rem',
-      textAlign: 'center',
-      padding: '0.15rem 0.55rem',
-      borderRadius: '999px',
-      background: s.status < 500 ? 'rgba(180, 90, 30, 0.1)' : 'rgba(190, 40, 40, 0.1)',
-      color: s.status < 500 ? '#8a4517' : '#a02020',
-      fontWeight: 700,
-      fontSize: '0.82rem',
-    }}>{s.status}</span>
-    <strong style={{ fontSize: '0.92rem' }}>{s.meaning}</strong>
-    <span style={{ color: '#6b7280', fontSize: '0.88rem' }}>{s.when}</span>
-  </div>
-))}
+].map((s) => {
+  const isServerError = s.status >= 500
+  const fg = isServerError ? '#a02020' : '#8a4517'
+  const border = isServerError ? 'rgba(190, 40, 40, 0.22)' : 'rgba(180, 90, 30, 0.22)'
+  const bg = isServerError ? 'rgba(190, 40, 40, 0.045)' : 'rgba(180, 90, 30, 0.045)'
+  return (
+    <div key={s.status} style={{
+      padding: '0.9rem 1.1rem',
+      borderRadius: '14px',
+      border: `1px solid ${border}`,
+      background: bg,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.3rem' }}>
+        <span style={{ fontWeight: 800, fontSize: '1.15rem', color: fg, fontVariantNumeric: 'tabular-nums' }}>{s.status}</span>
+        <strong style={{ fontSize: '0.92rem', color: '#1f2937' }}>{s.meaning}</strong>
+      </div>
+      <div style={{ fontSize: '0.85rem', color: '#6b7280', lineHeight: 1.45 }}>{s.when}</div>
+    </div>
+  )
+})}
 </div>
 
 ## Platform error codes
