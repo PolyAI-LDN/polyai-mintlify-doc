@@ -40,23 +40,57 @@
         "in": "header",
         "description": "Your PolyAI API key.",
         "required": true,
-        "schema": { "type": "string" }
+        "schema": {
+          "type": "string"
+        }
       },
       "TokenHeader": {
         "name": "X-TOKEN",
         "in": "header",
         "description": "Agent authentication token (connector).",
         "required": true,
-        "schema": { "type": "string" }
+        "schema": {
+          "type": "string"
+        }
       }
     },
     "schemas": {
       "Error": {
         "type": "object",
+        "description": "Standard PolyAI API error envelope.",
+        "required": [
+          "success",
+          "error",
+          "error_id",
+          "error_code",
+          "error_message",
+          "data"
+        ],
         "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Always false for error responses.",
+            "example": false
+          },
+          "error": {
+            "type": "string",
+            "description": "Human-readable error message."
+          },
+          "error_id": {
+            "type": "string",
+            "description": "Unique request identifier from the X-PolyAI-Correlation-Id header. Include this when contacting support."
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Machine-readable error code in UPPER_SNAKE_CASE."
+          },
           "error_message": {
             "type": "string",
-            "description": "Reason for error"
+            "description": "Human-readable error message."
+          },
+          "data": {
+            "nullable": true,
+            "description": "Always null for error responses."
           }
         }
       },
@@ -80,7 +114,12 @@
             "type": "string",
             "description": "Channel identifier for the conversation.",
             "example": "webchat",
-            "enum": ["webchat", "whatsapp", "sms", "api"]
+            "enum": [
+              "webchat",
+              "whatsapp",
+              "sms",
+              "api"
+            ]
           },
           "asr_lang_code": {
             "type": "string",
@@ -113,7 +152,10 @@
             "example": "Hi, how can I help?"
           }
         },
-        "required": ["conversation_id", "response"]
+        "required": [
+          "conversation_id",
+          "response"
+        ]
       },
       "RespondChatRequest": {
         "type": "object",
@@ -129,7 +171,9 @@
             "example": "Hello again"
           }
         },
-        "required": ["conversation_id"]
+        "required": [
+          "conversation_id"
+        ]
       },
       "RespondChatResponse": {
         "type": "object",
@@ -166,7 +210,11 @@
             }
           }
         },
-        "required": ["conversation_id", "response", "end_conversation"]
+        "required": [
+          "conversation_id",
+          "response",
+          "end_conversation"
+        ]
       },
       "CloseChatRequest": {
         "type": "object",
@@ -177,7 +225,9 @@
             "example": "CONV-1234567890"
           }
         },
-        "required": ["conversation_id"]
+        "required": [
+          "conversation_id"
+        ]
       },
       "CloseChatResponse": {
         "type": "object",
@@ -188,7 +238,9 @@
             "example": true
           }
         },
-        "required": ["success"]
+        "required": [
+          "success"
+        ]
       }
     },
     "responses": {
@@ -196,7 +248,9 @@
         "description": "Bad Request",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" }
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
           }
         }
       },
@@ -204,7 +258,9 @@
         "description": "Unauthorized",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" }
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
           }
         }
       },
@@ -212,7 +268,9 @@
         "description": "Not Found",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" }
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
           }
         }
       },
@@ -220,7 +278,9 @@
         "description": "Internal Server Error",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" }
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
           }
         }
       }
@@ -233,14 +293,20 @@
         "summary": "Create a new chat conversation",
         "description": "Creates a new chat conversation and returns the conversation ID along with the agent's initial response.",
         "parameters": [
-          { "$ref": "#/components/parameters/ApiKeyHeader" },
-          { "$ref": "#/components/parameters/TokenHeader" },
+          {
+            "$ref": "#/components/parameters/ApiKeyHeader"
+          },
+          {
+            "$ref": "#/components/parameters/TokenHeader"
+          },
           {
             "name": "version",
             "in": "path",
             "description": "API version",
             "required": true,
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "example": "v1"
           },
           {
@@ -248,7 +314,9 @@
             "in": "path",
             "description": "Account ID",
             "required": true,
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "example": "ACCOUNT-xxxxxxxx"
           },
           {
@@ -256,7 +324,9 @@
             "in": "path",
             "description": "Project ID",
             "required": true,
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "example": "PROJECT-xxxxxxxx"
           }
         ],
@@ -264,28 +334,89 @@
           "required": false,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/CreateChatRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/CreateChatRequest"
+              }
             }
           }
         },
         "security": [
-          { "ApiKeyAuth": [] },
-          { "TokenAuth": [] }
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "TokenAuth": []
+          }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/CreateChatResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/CreateChatResponse"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "403": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "500": { "$ref": "#/components/responses/InternalError" }
+          "400": {
+            "$ref": "#/components/responses/BadRequest",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": "The draft you are attempting to chat with does not exist.",
+                  "error_id": "550e8400-e29b-41d4-a716-446655440000",
+                  "error_code": "CHAT_DRAFT_NOT_EXIST",
+                  "error_message": "The draft you are attempting to chat with does not exist.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -295,14 +426,20 @@
         "summary": "Send a message to an existing chat conversation",
         "description": "Sends a user message to an existing conversation and returns the agent's response.",
         "parameters": [
-          { "$ref": "#/components/parameters/ApiKeyHeader" },
-          { "$ref": "#/components/parameters/TokenHeader" },
+          {
+            "$ref": "#/components/parameters/ApiKeyHeader"
+          },
+          {
+            "$ref": "#/components/parameters/TokenHeader"
+          },
           {
             "name": "version",
             "in": "path",
             "description": "API version",
             "required": true,
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "example": "v1"
           },
           {
@@ -310,7 +447,9 @@
             "in": "path",
             "description": "Account ID",
             "required": true,
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "example": "ACCOUNT-xxxxxxxx"
           },
           {
@@ -318,19 +457,27 @@
             "in": "path",
             "description": "Project ID",
             "required": true,
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "example": "PROJECT-xxxxxxxx"
           }
         ],
         "security": [
-          { "ApiKeyAuth": [] },
-          { "TokenAuth": [] }
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "TokenAuth": []
+          }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/RespondChatRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/RespondChatRequest"
+              }
             }
           }
         },
@@ -339,15 +486,70 @@
             "description": "OK",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/RespondChatResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/RespondChatResponse"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "403": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "500": { "$ref": "#/components/responses/InternalError" }
+          "400": {
+            "$ref": "#/components/responses/BadRequest",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Chat session exceeded the timeout limit.",
+                  "error_id": "550e8400-e29b-41d4-a716-446655440000",
+                  "error_code": "CHAT_TIMEOUT",
+                  "error_message": "Chat session exceeded the timeout limit.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -357,14 +559,20 @@
         "summary": "Close an existing chat conversation",
         "description": "Closes an active chat conversation and marks it as complete.",
         "parameters": [
-          { "$ref": "#/components/parameters/ApiKeyHeader" },
-          { "$ref": "#/components/parameters/TokenHeader" },
+          {
+            "$ref": "#/components/parameters/ApiKeyHeader"
+          },
+          {
+            "$ref": "#/components/parameters/TokenHeader"
+          },
           {
             "name": "version",
             "in": "path",
             "description": "API version",
             "required": true,
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "example": "v1"
           },
           {
@@ -372,7 +580,9 @@
             "in": "path",
             "description": "Account ID",
             "required": true,
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "example": "ACCOUNT-xxxxxxxx"
           },
           {
@@ -380,19 +590,27 @@
             "in": "path",
             "description": "Project ID",
             "required": true,
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "example": "PROJECT-xxxxxxxx"
           }
         ],
         "security": [
-          { "ApiKeyAuth": [] },
-          { "TokenAuth": [] }
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "TokenAuth": []
+          }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/CloseChatRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/CloseChatRequest"
+              }
             }
           }
         },
@@ -401,21 +619,72 @@
             "description": "OK",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/CloseChatResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/CloseChatResponse"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "403": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "500": { "$ref": "#/components/responses/InternalError" }
+          "400": {
+            "$ref": "#/components/responses/BadRequest",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
         }
       }
     }
   },
   "security": [
-    { "ApiKeyAuth": [] },
-    { "TokenAuth": [] }
+    {
+      "ApiKeyAuth": []
+    },
+    {
+      "TokenAuth": []
+    }
   ]
 }
