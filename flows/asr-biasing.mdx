@@ -13,55 +13,75 @@ keywords:
 **This page covers flow-level ASR configuration.** For dynamic ASR biasing from Python functions, see [`conv.set_asr_biasing()`](/tools/classes/conv-object). Setting up ASR biasing in the flow editor does not require code.
 </Info>
 
-Automatic Speech Recognition (ASR) biasing helps the agent better understand expected types of user input in each step. It's especially useful for improving recognition of:
+Automatic Speech Recognition (ASR) biasing helps the agent better understand the type of input it expects in each step. It nudges transcription toward expected patterns — like confirmation codes, personal names, or dates — instead of treating every utterance as free text.
 
-- Alphanumeric codes
-- Names and name spellings
-- Dates, times, and party sizes
-- Addresses and yes/no responses
-
-You can configure ASR biasing on any **flow step** to boost transcription accuracy. It will nudge transcription toward expected patterns, like confirmation codes or personal names.
-
-## Where it appears
-
-In the **step editor**, you'll see an **ASR biasing** panel on the right-hand side when editing a step prompt.
-
-![ASR biasing panel](/images/flows/asr-opened.png)
-
-Options include:
-
-- **Alphanumeric** – for booking references or confirmation codes.
-- **Name** – for full personal names (first name, last name, or both).
-- **Name spelling** – for phonetically spelled names (e.g., "A for apple").
-- **Numeric** – for ages or short numbers.
-- **Party size** – for group bookings.
-- **Precise date** – for specific calendar dates.
-- **Relative date** – for flexible time references (e.g., "next Tuesday", "in two weeks").
-- **Single number** – for one-digit responses like menu selection.
-- **Time** – for spoken times (e.g., "half past eight").
-- **Yes/No** – for confirmation-style responses.
-- **Address** – for location names, postcodes, or street numbers.
-
-Custom keyword fields can also be added to bias transcription toward domain-specific vocabulary.
-
-You can distinguish steps with ASR biasing already applied using the <Icon icon="ear" iconType="solid" /> ear icon.
+Enable it on any **flow step** that collects structured input.
 
 ## When to use it
 
-Enable ASR biasing when:
+<CardGroup cols={3}>
+  <Card title="Structured input" icon="hashtag">
+    The user is likely to say a booking code, date, or other structured value.
+  </Card>
+  <Card title="Frequent misrecognitions" icon="triangle-exclamation">
+    You see transcription errors on names, codes, or numbers.
+  </Card>
+  <Card title="Unclear audio" icon="volume-low">
+    The agent is guessing incorrectly from noisy or accented audio.
+  </Card>
+</CardGroup>
 
-- Users are likely to say a structured input like a booking code or date.
-- You're seeing frequent transcription errors.
-- The agent is making incorrect guesses from unclear audio.
+## Bias options
 
-## Example in a flow
+Pick the bias that matches what the user is about to say — not the wording of the prompt.
 
-In the [flow taken from the example page](./example#e-asr-biasing), the agent is collecting a confirmation code. Because users often say mixed letters and numbers, we toggle **Alphanumeric** biasing.
+| Option              | Use for                                                | Example utterance                     |
+| ------------------- | ------------------------------------------------------ | ------------------------------------- |
+| **Alphanumeric**    | Booking references, confirmation codes                 | *"X9C7G2"*                            |
+| **Name**            | Full personal names — first, last, or both             | *"Aaron Forinton"*                    |
+| **Name spelling**   | Phonetically spelled names                             | *"A for apple, R for Robert…"*        |
+| **Numeric**         | Ages, short numbers                                    | *"forty-two"*                         |
+| **Party size**      | Group bookings                                         | *"a table for four"*                  |
+| **Precise date**    | Specific calendar dates                                | *"March 14th"*                        |
+| **Relative date**   | Flexible time references                               | *"next Tuesday"*, *"in two weeks"*    |
+| **Single number**   | One-digit responses, menu selection                    | *"press 1"* / *"one"*                 |
+| **Time**            | Spoken times                                           | *"half past eight"*                   |
+| **Yes/No**          | Confirmation responses                                 | *"yeah, that's right"*                |
+| **Address**         | Location names, postcodes, street numbers              | *"221B Baker Street, NW1 6XE"*        |
 
-This increases the likelihood that phrases like *"X9C7G2"* are heard and transcribed accurately.
+Custom keyword fields can also be added to bias transcription toward domain-specific vocabulary — product names, menu items, medical terms, and so on.
 
-## Best practices
+<Tip>
+Steps with ASR biasing already applied are marked with the <Icon icon="ear" iconType="solid" /> ear icon in the Flow Editor.
+</Tip>
 
-- Match ASR bias to the input type, not the prompt phrasing.
-- Combine biasing with [few-shot prompting](./few-shot-prompting) if needed.
-- Always test key steps with real voice input.
+## Configure it on a step
+
+<Steps>
+  <Step title="Open the step editor">
+    In the Flow Editor, select the step where you want to bias transcription and open the step editor on the right.
+
+    ![ASR biasing panel](/images/flows/asr-opened.png)
+  </Step>
+  <Step title="Pick the input type">
+    In the **ASR biasing** panel, toggle on the option that matches what the user is expected to say (see the table above).
+  </Step>
+  <Step title="Add custom keywords (optional)">
+    Add domain-specific vocabulary as custom keywords — product names, menu items, dish names, medical terms. Bias applies on top of the selected input type.
+  </Step>
+  <Step title="Test with real voice input">
+    Place a test call and confirm the transcription matches what was said. Iterate on the bias type and keywords if not.
+  </Step>
+</Steps>
+
+## Example: confirmation code capture
+
+In the [reservation confirmation flow example](./example#e-asr-biasing), the agent collects a booking code. Users say mixed letters and numbers, so **Alphanumeric** biasing is toggled on — this raises the likelihood that utterances like *"X9C7G2"* are transcribed accurately instead of being interpreted as ordinary words.
+
+<Tip>
+**Combine with [few-shot prompting](./few-shot-prompting)** when the input format is ambiguous — for example, when users might say a code as *"X nine C seven G two"* or *"X9C7G2"* interchangeably. Bias handles the acoustic model, few-shot prompting handles the LLM's interpretation of the result.
+</Tip>
+
+<Warning>
+Match the bias to the expected **input**, not the wording of the prompt. Biasing a "yes/no" prompt with **Alphanumeric** hurts recognition of *"yes"* and *"no"*.
+</Warning>
