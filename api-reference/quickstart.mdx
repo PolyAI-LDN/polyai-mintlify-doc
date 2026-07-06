@@ -63,10 +63,10 @@ For an overview of the API families, see the [API overview](/api-reference/intro
     Stand up a new agent with a greeting.
   </Card>
   <Card title="2. Configure" icon="sliders" href="#step-2-configure-it">
-    Give it a behavior and a knowledge base topic.
+    Branch, add a behavior and a knowledge base topic, then merge.
   </Card>
   <Card title="3. Test" icon="flask-vial" href="#step-3-test-it">
-    Publish to Sandbox and hold a conversation with it.
+    Hold a live conversation with it in Sandbox.
   </Card>
   <Card title="4. Deploy" icon="rocket" href="#step-4-deploy-it">
     Promote through Pre-release into Live traffic.
@@ -78,14 +78,14 @@ For an overview of the API families, see the [API overview](/api-reference/intro
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Draft: Create + configure
-    Draft --> Sandbox: Publish
+    [*] --> Branch: Create agent + branch
+    Branch --> Sandbox: Edit, then merge to main
     Sandbox --> Sandbox: Test (debug chat)
     Sandbox --> PreRelease: Promote
     PreRelease --> Live: Promote
 
-    note right of Draft: Steps 1-2
-    note right of Sandbox: Step 3 — nothing is testable until it's published here
+    note right of Branch: Steps 1-2 — edits live on a branch, never on main directly
+    note right of Sandbox: Step 3 — merging to main publishes to Sandbox automatically
     note right of Live: Step 4 — real callers
 ```
 
@@ -93,7 +93,7 @@ stateDiagram-v2
 
 <Steps>
   <Step title="Get an API key">
-    Self-serve API keys aren't available yet — ask your PolyAI representative for a **workspace-scoped API key**. The same key authenticates the Agents API and the Data API's debug chat — everything through step 4 of this guide.
+    Create a **workspace-scoped API key** from the **API Keys** tab on your workspace homepage in Agent Studio (see [API keys](/secrets/api-keys)). Copy the value when it's shown — the full key only appears once. The same key authenticates the Agents API and the Data API's debug chat — everything through step 4 of this guide.
 
     - Step 5 (pulling call data back out) uses the [Conversations v3](/api-reference/conversations/introduction) API, which needs a separate project-scoped key. The [Chat API](/api-reference/chat/introduction) needs its own connector token too. Request either only once you're integrating a real channel or data pipeline — you don't need them for steps 1–4.
 
@@ -202,12 +202,48 @@ export POLYAI_AGENT_ID="PROJECT-58RP822I"  # use the agentId from your response
 
 ## Step 2: Configure it
 
+You can't edit `main` directly — the API rejects writes to it with `422 Cannot directly update main branch`. Instead, create a **working branch**, make your edits there, then merge it back into `main`. This is the same branch-and-merge model Agent Studio and Studio Assistant use.
+
+**Create a working branch:**
+
+<CodeGroup>
+
+```bash curl
+curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/branches" \
+  -H "x-api-key: $POLYAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "branchName": "quickstart" }'
+```
+
+```python Python
+response = requests.post(
+    f"{base_url}/v1/agents/{agent_id}/branches",
+    headers=headers,
+    json={"branchName": "quickstart"},
+)
+response.raise_for_status()
+branch_id = response.json()["branchId"]
+print(branch_id)
+```
+
+</CodeGroup>
+
+The response returns the branch's ID — save it, every edit below targets it:
+
+```json
+{ "branchId": "BRANCH-F9F1WNN8", "sequenceId": "1" }
+```
+
+```bash
+export POLYAI_BRANCH_ID="BRANCH-F9F1WNN8"  # use the branchId from your response
+```
+
 ### Set the behavior
 
 The behavior is the system prompt that governs how the agent responds.
 
 ```bash curl
-curl -X PATCH "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/branches/main/behavior" \
+curl -X PATCH "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/branches/$POLYAI_BRANCH_ID/behavior" \
   -H "x-api-key: $POLYAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -220,7 +256,7 @@ curl -X PATCH "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/branches/main/behavio
 Topics are what the agent draws on to answer questions — each one pairs content with example queries that should trigger it.
 
 ```bash curl
-curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/branches/main/knowledge-base/topics" \
+curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/branches/$POLYAI_BRANCH_ID/knowledge-base/topics" \
   -H "x-api-key: $POLYAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -234,30 +270,31 @@ curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/branches/main/knowledg
 
 See [Knowledge base](/api-reference/agents/endpoint/knowledge-base/create-knowledge-base-topic) for the full schema, including `actions` and `isActive`.
 
-## Step 3: Test it
+### Merge the branch into `main`
 
-<Note>
-**Publish before you test.** Behavior and knowledge base edits live on the draft until you publish — [changes apply to an environment only once they're promoted to it](/knowledge/faqs/RAG/introduction#why-rag). There's no way to hold a debug-chat conversation against the raw draft over the API, so publishing to Sandbox is the first move here, not an afterthought.
-</Note>
-
-**Publish the draft to Sandbox:**
+Merging applies the branch's edits to `main` **and publishes them to Sandbox in one step** — there's no separate publish call.
 
 ```bash curl
-curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/deployments/publish" \
+curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/branches/$POLYAI_BRANCH_ID/merge" \
   -H "x-api-key: $POLYAI_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{
-    "environment": "sandbox",
-    "deploymentMessage": "Initial support agent"
-  }'
+  -d '{ "deploymentMessage": "Initial support agent" }'
 ```
 
-The response's `deployment.id` identifies this deployment — save it as `$DEPLOYMENT_ID`, you'll need it in the next step.
+```json
+{ "sequence": "2", "message": "Branch merged to main and deployed to sandbox", "testRunIds": [] }
+```
 
-Now hold a test conversation using the Data API's debug chat — it authenticates with the same key and host as the Agents API, so there's no extra credential to request.
+## Step 3: Test it
+
+Your merge in step 2 already published to Sandbox, so the agent is live there and ready to talk. Hold a test conversation using the Data API's debug chat — it authenticates with the same key and host as the Agents API, so there's no extra credential to request.
+
+<Note>
+**Edits reach an environment only when you merge or promote into it.** If debug chat replies with stale behavior, you edited the branch but haven't merged it to `main`. Merge again to push the change into Sandbox.
+</Note>
 
 <Tip>
-Prefer a UI? Agent Studio has a built-in **Test** panel that talks to the draft directly, no publish required — see [Test in Sandbox](/environments-and-versions/introduction#test-in-sandbox).
+Prefer a UI? Agent Studio has a built-in **Test** panel that talks to a branch directly, no merge required — see [Test your agent](/environments-and-versions/introduction#testing-your-agent).
 </Tip>
 
 **Start a session:**
@@ -271,21 +308,21 @@ curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/debug-chat" \
 
 ```json
 {
-  "conversationId": "CONV-1234567890",
+  "conversationId": "AS_CHAT_106b4f9a-2541-4924-9ea1-fe5ced3c1eec",
   "userInput": "",
   "response": "Hi, thanks for calling Acme Corp. How can I help?",
-  "metadata": { "currentNode": "greeting", "nodeTrace": ["greeting"], "retrievedTopics": [] },
+  "metadata": { "citedTopic": "", "retrievedTopics": [], "nodeTrace": [] },
   "conversationEnded": false,
   "delayedResponse": false
 }
 ```
 
-(`metadata` has more fields than shown — trimmed here for readability.)
+(`metadata` has more fields than shown — trimmed here for readability. The `conversationId` is an `AS_CHAT_…` string; use whatever value your response returns.)
 
 **Send a message** — try the knowledge base topic you just added:
 
 ```bash curl
-curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/debug-chat/CONV-1234567890" \
+curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/debug-chat/AS_CHAT_106b4f9a-2541-4924-9ea1-fe5ced3c1eec" \
   -H "x-api-key: $POLYAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -294,7 +331,7 @@ curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/debug-chat/CONV-123456
   }'
 ```
 
-Check `metadata.citedTopic` (and `metadata.retrievedTopics`) in the response rather than eyeballing the reply text — it names the knowledge base topic the agent actually retrieved, which is a more reliable signal that "Password reset" is wired up than scanning for `acme.com/reset` in the wording. Keep sending messages against the same `conversationId` to continue the conversation, matching `clientEnv` to whichever environment you're checking.
+To confirm the topic was actually used, check `metadata.retrievedTopics` in the response — it lists the knowledge base topics the agent pulled in (`["Password reset"]` here), a more reliable signal than scanning the reply text for `acme.com/reset`. Keep sending messages against the same `conversationId` to continue the conversation, matching `clientEnv` to whichever environment you're checking.
 
 <Note>
 Building a real webchat, SMS, or in-app integration instead of a one-off test? Use the [Chat API](/api-reference/chat/introduction) — it's built for driving conversations from an end-user-facing client and requires its own connector token.
@@ -302,7 +339,21 @@ Building a real webchat, SMS, or in-app integration instead of a one-off test? U
 
 ## Step 4: Deploy it
 
-Sandbox is for testing, not customer traffic. Promote the same deployment through Pre-release and into Live — that's what real callers hit. See [Environments](/environments-and-versions/introduction) for the full model.
+Sandbox is for testing, not customer traffic. Promote the Sandbox deployment through Pre-release and into Live — that's what real callers hit. See [Environments](/environments-and-versions/introduction) for the full model.
+
+Promotion works on a deployment ID, and the merge in step 2 didn't return one — so fetch the active Sandbox deployment first:
+
+```bash curl
+curl -X GET "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/deployments/active" \
+  -H "x-api-key: $POLYAI_API_KEY"
+# → activeDeployments.sandbox.id is the deployment to promote
+```
+
+```bash
+export DEPLOYMENT_ID="019f380c-4235-7ea5-8426-1edf249cd6f3"  # use the sandbox id from your response
+```
+
+Then promote it up the chain. Each promote returns a **new** deployment (under `deployment.id`) for the target environment — feed that into the next call:
 
 ```bash curl
 # sandbox -> pre-release
@@ -311,14 +362,14 @@ curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/deployments/$DEPLOYMEN
   -H "Content-Type: application/json" \
   -d '{ "targetEnvironment": "pre-release" }'
 
-# pre-release -> live (use the deployment.id returned above, not $DEPLOYMENT_ID)
+# pre-release -> live (use the deployment.id returned by the call above)
 curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/deployments/$PRE_RELEASE_DEPLOYMENT_ID/promote" \
   -H "x-api-key: $POLYAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "targetEnvironment": "live" }'
 ```
 
-Each promote call returns a new deployment for the target environment — chain the returned `deployment.id` into the next call. A sandbox deployment can promote straight to `live` too (skip the `targetEnvironment` field entirely and it defaults to the next stage in sequence: sandbox → pre-release → live) — going through pre-release first is a safety choice, not an API requirement.
+Omit `targetEnvironment` and the promote defaults to the next stage in sequence (sandbox → pre-release → live). A Sandbox deployment can also promote straight to `live` — going through Pre-release first is a safety choice, not an API requirement.
 
 Made a mistake? [Roll back](/api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment) to the previous deployment in any environment.
 
@@ -362,9 +413,10 @@ From here:
 | `401 Unauthorized`                             | Missing or wrong `x-api-key`, or a key from the wrong region.                              | Confirm the key was issued for the region in your base URL — see [region mismatches](/api-reference/data/introduction#authentication). |
 | `403 Forbidden`                                | Key lacks permission for this account or agent.                                            | Confirm the key was provisioned for the account ID / agent ID you're using.                          |
 | `400` on create agent                          | Missing `responseSettings.greeting`, which is required.                                    | Include a non-empty `greeting` — it's the agent's opening line.                                       |
-| Debug chat replies with the old behavior/topic | You edited the draft but tested against an environment you haven't republished.             | Publish again — edits only take effect in an environment once you publish or promote into it.         |
+| `422 Cannot directly update main branch`       | You sent a behavior or knowledge base write to `branches/main`.                             | Create a working branch, make edits on it, then merge to `main` — see step 2. `main` is read-only.    |
+| Debug chat replies with the old behavior/topic | You edited a branch but haven't merged it into `main` yet.                                  | Merge the branch again — edits reach Sandbox only once they're merged into `main`.                    |
 | `404` on debug-chat message                    | Wrong or expired `conversationId`.                                                          | Start a new session with `POST /debug-chat` and use the returned `conversationId`.                    |
-| `409 Conflict` on publish                      | Nothing has changed since the last publish to this environment.                             | Publish is a no-op if the draft is already live there — make an edit first, or move on to promote.    |
+| `409 Deployments already published`            | You called `publish` after a merge, which already deployed to Sandbox.                      | Skip the explicit publish — merging a branch publishes to Sandbox for you. Move on to promote.        |
 | `404` on promote                               | Wrong `deploymentId`.                                                                        | Use the `deployment.id` from the most recent publish/promote response, not an old one.                |
 | `400` on promote                               | `targetEnvironment` isn't a later stage than the deployment's current one.                   | Sandbox can promote to `pre-release` or `live`; pre-release can only promote to `live`.                |
 | `404` on Conversations endpoint (step 5)       | Wrong base URL — usually the build host (`api.us.poly.ai`) instead of the platform host.    | Conversations v3 uses `api.{region}-1.platform.polyai.app`, with the `-1` suffix.                     |
