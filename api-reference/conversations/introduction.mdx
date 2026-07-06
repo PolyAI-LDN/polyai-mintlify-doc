@@ -576,6 +576,10 @@ This is the most common reason for missing turn data. To check or update this se
 These settings apply at the **project level**, not per key. For data to appear in API responses, both conditions must be met: the API key must have **Conversations data** permission enabled, and the project must have the relevant metrics and transcript access enabled in the Configuration panel. See [API keys](/secrets/api-keys) for key setup details.
 </Warning>
 
+<Note>
+**Intent-based and hybrid projects require a deploy for API config changes to take effect.** For LLM (genai) projects the toggles above apply immediately. For intent-based and hybrid projects, the underlying whitelist and metric visibility live in the deployed project package (`project.yaml`), not in the Agent Studio configuration database — the toggles must be reflected there, and the project **redeployed**, before responses change. If the transcript and metric toggles look enabled in the UI but the API still returns a stripped response, contact your PolyAI representative to verify the deployed package matches the UI configuration.
+</Note>
+
 ## Troubleshooting
 
 ### `turns` is empty but `num_turns` is greater than zero
@@ -617,7 +621,8 @@ If the response only contains a subset of expected fields:
 1. **Confirm you are on v3.** The full response schema (including `latency`, `translated_user_input`, `english_agent_response`, etc.) is only available on v3. Check that your base URL uses `/v3/`, not `/v1/`. Contact your PolyAI representative for help migrating from v1.
 2. **Check your API key permissions.** On the **API Keys** tab of the workspace homepage, verify the API key has **Conversations data** permission enabled. The key must have the correct permission *and* the project must have the relevant metrics enabled.
 3. **Check metric configuration.** On the **API Keys** tab, click **Configuration** and verify the response metrics you expect are enabled (e.g. `CALL_IN_PROGRESS`, `CALL_COMPLETED`, `HANDOFF_TO`). If no metrics are selected, the `metrics` object in the response will be empty.
-4. **Check field whitelisting (v1 only).** Projects on v1 may have field whitelisting enabled in their project configuration (`enable_whitelist: true`). When active, the API only returns fields explicitly listed in the project's API config — typically just `id`, `started_at`, `account_id`, and `project_id`. If you are on v1 and see this behavior, migrate to v3 where field visibility is controlled through the [API Keys Configuration panel](#transcript-visibility) instead.
+4. **Check field whitelisting.** Intent-based and hybrid projects can have field whitelisting enabled in the deployed project configuration (`analytics.api.enable_whitelist: true`). When active with no explicit whitelist, the API returns only `id`, `started_at`, `account_id`, and `project_id`. For LLM (genai) projects, whitelisting is managed through the [API Keys Configuration panel](#transcript-visibility); for intent-based and hybrid projects, the whitelist lives in the deployed `project.yaml` — see step 5.
+5. **Redeploy after changing intent-based or hybrid project settings.** If a sibling project in the same workspace returns full data and this one doesn't, and this project is intent-based or hybrid, the deployed package likely has stale API configuration. Ask your PolyAI representative to redeploy the project so the updated `analytics.api` configuration takes effect.
 
 ### `include_latency` is not adding data
 
