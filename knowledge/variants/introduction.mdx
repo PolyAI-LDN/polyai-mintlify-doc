@@ -197,26 +197,40 @@ If your variants live in a source of truth outside Agent Studio — a locations 
   <Accordion title="Manage variants via the Agents API" icon="code">
     The [Agents API](/api-reference/agents/introduction) exposes full CRUD for both [attributes](/api-reference/agents/endpoint/variants/list-attributes) (the dimensions) and [variants](/api-reference/agents/endpoint/variants/list-variants) (the per-site combinations).
 
+    Attributes and variants can't be written to `main` directly — create a branch, add them there, then merge it into `main` (which also publishes to Sandbox). A variant's values go in `attributeValues`.
+
     <CodeGroup>
     ```bash curl
+    # Create a branch to hold the changes
+    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches \
+      -H "x-api-key: $POLYAI_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{ "branchName": "add-sites" }'   # response includes { "branchId": "BRANCH-…" }
+
     # Create an attribute (a variant dimension)
-    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/attributes \
+    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/BRANCH_ID/attributes \
       -H "x-api-key: $POLYAI_API_KEY" \
       -H "Content-Type: application/json" \
       -d '{ "name": "location_id" }'
 
     # Create a variant with attribute values
-    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/variants \
+    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/BRANCH_ID/variants \
       -H "x-api-key: $POLYAI_API_KEY" \
       -H "Content-Type: application/json" \
       -d '{
         "name": "London Flagship",
-        "attributes": {
+        "attributeValues": {
           "location_id": "LON-01",
           "address": "12 Regent Street",
           "hours": "9am - 10pm"
         }
       }'
+
+    # Merge to main once every site is added
+    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/BRANCH_ID/merge \
+      -H "x-api-key: $POLYAI_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{ "deploymentMessage": "Add site variants" }'
     ```
 
     ```python Python
@@ -225,20 +239,33 @@ If your variants live in a source of truth outside Agent Studio — a locations 
     BASE = "https://api.us.poly.ai"
     HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
 
-    # Sync many sites in one pass
+    # Sync many sites in one pass.
+    # main is read-only, so build them on a branch and merge once.
+    branch_id = requests.post(
+        f"{BASE}/v1/agents/{AGENT_ID}/branches",
+        headers=HEADERS,
+        json={"branchName": "crm-sites"},
+    ).json()["branchId"]
+
     for site in load_locations_from_crm():
         requests.post(
-            f"{BASE}/v1/agents/{AGENT_ID}/branches/main/variants",
+            f"{BASE}/v1/agents/{AGENT_ID}/branches/{branch_id}/variants",
             headers=HEADERS,
             json={
                 "name": site["name"],
-                "attributes": {
+                "attributeValues": {
                     "location_id": site["id"],
                     "address": site["address"],
                     "hours": site["hours"],
                 },
             },
         )
+
+    requests.post(
+        f"{BASE}/v1/agents/{AGENT_ID}/branches/{branch_id}/merge",
+        headers=HEADERS,
+        json={"deploymentMessage": "Sync site variants from CRM"},
+    )
     ```
     </CodeGroup>
   </Accordion>
