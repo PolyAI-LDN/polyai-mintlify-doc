@@ -40,7 +40,9 @@
   "paths": {
     "/v3/{account_id}/{project_id}/conversations": {
       "get": {
-        "tags": ["Conversations"],
+        "tags": [
+          "Conversations"
+        ],
         "summary": "List conversations for a project",
         "description": "Retrieves conversations for a given account and project. Supports three retrieval modes: transcript search, semantic search, and random sampling. When no retrieval mode is specified, the endpoint returns all conversations matching the given filters (default behavior). Only one retrieval mode may be specified per request.",
         "parameters": [
@@ -173,7 +175,7 @@
           {
             "name": "offset",
             "in": "query",
-            "description": "Offset within result set to fetch. Prefer `cursor` for paginating through large result sets \u2014 offset-based pagination becomes progressively slower at scale and may drift when conversations are written concurrently.",
+            "description": "Offset within result set to fetch. Prefer `cursor` for paginating through large result sets — offset-based pagination becomes progressively slower at scale and may drift when conversations are written concurrently.",
             "required": false,
             "schema": {
               "type": "integer",
@@ -241,33 +243,98 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/BadRequest"
+            "$ref": "#/components/responses/BadRequest",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Filter expression syntax is invalid.",
+                  "error_id": "550e8400-e29b-41d4-a716-446655440000",
+                  "error_code": "GET_CONVERSATIONS_FILTER_PARSE_ERROR",
+                  "error_message": "Filter expression syntax is invalid.",
+                  "data": null
+                }
+              }
+            }
           },
           "401": {
-            "$ref": "#/components/responses/Unauthorized"
+            "$ref": "#/components/responses/Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "403": {
-            "$ref": "#/components/responses/Unauthorized"
+            "$ref": "#/components/responses/Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "404": {
-            "$ref": "#/components/responses/NotFound"
+            "$ref": "#/components/responses/NotFound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Project ID does not exist.",
+                  "error_id": "550e8400-e29b-41d4-a716-446655440000",
+                  "error_code": "PROJECT_NOT_FOUND",
+                  "error_message": "Project ID does not exist.",
+                  "data": null
+                }
+              }
+            }
           },
           "500": {
-            "$ref": "#/components/responses/InternalError"
+            "$ref": "#/components/responses/InternalError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
     },
     "/v1/agents/{agentId}/conversations/{conversationId}": {
       "get": {
-        "tags": ["Conversations"],
+        "tags": [
+          "Conversations"
+        ],
         "summary": "Get a conversation by ID",
         "description": "Retrieves a single conversation, including turn-by-turn transcript, metrics, and function events.\n\n**Host:** this endpoint is served from `api.{region}.poly.ai` — *not* the `api.{region}-1.platform.polyai.app` host used by the list-conversations and audio endpoints.",
         "servers": [
-          { "url": "https://api.us.poly.ai", "description": "US base url" },
-          { "url": "https://api.eu.poly.ai", "description": "EU base url" },
-          { "url": "https://api.uk.poly.ai", "description": "UK base url" },
-          { "url": "https://api.studio.poly.ai", "description": "Studio base url" }
+          {
+            "url": "https://api.us.poly.ai",
+            "description": "US base url"
+          },
+          {
+            "url": "https://api.eu.poly.ai",
+            "description": "EU base url"
+          },
+          {
+            "url": "https://api.uk.poly.ai",
+            "description": "UK base url"
+          },
+          {
+            "url": "https://api.studio.poly.ai",
+            "description": "Studio base url"
+          }
         ],
         "parameters": [
           {
@@ -302,33 +369,90 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/BadRequest"
+            "$ref": "#/components/responses/BadRequest",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "401": {
-            "$ref": "#/components/responses/Unauthorized"
+            "$ref": "#/components/responses/Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "403": {
-            "$ref": "#/components/responses/Unauthorized"
+            "$ref": "#/components/responses/Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "404": {
-            "$ref": "#/components/responses/NotFound"
+            "$ref": "#/components/responses/NotFound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Conversation ID does not exist.",
+                  "error_id": "550e8400-e29b-41d4-a716-446655440000",
+                  "error_code": "CONVERSATIONS_NOT_FOUND",
+                  "error_message": "Conversation ID does not exist.",
+                  "data": null
+                }
+              }
+            }
           },
           "500": {
-            "$ref": "#/components/responses/InternalError"
+            "$ref": "#/components/responses/InternalError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
     },
     "/v1/agents/{agentId}/conversations/{conversationId}/audio": {
       "get": {
-        "tags": ["Conversations"],
+        "tags": [
+          "Conversations"
+        ],
         "summary": "Get audio recording for a conversation",
         "description": "Returns the audio recording for a conversation as a WAV file.\n\n**Host:** this endpoint is served from `api.{region}.poly.ai` — *not* the `api.{region}-1.platform.polyai.app` host used by the list-conversations endpoint.\n\n**PII access enforcement.** Users without PII access always receive the redacted recording, regardless of the `redacted` query parameter. Users with PII access receive the raw recording by default and can opt into the redacted version by passing `redacted=true`. PII access is granted through your account's role and permission configuration in Agent Studio.",
         "servers": [
-          { "url": "https://api.us.poly.ai", "description": "US base url" },
-          { "url": "https://api.eu.poly.ai", "description": "EU base url" },
-          { "url": "https://api.uk.poly.ai", "description": "UK base url" },
-          { "url": "https://api.studio.poly.ai", "description": "Studio base url" }
+          {
+            "url": "https://api.us.poly.ai",
+            "description": "US base url"
+          },
+          {
+            "url": "https://api.eu.poly.ai",
+            "description": "EU base url"
+          },
+          {
+            "url": "https://api.uk.poly.ai",
+            "description": "UK base url"
+          },
+          {
+            "url": "https://api.studio.poly.ai",
+            "description": "Studio base url"
+          }
         ],
         "parameters": [
           {
@@ -389,13 +513,34 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/BadRequest"
+            "$ref": "#/components/responses/BadRequest",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "401": {
-            "$ref": "#/components/responses/Unauthorized"
+            "$ref": "#/components/responses/Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "403": {
-            "$ref": "#/components/responses/Unauthorized"
+            "$ref": "#/components/responses/Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "404": {
             "description": "Recording not found for the given conversation.",
@@ -408,21 +553,42 @@
             }
           },
           "500": {
-            "$ref": "#/components/responses/InternalError"
+            "$ref": "#/components/responses/InternalError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
     },
     "/v1/agents/{agentId}/debug-chat": {
       "post": {
-        "tags": ["Debug Chat"],
+        "tags": [
+          "Debug Chat"
+        ],
         "summary": "Create a new debug chat session",
         "description": "Starts a new debug chat session against an agent. Use this to interactively test an agent variant outside of production traffic.\n\n**Host:** this endpoint is served from `api.{region}.poly.ai` — *not* the `api.{region}-1.platform.polyai.app` host used by the list-conversations and audio endpoints.",
         "servers": [
-          { "url": "https://api.us.poly.ai", "description": "US base url" },
-          { "url": "https://api.eu.poly.ai", "description": "EU base url" },
-          { "url": "https://api.uk.poly.ai", "description": "UK base url" },
-          { "url": "https://api.studio.poly.ai", "description": "Studio base url" }
+          {
+            "url": "https://api.us.poly.ai",
+            "description": "US base url"
+          },
+          {
+            "url": "https://api.eu.poly.ai",
+            "description": "EU base url"
+          },
+          {
+            "url": "https://api.uk.poly.ai",
+            "description": "UK base url"
+          },
+          {
+            "url": "https://api.studio.poly.ai",
+            "description": "Studio base url"
+          }
         ],
         "parameters": [
           {
@@ -457,30 +623,80 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/BadRequest"
+            "$ref": "#/components/responses/BadRequest",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": "The draft you are attempting to chat with does not exist.",
+                  "error_id": "550e8400-e29b-41d4-a716-446655440000",
+                  "error_code": "CHAT_DRAFT_NOT_EXIST",
+                  "error_message": "The draft you are attempting to chat with does not exist.",
+                  "data": null
+                }
+              }
+            }
           },
           "401": {
-            "$ref": "#/components/responses/Unauthorized"
+            "$ref": "#/components/responses/Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "403": {
-            "$ref": "#/components/responses/Unauthorized"
+            "$ref": "#/components/responses/Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "500": {
-            "$ref": "#/components/responses/InternalError"
+            "$ref": "#/components/responses/InternalError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
     },
     "/v1/agents/{agentId}/debug-chat/{conversationId}": {
       "post": {
-        "tags": ["Debug Chat"],
+        "tags": [
+          "Debug Chat"
+        ],
         "summary": "Send a message to a debug chat session",
         "description": "Sends a user turn into an existing debug chat session and returns the agent's response.\n\n**Host:** this endpoint is served from `api.{region}.poly.ai` — *not* the `api.{region}-1.platform.polyai.app` host used by the list-conversations and audio endpoints.",
         "servers": [
-          { "url": "https://api.us.poly.ai", "description": "US base url" },
-          { "url": "https://api.eu.poly.ai", "description": "EU base url" },
-          { "url": "https://api.uk.poly.ai", "description": "UK base url" },
-          { "url": "https://api.studio.poly.ai", "description": "Studio base url" }
+          {
+            "url": "https://api.us.poly.ai",
+            "description": "US base url"
+          },
+          {
+            "url": "https://api.eu.poly.ai",
+            "description": "EU base url"
+          },
+          {
+            "url": "https://api.uk.poly.ai",
+            "description": "UK base url"
+          },
+          {
+            "url": "https://api.studio.poly.ai",
+            "description": "Studio base url"
+          }
         ],
         "parameters": [
           {
@@ -524,19 +740,70 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/BadRequest"
+            "$ref": "#/components/responses/BadRequest",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Chat session exceeded the timeout limit.",
+                  "error_id": "550e8400-e29b-41d4-a716-446655440000",
+                  "error_code": "CHAT_TIMEOUT",
+                  "error_message": "Chat session exceeded the timeout limit.",
+                  "data": null
+                }
+              }
+            }
           },
           "401": {
-            "$ref": "#/components/responses/Unauthorized"
+            "$ref": "#/components/responses/Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "403": {
-            "$ref": "#/components/responses/Unauthorized"
+            "$ref": "#/components/responses/Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "404": {
-            "$ref": "#/components/responses/NotFound"
+            "$ref": "#/components/responses/NotFound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Conversation ID does not exist.",
+                  "error_id": "550e8400-e29b-41d4-a716-446655440000",
+                  "error_code": "CONVERSATIONS_NOT_FOUND",
+                  "error_message": "Conversation ID does not exist.",
+                  "data": null
+                }
+              }
+            }
           },
           "500": {
-            "$ref": "#/components/responses/InternalError"
+            "$ref": "#/components/responses/InternalError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -588,10 +855,40 @@
     "schemas": {
       "Error": {
         "type": "object",
+        "description": "Standard PolyAI API error envelope.",
+        "required": [
+          "success",
+          "error",
+          "error_id",
+          "error_code",
+          "error_message",
+          "data"
+        ],
         "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Always false for error responses.",
+            "example": false
+          },
+          "error": {
+            "type": "string",
+            "description": "Human-readable error message."
+          },
+          "error_id": {
+            "type": "string",
+            "description": "Unique request identifier from the X-PolyAI-Correlation-Id header. Include this when contacting support."
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Machine-readable error code in UPPER_SNAKE_CASE."
+          },
           "error_message": {
-            "description": "Reason for error.",
-            "type": "string"
+            "type": "string",
+            "description": "Human-readable error message."
+          },
+          "data": {
+            "nullable": true,
+            "description": "Always null for error responses."
           }
         }
       },
@@ -796,7 +1093,11 @@
       "ConversationDetailResponse": {
         "type": "object",
         "description": "Public-facing conversation detail (includes turns, metrics, and function events).",
-        "required": ["conversationId", "accountId", "projectId"],
+        "required": [
+          "conversationId",
+          "accountId",
+          "projectId"
+        ],
         "properties": {
           "conversationId": {
             "type": "string",
@@ -926,7 +1227,9 @@
       "GetConversationsResponse": {
         "type": "object",
         "description": "A page of conversations matching the query, plus pagination data.",
-        "required": ["conversations"],
+        "required": [
+          "conversations"
+        ],
         "properties": {
           "conversations": {
             "type": "array",
@@ -966,12 +1269,18 @@
       "CreateDebugChatBody": {
         "type": "object",
         "description": "Starting parameters for a debug chat session: which agent variant, which language codes, and which environment to run in.",
-        "required": ["clientEnv"],
+        "required": [
+          "clientEnv"
+        ],
         "properties": {
           "clientEnv": {
             "type": "string",
             "description": "Client environment (`sandbox`, `pre-release`, `live`).",
-            "enum": ["sandbox", "pre-release", "live"]
+            "enum": [
+              "sandbox",
+              "pre-release",
+              "live"
+            ]
           },
           "asrLangCode": {
             "type": "string",
@@ -1002,12 +1311,18 @@
       "RespondDebugChatBody": {
         "type": "object",
         "description": "A user turn sent into an existing debug chat session, with the runtime overrides that apply to this message.",
-        "required": ["clientEnv"],
+        "required": [
+          "clientEnv"
+        ],
         "properties": {
           "clientEnv": {
             "type": "string",
             "description": "Client environment (`sandbox`, `pre-release`, `live`).",
-            "enum": ["sandbox", "pre-release", "live"]
+            "enum": [
+              "sandbox",
+              "pre-release",
+              "live"
+            ]
           },
           "asrLangCode": {
             "type": "string",
