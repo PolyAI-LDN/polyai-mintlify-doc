@@ -1,0 +1,61 @@
+---
+title: Capabilities
+sidebarTitle: Capabilities
+description: The tools Builder MCP exposes, grouped by agents, data, and alerts.
+mode: wide
+---
+
+{/* REVIEW: The tool rows below are ILLUSTRATIVE, derived from the backing APIs — they are
+    not the verified live tool list. Replace with the exact tool names, descriptions, and
+    input schemas from DEVP-216 (README) before publishing. Confirm the three-way
+    agents/data/alerts grouping matches what the server actually exposes. */}
+
+Builder MCP exposes PolyAI's platform as MCP tools, grouped into three areas. Your client discovers them automatically on connection — you don't configure tools by hand. Each tool carries its own input schema, which the client reads directly from the server.
+
+<Note>
+To see exactly what your client discovered, ask it to list its available tools, or query the endpoint's `tools/list` method (see [Quickstart → Verify](/mcp/quickstart#3-verify)).
+</Note>
+
+## Agents
+
+Create and manage agents and everything they contain. Backed by the [Agents API](/api-reference/agents/introduction).
+
+| Tool | Description | Key inputs |
+| --- | --- | --- |
+| `list_agents` | List agents in the workspace | — |
+| `create_agent` | Create a new agent | `name`, response settings |
+| `create_branch` | Branch an agent for isolated edits | `agent_id`, `name` |
+| `merge_branch` | Merge a branch back | `agent_id`, `branch_id` |
+| `update_behavior` | Update agent behavior rules | `agent_id`, rules |
+| `manage_knowledge_base` | Create, update, and delete KB topics | `agent_id`, topic |
+| `manage_variants` | Manage variant attributes and variants | `agent_id`, variant |
+
+## Data
+
+Retrieve conversation data to test and inspect agents. Backed by the [Data API](/api-reference/data/introduction).
+
+| Tool | Description | Key inputs |
+| --- | --- | --- |
+| `list_conversations` | List conversations for an agent | `agent_id`, filters |
+| `get_conversation` | Fetch a conversation by ID | `conversation_id` |
+| `debug_chat` | Start a debug chat session to test an agent | `agent_id`, environment |
+
+## Alerts
+
+Monitor deployed agents. Backed by the [Alerts API](/api-reference/alerts/introduction).
+
+| Tool | Description | Key inputs |
+| --- | --- | --- |
+| `create_alert_rule` | Create an alert rule | rule definition |
+| `list_alert_rules` | List configured alert rules | — |
+| `list_active_alerts` | Read currently firing alerts | — |
+
+## Limiting which tools are exposed
+
+If a client should only see a subset of tools, restrict discovery with the `tools` query parameter on the endpoint URL:
+
+```
+https://api.us.poly.ai/builder-mcp?tools=list_agents,create_branch
+```
+
+Only the listed tools are discovered — useful for read-only or narrowly scoped clients. Pair this with a [least-privilege key](/mcp/builder/security#use-least-privilege-keys).

@@ -1,0 +1,36 @@
+---
+title: Security & safe use
+sidebarTitle: Security & safe use
+description: How to use Builder MCP safely — least-privilege keys, gating destructive actions, and handling PII in transcripts.
+mode: wide
+---
+
+Builder MCP gives an AI client real control over your agents — including actions that affect live callers. Treat it like any other privileged credential and follow the practices below.
+
+## Prompt injection is the main risk
+
+The client acting on your behalf is an LLM, so content it reads — a conversation transcript, a knowledge base topic, a tool result — can contain instructions that try to redirect it. Assume any text the model ingests could attempt to trigger a tool call you didn't intend. The mitigations below limit the blast radius when it does.
+
+## Recommendations
+
+<AccordionGroup>
+  <Accordion title="Use least-privilege keys" icon="key">
+    Create an [API key](/mcp/authentication) with the minimum permissions and agent scope the task needs. A key that only needs to read conversations shouldn't be able to publish. Scope keys to specific agents where possible, and use separate keys for read-only versus build workflows.
+  </Accordion>
+  <Accordion title="Keep keys out of prompts" icon="lock">
+    Store the API key in your client's secret settings or environment — never paste it into a chat message. Anything typed into the conversation can end up in logs or model context.
+  </Accordion>
+  <Accordion title="Prefer read-first workflows" icon="magnifying-glass">
+    Fetch and confirm the current state of a resource before you update or delete it. "Show me the agent's current behavior rules" before "update them" prevents the model from acting on stale assumptions.
+  </Accordion>
+  <Accordion title="Review destructive actions" icon="triangle-exclamation">
+    Tools that delete, publish, promote, or roll back should require explicit user intent. Enable **confirm before running tools** in your MCP client so these are never executed silently, and read the [deployment steps](/mcp/builder/walkthrough#7-roll-back-if-needed) before promoting to production.
+  </Accordion>
+  <Accordion title="Be careful with PII in transcripts" icon="user-shield">
+    Conversation data and transcripts may contain personal or sensitive information. Don't pull full transcripts into the model's context unless you need them — retrieve only the fields required, and avoid echoing sensitive values back into the chat. See [Compliance](/legal/compliance) for how PolyAI handles call data.
+  </Accordion>
+</AccordionGroup>
+
+## Restrict the tool surface
+
+Where a client only needs a subset of tools, expose only those using the `tools` query parameter on the endpoint URL — see [Capabilities → Limiting which tools are exposed](/mcp/builder/capabilities#limiting-which-tools-are-exposed). A read-only analysis client should never be handed `create`, `publish`, or `delete` tools in the first place.

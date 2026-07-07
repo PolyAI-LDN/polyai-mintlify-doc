@@ -1,0 +1,115 @@
+---
+title: Quickstart
+sidebarTitle: Quickstart
+description: Connect PolyAI's Builder MCP to your MCP client in one command.
+mode: wide
+---
+
+{/* REVIEW: Confirm the public endpoint path is `/builder-mcp` and that the connect
+    commands below match the launch spec. Links to DEVP-333 (quickstart) and the
+    DEVP-380 how-to video are pending. */}
+
+Connect the [Builder MCP](/mcp/builder/introduction) to your client and you can build PolyAI agents from your IDE in minutes. You need a [workspace-scoped API key](/mcp/authentication) and your region's endpoint.
+
+## 1. Set your key and endpoint
+
+```bash
+export POLYAI_API_KEY="your_api_key_here"
+export POLYAI_MCP_URL="https://api.us.poly.ai/builder-mcp"   # use your region — see below
+```
+
+| Region | Endpoint |
+| ------ | -------------------------------------- |
+| US     | `https://api.us.poly.ai/builder-mcp`     |
+| UK     | `https://api.uk.poly.ai/builder-mcp`     |
+| EU     | `https://api.eu.poly.ai/builder-mcp`     |
+| Studio | `https://api.studio.poly.ai/builder-mcp` |
+
+Match the region to the workspace you build in. Connecting to the wrong region authenticates against the wrong workspace. See [Authentication](/mcp/authentication#pick-your-region) for how regions map to workspaces.
+
+## 2. Add the server to your client
+
+<Tabs>
+  <Tab title="Cursor">
+    Add to `~/.cursor/mcp.json`:
+
+    ```json
+    {
+      "mcpServers": {
+        "polyai": {
+          "url": "https://api.us.poly.ai/builder-mcp",
+          "headers": { "X-API-KEY": "your_api_key_here" }
+        }
+      }
+    }
+    ```
+
+    Restart Cursor, then open the MCP settings to confirm the PolyAI tools loaded.
+  </Tab>
+  <Tab title="Claude Code">
+    ```bash
+    claude mcp add --transport http polyai "$POLYAI_MCP_URL" \
+      --header "X-API-KEY: $POLYAI_API_KEY" \
+      --header "Accept: application/json, text/event-stream"
+    ```
+
+    Verify with `claude mcp list`, then ask Claude to list its PolyAI tools.
+  </Tab>
+  <Tab title="Claude Desktop">
+    Add to your `claude_desktop_config.json`:
+
+    ```json
+    {
+      "mcpServers": {
+        "polyai": {
+          "url": "https://api.us.poly.ai/builder-mcp",
+          "headers": { "X-API-KEY": "your_api_key_here" }
+        }
+      }
+    }
+    ```
+
+    Restart Claude Desktop. The PolyAI tools appear in the tools menu.
+  </Tab>
+  <Tab title="Codex">
+    Add to your Codex MCP config:
+
+    ```toml
+    [mcp_servers.polyai]
+    url = "https://api.us.poly.ai/builder-mcp"
+    headers = { "X-API-KEY" = "your_api_key_here" }
+    ```
+
+    {/* REVIEW: Confirm Codex config format/key names for HTTP MCP servers. */}
+  </Tab>
+</Tabs>
+
+<Tip>
+Most clients set the `Accept: application/json, text/event-stream` header for you. If a client can't connect, add it explicitly — the server uses the streamable HTTP transport.
+</Tip>
+
+## 3. Verify
+
+Ask your client to list its available tools, or test the endpoint directly:
+
+```bash
+curl -s -X POST "$POLYAI_MCP_URL" \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -H "X-API-KEY: $POLYAI_API_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
+  | grep '^data: ' | sed 's/^data: //' | jq '.result.tools | length'
+```
+
+A number greater than zero means the server is reachable and your key is valid.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="What Builder MCP can do" icon="wrench" href="/mcp/builder/capabilities">
+    Browse the tools, grouped by agents, data, and alerts.
+  </Card>
+  <Card title="Build, test & deploy" icon="rocket" href="/mcp/builder/walkthrough">
+    Walk through the full lifecycle from branch to production.
+  </Card>
+</CardGroup>
