@@ -1,0 +1,80 @@
+---
+title: Connect a client
+sidebarTitle: Connect a client
+description: Add PolyAI's MCP server to Claude Code, Cursor, or any MCP client.
+mode: wide
+---
+
+Once you have a [workspace-scoped API key](/secrets/api-keys) and your [regional endpoint](/mcp/server/endpoints), add the server to your MCP client. Set your key and host as environment variables first:
+
+```bash
+export POLYAI_API_KEY="your_api_key_here"
+export POLYAI_MCP_URL="https://api.us.poly.ai/builder-mcp"   # your region's endpoint
+```
+
+<Tabs>
+  <Tab title="Claude Code">
+    Use `claude mcp add` with the HTTP transport:
+
+    ```bash
+    claude mcp add --transport http polyai "$POLYAI_MCP_URL" \
+      --header "X-API-KEY: $POLYAI_API_KEY" \
+      --header "Accept: application/json, text/event-stream"
+    ```
+
+    The four public regions:
+
+    ```bash
+    # US
+    claude mcp add --transport http polyai-us https://api.us.poly.ai/builder-mcp \
+      --header "X-API-KEY: $POLYAI_API_KEY" --header "Accept: application/json, text/event-stream"
+    # UK
+    claude mcp add --transport http polyai-uk https://api.uk.poly.ai/builder-mcp \
+      --header "X-API-KEY: $POLYAI_API_KEY" --header "Accept: application/json, text/event-stream"
+    # EU
+    claude mcp add --transport http polyai-eu https://api.eu.poly.ai/builder-mcp \
+      --header "X-API-KEY: $POLYAI_API_KEY" --header "Accept: application/json, text/event-stream"
+    # Studio
+    claude mcp add --transport http polyai-studio https://api.studio.poly.ai/builder-mcp \
+      --header "X-API-KEY: $POLYAI_API_KEY" --header "Accept: application/json, text/event-stream"
+    ```
+
+    Verify with `claude mcp list`, then ask Claude to list its PolyAI tools.
+  </Tab>
+  <Tab title="Cursor / JSON config">
+    Add the server to your client's MCP config file (for Cursor, `~/.cursor/mcp.json`):
+
+    ```json
+    {
+      "mcpServers": {
+        "polyai": {
+          "url": "https://api.us.poly.ai/builder-mcp",
+          "headers": {
+            "X-API-KEY": "your_api_key_here",
+            "Accept": "application/json, text/event-stream"
+          }
+        }
+      }
+    }
+    ```
+
+    Swap the `url` for your [region's endpoint](/mcp/server/endpoints). Restart the client to pick up the change.
+  </Tab>
+  <Tab title="Other clients">
+    Any MCP client that supports the streamable HTTP transport works. Configure it with:
+
+    - **URL** — your [regional endpoint](/mcp/server/endpoints), e.g. `https://api.us.poly.ai/builder-mcp`
+    - **Header** `X-API-KEY` — your workspace-scoped API key
+    - **Header** `Accept` — `application/json, text/event-stream`
+
+    See [Verify the connection](/mcp/server/endpoints#verify-the-connection) to test the endpoint before wiring it into a client.
+  </Tab>
+</Tabs>
+
+<Tip>
+Register one client per region if you manage workspaces in more than one — give each a distinct name (`polyai-us`, `polyai-uk`) so it's clear which workspace a tool call targets.
+</Tip>
+
+## Restricting tools
+
+To expose only some tools to a client, append the `tools` query parameter to the URL. See [Available tools](/mcp/server/tools#limiting-which-tools-are-exposed).

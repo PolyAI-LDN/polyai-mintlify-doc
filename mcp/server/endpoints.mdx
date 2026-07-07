@@ -1,0 +1,52 @@
+---
+title: Endpoints & authentication
+sidebarTitle: Endpoints & auth
+description: Regional MCP server URLs, how to authenticate with your API key, and how to verify the connection.
+mode: wide
+---
+
+{/* REVIEW: Confirm the public endpoint path is `/builder-mcp`, that all four regions are
+    live for the MCP server, and which API-key permission (if any) is required to reach it. */}
+
+## Regional endpoints
+
+PolyAI runs the MCP server in every region on the same host family as the [platform APIs](/api-reference/introduction#pick-your-region). Use the endpoint that matches your workspace's region.
+
+| Region | Endpoint |
+| ------ | -------------------------------------- |
+| US     | `https://api.us.poly.ai/builder-mcp`     |
+| UK     | `https://api.uk.poly.ai/builder-mcp`     |
+| EU     | `https://api.eu.poly.ai/builder-mcp`     |
+| Studio | `https://api.studio.poly.ai/builder-mcp` |
+
+<Warning>
+Connecting to the wrong region authenticates against the wrong workspace and returns no agents. Match the region to the host you use for the [Agents API](/api-reference/quickstart).
+</Warning>
+
+## Authentication
+
+The server uses the same [workspace-scoped API key](/secrets/api-keys) as the rest of PolyAI's APIs, sent in the `X-API-KEY` header. Create a key from the **API Keys** page in Agent Studio and copy it when it's shown — the full value only appears once.
+
+The MCP server communicates over streamable HTTP, so clients must also accept the event-stream content type:
+
+| Header | Value |
+| --- | --- |
+| `X-API-KEY` | Your workspace-scoped API key |
+| `Accept` | `application/json, text/event-stream` |
+
+Most MCP clients set the `Accept` header for you — you only supply the API key. See [Connect a client](/mcp/server/connect) for per-client setup.
+
+## Verify the connection
+
+List the tools the server exposes to confirm your endpoint and key work. This calls the MCP `tools/list` method directly:
+
+```bash
+curl -s -X POST https://api.us.poly.ai/builder-mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -H "X-API-KEY: $POLYAI_API_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
+  | grep '^data: ' | sed 's/^data: //' | jq '.result.tools | length'
+```
+
+A number greater than zero means the server is reachable and your key is valid. If you get `0` or an auth error, re-check the region and key.
