@@ -273,17 +273,29 @@ If you already have a knowledge base somewhere else (a help center, CMS, or inte
   <Accordion title="Seed or sync topics via the Agents API" icon="code">
     The [Agents API](/api-reference/agents/introduction) has full CRUD for knowledge base topics. This is especially handy for the initial migration or for scheduled syncs from an external source.
 
+    Topics can't be written to `main` directly — create a branch, add them there, then merge it into `main` (which also publishes to Sandbox). Example queries go in `exampleQueries.queries`.
+
     <CodeGroup>
     ```bash curl
-    # Create a knowledge base topic on the main branch
-    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/knowledge-base/topics \
+    # Create a branch, add a topic on it, then merge to main
+    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches \
+      -H "x-api-key: $POLYAI_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{ "branchName": "seed-kb" }'   # response includes { "branchId": "BRANCH-…" }
+
+    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/BRANCH_ID/knowledge-base/topics \
       -H "x-api-key: $POLYAI_API_KEY" \
       -H "Content-Type: application/json" \
       -d '{
         "name": "Password reset",
-        "sampleQuestions": ["How do I reset my password?", "I forgot my password"],
-        "content": "To reset your password, visit the account portal..."
+        "content": "To reset your password, visit the account portal...",
+        "exampleQueries": { "queries": ["How do I reset my password?", "I forgot my password"] }
       }'
+
+    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/BRANCH_ID/merge \
+      -H "x-api-key: $POLYAI_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{ "deploymentMessage": "Seed knowledge base" }'
     ```
 
     ```python Python
@@ -292,17 +304,30 @@ If you already have a knowledge base somewhere else (a help center, CMS, or inte
     BASE = "https://api.us.poly.ai"
     HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
 
-    # Sync all FAQ entries from your CMS into PolyAI topics
+    # Sync all FAQ entries from your CMS into PolyAI topics.
+    # main is read-only, so seed the topics on a branch and merge once.
+    branch_id = requests.post(
+        f"{BASE}/v1/agents/{AGENT_ID}/branches",
+        headers=HEADERS,
+        json={"branchName": "cms-sync"},
+    ).json()["branchId"]
+
     for faq in cms.list_faqs():
         requests.post(
-            f"{BASE}/v1/agents/{AGENT_ID}/branches/main/knowledge-base/topics",
+            f"{BASE}/v1/agents/{AGENT_ID}/branches/{branch_id}/knowledge-base/topics",
             headers=HEADERS,
             json={
                 "name": faq["title"],
-                "sampleQuestions": faq["variants"],
                 "content": faq["answer"],
+                "exampleQueries": {"queries": faq["variants"]},
             },
         )
+
+    requests.post(
+        f"{BASE}/v1/agents/{AGENT_ID}/branches/{branch_id}/merge",
+        headers=HEADERS,
+        json={"deploymentMessage": "Sync FAQ topics from CMS"},
+    )
     ```
     </CodeGroup>
 

@@ -77,7 +77,7 @@ curl https://api.us.poly.ai/v1/accounts/ACCOUNT_ID/agents \
 ```
 
 <Note>
-API keys for the Agents API are not yet available through self-service. Contact your PolyAI representative to request access.
+Create a workspace-scoped key from the **API Keys** tab on your workspace homepage in Agent Studio — see [API keys](/secrets/api-keys). Copy it when it's shown; the full value only appears once.
 </Note>
 
 ## Identifiers
@@ -93,6 +93,10 @@ Agent Studio labels and API parameters use different names for the same things. 
 
 ## Quick start
 
+<Note>
+`main` is read-only — behavior and knowledge base writes go to a **branch**, which you then merge into `main`. Merging publishes to Sandbox automatically. For the full walkthrough (create → configure → test → deploy → observe), see the [API quickstart](/api-reference/quickstart).
+</Note>
+
 ### 1. Create an agent
 
 ```bash
@@ -107,21 +111,28 @@ curl -X POST https://api.us.poly.ai/v1/accounts/ACCOUNT_ID/agents \
 
 The response includes an `agentId` and a default `main` branch.
 
-### 2. Update the agent's behavior
+### 2. Create a working branch
 
 ```bash
-curl -X PATCH https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/behavior \
+curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "branchName": "quickstart" }'
+```
+
+The response returns a `branchId` — use it for the edits below.
+
+### 3. Update the behavior and add a topic
+
+```bash
+curl -X PATCH https://api.us.poly.ai/v1/agents/AGENT_ID/branches/BRANCH_ID/behavior \
   -H "x-api-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "behavior": "You are a friendly, concise support agent..."
   }'
-```
 
-### 3. Add a knowledge base topic
-
-```bash
-curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/knowledge-base/topics \
+curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/BRANCH_ID/knowledge-base/topics \
   -H "x-api-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -130,20 +141,24 @@ curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/knowledge-b
   }'
 ```
 
-### 4. Publish to sandbox
+### 4. Merge to `main` (publishes to Sandbox)
 
 ```bash
-curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/deployments/publish \
+curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/BRANCH_ID/merge \
   -H "x-api-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{ "environment": "sandbox" }'
+  -d '{ "deploymentMessage": "Initial support agent" }'
 ```
 
 ### 5. Promote to pre-release, then live
 
+Fetch the active Sandbox deployment's `id` (`GET /v1/agents/AGENT_ID/deployments/active`), then promote it. Each promote returns the next environment's `deployment.id`:
+
 ```bash
 curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/deployments/DEPLOYMENT_ID/promote \
-  -H "x-api-key: YOUR_API_KEY"
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "targetEnvironment": "pre-release" }'
 ```
 
 ## Environments
@@ -156,24 +171,26 @@ Deployments run in one of three environments:
 | `pre-release` | Staging for final validation before going live            |
 | `live`        | Production — serves real customer traffic                 |
 
-Use `publish` to push a draft into `sandbox`, then `promote` to move through `pre-release` and `live`. Use `rollback` to revert a deployment. See [Environments](/environments-and-versions/introduction) for the full model.
+Merging a branch into `main` publishes the result to `sandbox`; from there, `promote` moves it through `pre-release` and `live`, and `rollback` reverts a deployment. (The standalone `publish` endpoint deploys the current `main` draft to `sandbox` — redundant right after a merge, which already does this.) See [Environments](/environments-and-versions/introduction) for the full model.
 
 ## Branches
 
-Branches are isolated working copies of an agent. Create a branch for any non-trivial change:
+Branches are isolated working copies of an agent. Because `main` can't be written to directly, **every** behavior, knowledge base, or variant change starts on a branch:
 
 ```bash
 curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches \
   -H "x-api-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{ "name": "experiment-new-greeting" }'
+  -d '{ "branchName": "experiment-new-greeting" }'
 ```
 
-Merge back to `main` when you're ready:
+Merge back to `main` when you're ready — this also publishes the result to Sandbox:
 
 ```bash
 curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/BRANCH_ID/merge \
-  -H "x-api-key: YOUR_API_KEY"
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "deploymentMessage": "Update greeting" }'
 ```
 
 ## Real-time configs
