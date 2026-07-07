@@ -12,7 +12,9 @@ keywords:
   - create agent
 ---
 
-This guide builds an agent from scratch using only the API — no Agent Studio required. By the end you'll have created an agent, given it a behavior and a knowledge base topic, held a test conversation with it, and promoted it to production.
+This guide builds an agent from scratch through the API alone — no flow-building in the Agent Studio UI. By the end you'll have created an agent, given it a behavior and a knowledge base topic, held a test conversation with it, and promoted it to production.
+
+Every step below has a **curl** and a **Python** tab. The Python snippets run top to bottom as one script — each reuses variables (`agent_id`, `branch_id`, …) set by the step before — so copy them in order.
 
 For an overview of the API families, see the [API overview](/api-reference/introduction). This page uses the [Agents](/api-reference/agents/introduction) API to build and ship, and the [Data](/api-reference/data/introduction) API to test — the same API key and host work for both.
 
@@ -175,8 +177,8 @@ response = requests.post(
     },
 )
 response.raise_for_status()
-agent = response.json()
-print(agent["agentId"])
+agent_id = response.json()["agentId"]
+print(agent_id)
 ```
 
 </CodeGroup>
@@ -242,6 +244,8 @@ export POLYAI_BRANCH_ID="BRANCH-F9F1WNN8"  # use the branchId from your response
 
 The behavior is the system prompt that governs how the agent responds.
 
+<CodeGroup>
+
 ```bash curl
 curl -X PATCH "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/branches/$POLYAI_BRANCH_ID/behavior" \
   -H "x-api-key: $POLYAI_API_KEY" \
@@ -251,9 +255,25 @@ curl -X PATCH "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/branches/$POLYAI_BRAN
   }'
 ```
 
+```python Python
+requests.patch(
+    f"{base_url}/v1/agents/{agent_id}/branches/{branch_id}/behavior",
+    headers=headers,
+    json={
+        "behavior": "You are a friendly, concise support agent for Acme Corp. "
+        "Answer questions using the knowledge base. If you cannot help, "
+        "offer to hand off to a human agent.",
+    },
+).raise_for_status()
+```
+
+</CodeGroup>
+
 ### Add a knowledge base topic
 
 Topics are what the agent draws on to answer questions — each one pairs content with example queries that should trigger it.
+
+<CodeGroup>
 
 ```bash curl
 curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/branches/$POLYAI_BRANCH_ID/knowledge-base/topics" \
@@ -268,11 +288,30 @@ curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/branches/$POLYAI_BRANC
   }'
 ```
 
+```python Python
+requests.post(
+    f"{base_url}/v1/agents/{agent_id}/branches/{branch_id}/knowledge-base/topics",
+    headers=headers,
+    json={
+        "name": "Password reset",
+        "content": "Users can reset their password at acme.com/reset. Resets take "
+        "effect immediately and any active sessions are logged out.",
+        "exampleQueries": {
+            "queries": ["How do I reset my password?", "I forgot my password"],
+        },
+    },
+).raise_for_status()
+```
+
+</CodeGroup>
+
 See [Knowledge base](/api-reference/agents/endpoint/knowledge-base/create-knowledge-base-topic) for the full schema, including `actions` and `isActive`.
 
 ### Merge the branch into `main`
 
 Merging applies the branch's edits to `main` **and publishes them to Sandbox in one step** — there's no separate publish call.
+
+<CodeGroup>
 
 ```bash curl
 curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/branches/$POLYAI_BRANCH_ID/merge" \
@@ -280,6 +319,18 @@ curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/branches/$POLYAI_BRANC
   -H "Content-Type: application/json" \
   -d '{ "deploymentMessage": "Initial support agent" }'
 ```
+
+```python Python
+response = requests.post(
+    f"{base_url}/v1/agents/{agent_id}/branches/{branch_id}/merge",
+    headers=headers,
+    json={"deploymentMessage": "Initial support agent"},
+)
+response.raise_for_status()
+print(response.json()["message"])
+```
+
+</CodeGroup>
 
 ```json
 { "sequence": "2", "message": "Branch merged to main and deployed to sandbox", "testRunIds": [] }
@@ -299,12 +350,27 @@ Prefer a UI? Agent Studio has a built-in **Test** panel that talks to a branch d
 
 **Start a session:**
 
+<CodeGroup>
+
 ```bash curl
 curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/debug-chat" \
   -H "x-api-key: $POLYAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "clientEnv": "sandbox" }'
 ```
+
+```python Python
+response = requests.post(
+    f"{base_url}/v1/agents/{agent_id}/debug-chat",
+    headers=headers,
+    json={"clientEnv": "sandbox"},
+)
+response.raise_for_status()
+conversation_id = response.json()["conversationId"]
+print(response.json()["response"])  # the greeting
+```
+
+</CodeGroup>
 
 ```json
 {
@@ -317,9 +383,11 @@ curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/debug-chat" \
 }
 ```
 
-(`metadata` has more fields than shown — trimmed here for readability. The `conversationId` is an `AS_CHAT_…` string; use whatever value your response returns.)
+(`metadata` has more fields than shown — trimmed here for readability. The `conversationId` is an `AS_CHAT_…` string; the curl examples below hard-code the one from this response — swap in your own.)
 
 **Send a message** — try the knowledge base topic you just added:
+
+<CodeGroup>
 
 ```bash curl
 curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/debug-chat/AS_CHAT_106b4f9a-2541-4924-9ea1-fe5ced3c1eec" \
@@ -331,7 +399,32 @@ curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/debug-chat/AS_CHAT_106
   }'
 ```
 
-To confirm the topic was actually used, check `metadata.retrievedTopics` in the response — it lists the knowledge base topics the agent pulled in (`["Password reset"]` here), a more reliable signal than scanning the reply text for `acme.com/reset`. Keep sending messages against the same `conversationId` to continue the conversation, matching `clientEnv` to whichever environment you're checking.
+```python Python
+response = requests.post(
+    f"{base_url}/v1/agents/{agent_id}/debug-chat/{conversation_id}",
+    headers=headers,
+    json={"clientEnv": "sandbox", "message": "I forgot my password"},
+)
+response.raise_for_status()
+body = response.json()
+print(body["response"])
+print(body["metadata"]["retrievedTopics"])  # ['Password reset']
+```
+
+</CodeGroup>
+
+The agent answers from the topic you added:
+
+```json
+{
+  "conversationId": "AS_CHAT_106b4f9a-2541-4924-9ea1-fe5ced3c1eec",
+  "response": "No problem — you can reset your password at acme.com/reset. It takes effect immediately and any active sessions are logged out.",
+  "metadata": { "retrievedTopics": ["Password reset"] },
+  "conversationEnded": false
+}
+```
+
+To confirm the topic was actually used, check `metadata.retrievedTopics` — it lists the knowledge base topics the agent pulled in (`["Password reset"]` here), a more reliable signal than scanning the reply text for `acme.com/reset`. Keep sending messages against the same `conversationId` to continue the conversation, matching `clientEnv` to whichever environment you're checking.
 
 <Note>
 Building a real webchat, SMS, or in-app integration instead of a one-off test? Use the [Chat API](/api-reference/chat/introduction) — it's built for driving conversations from an end-user-facing client and requires its own connector token.
@@ -343,31 +436,79 @@ Sandbox is for testing, not customer traffic. Promote the Sandbox deployment thr
 
 Promotion works on a deployment ID, and the merge in step 2 didn't return one — so fetch the active Sandbox deployment first:
 
+<CodeGroup>
+
 ```bash curl
 curl -X GET "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/deployments/active" \
   -H "x-api-key: $POLYAI_API_KEY"
-# → activeDeployments.sandbox.id is the deployment to promote
+```
+
+```python Python
+response = requests.get(
+    f"{base_url}/v1/agents/{agent_id}/deployments/active",
+    headers=headers,
+)
+response.raise_for_status()
+deployment_id = response.json()["activeDeployments"]["sandbox"]["id"]
+print(deployment_id)
+```
+
+</CodeGroup>
+
+```json
+{
+  "activeDeployments": {
+    "sandbox":     { "id": "019f380c-4235-7ea5-8426-1edf249cd6f3", "environment": "sandbox" },
+    "pre-release": null,
+    "live":        null
+  }
+}
 ```
 
 ```bash
-export DEPLOYMENT_ID="019f380c-4235-7ea5-8426-1edf249cd6f3"  # use the sandbox id from your response
+export POLYAI_DEPLOYMENT_ID="019f380c-4235-7ea5-8426-1edf249cd6f3"  # activeDeployments.sandbox.id
 ```
 
-Then promote it up the chain. Each promote returns a **new** deployment (under `deployment.id`) for the target environment — feed that into the next call:
+Then promote it up the chain. Each promote returns a **new** deployment under `deployment.id` for the target environment — feed that into the next call:
+
+<CodeGroup>
 
 ```bash curl
 # sandbox -> pre-release
-curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/deployments/$DEPLOYMENT_ID/promote" \
+curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/deployments/$POLYAI_DEPLOYMENT_ID/promote" \
   -H "x-api-key: $POLYAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "targetEnvironment": "pre-release" }'
 
-# pre-release -> live (use the deployment.id returned by the call above)
-curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/deployments/$PRE_RELEASE_DEPLOYMENT_ID/promote" \
+# take deployment.id from the response above:
+export POLYAI_PRERELEASE_DEPLOYMENT_ID="..."
+
+# pre-release -> live
+curl -X POST "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID/deployments/$POLYAI_PRERELEASE_DEPLOYMENT_ID/promote" \
   -H "x-api-key: $POLYAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "targetEnvironment": "live" }'
 ```
+
+```python Python
+# sandbox -> pre-release
+response = requests.post(
+    f"{base_url}/v1/agents/{agent_id}/deployments/{deployment_id}/promote",
+    headers=headers,
+    json={"targetEnvironment": "pre-release"},
+)
+response.raise_for_status()
+pre_release_id = response.json()["deployment"]["id"]
+
+# pre-release -> live
+requests.post(
+    f"{base_url}/v1/agents/{agent_id}/deployments/{pre_release_id}/promote",
+    headers=headers,
+    json={"targetEnvironment": "live"},
+).raise_for_status()
+```
+
+</CodeGroup>
 
 Omit `targetEnvironment` and the promote defaults to the next stage in sequence (sandbox → pre-release → live). A Sandbox deployment can also promote straight to `live` — going through Pre-release first is a safety choice, not an API requirement.
 
@@ -381,19 +522,56 @@ Once your agent is live (or you've made test calls), pull the data back with the
 The `project_id` this API expects is the same value as the `agentId` you've used throughout this guide — "Agent" and "Project" are the current and legacy names for the same resource.
 </Note>
 
+This is the one step on the `-1.platform.polyai.app` host with its own project-scoped key, so set that key first:
+
+```bash
+export POLYAI_CONVERSATIONS_API_KEY="your_conversations_api_key_here"
+```
+
+<CodeGroup>
+
 ```bash curl
 curl -X GET \
   "https://api.us-1.platform.polyai.app/v3/$POLYAI_ACCOUNT_ID/$POLYAI_AGENT_ID/conversations?limit=5" \
   -H "x-api-key: $POLYAI_CONVERSATIONS_API_KEY"
 ```
 
+```python Python
+platform_url = "https://api.us-1.platform.polyai.app"
+conversations_headers = {"x-api-key": os.environ["POLYAI_CONVERSATIONS_API_KEY"]}
+
+response = requests.get(
+    f"{platform_url}/v3/{account_id}/{agent_id}/conversations",
+    headers=conversations_headers,
+    params={"limit": 5},
+)
+response.raise_for_status()
+conversations = response.json()["conversations"]
+```
+
+</CodeGroup>
+
 This returns a `conversations` array and a `cursor` for pagination. Fetch one by ID to get its full turn-by-turn transcript:
+
+<CodeGroup>
 
 ```bash curl
 curl -X GET \
   "https://api.us-1.platform.polyai.app/v3/$POLYAI_ACCOUNT_ID/$POLYAI_AGENT_ID/conversations/CONVERSATION_ID" \
   -H "x-api-key: $POLYAI_CONVERSATIONS_API_KEY"
 ```
+
+```python Python
+conversation_id = conversations[0]["id"]
+response = requests.get(
+    f"{platform_url}/v3/{account_id}/{agent_id}/conversations/{conversation_id}",
+    headers=conversations_headers,
+)
+response.raise_for_status()
+transcript = response.json()
+```
+
+</CodeGroup>
 
 From here:
 
@@ -405,6 +583,28 @@ From here:
     Get a signed POST when a call completes instead of polling for it.
   </Card>
 </CardGroup>
+
+## Clean up
+
+Built this agent just to try the API? Delete it when you're done — this removes the agent along with all its branches and deployments, and can't be undone.
+
+<CodeGroup>
+
+```bash curl
+curl -X DELETE "$POLYAI_BASE_URL/v1/agents/$POLYAI_AGENT_ID" \
+  -H "x-api-key: $POLYAI_API_KEY"
+```
+
+```python Python
+requests.delete(
+    f"{base_url}/v1/agents/{agent_id}",
+    headers=headers,
+).raise_for_status()
+```
+
+</CodeGroup>
+
+A successful delete returns `204 No Content`.
 
 ## Troubleshooting
 
