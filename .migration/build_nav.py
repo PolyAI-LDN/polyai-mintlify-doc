@@ -109,7 +109,8 @@ if "--write" in sys.argv:
     docs = json.load(open(os.path.join(REPO, "docs.json")))
     tabs = docs["navigation"]["tabs"]
     tabs = [t for t in tabs if t.get("tab") != "ADK"]
-    idx = next((i for i, t in enumerate(tabs) if t.get("tab") == "Release notes"), len(tabs))
+    # place ADK just before "API reference" -> ADK, API reference, MCP
+    idx = next((i for i, t in enumerate(tabs) if t.get("tab") == "API reference"), len(tabs))
     tabs.insert(idx, adk_tab)
     docs["navigation"]["tabs"] = tabs
     json.dump(docs, open(os.path.join(REPO, "docs.json"), "w"), indent=2, ensure_ascii=False)
