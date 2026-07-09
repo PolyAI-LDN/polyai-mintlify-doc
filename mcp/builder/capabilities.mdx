@@ -1,54 +1,68 @@
 ---
 title: Capabilities
 sidebarTitle: Capabilities
-description: The tools Builder MCP exposes, grouped by agents, data, and alerts.
+description: The tools Builder MCP exposes, grouped by build, test, monitor, and infrastructure.
 mode: wide
 ---
 
-{/* REVIEW: The tool rows below are ILLUSTRATIVE, derived from the backing APIs — they are
-    not the verified live tool list. Replace with the exact tool names, descriptions, and
-    input schemas from DEVP-216 (README) before publishing. Confirm the three-way
-    agents/data/alerts grouping matches what the server actually exposes. */}
+{/* REVIEW: The coverage below was compiled from a live Claude Code session against Builder
+    MCP (via Naorin, Jul 2026) and is PENDING validation by Joseph Perez. Before publishing:
+    confirm the operations per resource, add the exact tool names and input schemas from the
+    DEVP-216 tool list, and verify the workspace- vs project-scoped groupings. */}
 
-Builder MCP exposes PolyAI's platform as MCP tools, grouped into three areas. Your client discovers them automatically on connection — you don't configure tools by hand. Each tool carries its own input schema, which the client reads directly from the server.
+Builder MCP exposes PolyAI's platform as MCP tools, grouped into the families below. Your client discovers them automatically on connection — you don't configure tools by hand. Each tool carries its own input schema, which the client reads directly from the server.
 
 <Note>
-To see exactly what your client discovered, ask it to list its available tools, or query the endpoint's `tools/list` method (see [Quickstart → Verify](/mcp/quickstart#3-verify)).
+To see exactly what your client discovered, ask it to list its available tools, or query the endpoint's `tools/list` method (see [Quickstart → Verify](/mcp/quickstart#2-verify)).
 </Note>
 
-## Agents
+## Build & manage agents
 
-Create and manage agents and everything they contain. Backed by the [Agents API](/api-reference/agents/introduction).
+Create agents and manage everything they contain. Workspace- and agent-scoped, backed by the [Agents API](/api-reference/agents/introduction).
 
-| Tool | Description | Key inputs |
-| --- | --- | --- |
-| `list_agents` | List agents in the workspace | — |
-| `create_agent` | Create a new agent | `name`, response settings |
-| `create_branch` | Branch an agent for isolated edits | `agent_id`, `name` |
-| `merge_branch` | Merge a branch back | `agent_id`, `branch_id` |
-| `update_behavior` | Update agent behavior rules | `agent_id`, rules |
-| `manage_knowledge_base` | Create, update, and delete KB topics | `agent_id`, topic |
-| `manage_variants` | Manage variant attributes and variants | `agent_id`, variant |
+| Resource | Operations |
+| --- | --- |
+| Agents | Create, list, duplicate, delete |
+| Branches | Create, list, delete, merge, sync with parent |
+| Deployments | Publish a draft to an environment, promote, roll back, list active, get the active deployment per environment |
+| Knowledge base | Create, update, and delete topics |
+| Variants | Create, read, update, delete (A/B testing) |
+| Attributes | Create, read, update, delete |
+| Connectors | Get, list, update, delete, look up by phone number |
+| Phone numbers | Batch get, import (single and bulk), delete (single and bulk), reassign |
+| Voice library | Register, update, get, list, synthesize a sample |
+| Real-time configs | Get and list config pages, update environment variables, upsert JSON schema |
+| Audio cache | List, update, delete (single and bulk), download, replace a file, preview TTS |
 
-## Data
+## Test & inspect conversations
 
-Retrieve conversation data to test and inspect agents. Backed by the [Data API](/api-reference/data/introduction).
+Exercise agents and pull back the data they produce. Project-scoped, backed by the [Data](/api-reference/data/introduction) and [Conversations](/api-reference/conversations/introduction) APIs.
 
-| Tool | Description | Key inputs |
-| --- | --- | --- |
-| `list_conversations` | List conversations for an agent | `agent_id`, filters |
-| `get_conversation` | Fetch a conversation by ID | `conversation_id` |
-| `debug_chat` | Start a debug chat session to test an agent | `agent_id`, environment |
+| Resource | Operations |
+| --- | --- |
+| Debug chat | Create a session, send a message |
+| Conversations | Get by ID, list, fetch audio recording, manage annotations and notes |
+| Test runs & test cases | Trigger a run, list and get runs, list cases, view execution history |
+| Outbound calling | Trigger an outbound call, get call status |
 
-## Alerts
+## Monitor deployed agents
 
-Monitor deployed agents. Backed by the [Alerts API](/api-reference/alerts/introduction).
+Watch live agents and react to issues. Workspace-scoped, backed by the [Alerts API](/api-reference/alerts/introduction).
 
-| Tool | Description | Key inputs |
-| --- | --- | --- |
-| `create_alert_rule` | Create an alert rule | rule definition |
-| `list_alert_rules` | List configured alert rules | — |
-| `list_active_alerts` | Read currently firing alerts | — |
+| Resource | Operations |
+| --- | --- |
+| Alerts | Create, read, update, and delete alert rules; read active alerts |
+
+## Manage agent infrastructure
+
+Configure the plumbing behind an agent.
+
+| Resource | Operations |
+| --- | --- |
+| MCP servers on an agent | Add, list, connect, update, delete — register other MCP servers onto your agent |
+| Secrets | Create, delete |
+| Deployed voice configs | Create, read, update, delete; set active |
+| Voice & disclaimer tuning | Get, update |
 
 ## Limiting which tools are exposed
 
