@@ -1,0 +1,66 @@
+---
+title: Build, test & deploy
+sidebarTitle: Build, test & deploy
+description: An end-to-end walkthrough of building, testing, and promoting a PolyAI agent through environments with Builder MCP.
+mode: wide
+---
+
+{/* REVIEW: This walkthrough describes the intended lifecycle using documented PolyAI
+    concepts (branches, environments, deployments). Confirm the exact tool names once the
+    DEVP-216 tool list lands, and that debug chat is exposed via Builder MCP. */}
+
+The lifecycle below is where Builder MCP does more than a thin API wrapper: branches, variants, environments, and deployments are all first-class, so you can take an agent from an idea to production — and roll back — entirely from your MCP client. This is the flow to prompt your assistant through.
+
+<Note>
+These steps map to tools in [Capabilities](/mcp/builder/capabilities). You don't call them by hand — describe the outcome you want and let the client chain the tool calls. Example prompts are shown throughout.
+</Note>
+
+## 1. Branch
+
+Never edit a live agent directly. Create a [branch](/api-reference/agents/introduction) so your changes are isolated until you're ready to merge.
+
+> "Create a branch of the Acme support agent called `greeting-update`."
+
+## 2. Build
+
+Edit the agent on the branch — behavior rules, knowledge base topics, connectors, and [variants](/knowledge/variants/introduction) for A/B experiments.
+
+> "On that branch, update the greeting and add a knowledge base topic for refund policy."
+
+## 3. Test
+
+Use a [debug chat](/api-reference/data/introduction) session to exercise the branch before it goes anywhere. Inspect the resulting [conversation data](/api-reference/data/endpoint/list-conversations) to confirm the agent behaves as intended.
+
+> "Start a debug chat against this branch and ask it about refunds. Show me the transcript."
+
+## 4. Merge
+
+Once the branch checks out, merge it back into the agent's main line.
+
+> "Merge `greeting-update` back into the agent."
+
+## 5. Deploy to staging
+
+[Publish](/api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment) the current draft to a non-production environment first. Test again against staging with real routing.
+
+> "Publish the current draft to staging."
+
+## 6. Promote to production
+
+When staging looks good, [promote](/api-reference/agents/endpoint/deployments/promote-a-deployment-to-the-next-environment) the deployment to production. Nothing reaches live callers until this step.
+
+> "Promote the staging deployment to production."
+
+## 7. Roll back if needed
+
+Every deployment is versioned. If something regresses, [roll back](/api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment) to a previous deployment immediately.
+
+> "Roll production back to the previous deployment."
+
+## Why this matters
+
+Most MCP servers stop at create-and-update. PolyAI's environments and deployment model mean the entire promotion path — draft → staging → production, with versioned rollback — runs through the same MCP client you build in. Combine it with [variants](/knowledge/variants/introduction) to test changes on a slice of traffic before a full promotion.
+
+<Warning>
+Publishing and promotion affect live agents. Gate these behind explicit intent — see [Security & safe use](/mcp/builder/security#review-destructive-actions).
+</Warning>
