@@ -1,0 +1,52 @@
+---
+title: "Debug Chat API"
+sidebarTitle: "Overview"
+description: "Create and exchange messages in debug chat sessions to test agent variants outside of production traffic."
+---
+
+The Debug Chat API lets you exercise an agent variant programmatically — create a session against a specific variant and send user turns into it to see the agent's replies, without touching production traffic. Use it for interactive testing, regression checks, and CI-style suites against a branch before you publish.
+
+## What you can do
+
+- Create a debug chat session targeting a specific agent variant.
+- Send a user turn into an existing session and read back the agent response.
+
+## Regional base URLs
+
+| Region | Base URL                       |
+| ------ | ------------------------------ |
+| US     | `https://api.us.poly.ai`       |
+| EU     | `https://api.eu.poly.ai`       |
+| UK     | `https://api.uk.poly.ai`       |
+| Studio | `https://api.studio.poly.ai`   |
+
+## Identifiers
+
+Agent Studio labels and API parameters use different names for the same things. When you read an ID from Agent Studio, map it to the API parameter using this table:
+
+| Agent Studio label    | API parameter | Example            |
+| --------------------- | ------------- | ------------------ |
+| Project ID / Agent ID | `agentId`     | `PROJECT-58RP822I` |
+
+<Note>**Agent ID is the same value as Project ID.** "Agent" is the current product name; "Project" is the legacy term still surfaced in some Agent Studio screens and URLs. Use the value you see in Agent Studio as the `agentId` path parameter — no transformation needed.</Note>
+
+## Authentication
+
+The Debug Chat API uses API key authentication with the `X-API-KEY` header. API keys are scoped to account, project, and region. Issue keys from the API keys section of Agent Studio, or request one from your PolyAI representative.
+
+```bash
+curl --request POST \
+  --url "https://api.us.poly.ai/v1/agents/{agentId}/debug-chat" \
+  --header "X-API-KEY: $POLYAI_API_KEY"
+```
+
+<Warning>
+**The Agent Studio instance and API region must match.** A key generated from `studio.poly.ai` only works against `api.studio.poly.ai`. To call `api.us.poly.ai`, you must generate the key from `studio.us.poly.ai` (and likewise for `eu` and `uk`). A mismatch returns `401 Unauthorized`.
+
+| Agent Studio URL            | API base URL                 |
+| --------------------------- | ---------------------------- |
+| `https://studio.poly.ai`    | `https://api.studio.poly.ai` |
+| `https://studio.us.poly.ai` | `https://api.us.poly.ai`     |
+| `https://studio.eu.poly.ai` | `https://api.eu.poly.ai`     |
+| `https://studio.uk.poly.ai` | `https://api.uk.poly.ai`     |
+</Warning>
