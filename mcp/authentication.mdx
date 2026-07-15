@@ -1,51 +1,75 @@
 ---
 title: Authentication
 sidebarTitle: Authentication
-description: Obtain a PolyAI API key and configure your MCP client to authenticate against the Builder MCP.
+description: Obtain a PolyAI API key and configure your MCP client to authenticate against Builder MCP or Data MCP.
 mode: wide
 ---
 
-{/* REVIEW: Confirm (1) which API-key permission/scope is required to reach the MCP server,
+{/* REVIEW: Confirm (1) which API-key permission/scope is required to reach each MCP server,
     and (2) the OAuth/self-serve credential timeline before publishing the roadmap note. */}
 
-PolyAI's MCP servers authenticate with the same [workspace-scoped API key](/secrets/api-keys) used across PolyAI's APIs, sent in the `X-API-KEY` header.
+PolyAI's MCP servers authenticate with a PolyAI API key sent in the `X-API-KEY` header. Which kind of key you need depends on the server.
+
+## Which credential do I need?
+
+| Server | Credential | Scope |
+| --- | --- | --- |
+| [Builder MCP](/mcp/builder/introduction) | [Workspace-scoped API key](/secrets/api-keys) | The agents and permissions you grant the key |
+| [Data MCP](/mcp/data/introduction) | Account API key **or** Personal Access Token (PAT) | The account, or your user's project access |
+
+All three are created in Agent Studio and sent the same way — in the `X-API-KEY` header. They differ in where you create them and what they can reach.
 
 ## Get an API key
 
-<Steps>
-  <Step title="Open the API Keys page">
-    Go to the **API Keys** tab on your workspace homepage in Agent Studio. See [API keys](/secrets/api-keys) for details.
-  </Step>
-  <Step title="Create a key">
-    Select **API key**, name it, choose the agents it can access, and set its permissions. Scope it to the least it needs — see [Security & safe use](/mcp/builder/security#use-least-privilege-keys).
-  </Step>
-  <Step title="Copy the value">
-    The full key is shown only once. Copy it immediately and store it in your client's secret settings — never paste it into a chat prompt.
-  </Step>
-</Steps>
+<Tabs>
+  <Tab title="Workspace-scoped key (Builder MCP)">
+    <Steps>
+      <Step title="Open the API Keys page">
+        Go to the **API Keys** tab on your workspace homepage in Agent Studio. See [API keys](/secrets/api-keys) for details.
+      </Step>
+      <Step title="Create a key">
+        Select **API key**, name it, choose the agents it can access, and set its permissions. Scope it to the least it needs — see [Security & safe use](/mcp/builder/security#use-least-privilege-keys).
+      </Step>
+      <Step title="Copy the value">
+        The full key is shown only once. Copy it immediately and store it in your client's secret settings — never paste it into a chat prompt.
+      </Step>
+    </Steps>
 
-<Frame caption="The API Keys tab on your workspace homepage in Agent Studio.">
-  <img
-    src="/images/secrets/api-keys-overview.png"
-    alt="The API Keys tab in Agent Studio, showing the list of keys and the 'API key' button to create a new one"
-    style={{ maxWidth: '820px', width: '100%', margin: '0 auto', display: 'block' }}
-  />
-</Frame>
+    <Frame caption="The API Keys tab on your workspace homepage in Agent Studio.">
+      <img
+        src="/images/secrets/api-keys-overview.png"
+        alt="The API Keys tab in Agent Studio, showing the list of keys and the 'API key' button to create a new one"
+        style={{ maxWidth: '820px', width: '100%', margin: '0 auto', display: 'block' }}
+      />
+    </Frame>
+  </Tab>
+
+  <Tab title="Account key or PAT (Data MCP)">
+    Data MCP accepts either of two credentials, depending on the scope you want:
+
+    - **Account API key** — created from your account page in Agent Studio. Scoped to the account; can query any project in it.
+    - **Personal Access Token (PAT)** — created from your user profile in Agent Studio. Scoped to your user's project access.
+
+    Both are shown only once at creation. Copy the value immediately and store it in your client's secret settings.
+  </Tab>
+</Tabs>
 
 ## Configure your client
 
-Pass the key in the `X-API-KEY` header. The MCP server uses the streamable HTTP transport, so clients also send an `Accept` header:
+Pass the key in the `X-API-KEY` header. Both servers use the streamable HTTP transport, so clients also send an `Accept` header:
 
 | Header | Value |
 | --- | --- |
-| `X-API-KEY` | Your workspace-scoped API key |
+| `X-API-KEY` | Your PolyAI API key or PAT |
 | `Accept` | `application/json, text/event-stream` |
 
 Most clients set `Accept` automatically. See [Quickstart](/mcp/quickstart#2-add-the-server-to-your-client) for per-client configuration.
 
 ## Pick your region
 
-PolyAI runs the MCP server in every region, on the same host family as the [platform APIs](/api-reference/introduction#pick-your-region). Your API key is scoped to a workspace, and each workspace lives in one region — connect to the matching endpoint.
+PolyAI runs each MCP server in every region, on the same host family as the [platform APIs](/api-reference/introduction#pick-your-region). Your key is region-specific — a US key doesn't work against the UK endpoint — so connect to the matching endpoint.
+
+**Builder MCP**
 
 | Region | Endpoint |
 | ------ | -------------------------------------- |
@@ -53,6 +77,14 @@ PolyAI runs the MCP server in every region, on the same host family as the [plat
 | UK     | `https://api.uk.poly.ai/builder-mcp`     |
 | EU     | `https://api.eu.poly.ai/builder-mcp`     |
 | Studio | `https://api.studio.poly.ai/builder-mcp` |
+
+**Data MCP**
+
+| Region | Endpoint |
+| ------ | -------------------------------------- |
+| US     | `https://api.us.poly.ai/data-mcp`     |
+| UK     | `https://api.uk.poly.ai/data-mcp`     |
+| EU     | `https://api.eu.poly.ai/data-mcp`     |
 
 ## OAuth (coming soon)
 
