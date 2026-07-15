@@ -15,6 +15,10 @@ The SMS API lets you programmatically send SMS messages to end users and handle 
 - A connector ID for the target project (passed as `X-TOKEN-ID`). Contact your PolyAI representative.
 - At least one Twilio phone number provisioned for the project. The API automatically selects from the project's available numbers for the token's environment (dev, sandbox, live) unless you specify one via `agent_number`.
 
+<Note>
+  The SMS API works exclusively with Twilio hosted numbers. The standard path is to purchase the number through Agent Studio, which provisions it under a PolyAI-managed subaccount and wires the inbound webhook automatically. Client-owned numbers ported into Twilio are also supported — see [External Twilio numbers](#external-twilio-numbers) for the extra setup.
+</Note>
+
 ## Base URL
 
 Replace `<cluster>` with the region for your deployment:
@@ -65,6 +69,12 @@ When a user sends an SMS to one of your provisioned Twilio numbers:
 Inbound SMS requires Twilio webhook configuration. This is handled automatically when you provision a number through PolyAI. No additional API calls are needed — the agent handles inbound messages through the same conversation engine used for voice and webchat.
 </Note>
 
+<Warning>
+Twilio only allows **one inbound webhook per number**. PolyAI-provisioned numbers have that webhook pinned to `/sms`, which the SMS runtime relies on. If you replace it with a different webhook (for example, the `external-events` webhook used by the [SMS data collection during a call](/voice-channel/message-templates) flow), inbound SMS handling will stop working on that number.
+
+If you need both behaviors on the same agent, provision multiple numbers and dedicate each number to one webhook target. Voice and SMS can share the same number — SMS uses the messaging webhook, voice uses the voice webhook.
+</Warning>
+
 ### Session behavior
 
 | Scenario | Behavior |
@@ -97,6 +107,54 @@ def start(conv):
 ## Agent number selection
 
 By default the API picks from the Twilio numbers provisioned for the connector token's environment. You can override this by passing `agent_number` in the request body — the number must be one of the provisioned numbers or the request is rejected with a `400`.
+
+An agent can have multiple numbers attached to it, and different numbers on the same agent can be configured for different purposes (for example, one number wired to `/sms` for 2-Way SMS, another wired to an `external-events` webhook for legacy in-call SMS data collection).
+
+## External Twilio numbers
+
+The standard path is to purchase numbers directly in Agent Studio — PolyAI provisions them under a PolyAI-managed Twilio subaccount and sets the inbound `/sms` webhook automatically.
+
+Client-owned numbers on an external Twilio account (either ported into a PolyAI-managed subaccount or kept on the client's own account) are also supported, but require extra setup.
+
+### Inbound-only from a client-owned number
+
+For **inbound SMS only**, you can point a Twilio number at PolyAI without registering it in Agent Studio:
+
+1. In the Twilio console, set the number's messaging webhook to your project's `/sms` endpoint.
+2. Send a test SMS to the number and confirm the conversation appears in Agent Studio's [Conversation Review](/analytics/conversations/review) tab.
+
+<Note>
+  The number does not need to exist in Agent Studio for inbound handling to work, but conversations tied to a number that Agent Studio doesn't know about have limited visibility in the platform UI. For full parity (Conversation Review, analytics, handoff routing), add the number to Agent Studio.
+</Note>
+
+### Outbound SMS from a client-owned number
+
+Outbound SMS via `/v1/outbound-sms` requires the number to exist in Agent Studio. Port the client's number into a PolyAI-managed Twilio subaccount (or into a subaccount PolyAI has credentials for) and add it to the target agent before calling the endpoint.
+
+### AWS secret configuration for external subaccounts
+
+When PolyAI sends SMS via a Twilio subaccount that isn't the default platform subaccount, the runtime loads Twilio credentials from an AWS Secrets Manager secret. The secret key follows a fixed structure:
+
+| Scenario | Secret key format |
+| --- | --- |
+| Default platform account (no subaccount passed) | `<cluster>/<env>/<account-id>/twilio` |
+| Specific subaccount | `<cluster>/<env>/<account-id>/<subaccount>/twilio` |
+
+For example, a US production account without a subaccount uses `us-1/prod/<account-id>/twilio`. If a subaccount is specified in the webhook configuration, the key becomes `us-1/prod/<account-id>/<subaccount>/twilio`.
+
+Tag the secret following the same structure as existing platform secrets (for example, `uk-1/platform-prod/twilio/platform`) so it is picked up by the correct environment. Contact your PolyAI representative before creating these secrets in a new account — they must line up with the connector configuration.
+
+### A2P 10DLC campaigns and sandbox testing
+
+Twilio 10DLC campaigns are attached to a specific subaccount. Numbers provisioned via Agent Studio for sandbox go into the **PolyAI-Platform** subaccount, which has its own approved campaign — you can attach a sandbox number to that campaign and send test traffic.
+
+Numbers used for live client projects should be registered against the client's own 10DLC campaign, either on their subaccount or on the PolyAI project subaccount they've been assigned to.
+
+## Handoff and conversation review
+
+- **Conversation Review** — all inbound and outbound SMS conversations appear in Agent Studio's [Conversation Review](/analytics/conversations/review) tab, alongside voice and webchat sessions.
+- **CCaaS handoff** — SMS conversations can be handed off to a human agent through the same CCaaS integrations used by webchat: NICE, Salesforce, Genesys, Webex, and Amazon Connect.
+- **Compliance keywords** — `STOP`, `START`, and `HELP` replies are intercepted before they reach your agent, and outbound messages to opted-out recipients are dropped silently. See [Message templates](/voice-channel/message-templates#what-this-means-for-your-agent) for the full behavior.
 
 ## Number availability & compliance
 

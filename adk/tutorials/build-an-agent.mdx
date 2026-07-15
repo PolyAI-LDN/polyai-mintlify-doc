@@ -1,0 +1,503 @@
+---
+title: "Build an agent with the ADK"
+---
+
+This guide walks through how to go from a blank slate to a production-ready voice agent using **Agent Studio**, the **PolyAI ADK**, and — optionally — the **PolyAI ADK extension** for **VS Code** or **Cursor**, or a coding agent such as **Claude Code**.
+
+There are two common ways to build with the ADK:
+
+| Workflow | Description |
+|---|---|
+| **CLI workflow** | The hands-on developer path. You run the commands yourself, edit files locally, and push changes back to Agent Studio. |
+| **AI-agent workflow** | You provide a brief; a coding tool uses the ADK to generate and push the project files on your behalf. |
+
+<CardGroup>
+  <Card title="You provide context">
+    Gather the requirements, business rules, API information, and reference material.
+  </Card>
+  <Card title="The agent or developer builds">
+    Using the ADK, the project files are created, edited, validated, and prepared locally.
+  </Card>
+  <Card title="Agent Studio hosts and deploys">
+    The generated work is pushed back into Agent Studio, where it can be reviewed, merged, and deployed.
+  </Card>
+</CardGroup>
+
+## Architecture at a glance
+
+| Role | Responsibility |
+|---|---|
+| **You** | Provide requirements, project context, and business rules |
+| **PolyAI ADK** | Connect the local project to Agent Studio and manage sync, validation, and tooling |
+| **Coding agent** | Optionally generate and update files using the ADK |
+| **Agent Studio** | Host, preview, review, merge, and deploy the agent |
+
+## Local project structure
+
+See [Working locally — What a local project contains](/adk/concepts/working-locally#what-a-local-project-contains) for the full directory tree. In short, the project mirrors what Agent Studio understands: `agent_settings/`, `flows/`, `functions/`, `topics/`, `voice/`, `chat/`, and `config/`.
+
+## Workflow 1 - CLI workflow
+
+The CLI workflow is the manual developer path. You use the ADK directly, edit the project locally, and push changes back to Agent Studio.
+
+You can run this workflow in whichever editing surface you prefer: a plain terminal, or **VS Code** / **Cursor** with the [PolyAI ADK extension](/adk/reference/tooling#polyai-adk-extension-for-vs-code-and-cursor) for resource-aware navigation and validation. Both count as the CLI workflow — the difference is only the editing surface.
+
+### Step 1 - Initialize your project
+
+Link a local folder to an existing Agent Studio project. The agent must already exist in Agent Studio.
+
+~~~bash
+poly init
+~~~
+
+`poly init` walks you through interactive dropdowns for region, account, and project. It creates the project directory and pulls the current configuration. Change into the project directory before running any further commands. See [First commands](/adk/get-started/first-commands) for flag options and details.
+
+### Step 2 - Set up the environment
+
+Configure any API keys or environment variables needed for the project. `poly init` pulls the current configuration automatically, but you can run `poly pull` at any time to refresh it:
+
+~~~bash
+poly pull
+poly pull -f
+~~~
+
+<Note>
+
+**Run commands from the project folder**
+
+
+All CLI commands should be run from within the local project folder, unless you explicitly use the relevant path flag.
+
+</Note>
+
+### Step 3 - Chat with the agent
+
+Start an interactive chat session to confirm the connection works and inspect runtime behavior.
+
+<Info>
+
+**`poly chat` runs against Agent Studio, not your local files**
+
+
+`poly chat` connects to the last pushed state of your current branch (or sandbox on `main`). Push first, or use `poly chat --push`.
+
+</Info>
+
+~~~bash
+poly chat
+poly chat --environment sandbox --channel voice
+poly chat --functions --flows --state
+~~~
+
+### Step 4 - Review the docs and understand the SDK
+
+Use the CLI docs command to inspect the available resources and learn how they fit together.
+
+~~~bash
+poly docs --all
+poly docs flows functions topics
+~~~
+
+Resource-specific documentation is available in the reference section:
+[agent settings](/adk/reference/agent_settings),
+[voice settings](/adk/reference/voice_settings),
+[chat settings](/adk/reference/chat_settings),
+[flows](/adk/reference/flows),
+[functions](/adk/reference/functions),
+[topics](/adk/reference/topics),
+[entities](/adk/reference/entities),
+[handoffs](/adk/reference/handoffs),
+[variants](/adk/reference/variants),
+[SMS templates](/adk/reference/sms),
+[variables](/adk/reference/variables),
+[speech recognition](/adk/reference/speech_recognition),
+[response control](/adk/reference/response_control),
+[safety filters](/adk/reference/safety_filters),
+[languages](/adk/reference/languages),
+[translations](/adk/reference/translations), and
+[experimental config](/adk/reference/experimental_config).
+
+### Step 5 - Customize the agent
+
+This is the core build phase. Create a branch, edit resources locally, track changes, and push them back.
+
+<Tip>
+
+**Read the anti-patterns page first**
+
+
+Before editing, review the [common anti-patterns](/adk/concepts/anti-patterns) to avoid flow control bugs, logging noise, and prompt logic mistakes that are easy to introduce but hard to debug.
+
+</Tip>
+
+#### Branching
+
+~~~bash
+poly branch create my-feature
+poly branch switch my-feature
+poly branch current
+poly branch list
+~~~
+
+#### Functions
+
+Create or modify backend functions the agent calls at runtime. See the [functions reference](/adk/reference/functions) for the full API.
+
+Typical locations include:
+
+- global functions under the functions directory
+- lifecycle hooks such as start and end functions
+- flow-scoped functions
+- function steps inside flows
+
+#### Topics
+
+Add or edit [knowledge-base topics](/adk/reference/topics) used for retrieval.
+
+#### Agent settings
+
+Update the [personality, role, and rules](/adk/reference/agent_settings) that define the agent's global behavior.
+
+#### Flows
+
+Build [conversation flows](/adk/reference/flows), including prompts, step transitions, [entities](/adk/reference/entities), and function steps.
+
+#### Channel-specific settings
+
+Adjust greeting messages, disclaimers, and style prompts for [voice](/adk/reference/voice_settings) and [chat](/adk/reference/chat_settings).
+
+#### Safety filters
+
+Configure [content safety filtering](/adk/reference/safety_filters) at the project level and per channel.
+
+#### Handoffs, SMS, and variants
+
+Define [escalation paths](/adk/reference/handoffs), [SMS templates](/adk/reference/sms), and [per-variant configuration](/adk/reference/variants).
+
+#### Languages and translations
+
+Configure [supported languages](/adk/reference/languages) and [localized text strings](/adk/reference/translations) for multilingual agents.
+
+#### ASR and response control
+
+Tune [speech recognition](/adk/reference/speech_recognition) and control [TTS behavior](/adk/reference/response_control).
+
+#### Experimental config
+
+Enable or tune [experimental features](/adk/reference/experimental_config) where needed.
+
+### Step 6 - Track and validate changes
+
+Inspect the local changes before pushing.
+
+~~~bash
+poly status
+poly diff
+poly diff --files <file>
+poly validate
+poly format
+poly revert
+poly revert <file>
+~~~
+
+<Warning>
+
+**`poly format` may crash on projects with YAML sub-resources**
+
+
+Running `poly format` on a project that contains YAML-defined sub-resources (such as `config/handoffs.yaml` or `voice/configuration.yaml`) can produce errors like:
+
+~~~text
+[Errno 20] Not a directory: '.../config/handoffs.yaml/handoffs/Default_handoff'
+~~~
+
+This is a known bug in how the formatter resolves paths inside YAML files. Use `--files` to format specific Python files instead:
+
+~~~bash
+poly format --files functions/my_function.py
+~~~
+
+</Warning>
+
+<Warning>
+
+**`poly validate` may fail on platform-generated functions**
+
+
+Projects built via Quick Agent Setup often include server-generated functions such as `handoff.py` or `hangup.py` whose signatures do not declare a `conv: Conversation` parameter. The ADK's local validator will reject these, blocking `poly push`.
+
+The cleanest fix is to add `conv: Conversation` to the function signature yourself:
+
+~~~python
+def handoff(conv: Conversation):
+    ...
+~~~
+
+Alternatively, skip local validation and let the platform validate the push instead:
+
+~~~bash
+poly push --skip-validation
+~~~
+
+</Warning>
+
+### Step 7 - Push changes
+
+Push the local changes back to Agent Studio.
+
+~~~bash
+poly push
+poly push --dry-run
+poly push -f
+poly push --skip-validation
+~~~
+
+### Step 8 - Test against sandbox
+
+Once your branch is merged in Agent Studio, test the agent by chatting with it against the sandbox environment.
+
+<Note>
+
+**Pushing before chatting**
+
+
+Push your latest changes before chatting — `poly chat` connects to the last pushed state. Target a specific environment with `--environment sandbox`, `--environment pre-release`, or `--environment live`.
+
+</Note>
+
+~~~bash
+poly chat --environment sandbox
+poly chat --environment sandbox --functions --flows
+~~~
+
+### Step 9 - Iterate on quality
+
+Review, refine, and test again. You can also use the review command to share diffs with teammates.
+
+~~~bash
+poly review create
+poly review create --before main --after my-feature
+~~~
+
+Make test calls, inspect transcripts, refine prompts, flows, and functions, and then re-push.
+
+### Step 10 - Deploy to production
+
+Once the changes are pushed and validated, merge the branch in Agent Studio and deploy the project.
+
+<Note>
+
+**Merging from the CLI or the Agent Studio web UI**
+
+Merge from the CLI with `poly branch merge '<commit message>'`, which merges the current branch into `main`. You can also merge through the Agent Studio web UI by switching to the branch and clicking **Merge**. After merging, run `poly chat --environment sandbox` to test. See the [Branch merging reference](/adk/reference/branch_merge) for the full conflict-resolution flow.
+
+</Note>
+
+### Step 11 - Monitor performance
+
+Use Agent Studio analytics to monitor containment, CSAT, handle time, and flagged transcripts. Pull changes back locally as needed and continue iterating.
+
+## Workflow 2 - AI-agent workflow
+
+The AI-agent workflow uses a coding agent — such as **Claude Code**, or an in-editor agent in **VS Code** or **Cursor** paired with the [PolyAI ADK extension](/adk/reference/tooling#polyai-adk-extension-for-vs-code-and-cursor) — to run the same development loop on your behalf.
+
+<CardGroup>
+  <Card title="You provide the brief">
+    Requirements, business rules, integrations, and API documentation.
+  </Card>
+  <Card title="The coding tool generates the project">
+    It uses the ADK to read documentation, generate files, and push the result.
+  </Card>
+  <Card title="You review and deploy">
+    Agent Studio remains the place where the work is checked, merged, and deployed.
+  </Card>
+</CardGroup>
+
+### Step 1 - Gather requirements
+
+Collect the project context before you begin.
+
+Include anything the coding tool will need to produce a working agent:
+
+- API endpoint URLs
+- business rules
+- use-case descriptions
+- internal notes or emails
+- reference material
+- links to API documentation
+
+The more complete and structured your input is, the less correction the output requires.
+
+<Tip>
+
+**Front-load the context**
+
+
+Gather everything up front. Providing context piecemeal produces piecemeal output.
+
+</Tip>
+
+### Step 2 - Create a new project in Agent Studio
+
+Open **Agent Studio** and create a brand-new project.
+
+The project starts empty:
+
+- no knowledge base
+- no flows
+- no configuration
+
+That blank starting point is intentional. The coding tool populates the project in later steps.
+
+<Note>
+
+**Think of Agent Studio as the deployment target**
+
+
+Agent Studio is where the project lives, but the coding tool generates the actual content.
+
+</Note>
+
+### Step 3 - Start the coding tool via the CLI
+
+Open your terminal and start the coding tool.
+
+At this stage:
+
+- the ADK must already be installed
+- the Agent Studio project must already exist
+- the coding tool should initialize and link the project using the ADK
+
+~~~bash
+poly init --region <region> --account_id <account_id> --project_id <project_id>
+~~~
+
+`poly init` pulls the current configuration automatically — there is no need to run `poly pull` separately. The ADK acts as the bridge between your local environment and Agent Studio, letting the coding tool read from and write back to the project.
+
+<Tip>
+
+**Run `poly docs --all` before generating any files**
+
+Immediately after initializing, run `poly docs --all` to produce a complete resource reference. Without it, a coding agent has no schema context for resource structure and field names, and will hallucinate them.
+
+Note that `poly docs --all` documents the ADK's resource layer (topics, flows, entities, variants, and so on) but does not cover every runtime `Conversation` method. In particular, `conv.send_sms_template`, `conv.send_sms`, and `conv.caller_number` are not present in the output. For the full runtime API, direct the coding agent to the [conv object reference](https://docs.poly.ai/tools/classes/conv-object) on the platform docs.
+
+</Tip>
+
+### Step 4 - Give the coding tool its context
+
+Provide the coding tool with the information you gathered earlier.
+
+Include:
+
+- project-specific requirements
+- the URL to the business's public API documentation
+- relevant internal context
+- useful patterns or best practices from previous projects
+
+Use the docs command to generate a reference file the coding tool can read:
+
+~~~bash
+poly docs --all
+~~~
+
+### Step 5 - Generate the project files
+
+Once the context is in place, the coding tool generates the project files.
+
+This produces the assets the agent needs, including:
+
+<CardGroup>
+  <Card title="Conversation flows">
+    Dialog logic and routing for the agent.
+  </Card>
+  <Card title="Callable functions">
+    Backend functions used during calls.
+  </Card>
+  <Card title="Knowledge base entries">
+    Information the agent can reference when answering questions.
+  </Card>
+  <Card title="API integrations">
+    Both real API connections and mock endpoints for testing.
+  </Card>
+</CardGroup>
+
+The generated files follow ADK structure and are ready to push to Agent Studio.
+
+### Step 6 - Push to Agent Studio
+
+Once the files are generated, use the ADK to push them to Agent Studio.
+
+A new branch is created in the project so the generated work can be reviewed safely before anything goes live.
+
+When you switch to that branch in Agent Studio, you should see the generated changes, such as:
+
+- updated greeting messages
+- new knowledge base entries
+- a built tracking flow
+- real and mock API integrations
+
+<Tip>
+
+**Use the branch review step**
+
+
+The branch-based workflow makes it possible to inspect what was generated before merging it into the main project.
+
+</Tip>
+
+### Step 7 - Review, merge, and deploy
+
+Review the generated work inside Agent Studio.
+
+Check that the key parts of the agent look correct:
+
+- flows
+- functions
+- knowledge base entries
+- API integrations
+
+Once everything looks right:
+
+1. merge the branch into `main` — either with [`poly branch merge`](/adk/reference/branch_merge) from the CLI or through the Agent Studio web UI
+2. deploy the project
+
+At that point, the agent is live.
+
+## CLI command overview
+
+| Command | Description |
+|---|---|
+| **poly init** | Initialize a new project locally |
+| **poly pull** | Pull remote config into the local project |
+| **poly push** | Push local changes to Agent Studio |
+| **poly status** | List changed files |
+| **poly diff** | Show diffs |
+| **poly revert** | Revert local changes |
+| **poly branch** | Branch management |
+| **poly format** | Format resource files |
+| **poly validate** | Validate project configuration locally |
+| **poly review** | Create a diff review page |
+| **poly chat** | Start an interactive session with the agent |
+| **poly docs** | Output resource documentation |
+
+## The overall loop
+
+1. create or connect a project
+2. build locally using the ADK
+3. push to Agent Studio
+4. review, merge, and deploy
+
+## Next steps
+
+<CardGroup>
+  <Card title="Restaurant booking agent" href="/adk/tutorials/restaurant-booking-agent">
+    Apply the workflow to a real-world example with flows, functions, and variants.
+  </Card>
+  <Card title="Core concepts" href="/adk/concepts/working-locally">
+    Understand resource architecture, local development patterns, and team workflows.
+  </Card>
+  <Card title="CLI reference" href="/adk/reference/cli">
+    Explore the available ADK commands and options.
+  </Card>
+</CardGroup>
