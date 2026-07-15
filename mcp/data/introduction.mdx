@@ -1,0 +1,202 @@
+---
+title: "Data MCP"
+sidebarTitle: Overview
+description: "Query PolyAI conversation data — transcripts, metrics, and analytics — from any MCP client."
+mode: wide
+---
+
+**Data MCP** is PolyAI's authenticated [MCP](https://modelcontextprotocol.io) server for conversation data. Connect an MCP client — [Claude Code](https://www.claude.com/product/claude-code), [Cursor](https://cursor.com), [Claude Desktop](https://claude.ai/download), or [Codex](https://developers.openai.com/codex/cli/) — and you can search conversations, read transcripts, and aggregate metrics in plain language, without calling the [REST API](/api-reference/introduction) directly.
+
+## Data MCP vs Builder MCP
+
+Both are PolyAI-hosted servers you connect **in** to. They cover different jobs and authenticate differently.
+
+|                   | **Data MCP**                                        | **Builder MCP**                                    |
+| ----------------- | --------------------------------------------------- | -------------------------------------------------- |
+| **What it's for** | Query conversation data: transcripts, metrics, analytics | Build, test, and deploy agents                     |
+| **Authenticates** | Account API key                                     | Workspace-scoped API key                           |
+| **Endpoint path** | `/data-mcp`                                         | `/builder-mcp`                                     |
+| **Docs**          | This page                                           | [Builder MCP](/mcp/builder/introduction)           |
+
+<Note>
+To connect a client **out** from a live agent to a third-party server instead, see [Agent Studio MCP integrations](/mcp/agent-studio-integrations).
+</Note>
+
+## What you can do
+
+<CardGroup cols={2}>
+  <Card title="Conversation search" icon="magnifying-glass">
+    Find conversations by their metrics and scores — filter and sort on quality scores, duration, and outcomes over a date range.
+  </Card>
+
+  <Card title="Transcripts" icon="file-lines">
+    Read the full, turn-by-turn record of a conversation, or search across many conversations for a word or phrase with surrounding context.
+  </Card>
+
+  <Card title="Metrics catalog" icon="list-check">
+    List the metrics available for an account or project — the built-in ones plus any custom metrics your projects define.
+  </Card>
+
+  <Card title="Analytics" icon="chart-line">
+    Roll a metric up over time into buckets you can chart — grouped, filtered, and thresholded however you like.
+  </Card>
+</CardGroup>
+
+## Get started
+
+### 1. Get an account API key
+
+Every request carries an API key in the `X-API-KEY` header. Data MCP uses an **account API key**, created from your account page in Agent Studio — it's scoped to the account and can query any project in it. See [Authentication](/mcp/authentication) for details.
+
+### 2. Set your key and endpoint
+
+Keys are region-specific — a US key doesn't work against the UK endpoint. Match the region to where your account lives.
+
+| Region | Endpoint                            |
+| ------ | ----------------------------------- |
+| US     | `https://api.us.poly.ai/data-mcp`   |
+| UK     | `https://api.uk.poly.ai/data-mcp`   |
+| EU     | `https://api.eu.poly.ai/data-mcp`   |
+
+```bash
+export POLYAI_API_KEY="your_api_key_here"
+export POLYAI_DATA_MCP_URL="https://api.us.poly.ai/data-mcp"   # use your region
+```
+
+### 3. Add the server to your client
+
+<Tabs>
+  <Tab title="Claude Code">
+    ```bash
+    claude mcp add --transport http polyai-data "$POLYAI_DATA_MCP_URL" \
+      --header "X-API-KEY: $POLYAI_API_KEY" \
+      --header "Accept: application/json, text/event-stream"
+    ```
+
+    Verify with `claude mcp list`, then ask Claude to list its PolyAI data tools.
+  </Tab>
+
+  <Tab title="Cursor">
+    Add to `~/.cursor/mcp.json`:
+
+    ```json
+    {
+      "mcpServers": {
+        "polyai-data": {
+          "url": "https://api.us.poly.ai/data-mcp",
+          "headers": { "X-API-KEY": "your_api_key_here" }
+        }
+      }
+    }
+    ```
+
+    Restart Cursor, then open the MCP settings to confirm the tools loaded.
+  </Tab>
+
+  <Tab title="Claude Desktop">
+    Add to your `claude_desktop_config.json`:
+
+    ```json
+    {
+      "mcpServers": {
+        "polyai-data": {
+          "url": "https://api.us.poly.ai/data-mcp",
+          "headers": { "X-API-KEY": "your_api_key_here" }
+        }
+      }
+    }
+    ```
+
+    Restart Claude Desktop. The tools appear in the tools menu.
+  </Tab>
+
+  <Tab title="Codex">
+    Add to your Codex MCP config:
+
+    ```toml
+    [mcp_servers.polyai-data]
+    url = "https://api.us.poly.ai/data-mcp"
+    headers = { "X-API-KEY" = "your_api_key_here" }
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+  Working across regions? Add the server once per region under distinct names (e.g. `polyai-data-us`, `polyai-data-uk`, `polyai-data-eu`), each with that region's key.
+</Tip>
+
+## Tools
+
+Each tool carries its own input schema, which your client reads directly from the server. The tables below cover the parameters you'll actually use.
+
+### `get-metrics`
+
+List the filterable metrics for an account, optionally scoped to a project — built-in metrics plus any custom metrics the project defines. Use this first to discover what you can filter and aggregate on.
+
+| Parameter    | Type   | Description                                       |
+| ------------ | ------ | ------------------------------------------------- |
+| `project_id` | string | Optional project scope.    |
+
+### `search-conversations`
+
+Search conversations by metric filters, with sorting and pagination.
+
+| Parameter         | Type     | Description                                                                                                        |
+| ----------------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| `from` / `to`     | datetime | Bounds on conversation start time (`from` inclusive, `to` exclusive).                                              |
+| `filters`         | array    | Metric filters: `{metric, op, value}`. Operators: `eq`, `gt`, `gte`, `lt`, `lte`, `in`, `ex`, `contains`, `not_contains`, `exists`. |
+| `filter_operator` | string   | How filters combine: `and` (default) or `or`.                                                                      |
+| `sort`            | object   | `{field, order}` — field is `started_at`, `duration`, or `conversation_id`. Defaults to `started_at` descending.   |
+| `limit` / `offset`| integer  | Pagination. `limit` 1–100 (default 20), `offset` 0–1000.                                                           |
+| `project_id`      | string   | Optional project scope.                                                                     |
+
+### `search-transcripts`
+
+Full-text search over transcript turns across conversations, returning matches with surrounding turns for context.
+
+| Parameter          | Type     | Description                                                     |
+| ------------------ | -------- | --------------------------------------------------------------- |
+| `q`                | string   | Search phrase, 3–300 characters. **Required.**                  |
+| `from` / `to`      | datetime | Bounds on conversation start time.                              |
+| `context_turns`    | integer  | Turns of context around each match, 0–3 (default 1).            |
+| `limit` / `offset` | integer  | Pagination. `limit` 1–100 (default 20), `offset` 0–1000.        |
+| `project_id`       | string   | Optional project scope.                  |
+
+### `get-conversation`
+
+Fetch every turn of a single conversation.
+
+| Parameter         | Type   | Description                                    |
+| ----------------- | ------ | ---------------------------------------------- |
+| `conversation_id` | string | The conversation to fetch. **Required.**       |
+| `project_id`      | string | Optional project scope. |
+
+### `aggregate-a-metric-over-a-time-interval`
+
+Aggregate a metric over a time window into buckets you can chart — with grouping, cohort filters, and post-aggregation thresholds.
+
+| Parameter          | Type     | Description                                                                                                     |
+| ------------------ | -------- | ---------------------------------------------------------------------------------------------------------------- |
+| `metric`           | string   | Metric to aggregate (case-insensitive, e.g. `poly_score`). **Required.**                                          |
+| `aggs`             | array    | Aggregations to compute: `sum`, `avg`, `min`, `max`, `p50`, `p95`, `p99`, `conversation_count`, `distinct_count`. **Required.** |
+| `from` / `to`      | datetime | Window bounds (`from` inclusive, `to` exclusive).                                                                 |
+| `interval`         | string   | Time bucket: `hourly`, `daily`, `weekly`, `monthly`. Omit for a single unbucketed result.                          |
+| `group_by`         | array    | Group by `project_id`, `channel`, `deployment_id`, `variant_id`, `client_env`, or — for string metrics — `value_string`. |
+| `filters`          | array    | Cohort filters on other metrics: `{metric, op, value}`. Operators: `eq`, `gt`, `gte`, `lt`, `lte`, `in`, `ex`, `exists`. |
+| `having`           | array    | Post-aggregation thresholds: `{field, op, value}` where `field` is one of the `aggs`.                              |
+| `channel`          | array    | Restrict to channels: `VOICE-SIP`, `CHAT`, `WEBCHAT`, `SMS`.                                                       |
+| `client_env`       | array    | Restrict to environments: `test`, `sandbox`, `pre-release`, `live`, `scenarios`.                                   |
+| `deployment_id` / `variant_id` | array | Restrict to specific deployments or variants.                                                          |
+| `sort`             | object   | Secondary sort on a `group_by` or `aggs` field, applied after the ascending bucket sort.                            |
+| `limit` / `offset` | integer  | Pagination. `limit` 1–100 (default 20), `offset` 0–1000.                                                           |
+| `project_id`       | string   | Optional project scope.                                                                     |
+
+## Errors
+
+| Status | Meaning                                                                                |
+| ------ | -------------------------------------------------------------------------------------- |
+| `400`  | Request validation error.                                                               |
+| `401`  | Missing or invalid `X-API-KEY`.                                                         |
+| `403`  | Authenticated, but missing the required permission.                                      |
+| `404`  | Not found or empty result — also returned when a credential can't access the account.   |
+| `422`  | Unsupported filter.                                                                     |
