@@ -215,10 +215,10 @@ html.dark {
 
 .home-bento {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  grid-auto-rows: minmax(0, auto);
+  grid-template-columns: repeat(12, 1fr);
   gap: 1rem;
   margin: 1.75rem 0 2.5rem;
+  align-items: stretch;
 }
 
 .home-tile {
@@ -245,13 +245,15 @@ html.dark a.home-tile:hover {
   box-shadow: 0 14px 34px -22px rgba(0, 0, 0, 0.7);
 }
 
-/* Column spans — the asymmetry lives here */
-.tile-hero { grid-column: span 4; grid-row: span 2; }
-.tile-side { grid-column: span 2; }
-.tile-half { grid-column: span 3; }
+/* Column spans — the asymmetry lives here.
+   Row 1: hero (7) + ADK terminal (5).  Row 2: three nav tiles (4 each). */
+.tile-hero { grid-column: span 6; }
+.tile-adk  { grid-column: span 6; }
+.tile-nav  { grid-column: span 4; }
 
 .tile-hero {
-  padding: 1.9rem 2rem;
+  justify-content: center;
+  padding: 2rem 2.1rem;
   background: linear-gradient(158deg, rgba(217, 238, 80, 0.16), rgba(74, 124, 16, 0.05) 70%);
   border-color: rgba(74, 124, 16, 0.22);
 }
@@ -262,19 +264,20 @@ html.dark .tile-hero {
 }
 
 .tile-hero h2 {
-  font-size: 2rem;
-  line-height: 1.12;
+  font-size: 2.1rem;
+  line-height: 1.1;
   font-weight: 700;
-  margin: 0 0 0.6rem;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.7rem;
   color: var(--home-fg);
 }
 
 .tile-hero p {
   font-size: 1rem;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--home-muted);
-  margin: 0 0 1.3rem;
-  max-width: 32rem;
+  margin: 0;
+  max-width: 30rem;
 }
 
 .home-cta-row {
@@ -313,19 +316,6 @@ html.dark .tile-hero {
 
 .home-btn-ghost:hover { border-color: rgba(74, 124, 16, 0.45); }
 
-.home-metrics {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem 1rem;
-  margin-top: 1.3rem;
-  padding-top: 1.1rem;
-  border-top: 1px solid var(--home-tile-border);
-  font-size: 0.82rem;
-  color: var(--home-muted);
-}
-
-.home-metrics b { color: var(--home-fg); font-weight: 600; }
-
 /* Small companion tiles */
 .home-tile-icon {
   width: 38px;
@@ -362,34 +352,71 @@ html.dark .home-tile-icon { background: rgba(217, 238, 80, 0.12); }
   color: var(--home-eyebrow);
 }
 
-/* Code tile */
-.tile-code { padding: 0; overflow: hidden; }
+/* ADK terminal tile */
+.tile-adk { padding: 0; overflow: hidden; }
 
-.tile-code .tile-code-head {
+.term-head {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.85rem 1.2rem;
+  gap: 0.4rem;
+  padding: 0.7rem 1.1rem;
   border-bottom: 1px solid var(--home-tile-border);
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--home-muted);
 }
 
-.tile-code pre {
+.term-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--home-tile-border);
+}
+
+.term-title {
+  margin-left: 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--home-fg);
+}
+
+.term-body {
+  flex: 1;
   margin: 0;
   padding: 1.1rem 1.3rem;
   background: var(--home-code-bg);
   font-family: var(--font-mono, ui-monospace, "SF Mono", Menlo, monospace);
-  font-size: 0.82rem;
-  line-height: 1.75;
-  color: var(--home-fg);
+  font-size: 0.83rem;
+  line-height: 1.5;
   overflow-x: auto;
 }
 
-.tile-code .c-prompt { color: #4a7c10; }
-html.dark .tile-code .c-prompt { color: #bcdb4d; }
-.tile-code .c-comment { color: var(--home-muted); }
+.term-line {
+  display: flex;
+  gap: 1rem;
+  padding: 0.22rem 0;
+  white-space: nowrap;
+}
+
+.term-cmd {
+  flex: none;
+  min-width: 5.5rem;
+  color: var(--home-fg);
+}
+
+.term-cmd .term-p { color: #4a7c10; margin-right: 0.5rem; }
+html.dark .term-cmd .term-p { color: #bcdb4d; }
+.term-c { color: var(--home-muted); }
+
+.term-foot {
+  padding: 0.85rem 1.3rem;
+  border-top: 1px solid var(--home-tile-border);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--home-eyebrow);
+  text-decoration: none;
+  transition: background 140ms ease;
+}
+
+.term-foot:hover { background: rgba(74, 124, 16, 0.06); }
+html.dark .term-foot:hover { background: rgba(217, 238, 80, 0.08); }
 
 /* "New" pill in the news tile */
 .home-pill {
@@ -410,18 +437,18 @@ html.dark .tile-code .c-prompt { color: #bcdb4d; }
 
 html.dark .home-pill { background: rgba(217, 238, 80, 0.14); }
 
-/* Tablet / narrow-content: 2-col, hero full width, keep some asymmetry */
+/* Tablet: hero + terminal stack full-width; nav tiles sit three-across */
 @media (max-width: 950px) {
-  .home-bento { grid-template-columns: repeat(2, 1fr); }
-  .tile-hero { grid-column: 1 / -1; grid-row: auto; }
-  .tile-side { grid-column: span 1; }
-  .tile-half { grid-column: 1 / -1; }
+  .home-bento { grid-template-columns: repeat(6, 1fr); }
+  .tile-hero, .tile-adk { grid-column: 1 / -1; }
+  .tile-nav { grid-column: span 2; }
 }
 
 /* Mobile: single column */
 @media (max-width: 640px) {
   .home-bento { grid-template-columns: 1fr; }
-  .home-bento > * { grid-column: 1 / -1 !important; grid-row: auto !important; }
+  .home-bento > * { grid-column: 1 / -1 !important; }
+  .term-line { white-space: normal; }
 }
 
 @media (prefers-reduced-motion: reduce) {
