@@ -125,78 +125,15 @@ export POLYAI_DATA_MCP_URL="https://api.us.poly.ai/data-mcp"   # use your region
   Working across regions? Add the server once per region under distinct names (e.g. `polyai-data-us`, `polyai-data-uk`, `polyai-data-eu`), each with that region's key.
 </Tip>
 
-## Tools
+## Capabilities
 
-Each tool carries its own input schema, which your client reads directly from the server. The tables below cover the parameters you'll actually use.
+Data MCP exposes 5 tools — conversation search, transcript search, single-conversation fetch, a metrics catalog, and metric aggregation. See [Capabilities](/mcp/data/capabilities) for each tool and its parameters.
 
-### `get-metrics`
-
-List the filterable metrics for an account, optionally scoped to a project — built-in metrics plus any custom metrics the project defines. Use this first to discover what you can filter and aggregate on.
-
-| Parameter    | Type   | Description                                       |
-| ------------ | ------ | ------------------------------------------------- |
-| `project_id` | string | Optional project scope.    |
-
-### `search-conversations`
-
-Search conversations by metric filters, with sorting and pagination.
-
-| Parameter         | Type     | Description                                                                                                        |
-| ----------------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
-| `from` / `to`     | datetime | Bounds on conversation start time (`from` inclusive, `to` exclusive).                                              |
-| `filters`         | array    | Metric filters: `{metric, op, value}`. Operators: `eq`, `gt`, `gte`, `lt`, `lte`, `in`, `ex`, `contains`, `not_contains`, `exists`. |
-| `filter_operator` | string   | How filters combine: `and` (default) or `or`.                                                                      |
-| `sort`            | object   | `{field, order}` — field is `started_at`, `duration`, or `conversation_id`. Defaults to `started_at` descending.   |
-| `limit` / `offset`| integer  | Pagination. `limit` 1–100 (default 20), `offset` 0–1000.                                                           |
-| `project_id`      | string   | Optional project scope.                                                                     |
-
-### `search-transcripts`
-
-Full-text search over transcript turns across conversations, returning matches with surrounding turns for context.
-
-| Parameter          | Type     | Description                                                     |
-| ------------------ | -------- | --------------------------------------------------------------- |
-| `q`                | string   | Search phrase, 3–300 characters. **Required.**                  |
-| `from` / `to`      | datetime | Bounds on conversation start time.                              |
-| `context_turns`    | integer  | Turns of context around each match, 0–3 (default 1).            |
-| `limit` / `offset` | integer  | Pagination. `limit` 1–100 (default 20), `offset` 0–1000.        |
-| `project_id`       | string   | Optional project scope.                  |
-
-### `get-conversation`
-
-Fetch every turn of a single conversation.
-
-| Parameter         | Type   | Description                                    |
-| ----------------- | ------ | ---------------------------------------------- |
-| `conversation_id` | string | The conversation to fetch. **Required.**       |
-| `project_id`      | string | Optional project scope. |
-
-### `aggregate-a-metric-over-a-time-interval`
-
-Aggregate a metric over a time window into buckets you can chart — with grouping, cohort filters, and post-aggregation thresholds.
-
-| Parameter          | Type     | Description                                                                                                     |
-| ------------------ | -------- | ---------------------------------------------------------------------------------------------------------------- |
-| `metric`           | string   | Metric to aggregate (case-insensitive, e.g. `poly_score`). **Required.**                                          |
-| `aggs`             | array    | Aggregations to compute: `sum`, `avg`, `min`, `max`, `p50`, `p95`, `p99`, `conversation_count`, `distinct_count`. **Required.** |
-| `from` / `to`      | datetime | Window bounds (`from` inclusive, `to` exclusive).                                                                 |
-| `interval`         | string   | Time bucket: `hourly`, `daily`, `weekly`, `monthly`. Omit for a single unbucketed result.                          |
-| `group_by`         | array    | Group by `project_id`, `channel`, `deployment_id`, `variant_id`, `client_env`, or — for string metrics — `value_string`. |
-| `filters`          | array    | Cohort filters on other metrics: `{metric, op, value}`. Operators: `eq`, `gt`, `gte`, `lt`, `lte`, `in`, `ex`, `exists`. |
-| `having`           | array    | Post-aggregation thresholds: `{field, op, value}` where `field` is one of the `aggs`.                              |
-| `channel`          | array    | Restrict to channels: `VOICE-SIP`, `CHAT`, `WEBCHAT`, `SMS`.                                                       |
-| `client_env`       | array    | Restrict to environments: `test`, `sandbox`, `pre-release`, `live`, `scenarios`.                                   |
-| `deployment_id` / `variant_id` | array | Restrict to specific deployments or variants.                                                          |
-| `sort`             | object   | Secondary sort on a `group_by` or `aggs` field, applied after the ascending bucket sort.                            |
-| `limit` / `offset` | integer  | Pagination. `limit` 1–100 (default 20), `offset` 0–1000.                                                           |
-| `project_id`       | string   | Optional project scope.                                                                     |
-
-## Errors
-
-| Status | Meaning                                                                                |
-| ------ | -------------------------------------------------------------------------------------- |
-| `400`  | Request validation error.                                                               |
-| `401`  | Missing or invalid `X-API-KEY`.                                                         |
-| `403`  | Authenticated, but missing the required permission.                                      |
-| `404`  | Not found or empty result — also returned when a credential can't access the account.   |
-| `422`  | Unsupported filter.                                                                     |
+<CardGroup cols={2}>
+  <Card title="Browse the tools" icon="list-check" href="/mcp/data/capabilities">
+    Every Data MCP tool, grouped by what it does, with its parameters.
+  </Card>
+  <Card title="Build with Builder MCP" icon="wrench" href="/mcp/builder/introduction">
+    Need to build, test, and deploy agents instead? That's the sibling Builder MCP.
+  </Card>
+</CardGroup>
