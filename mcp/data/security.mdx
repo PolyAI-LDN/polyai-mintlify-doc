@@ -1,0 +1,36 @@
+---
+title: Security & safe use
+sidebarTitle: Security & safe use
+description: How to use Data MCP safely — protecting PII in transcripts, scoping access, and handling prompt injection from conversation content.
+mode: wide
+---
+
+Data MCP gives an AI client read access to your conversation data — transcripts and metrics that can contain personal and sensitive information. Treat the API key like any other privileged credential and follow the practices below.
+
+## The main risks
+
+Data MCP is read-only — it can't change your agents — so the risks are about **what data leaves your control** and **what the model is told to do with it**:
+
+- **Sensitive data exposure.** Transcripts may contain names, contact details, payment references, and other PII. Anything pulled into the model's context can end up in logs or downstream output.
+- **Prompt injection.** The client acting on your behalf is an LLM, and transcript text it reads can contain instructions that try to redirect it. Assume any conversation content the model ingests could attempt to trigger actions you didn't intend.
+
+## Recommendations
+
+<AccordionGroup>
+  <Accordion title="Retrieve only what you need" icon="user-shield">
+    Conversation data and transcripts may contain personal or sensitive information. Don't pull full transcripts into the model's context unless you need them — filter to the conversations that matter, request only the fields required, and avoid echoing sensitive values back into the chat. See [Compliance](/legal/compliance) for how PolyAI handles call data.
+  </Accordion>
+  <Accordion title="Scope questions to a project" icon="folder">
+    An account API key can query any project in the account. Where a task only concerns one project, pass its `project_id` so results — and any data that reaches the model — stay scoped to it. See [Authentication](/mcp/authentication).
+  </Accordion>
+  <Accordion title="Keep keys out of prompts" icon="lock">
+    Store the API key in your client's secret settings or environment — never paste it into a chat message. Anything typed into the conversation can end up in logs or model context. Rotate a key immediately if it's exposed.
+  </Accordion>
+  <Accordion title="Treat transcript content as untrusted" icon="triangle-exclamation">
+    A transcript is user-generated text — it can contain instructions aimed at the model. Don't let the client act on directions found inside conversation data, and be wary of summaries that quote it verbatim back into a shared channel.
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+Data MCP can't create, update, or delete anything — it only reads. To build, test, and deploy agents, that's the [Builder MCP](/mcp/builder/introduction), which has its own [security guidance](/mcp/builder/security).
+</Note>
