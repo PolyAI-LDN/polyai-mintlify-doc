@@ -7,7 +7,7 @@ mode: wide
 
 Data MCP exposes PolyAI's conversation data as MCP tools. Your client discovers them automatically on connection — you don't configure tools by hand. Each tool carries its own input schema, which the client reads directly from the server; the parameter tables below reproduce that schema so you can see what each tool takes without connecting first.
 
-Data MCP exposes **4 tools**. Tool names appear exactly as your client sees them in `tools/list`.
+Data MCP exposes **5 tools**. Tool names appear exactly as your client sees them in `tools/list`.
 
 <Note>
 To see exactly what your client discovered, ask it to list its tools or query the endpoint's `tools/list` method. Parameters map to a PolyAI REST endpoint — they're sent as path segments, query parameters, or a request body — but your client handles that wiring from the schema; the tables below just list what you can set.
@@ -51,9 +51,9 @@ Fetch every turn of a single conversation.
 | `conversation_id` | string | The conversation to fetch. **Required.**       |
 | `project_id`      | string | Optional project scope. |
 
-## Metrics
+## Metrics & analytics
 
-Discover which metrics you can filter and sort on.
+Discover which metrics you can filter and aggregate on, then roll one up over time into buckets you can chart.
 
 ### `get-metrics`
 
@@ -62,6 +62,29 @@ List the filterable metrics for an account, optionally scoped to a project — b
 | Parameter    | Type   | Description                                       |
 | ------------ | ------ | ------------------------------------------------- |
 | `project_id` | string | Optional project scope.    |
+
+### `-experimental--aggregate-a-metric-over-a-time-interval`
+
+Aggregate a metric over a time window into buckets you can chart — with grouping, cohort filters, and post-aggregation thresholds.
+
+<Note>This tool is **experimental** — its name (carrying the `-experimental-` prefix) and schema may change. Your client discovers the current name from `tools/list`.</Note>
+
+| Parameter          | Type     | Description                                                                                                     |
+| ------------------ | -------- | ---------------------------------------------------------------------------------------------------------------- |
+| `metric`           | string   | Metric to aggregate (case-insensitive, e.g. `poly_score`). **Required.**                                          |
+| `aggs`             | array    | Aggregations to compute: `sum`, `avg`, `min`, `max`, `p50`, `p95`, `p99`, `conversation_count`, `distinct_count`. **Required.** |
+| `from` / `to`      | datetime | Window bounds (`from` inclusive, `to` exclusive).                                                                 |
+| `interval`         | string   | Time bucket: `hourly`, `daily`, `weekly`, `monthly`. Omit for a single unbucketed result.                          |
+| `group_by`         | array    | Group by `project_id`, `channel`, `deployment_id`, `variant_id`, `client_env`, or — for string metrics — `value_string`. |
+| `filters`          | array    | Cohort filters on other metrics: `{metric, op, value}`. Operators: `eq`, `gt`, `gte`, `lt`, `lte`, `in`, `ex`, `exists`. |
+| `filter_operator`  | string   | How filters combine: `and` (default) or `or`.                                                                     |
+| `having`           | array    | Post-aggregation thresholds: `{field, op, value}` where `field` is one of the `aggs`.                              |
+| `channel`          | array    | Restrict to channels: `VOICE-SIP`, `CHAT`, `WEBCHAT`, `SMS`.                                                       |
+| `client_env`       | array    | Restrict to environments: `test`, `sandbox`, `pre-release`, `live`, `scenarios`.                                   |
+| `deployment_id` / `variant_id` | array | Restrict to specific deployments or variants.                                                          |
+| `sort`             | object   | Secondary sort on a `group_by` or `aggs` field, applied after the ascending bucket sort.                            |
+| `limit` / `offset` | integer  | Pagination. `limit` 1–100 (default 20), `offset` 0–1000.                                                           |
+| `project_id`       | string   | Optional project scope.                                                                     |
 
 ## Errors
 
