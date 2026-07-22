@@ -1,0 +1,135 @@
+---
+title: "Data MCP"
+sidebarTitle: Overview
+description: "Query PolyAI conversation data — transcripts, metrics, and analytics — from any MCP client."
+mode: wide
+---
+
+**Data MCP** is PolyAI's authenticated [MCP](https://modelcontextprotocol.io) server for conversation data. Connect an MCP client — [Claude Code](https://www.claude.com/product/claude-code), [Cursor](https://cursor.com), [Claude Desktop](https://claude.ai/download), or [Codex](https://developers.openai.com/codex/cli/) — and you can search conversations, read transcripts, and aggregate metrics in plain language, without calling the [REST API](/api-reference/introduction) directly.
+
+## Data MCP vs Builder MCP
+
+Both are PolyAI-hosted servers you connect **in** to. They cover different jobs and authenticate differently.
+
+|                   | **Data MCP**                                        | **Builder MCP**                                    |
+| ----------------- | --------------------------------------------------- | -------------------------------------------------- |
+| **What it's for** | Query conversation data: transcripts, metrics, analytics | Build, test, and deploy agents                     |
+| **Authenticates** | Account API key                                     | Account API key                                    |
+| **Endpoint path** | `/data-mcp`                                         | `/builder-mcp`                                     |
+| **Docs**          | This page                                           | [Builder MCP](/mcp/builder/introduction)           |
+
+<Note>
+To connect a client **out** from a live agent to a third-party server instead, see [Agent Studio MCP integrations](/mcp/agent-studio-integrations).
+</Note>
+
+## What you can do
+
+<CardGroup cols={2}>
+  <Card title="Conversation search" icon="magnifying-glass">
+    Find conversations by their metrics and scores — filter and sort on quality scores, duration, and outcomes over a date range.
+  </Card>
+
+  <Card title="Transcripts" icon="file-lines">
+    Read the full, turn-by-turn record of a conversation, or search across many conversations for a word or phrase with surrounding context.
+  </Card>
+
+  <Card title="Metrics catalog" icon="list-check">
+    List the metrics available for an account or project — the built-in ones plus any custom metrics your projects define.
+  </Card>
+
+  <Card title="Analytics" icon="chart-line">
+    Roll a metric up over time into buckets you can chart — grouped, filtered, and thresholded however you like.
+  </Card>
+</CardGroup>
+
+## Get started
+
+### 1. Get an account API key
+
+Every request carries an API key in the `X-API-KEY` header. Data MCP uses an **account API key**, created from your account page in Agent Studio — it's scoped to the account and can query any project in it. See [Authentication](/mcp/authentication) for details.
+
+### 2. Set your key and endpoint
+
+Keys are region-specific — a US key doesn't work against the UK endpoint. Match the region to where your account lives. Self-serve (Studio) accounts are supported too.
+
+| Region | Endpoint                              |
+| ------ | ------------------------------------- |
+| US     | `https://api.us.poly.ai/data-mcp`     |
+| UK     | `https://api.uk.poly.ai/data-mcp`     |
+| EU     | `https://api.eu.poly.ai/data-mcp`     |
+| Studio | `https://api.studio.poly.ai/data-mcp` |
+
+```bash
+export POLYAI_API_KEY="your_api_key_here"
+export POLYAI_DATA_MCP_URL="https://api.us.poly.ai/data-mcp"   # use your region
+```
+
+### 3. Add the server to your client
+
+<Tabs>
+  <Tab title="Claude Code">
+    ```bash
+    claude mcp add --transport http polyai-data "$POLYAI_DATA_MCP_URL" \
+      --header "X-API-KEY: $POLYAI_API_KEY" \
+      --header "Accept: application/json, text/event-stream"
+    ```
+
+    Verify with `claude mcp list`, then ask Claude to list its PolyAI data tools.
+  </Tab>
+
+  <Tab title="Cursor">
+    Add to `~/.cursor/mcp.json`:
+
+    ```json
+    {
+      "mcpServers": {
+        "polyai-data": {
+          "url": "https://api.us.poly.ai/data-mcp",
+          "headers": { "X-API-KEY": "your_api_key_here" }
+        }
+      }
+    }
+    ```
+
+    Restart Cursor, then open the MCP settings to confirm the tools loaded.
+  </Tab>
+
+  <Tab title="Claude Desktop">
+    Add to your `claude_desktop_config.json`:
+
+    ```json
+    {
+      "mcpServers": {
+        "polyai-data": {
+          "url": "https://api.us.poly.ai/data-mcp",
+          "headers": { "X-API-KEY": "your_api_key_here" }
+        }
+      }
+    }
+    ```
+
+    Restart Claude Desktop. The tools appear in the tools menu.
+  </Tab>
+
+  <Tab title="Codex">
+    Add to your Codex MCP config:
+
+    ```toml
+    [mcp_servers.polyai-data]
+    url = "https://api.us.poly.ai/data-mcp"
+    headers = { "X-API-KEY" = "your_api_key_here" }
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+  Working across regions? Add the server once per region under distinct names (e.g. `polyai-data-us`, `polyai-data-uk`, `polyai-data-eu`), each with that region's key.
+</Tip>
+
+## Capabilities
+
+Data MCP exposes 5 tools — conversation search, transcript search, single-conversation fetch, a metrics catalog, and metric aggregation. See [Capabilities](/mcp/data/capabilities) for each tool and its parameters.
+
+<Card title="Browse the tools" icon="list-check" href="/mcp/data/capabilities">
+  Every Data MCP tool, grouped by what it does, with its parameters.
+</Card>

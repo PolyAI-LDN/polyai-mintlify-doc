@@ -1,209 +1,1304 @@
 ---
 title: Capabilities
 sidebarTitle: Capabilities
-description: The tools Builder MCP exposes, grouped by what they do.
+description: The tools Builder MCP exposes, grouped by what they do — each with its parameters and a link to the matching API reference.
 mode: wide
 ---
 
-Builder MCP exposes PolyAI's platform as MCP tools, grouped into the families below. Your client discovers them automatically on connection — you don't configure tools by hand. Each tool carries its own input schema, which the client reads directly from the server.
+Builder MCP exposes PolyAI's platform as MCP tools, grouped into the families below. Your client discovers them automatically on connection — you don't configure tools by hand. Each tool carries its own input schema, which the client reads directly from the server; the parameter tables below reproduce that schema so you can see what each tool takes without connecting first.
 
-US, UK, and EU workspaces expose **97 tools**; self-serve Studio workspaces expose **91** (the Alerts family is enterprise-only). Tool names appear exactly as your client sees them in `tools/list`.
+US, UK, and EU workspaces expose **106 tools**; self-serve Studio workspaces expose **100** (the Alerts family is enterprise-only). Tool names appear exactly as your client sees them in `tools/list`.
 
 <Note>
-To see exactly what your client discovered, ask it to list its available tools, or query the endpoint's `tools/list` method (see [Quickstart → Verify](/mcp/quickstart#3-verify)).
+Every tool maps to a PolyAI REST endpoint. Parameters are named `path_*`, `query_*`, or nested under a request `body` in the raw schema — the tables below strip those prefixes and expand the body's top-level fields. For deeply nested request bodies, follow the **API reference** link on each tool for the complete schema. To see exactly what your client discovered, ask it to list its tools or query the endpoint's `tools/list` method (see [Quickstart → Verify](/mcp/quickstart#3-verify)).
 </Note>
+
 
 ## Build & manage agents
 
-Create agents and manage everything they contain. Workspace- and agent-scoped, backed by the [Agents API](/api-reference/agents/introduction).
+### Agents
 
-**Agents**
+#### `create-agent`
 
-| Tool | What it does |
-| --- | --- |
-| `create-agent` | Create agent |
-| `list-agents` | List agents |
-| `duplicate-agent` | Duplicate agent |
-| `delete-agent` | Delete agent |
+Create agent.
 
-**Behavior**
+API reference: [Create agent](/api-reference/agents/endpoint/agents/create-agent).
 
-| Tool | What it does |
-| --- | --- |
-| `get-agent-behavior-rules` | Get agent behavior rules |
-| `update-agent-behavior-rules` | Update agent behavior rules |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `accountId` | string | The account (workspace). **Required.** |
+| `name` | string | 1–100 characters. **Required.** |
+| `experimentalConfig` | object | Nested object — see the API reference for the full schema. |
+| `responseSettings` | object | Nested object — see the API reference for the full schema. **Required.** |
+| `llmSettings` | object | Nested object — see the API reference for the full schema. |
+| `voiceSettings` | object | Nested object — see the API reference for the full schema. |
+| `agentId` | string | — |
 
-**Branches**
+#### `list-agents`
 
-| Tool | What it does |
-| --- | --- |
-| `create-branch` | Create branch |
-| `list-branches` | List branches |
-| `delete-branch` | Delete branch |
-| `merge-branch` | Merge branch |
-| `sync-branch-with-parent` | Sync branch with parent |
+List agents.
 
-**Deployments**
+API reference: [List agents](/api-reference/agents/endpoint/agents/list-agents).
 
-| Tool | What it does |
-| --- | --- |
-| `publish-the-current-draft-to-an-environment` | Publish the current draft to an environment |
-| `promote-a-deployment-to-the-next-environment` | Promote a deployment to the next environment |
-| `rollback-to-a-previous-deployment` | Rollback to a previous deployment |
-| `list-deployments-for-an-environment` | List deployments for an environment |
-| `get-active-deployment-per-environment` | Get active deployment per environment |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `accountId` | string | The account (workspace). **Required.** |
 
-**Knowledge base**
+#### `duplicate-agent`
 
-| Tool | What it does |
-| --- | --- |
-| `create-knowledge-base-topic` | Create knowledge base topic |
-| `get-knowledge-base-topic` | Get knowledge base topic |
-| `list-knowledge-base-topics` | List knowledge base topics |
-| `update-knowledge-base-topic` | Update knowledge base topic |
-| `delete-knowledge-base-topic` | Delete knowledge base topic |
+Duplicate agent.
 
-**Variants**
+API reference: [Duplicate agent](/api-reference/agents/endpoint/agents/duplicate-agent).
 
-| Tool | What it does |
-| --- | --- |
-| `create-variant` | Create variant |
-| `list-variants` | List variants |
-| `update-variant` | Update variant |
-| `delete-variant` | Delete variant |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `newAgentName` | string | 1–100 characters. **Required.** |
+| `newAgentId` | string | — |
 
-**Attributes**
+#### `delete-agent`
 
-| Tool | What it does |
-| --- | --- |
-| `create-attribute` | Create attribute |
-| `list-attributes` | List attributes |
-| `update-attribute` | Update attribute |
-| `delete-attribute` | Delete attribute |
+Delete agent.
 
-**Connectors**
+API reference: [Delete agent](/api-reference/agents/endpoint/agents/delete-agent).
 
-| Tool | What it does |
-| --- | --- |
-| `get-a-connector-by-id` | Get a connector by ID |
-| `batch-get-connectors-by-id` | Batch get connectors by ID |
-| `list-all-connectors-for-a-project` | List all connectors for a project |
-| `update-a-connector` | Update a connector |
-| `batch-update-connectors` | Batch update connectors |
-| `delete-a-connector-and-its-phone-numbers` | Delete a connector and its phone numbers |
-| `look-up-connector-by-phone-number` | Look up connector by phone number |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
 
-**Phone numbers**
+### Behavior
 
-| Tool | What it does |
-| --- | --- |
-| `get-a-specific-phone-number` | Get a specific phone number |
-| `batch-get-phone-numbers` | Batch get phone numbers |
-| `list-all-phone-numbers-for-a-project` | List all phone numbers for a project |
-| `import-a-single-phone-number` | Import a single phone number |
-| `import-phone-numbers-into-a-project` | Import phone numbers into a project |
-| `delete-a-single-phone-number` | Delete a single phone number |
-| `delete-phone-numbers-from-a-project` | Delete phone numbers from a project |
-| `reassign-a-phone-number-to-a-different-connector` | Reassign a phone number to a different connector |
+#### `get-agent-behavior-rules`
 
-**Config pages (real-time config)**
+Get agent behavior rules.
 
-| Tool | What it does |
-| --- | --- |
-| `get-a-config-page-by-environment` | Get a config page by environment |
-| `list-all-config-pages` | List all config pages |
-| `update-config-variables-for-an-environment` | Update config variables for an environment |
-| `upsert-the-json-schema-for-a-config-page` | Upsert the JSON Schema for a config page |
+API reference: [Get agent behavior rules](/api-reference/agents/endpoint/behavior/get-agent-behavior-rules).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `branchId` | string | The branch. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `update-agent-behavior-rules`
+
+Update agent behavior rules.
+
+API reference: [Update agent behavior rules](/api-reference/agents/endpoint/behavior/update-agent-behavior-rules).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `behavior` | string | — **Required.** |
+
+### Branches
+
+#### `create-branch`
+
+Create branch.
+
+API reference: [Create branch](/api-reference/agents/endpoint/branches/create-branch).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchName` | string | 1–100 characters. **Required.** |
+
+#### `list-branches`
+
+List branches.
+
+API reference: [List branches](/api-reference/agents/endpoint/branches/list-branches).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+
+#### `delete-branch`
+
+Delete branch.
+
+API reference: [Delete branch](/api-reference/agents/endpoint/branches/delete-branch).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `branchId` | string | The branch. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `merge-branch`
+
+Merge branch.
+
+API reference: [Merge branch](/api-reference/agents/endpoint/branches/merge-branch).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `conflictResolutions` | array | Array. |
+| `deploymentMessage` | string | Default ``. |
+
+#### `sync-branch-with-parent`
+
+Sync branch with parent.
+
+API reference: [Sync branch with parent](/api-reference/agents/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `conflictResolutions` | array | Array. |
+
+#### `deploy-a-branch`
+
+Deploy a branch.
+
+API reference: [Deploy a branch](/api-reference/agents/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `branchId` | string | The branch. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+### Deployments
+
+#### `publish-the-current-draft-to-an-environment`
+
+Publish the current draft to an environment.
+
+API reference: [Publish the current draft to an environment](/api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `environment` | string | Environment to publish to (defaults to sandbox). |
+| `deploymentMessage` | string | Message describing this publish. Default ``. |
+
+#### `promote-a-deployment-to-the-next-environment`
+
+Promote a deployment to the next environment.
+
+API reference: [Promote a deployment to the next environment](/api-reference/agents/endpoint/deployments/promote-a-deployment-to-the-next-environment).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `deploymentId` | string | The deployment. **Required.** |
+| `deploymentMessage` | string | Default ``. |
+| `targetEnvironment` | string | One of `pre-release`, `live`. |
+
+#### `rollback-to-a-previous-deployment`
+
+Rollback to a previous deployment.
+
+API reference: [Rollback to a previous deployment](/api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `deploymentId` | string | The deployment. **Required.** |
+| `deploymentMessage` | string | Default ``. |
+
+#### `list-deployments-for-an-environment`
+
+List deployments for an environment.
+
+API reference: [List deployments for an environment](/api-reference/agents/endpoint/deployments/list-deployments-for-an-environment).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `environment` | string | Environment to list deployments for (sandbox, pre-release, live). One of `sandbox`, `pre-release`, `live`. **Required.** |
+| `limit` | integer | Max number of deployments to return. |
+
+#### `get-active-deployment-per-environment`
+
+Get active deployment per environment.
+
+API reference: [Get active deployment per environment](/api-reference/agents/endpoint/deployments/get-active-deployment-per-environment).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+
+### Knowledge base
+
+#### `create-knowledge-base-topic`
+
+Create knowledge base topic.
+
+API reference: [Create knowledge base topic](/api-reference/agents/endpoint/knowledge-base/create-knowledge-base-topic).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `name` | string | — **Required.** |
+| `content` | string | — **Required.** |
+| `actions` | string | — |
+| `isActive` | boolean | — |
+| `exampleQueries` | object | Nested object — see the API reference for the full schema. |
+
+#### `get-knowledge-base-topic`
+
+Get knowledge base topic.
+
+API reference: [Get knowledge base topic](/api-reference/agents/endpoint/knowledge-base/get-knowledge-base-topic).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `topicId` | string | The knowledge base topic. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+
+#### `list-knowledge-base-topics`
+
+List knowledge base topics.
+
+API reference: [List knowledge base topics](/api-reference/agents/endpoint/knowledge-base/list-knowledge-base-topics).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `branchId` | string | The branch. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `update-knowledge-base-topic`
+
+Update knowledge base topic.
+
+API reference: [Update knowledge base topic](/api-reference/agents/endpoint/knowledge-base/update-knowledge-base-topic).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `branchId` | string | The branch. **Required.** |
+| `topicId` | string | The knowledge base topic. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+| `content` | string | — |
+| `name` | string | — |
+| `actions` | string | — |
+| `isActive` | boolean | — |
+| `exampleQueries` | object | Nested object — see the API reference for the full schema. |
+
+#### `delete-knowledge-base-topic`
+
+Delete knowledge base topic.
+
+API reference: [Delete knowledge base topic](/api-reference/agents/endpoint/knowledge-base/delete-knowledge-base-topic).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `topicId` | string | The knowledge base topic. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+
+### Variants
+
+#### `create-variant`
+
+Create variant.
+
+API reference: [Create variant](/api-reference/agents/endpoint/variants/create-variant).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `name` | string | — **Required.** |
+| `attributeValues` | object | Default `{'values': {}}`. |
+| `isDefault` | boolean | — |
+
+#### `list-variants`
+
+List variants.
+
+API reference: [List variants](/api-reference/agents/endpoint/variants/list-variants).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `branchId` | string | The branch. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `update-variant`
+
+Update variant.
+
+API reference: [Update variant](/api-reference/agents/endpoint/variants/update-variant).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `branchId` | string | The branch. **Required.** |
+| `variantId` | string | The variant. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+| `name` | string | — |
+| `attributeValues` | object | Nested object — see the API reference for the full schema. |
+| `isDefault` | boolean | — |
+
+#### `delete-variant`
+
+Delete variant.
+
+API reference: [Delete variant](/api-reference/agents/endpoint/variants/delete-variant).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `variantId` | string | The variant. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+
+### Attributes
+
+#### `create-attribute`
+
+Create attribute.
+
+API reference: [Create attribute](/api-reference/agents/endpoint/variants/create-attribute).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `name` | string | — **Required.** |
+
+#### `list-attributes`
+
+List attributes.
+
+API reference: [List attributes](/api-reference/agents/endpoint/variants/list-attributes).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `branchId` | string | The branch. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `update-attribute`
+
+Update attribute.
+
+API reference: [Update attribute](/api-reference/agents/endpoint/variants/update-attribute).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `branchId` | string | The branch. **Required.** |
+| `attributeId` | string | The attribute. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+| `name` | string | — **Required.** |
+
+#### `delete-attribute`
+
+Delete attribute.
+
+API reference: [Delete attribute](/api-reference/agents/endpoint/variants/delete-attribute).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `attributeId` | string | The attribute. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+
+### Connectors
+
+#### `get-a-connector-by-id`
+
+Get a connector by ID.
+
+API reference: [Get a connector by ID](/api-reference/agents/endpoint/connectors/get-a-connector-by-id).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `connectorId` | string | The connector. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `batch-get-connectors-by-id`
+
+Batch get connectors by ID.
+
+API reference: [Batch get connectors by ID](/api-reference/agents/endpoint/connectors/batch-get-connectors-by-id).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `connectorIds` | array | List of connector IDs to retrieve. **Required.** |
+
+#### `list-all-connectors-for-a-project`
+
+List all connectors for a project.
+
+API reference: [List all connectors for a project](/api-reference/agents/endpoint/connectors/list-all-connectors-for-a-project).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+
+#### `update-a-connector`
+
+Update a connector.
+
+API reference: [Update a connector](/api-reference/agents/endpoint/connectors/update-a-connector).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `connectorId` | string | The connector. **Required.** |
+| `voiceName` | string | Google TTS voice name (e.g. en-US-Neural2-A). tts_lang_code is auto-derived from the voice name prefix. Validated via TTS probe. |
+| `variantId` | string | Variant ID to assign, or null to unassign. |
+| `projectId` | string | Move connector to a different project. API key must have access to both projects. |
+| `asrLangCode` | string | ASR language code (e.g. en-US). |
+
+#### `batch-update-connectors`
+
+Batch update connectors.
+
+API reference: [Batch update connectors](/api-reference/agents/endpoint/connectors/batch-update-connectors).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `updates` | array | List of connector updates. **Required.** |
+
+#### `delete-a-connector-and-its-phone-numbers`
+
+Delete a connector and its phone numbers.
+
+API reference: [Delete a connector and its phone numbers](/api-reference/agents/endpoint/connectors/delete-a-connector-and-its-phone-numbers).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `connectorId` | string | The connector. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `look-up-connector-by-phone-number`
+
+Look up connector by phone number.
+
+API reference: [Look up connector by phone number](/api-reference/agents/endpoint/connectors/look-up-connector-by-phone-number).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `phoneNumber` | string | Phone number to look up (E.164 format). **Required.** |
+
+### Phone numbers
+
+#### `get-a-specific-phone-number`
+
+Get a specific phone number.
+
+API reference: [Get a specific phone number](/api-reference/agents/endpoint/phone-numbers/get-a-specific-phone-number).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `phoneNumber` | string | The phone number (E.164). **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `batch-get-phone-numbers`
+
+Batch get phone numbers.
+
+API reference: [Batch get phone numbers](/api-reference/agents/endpoint/phone-numbers/batch-get-phone-numbers).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `phoneNumbers` | array | List of phone numbers to retrieve. **Required.** |
+
+#### `list-all-phone-numbers-for-a-project`
+
+List all phone numbers for a project.
+
+API reference: [List all phone numbers for a project](/api-reference/agents/endpoint/phone-numbers/list-all-phone-numbers-for-a-project).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `connectorId` | string | Filter by connector ID. |
+
+#### `import-a-single-phone-number`
+
+Import a single phone number.
+
+API reference: [Import a single phone number](/api-reference/agents/endpoint/phone-numbers/import-a-single-phone-number).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `phoneNumber` | string | The phone number (E.164). **Required.** |
+| `clientEnv` | string | Client environment (sandbox, pre-release, live). Default `live`. |
+
+#### `import-phone-numbers-into-a-project`
+
+Import phone numbers into a project.
+
+API reference: [Import phone numbers into a project](/api-reference/agents/endpoint/phone-numbers/import-phone-numbers-into-a-project).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `phoneNumbers` | array | List of phone numbers to import. **Required.** |
+| `clientEnv` | string | Client environment (sandbox, pre-release, live). Default `live`. |
+
+#### `delete-a-single-phone-number`
+
+Delete a single phone number.
+
+API reference: [Delete a single phone number](/api-reference/agents/endpoint/phone-numbers/delete-a-single-phone-number).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `phoneNumber` | string | The phone number (E.164). **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `delete-phone-numbers-from-a-project`
+
+Delete phone numbers from a project.
+
+API reference: [Delete phone numbers from a project](/api-reference/agents/endpoint/phone-numbers/delete-phone-numbers-from-a-project).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `phoneNumbers` | array | List of phone numbers to delete. **Required.** |
+
+#### `reassign-a-phone-number-to-a-different-connector`
+
+Reassign a phone number to a different connector.
+
+API reference: [Reassign a phone number to a different connector](/api-reference/agents/endpoint/phone-numbers/reassign-a-phone-number-to-a-different-connector).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `phoneNumber` | string | The phone number (E.164). **Required.** |
+| `connectorId` | string | Target connector ID to reassign the phone number to. **Required.** |
+
+### Config pages (real-time config)
+
+#### `get-a-config-page-by-environment`
+
+Get a config page by environment.
+
+API reference: [Get a config page by environment](/api-reference/agents/endpoint/real-time-configs/get-a-config-page-by-environment).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `clientEnv` | string | The client environment. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `list-all-config-pages`
+
+List all config pages.
+
+API reference: [List all config pages](/api-reference/agents/endpoint/real-time-configs/list-all-config-pages).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+
+#### `update-config-variables-for-an-environment`
+
+Update config variables for an environment.
+
+API reference: [Update config variables for an environment](/api-reference/agents/endpoint/real-time-configs/update-config-variables-for-an-environment).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `clientEnv` | string | The client environment. **Required.** |
+| `variables` | object | Key-value pairs to merge into the existing config. **Required.** |
+
+#### `upsert-the-json-schema-for-a-config-page`
+
+Upsert the JSON Schema for a config page.
+
+API reference: [Upsert the JSON Schema for a config page](/api-reference/agents/endpoint/real-time-configs/upsert-the-json-schema-for-a-config-page).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `clientEnv` | string | The client environment. **Required.** |
+| `schema` | object | JSON Schema (Draft 7) definition. **Required.** |
+
+### Functions
+
+#### `start-function`
+
+Start function.
+
+API reference: [Start function](/tools/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `branchId` | string | The branch. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `end-function-`
+
+End function.
+
+API reference: [End function.](/tools/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `branchId` | string | The branch. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `execute-a-function`
+
+Execute a function.
+
+API reference: [Execute a function](/tools/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `branchId` | string | The branch. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+| `functionId` | string | Path parameter. **Required.** |
+| `flowId` | string | — |
+| `args` | object | Default `{}`. |
+
+#### `duplicate-a-function`
+
+Duplicate a function.
+
+API reference: [Duplicate a function](/tools/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `branchId` | string | The branch. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+| `functionId` | string | Path parameter. **Required.** |
+| `name` | string | — |
+
+#### `replace-the-start-function-code-`
+
+Replace the start function code.
+
+API reference: [Replace the start function code.](/tools/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `code` | string | — **Required.** |
+
+#### `replace-the-end-function-code-`
+
+Replace the end function code.
+
+API reference: [Replace the end function code.](/tools/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `code` | string | — **Required.** |
+
+#### `get-python-type-stubs-for-a-function-`
+
+Get Python type stubs for a function.
+
+API reference: [Get Python type stubs for a function.](/tools/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `functionId` | string | Path parameter. **Required.** |
+| `agentId` | string | The agent. **Required.** |
 
 ## Voice & audio
 
-Manage the voices an agent uses and the audio it caches.
+### Voice library
 
-**Voice library**
+#### `register-a-new-voice-in-the-voice-library`
 
-| Tool | What it does |
-| --- | --- |
-| `register-a-new-voice-in-the-voice-library` | Register a new voice in the voice library |
-| `update-a-voice-in-the-voice-library` | Update a voice in the voice library |
-| `get-a-single-voice-from-the-voice-library` | Get a single voice from the voice library |
-| `list-all-voices-in-the-account-s-voice-library` | List all voices in the account's voice library |
-| `synthesize-a-short-audio-sample-of-a-voice` | Synthesize a short audio sample of a voice |
-| `set-the-project-s-active-voice` | Set the project's active voice |
+Register a new voice in the voice library.
 
-**Deployed voice configs**
+API reference: [Register a new voice in the voice library](/api-reference/agents/endpoint/voice-library/register-voice).
 
-| Tool | What it does |
-| --- | --- |
-| `create-or-update-a-deployed-voice-configuration` | Create or update a deployed voice configuration |
-| `list-deployed-voice-configurations` | List deployed voice configurations |
-| `delete-a-deployed-voice-configuration` | Delete a deployed voice configuration |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `accountId` | string | The account (workspace). **Required.** |
+| `voiceMetadata` | object | Additional voice metadata. |
+| `name` | string | Human-readable voice name. **Required.** |
+| `providerVoiceId` | string | Voice ID from the TTS provider. **Required.** |
+| `provider` | string | TTS provider (e.g. GOOGLE, OPENAI, ELEVENLABS). **Required.** |
+| `config` | object | Provider-specific voice config. **Required.** |
 
-**Voice & disclaimer tuning**
+#### `update-a-voice-in-the-voice-library`
 
-| Tool | What it does |
-| --- | --- |
-| `get-voice-tuning-settings` | Get voice tuning settings |
-| `update-voice-tuning-settings` | Update voice tuning settings |
-| `get-disclaimer-voice-tuning-settings` | Get disclaimer voice tuning settings |
-| `update-disclaimer-voice-tuning-settings` | Update disclaimer voice tuning settings |
+Update a voice in the voice library.
 
-**Audio cache**
+API reference: [Update a voice in the voice library](/api-reference/agents/endpoint/voice-library/update-voice).
 
-| Tool | What it does |
-| --- | --- |
-| `list-audio-cache-entries` | List audio cache entries |
-| `delete-audio-cache-entry` | Delete audio cache entry |
-| `bulk-delete-audio-cache-entries` | Bulk delete audio cache entries |
-| `download-cached-audio-file` | Download cached audio file |
-| `replace-audio-file-for-a-cache-entry` | Replace audio file for a cache entry |
-| `update-cache-entry-file-and-settings` | Update cache entry file and settings |
-| `generate-a-tts-audio-preview` | Generate a TTS audio preview |
-| `preview-tts-audio-for-a-cache-entry` | Preview TTS audio for a cache entry |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `voiceId` | string | The voice. **Required.** |
+| `accountId` | string | The account (workspace). **Required.** |
+| `voiceMetadata` | object | Additional voice metadata. |
+| `name` | string | Human-readable voice name. |
+| `providerVoiceId` | string | Voice ID from the TTS provider. |
+| `provider` | string | TTS provider. |
+| `config` | object | Provider-specific voice config. |
+
+#### `get-a-single-voice-from-the-voice-library`
+
+Get a single voice from the voice library.
+
+API reference: [Get a single voice from the voice library](/api-reference/agents/endpoint/voice-library/get-voice).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `accountId` | string | The account (workspace). **Required.** |
+| `voiceId` | string | The voice. **Required.** |
+
+#### `list-all-voices-in-the-account-s-voice-library`
+
+List all voices in the account's voice library.
+
+API reference: [List all voices in the account's voice library](/api-reference/agents/endpoint/voice-library/list-voices).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `accountId` | string | The account (workspace). **Required.** |
+| `gender` | string | Filter by voice metadata gender. One of `male`, `female`, `neutral`. |
+| `provider` | string | Filter by TTS provider, e.g. 'GOOGLE', 'ELEVENLABS'. |
+| `language` | string | Filter by voice metadata language, e.g. 'en-US'. |
+| `isPolyVoice` | boolean | If set, restrict to (or exclude) Poly's curated voices. |
+
+#### `synthesize-a-short-audio-sample-of-a-voice`
+
+Synthesize a short audio sample of a voice.
+
+API reference: [Synthesize a short audio sample of a voice](/api-reference/agents/endpoint/voice-library/synthesize-voice-sample).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `accountId` | string | The account (workspace). **Required.** |
+| `voiceId` | string | The voice. **Required.** |
+
+#### `set-the-project-s-active-voice`
+
+Set the project's active voice.
+
+API reference: [Set the project's active voice](/api-reference/agents/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `voiceId` | string | Voice ID to set as the project voice. **Required.** |
+
+### Deployed voice configs
+
+#### `create-or-update-a-deployed-voice-configuration`
+
+Create or update a deployed voice configuration.
+
+API reference: [Create or update a deployed voice configuration](/api-reference/agents/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `voiceId` | string | Voice ID to deploy. **Required.** |
+| `id` | string | Deployed voice ID — omit to create, provide to update. |
+| `probability` | number | Traffic weight (0.0–1.0). **Required.** |
+
+#### `list-deployed-voice-configurations`
+
+List deployed voice configurations.
+
+API reference: [List deployed voice configurations](/api-reference/agents/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+
+#### `delete-a-deployed-voice-configuration`
+
+Delete a deployed voice configuration.
+
+API reference: [Delete a deployed voice configuration](/api-reference/agents/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `deployedVoiceId` | string | The deployed voice configuration. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+### Voice & disclaimer tuning
+
+#### `get-voice-tuning-settings`
+
+Get voice tuning settings.
+
+API reference: [Get voice tuning settings](/api-reference/agents/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `voiceId` | string | The voice. **Required.** |
+| `purpose` | string | Tuning purpose filter, e.g. 'disclaimer'. |
+
+#### `update-voice-tuning-settings`
+
+Update voice tuning settings.
+
+API reference: [Update voice tuning settings](/api-reference/agents/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `voiceId` | string | The voice. **Required.** |
+| `resetToDefault` | boolean | Reset settings to provider defaults. |
+| `similarityBoost` | integer | Similarity boost (0–100). |
+| `modelId` | string | Provider model ID override. |
+| `speed` | number | Playback speed multiplier. |
+| `stability` | integer | Voice stability (0–100). |
+
+#### `get-disclaimer-voice-tuning-settings`
+
+Get disclaimer voice tuning settings.
+
+API reference: [Get disclaimer voice tuning settings](/api-reference/agents/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `voiceId` | string | The voice. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `update-disclaimer-voice-tuning-settings`
+
+Update disclaimer voice tuning settings.
+
+API reference: [Update disclaimer voice tuning settings](/api-reference/agents/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `voiceId` | string | The voice. **Required.** |
+| `resetToDefault` | boolean | Reset settings to provider defaults. |
+| `similarityBoost` | integer | Similarity boost (0–100). |
+| `modelId` | string | Provider model ID override. |
+| `speed` | number | Playback speed multiplier. |
+| `stability` | integer | Voice stability (0–100). |
+
+### Audio cache
+
+#### `list-audio-cache-entries`
+
+List audio cache entries.
+
+API reference: [List audio cache entries](/api-reference/agents/endpoint/audio-cache/list-audio-cache).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `sort` | string | Sort expression, e.g. "hit_count:desc", "duration:asc". |
+| `offset` | integer | Pagination offset. Min 0. Default `0`. |
+| `limit` | integer | Max entries to return (1-200). 1–200. Default `50`. |
+
+#### `delete-audio-cache-entry`
+
+Delete audio cache entry.
+
+API reference: [Delete audio cache entry](/api-reference/agents/endpoint/audio-cache/delete-audio-cache-entry).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `entryId` | string | The audio cache entry. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `bulk-delete-audio-cache-entries`
+
+Bulk delete audio cache entries.
+
+API reference: [Bulk delete audio cache entries](/api-reference/agents/endpoint/audio-cache/bulk-delete-audio-cache).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `ids` | array | List of audio cache entry IDs to delete (max 20). 1–20 items. **Required.** |
+
+#### `download-cached-audio-file`
+
+Download cached audio file.
+
+API reference: [Download cached audio file](/api-reference/agents/endpoint/audio-cache/download-audio-file).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `entryId` | string | The audio cache entry. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `replace-audio-file-for-a-cache-entry`
+
+Replace audio file for a cache entry.
+
+API reference: [Replace audio file for a cache entry](/api-reference/agents/endpoint/audio-cache/replace-audio-file).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `entryId` | string | The audio cache entry. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `update-cache-entry-file-and-settings`
+
+Update cache entry file and settings.
+
+API reference: [Update cache entry file and settings](/api-reference/agents/endpoint/audio-cache/update-audio-cache-details).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `entryId` | string | The audio cache entry. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `generate-a-tts-audio-preview`
+
+Generate a TTS audio preview.
+
+API reference: [Generate a TTS audio preview](/api-reference/agents/endpoint/audio-cache/synthesize-audio-preview).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `config` | object | Provider-specific synthesis config. **Required.** |
+| `language` | string | BCP-47 language tag, e.g. 'en-US'. **Required.** |
+| `provider` | string | TTS provider key, e.g. 'eleven_labs', 'cartesia'. Default `eleven_labs`. |
+| `text` | string | Text to synthesize. **Required.** |
+| `storeOnS3` | boolean | Store audio on S3 and return a presigned URL. |
+
+#### `preview-tts-audio-for-a-cache-entry`
+
+Preview TTS audio for a cache entry.
+
+API reference: [Preview TTS audio for a cache entry](/api-reference/agents/endpoint/audio-cache/synthesize-audio-preview).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `entryId` | string | The audio cache entry. **Required.** |
+| `config` | string | Voice tuning settings (provider-specific). **Required.** |
+| `language` | string | BCP-47 language tag, e.g. 'en-US'. |
+| `text` | string | Text to synthesize. **Required.** |
 
 ## Run, test & inspect
 
-Exercise agents, place calls, and pull back the data they produce. Backed by the [Debug Chat](/api-reference/debug-chat/introduction) and [Conversations](/api-reference/conversations/introduction) APIs.
+### Debug chat
 
-**Debug chat**
+#### `create-a-new-debug-chat-session`
 
-| Tool | What it does |
-| --- | --- |
-| `create-a-new-debug-chat-session` | Create a new debug chat session |
-| `send-a-message-to-a-debug-chat-session` | Send a message to a debug chat session |
+Create a new debug chat session.
 
-**Conversations**
+API reference: [Create a new debug chat session](/api-reference/debug-chat/create-debug-chat-session).
 
-| Tool | What it does |
-| --- | --- |
-| `get-a-conversation-by-id` | Get a conversation by ID |
-| `list-conversations-for-a-project` | List conversations for a project |
-| `get-audio-recording-for-a-conversation` | Get audio recording for a conversation |
-| `add-annotations-to-a-conversation` | Add annotations to a conversation |
-| `upsert-a-note-on-a-conversation` | Upsert a note on a conversation |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `integrationAttributes` | object | Custom attributes accessible via conv.integration_attributes in project functions. |
+| `variantId` | string | Variant ID to use. |
+| `channel` | string | Channel type (e.g. chat.polyai). |
+| `asrLangCode` | string | ASR language code (e.g. en-US). Defaults to server config. |
+| `conversationId` | string | Custom conversation ID. Auto-generated if omitted. |
+| `ttsLangCode` | string | TTS language code (e.g. en-US). Defaults to server config. |
+| `clientEnv` | string | Client environment (sandbox, pre-release, live). **Required.** |
 
-**Test suites**
+#### `send-a-message-to-a-debug-chat-session`
 
-| Tool | What it does |
-| --- | --- |
-| `trigger-a-test-run` | Trigger a test run |
-| `get-a-test-run-by-id` | Get a test run by ID |
-| `list-test-runs-for-a-project` | List test runs for a project |
-| `list-test-cases` | List test cases |
-| `get-test-case` | Get test case |
-| `get-test-execution-history-for-a-project` | Get test execution history for a project |
+Send a message to a debug chat session.
 
-**Outbound calling**
+API reference: [Send a message to a debug chat session](/api-reference/debug-chat/send-debug-chat-message).
 
-| Tool | What it does |
-| --- | --- |
-| `trigger-an-outbound-call` | Trigger an outbound call |
-| `get-the-status-of-an-outbound-call` | Get the status of an outbound call |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `conversationId` | string | The conversation. **Required.** |
+| `asrLangCode` | string | ASR language code (e.g. en-US). Defaults to server config. |
+| `metadata` | object | User input metadata. |
+| `ttsLangCode` | string | TTS language code (e.g. en-US). Defaults to server config. |
+| `message` | string | User input message. Default ``. |
+| `clientEnv` | string | Client environment (sandbox, pre-release, live). **Required.** |
+
+### Conversations
+
+#### `get-a-conversation-by-id`
+
+Get a conversation by ID.
+
+API reference: [Get a conversation by ID](/api-reference/conversations/v3/endpoint/get-conversation-by-id).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `conversationId` | string | The conversation. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `list-conversations-for-a-project`
+
+List conversations for a project.
+
+API reference: [List conversations for a project](/api-reference/conversations/v3/endpoint/get-conversations).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `limit` | integer | Max number of conversations to return. Min 1. Default `50`. |
+| `offset` | integer | Number of conversations to skip. Min 0. Default `0`. |
+
+#### `get-audio-recording-for-a-conversation`
+
+Get audio recording for a conversation.
+
+API reference: [Get audio recording for a conversation](/api-reference/conversations/v3/endpoint/get-conversation-audio).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `conversationId` | string | The conversation. **Required.** |
+| `redacted` | boolean | Whether to return redacted audio. Default `False`. |
+| `direction` | string | Audio direction: "combined", "user", or "agent". One of `combined`, `user`, `agent`. Default `combined`. |
+
+#### `add-annotations-to-a-conversation`
+
+Add annotations to a conversation.
+
+API reference: [Add annotations to a conversation](/api-reference/conversations/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `conversationId` | string | The conversation. **Required.** |
+| `annotations` | array | Array. **Required.** |
+
+#### `upsert-a-note-on-a-conversation`
+
+Upsert a note on a conversation.
+
+API reference: [Upsert a note on a conversation](/api-reference/conversations/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `conversationId` | string | The conversation. **Required.** |
+| `note` | string | — **Required.** |
+
+### Test suites
+
+#### `trigger-a-test-run`
+
+Trigger a simulation test run. Select test cases explicitly by id, by severity, or by tag via the `select` field. The legacy flat `testCaseIds` body is deprecated but still accepted.
+
+API reference: [Trigger a test run](/testing/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `select` | string | — **Required.** |
+| `branchId` | string | — **Required.** |
+| `testCaseIds` | string | — |
+
+#### `get-a-test-run-by-id`
+
+Get a test run by ID.
+
+API reference: [Get a test run by ID](/testing/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `testRunId` | string | The test run. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `list-test-runs-for-a-project`
+
+List test runs for a project.
+
+API reference: [List test runs for a project](/testing/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `offset` | integer | Number of test runs to skip. Min 0. Default `0`. |
+| `testSetId` | string | Filter by test set ID. |
+| `limit` | integer | Max number of test runs to return. Min 1. Default `100`. |
+| `branchId` | string | Filter by branch ID. |
+
+#### `list-test-cases`
+
+List test cases.
+
+API reference: [List test cases](/testing/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `branchId` | string | The branch. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `get-test-case`
+
+Get test case.
+
+API reference: [Get test case](/testing/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `testCaseId` | string | The test case. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+
+#### `get-test-execution-history-for-a-project`
+
+Get test execution history for a project.
+
+API reference: [Get test execution history for a project](/testing/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `offset` | integer | Number of history entries to skip. Min 0. Default `0`. |
+| `limit` | integer | Max number of history entries to return. Min 1. Default `100`. |
+| `branchId` | string | Filter by branch ID. |
+| `testCaseId` | string | Filter by test case ID. |
+
+### Outbound calling
+
+#### `trigger-an-outbound-call`
+
+Trigger an outbound call.
+
+API reference: [Trigger an outbound call](/api-reference/agents/endpoint/outbound-calls/trigger-outbound-call).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `encryption` | string | Telephony encryption mode. Defaults to tls_srtp. |
+| `variantId` | string | Variant ID to use for the call. If omitted, the default connector for the environment is used. |
+| `metadata` | object | Arbitrary key-value metadata passed through to the call. Must be under 26 KB when base64-encoded. |
+| `countryCode` | string | ISO 3166-1 alpha-2 country code for number parsing (e.g. GB). Only needed when to_number lacks a country prefix. |
+| `toNumber` | string | Phone number to dial in E.164 format (e.g. +442012345678). **Required.** |
+| `environment` | string | Target environment: sandbox, pre-release, or live. **Required.** |
+
+#### `get-the-status-of-an-outbound-call`
+
+Get the status of an outbound call.
+
+API reference: [Get the status of an outbound call](/api-reference/agents/endpoint/outbound-calls/get-outbound-call-status).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `callSid` | string | The outbound call SID. **Required.** |
+| `environment` | string | Target environment: sandbox, pre-release, or live. **Required.** |
+
+## Manage agent infrastructure
+
+### MCP servers on an agent
+
+#### `add-mcp-server`
+
+Add MCP server.
+
+API reference: [Add MCP server](/mcp/agent-studio-integrations).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `providerId` | string | — **Required.** |
+| `timeout` | number | 0–30. |
+| `auth` | object | Nested object — see the API reference for the full schema. |
+| `url` | string | — **Required.** |
+
+#### `list-mcp-servers`
+
+List MCP servers.
+
+API reference: [List MCP servers](/mcp/agent-studio-integrations).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `branchId` | string | The branch. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+
+#### `connect-mcp-server`
+
+Connect MCP server.
+
+API reference: [Connect MCP server](/mcp/agent-studio-integrations).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `serverId` | string | The MCP server. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+
+#### `update-mcp-server`
+
+Update MCP server.
+
+API reference: [Update MCP server](/mcp/agent-studio-integrations).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `branchId` | string | The branch. **Required.** |
+| `serverId` | string | The MCP server. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+| `timeout` | number | 0–30. |
+| `auth` | object | Nested object — see the API reference for the full schema. |
+| `url` | string | — |
+
+#### `delete-mcp-server`
+
+Delete MCP server.
+
+API reference: [Delete MCP server](/mcp/agent-studio-integrations).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `serverId` | string | The MCP server. **Required.** |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+
+### Secrets
+
+#### `create-a-secret`
+
+Create a secret.
+
+API reference: [Create a secret](/secrets/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `value` | string | Secret value. **Required.** |
+| `name` | string | Display name of the secret. **Required.** |
+| `description` | string | Description of the secret. |
+
+#### `update-a-secret`
+
+Update a secret.
+
+API reference: [Update a secret](/secrets/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `secretName` | string | The secret name. **Required.** |
+| `description` | string | Description of the secret (unchanged if omitted). |
+| `value` | string | New secret value. **Required.** |
+
+#### `delete-a-secret`
+
+Delete a secret.
+
+API reference: [Delete a secret](/secrets/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `secretName` | string | The secret name. **Required.** |
+| `agentId` | string | The agent. **Required.** |
 
 ## Monitor deployed agents
 
+<Note>The Alerts family is **enterprise-only** — it's available on US, UK, and EU workspaces, not on self-serve Studio workspaces.</Note>
+
 Watch live agents and react to issues. Backed by the [Alerts API](/api-reference/alerts/introduction).
 
-**Alerts**
+### Alerts
 
 | Tool | What it does |
 | --- | --- |
@@ -214,28 +1309,6 @@ Watch live agents and react to issues. Backed by the [Alerts API](/api-reference
 | `delete-alert-rule` | Delete an alert rule and its associated state, including the Datadog monitor. |
 | `get-active-alerts` | Get active alerts (rules currently in `ALERT` state). Optional query params: `project_id` (filter by project ID), `metric` (filter by metric type). |
 
-## Manage agent infrastructure
-
-Configure the plumbing behind an agent.
-
-**MCP servers on an agent**
-
-| Tool | What it does |
-| --- | --- |
-| `add-mcp-server` | Add MCP server |
-| `list-mcp-servers` | List MCP servers |
-| `connect-mcp-server` | Connect MCP server |
-| `update-mcp-server` | Update MCP server |
-| `delete-mcp-server` | Delete MCP server |
-
-**Secrets**
-
-| Tool | What it does |
-| --- | --- |
-| `create-a-secret` | Create a secret |
-| `delete-a-secret` | Delete a secret |
-
 ## Limiting what a client can do
 
 To narrow what a client can reach, scope the [API key](/mcp/authentication) itself. Create a [least-privilege key](/mcp/builder/security#restrict-the-tool-surface) limited to the agents and permissions that client needs — for example, a read-only key for a monitoring assistant. The key's scope governs which calls succeed, so a narrowly scoped key can't create, delete, or deploy even though the tools are still discovered.
-
