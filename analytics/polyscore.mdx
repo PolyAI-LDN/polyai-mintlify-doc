@@ -1,7 +1,7 @@
 ---
 title: "PolyScore"
 sidebarTitle: "PolyScore"
-description: "Automated conversation quality scoring for voice calls."
+description: "Automated 1–5 conversation quality score for voice, messaging, and email."
 keywords:
   - PolyScore
   - quality score
@@ -10,79 +10,109 @@ keywords:
   - automated QA
 ---
 
-PolyScore is an AI-powered quality score assigned to every eligible **voice call**. It evaluates the transcript and produces a normalized **0–10 rating** along with per-dimension breakdowns, helping you identify strong and weak conversations without manual review.
+PolyScore is an AI-powered quality score assigned to every eligible conversation with your agent. It reads the transcript and produces a **1–5 rating** — backed by two scored dimensions and a transparent rubric — so you can spot strong and weak conversations without manual review.
 
 ![polyscore](/images/analytics/polyscore.png)
 
-
+<Note>
+  **PolyScore is changing on 5 August 2026.** The score is moving from a 0–10 scale to a **1–5 scale**, with a new rubric that scores voice, messaging, and email — inbound and outbound — the same way. Charts on the Analytics pages and scores in [Conversation review](/analytics/conversations/review) will reflect the new score, calculated for the preceding week. See [What's changing on 5 August 2026](#whats-changing-on-5-august-2026) for the full detail.
+</Note>
 
 ## How scoring works
 
-PolyScore evaluates every eligible voice conversation automatically. The model reads the full transcript and rates six behavioral signals, which are combined into two sub-scores and then normalized to a 0–10 scale.
+Every eligible conversation is evaluated on two questions:
 
-### Overall score
+| Dimension | Question | Outcomes |
+|---|---|---|
+| **Agent quality** | Did the agent handle the exchange competently — understanding the user, avoiding forced repeats, not causing frustration through its own faults? | Good / Fair / Poor |
+| **Task success** | Did the conversation deliver on its objective, so the user won't need to make contact again for the same reason? | Completed / Handoff or decline honored / Not completed |
 
-The overall PolyScore is a number from **0 to 10**, displayed as a color-coded badge in [Conversation review](/analytics/conversations/review):
+The two dimensions are combined into a single **1–5 PolyScore**:
+
+| PolyScore | Typical conversation |
+|---|---|
+| **5** | Understood cleanly and fully resolved (or a clear self-service path given) |
+| **4** | Strong on one dimension — for example, handled well but ended in a handoff, or resolved despite a minor misunderstanding |
+| **3** | Middling on both — for example, some friction and a handoff |
+| **2** | Weak on both dimensions |
+| **1** | The agent got stuck or repeatedly misunderstood, and the conversation ended unresolved with no handoff |
+
+The overall score is shown as a color-coded badge in [Conversation review](/analytics/conversations/review):
 
 | Range | Label | Color |
 |-------|-------|-------|
-| 7–10 | High | Green |
-| 4–6 | Medium | Amber |
-| 0–3 | Low | Red |
+| 5 | High | Green |
+| 3–4 | Medium | Amber |
+| 1–2 | Low | Red |
 
-### Dimensions
+You can view per-dimension ratings and explanations by expanding the PolyScore card on any conversation.
 
-PolyScore evaluates three dimensions, each contributing to the overall score:
+## Scoring decisions
 
-| Dimension | Weight | What it measures |
-|---|---|---|
-| **Conversation quality** | 40% | Whether the agent understood the user and maintained a natural conversation flow |
-| **Task success** | 40% | Whether the user's request was resolved and the task completed |
-| **Customer experience** | 20% | Whether the user had to repeat themselves or showed signs of frustration |
+A few explicit rules govern how the rubric assigns outcomes:
 
-Each dimension is rated as **Poor**, **Fair**, or **Good** with a text explanation. You can view per-dimension ratings and explanations in [Conversation review](/analytics/conversations/review).
-
-In Agent Studio, conversation quality and customer experience are combined into a single **Agent Quality** sub-score in the UI, alongside a separate **Task Success** sub-score. The underlying three-dimension model is the same.
-
-## Where PolyScore appears
-
-- **Conversation review** – Score badge at the top of each transcript, with expandable dimension breakdowns
-- **Conversations table** – Sortable PolyScore column for quick quality scanning
-- **Home page** – Average PolyScore trend chart under Quick Insights
-- **Smart Analyst** – Use PolyScore as a sampling criterion or query PolyScore tables directly via SQL
-- **Conversations API** – PolyScore data is available in the API response when the conversation has been scored
+- **Handoffs are neutral on task success.** From the user's perspective, being routed to a person is a completed outcome. A handoff is never scored as "not completed" — that rating is reserved for genuine dead-ends where the user got nothing and nobody. A handoff driven by a struggling agent is penalized through the **Agent quality** sub-score instead.
+- **Self-service paths count as completed.** If the agent gives the user a concrete way to finish the task themselves — for example, *"you can reset your PIN any time at acme.com/pin"* — that scores the same as resolving it in-conversation. For many agents, routing users to self-service is the designed job.
+- **Frustration only counts against the agent when the agent caused it.** Unhappiness with a policy or outcome doesn't penalize the agent; being stuck in a loop does.
+- **Design choices aren't penalized.** If your agent is configured to deflect or decline certain requests, executing that correctly scores as competent handling.
+- **Outbound declines are neutral on task success.** A polite *"not interested, remove me,"* honored cleanly, is scored as the agent doing its job.
 
 ## Eligibility
 
-Not all conversations receive a PolyScore:
+Not every conversation receives a PolyScore. Two criteria have to be met, and both reasons for skipping scoring are made explicit on the conversation:
 
 | Requirement | Detail |
 |---|---|
-| **Channel** | Voice conversations are scored. Webchat and SMS conversations are not scored. |
-| **Minimum turns** | At least 3 turns. Short interactions (for example, immediate hangups) are skipped. |
-| **Engagement** | If the user does not engage at all, the score is marked as N/A. |
+| **User engaged** | It has to be possible for the agent to do its job. Spam calls, silent calls, or conversations where the user instantly requests a human count as **not engaged** and are not scored. |
+| **More than 3 user turns** | Only conversations with more than three user turns are scored, so very short interactions (e.g. immediate hangups) are skipped. |
+
+PolyScore evaluates **voice, messaging (webchat and SMS), and email** conversations, in both inbound and outbound flows, with channel-appropriate judgement — for example, a customer silently leaving a webchat after their question is answered is treated as success, not abandonment.
+
+## Where PolyScore appears
+
+- **Conversation review** — Score badge at the top of each transcript, with expandable dimension breakdowns
+- **Conversations table** — Sortable PolyScore column for quick quality scanning
+- **Home page** — Average PolyScore trend chart under Quick Insights
+- **Smart Analyst** — Use PolyScore as a sampling criterion or query PolyScore tables directly via SQL
+- **Conversations API** — PolyScore data is available in the API response when the conversation has been scored
 
 ## Limitations
 
 <Warning>
-PolyScore evaluates conversations based on the transcript alone. It does not have access to your knowledge base, flows, external systems, or expected outcomes.
+  PolyScore evaluates conversations based on the transcript alone. It does not have access to your knowledge base, flows, external systems, or expected outcomes.
 </Warning>
 
 This means:
 
-- PolyScore **cannot verify whether an action was actually completed** in an external system (e.g., a booking made, an appointment canceled). It can only assess whether the conversation *appeared* to resolve the task based on what was said.
-- PolyScore does not know what the agent *should* have said – only what it *did* say. If the agent confidently gave an incorrect answer, PolyScore may still rate the conversation highly.
+- PolyScore **cannot verify whether an action was actually completed** in an external system (for example, a booking made, an appointment canceled). It can only assess whether the conversation *appeared* to resolve the task based on what was said.
+- PolyScore does not know what the agent *should* have said — only what it *did* say. If the agent confidently gave an incorrect answer, PolyScore may still rate the conversation highly.
 - Scores reflect conversational quality, not business accuracy. Use PolyScore alongside your own QA processes and [custom metrics](/analytics/kpis/introduction) for a complete picture.
 
 ## Interpreting scores
 
 Use PolyScore as a **screening tool**, not a definitive quality judgment:
 
-- **High scores (7–10)** – The conversation flowed well, the user's request appeared resolved, and they did not show frustration. Worth spot-checking to confirm the agent followed the correct process.
-- **Medium scores (4–6)** – Some issues were detected. Review the dimension breakdowns to understand whether the problem was conversational flow, task completion, or user experience.
-- **Low scores (0–3)** – Significant issues detected. Prioritize these for manual review to identify knowledge gaps, flow problems, or agent behavior issues.
+- **5 (High)** — The conversation flowed well and the user's request appeared resolved (either in-conversation or via a clear self-service path). Worth spot-checking to confirm the agent followed the correct process.
+- **3–4 (Medium)** — Some issues were detected. Review the per-dimension ratings to see whether the problem was on agent quality, task success, or both.
+- **1–2 (Low)** — Significant issues detected. Prioritize these for manual review to identify knowledge gaps, flow problems, or agent behavior issues.
 
-Filter conversations by PolyScore in the Conversations table to build a daily QA workflow – review a sample of low-scoring voice calls to catch recurring issues early.
+Filter conversations by PolyScore in the Conversations table to build a daily QA workflow — review a sample of low-scoring conversations to catch recurring issues early.
+
+The 1–5 scale mirrors CSAT, so PolyScore reads naturally alongside the customer-satisfaction metrics you already track.
+
+## What's changing on 5 August 2026
+
+PolyScore is moving from the previous 0–10 rubric to the 1–5 rubric described above. The changes take effect on **5 August 2026** and the new score is calculated for the preceding week.
+
+**Why we're making the change:**
+
+- **One score across every channel.** The original PolyScore was designed for voice calls. The new rubric natively evaluates voice, messaging, and email — inbound and outbound — with channel-appropriate judgement.
+- **Simpler and more accurate.** The previous score combined five overlapping categories (conversation quality, repetition, frustration, resolution, and task completion). Overlapping signals add noise. The new rubric condenses these into two scored dimensions plus an engagement gate, each with explicit decision rules.
+- **A familiar scale.** The 1–5 scale mirrors CSAT, so PolyScore reads naturally alongside the customer-satisfaction metrics you already use.
+
+Charts on the Analytics pages and scores on individual conversations in [Conversation review](/analytics/conversations/review) will switch to the new score automatically. If you filter, sort, or query on PolyScore (for example, in [Smart Analyst](/smart-analyst/introduction) or the [Conversations API](/api-reference/conversations/introduction)), update any hard-coded thresholds — for example, "below 5 on the 0–10 scale" is roughly equivalent to "1–2 on the new 1–5 scale."
+
+Questions? Reach out to your PolyAI account team.
 
 ## Related pages
 
@@ -90,9 +120,11 @@ Filter conversations by PolyScore in the Conversations table to build a daily QA
   <Card title="Conversation review" icon="magnifying-glass" href="/analytics/conversations/review">
     View per-dimension PolyScore breakdowns alongside transcripts.
   </Card>
+
   <Card title="Smart Analyst" icon="robot" href="/smart-analyst/introduction">
     Query PolyScore data and sample conversations by score.
   </Card>
+
   <Card title="Studio transcripts" icon="scroll" href="/call-data/studio-transcripts">
     Access transcripts and call summaries.
   </Card>
