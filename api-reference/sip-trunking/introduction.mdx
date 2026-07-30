@@ -1,18 +1,16 @@
 ---
 title: "SIP Trunking API"
 sidebarTitle: "Overview"
-description: "Connect your telephony platform to PolyAI. Provision SIP Trunks and Extensions over REST, then send inbound calls in over SIP/RTP."
+description: "Connect your telephony platform to PolyAI."
 ---
 
 The SIP Trunking API lets you connect your own telephony platform to PolyAI. It has two parts:
 
-1. **A management REST API** to create and configure **SIP Trunks** and their **Extensions** — the routing between a dialled number and a PolyAI agent.
-2. **A SIP/RTP interface** your SBC connects to in order to place calls into PolyAI.
-
-This reference covers the management API; see [Connecting to PolyAI Telephony](/api-reference/sip-trunking/connecting) for how your SBC or carrier sends calls in.
+1. **A management REST API** to create and configure **SIP Trunks** and their **Extensions**.
+2. **A SIP/RTP interface** your telephony system connects to in order to place calls into PolyAI.
 
 <Note>
-A **SIP Trunk** is an account-level virtual connection that carries voice calls between your telephony platform and PolyAI. It authenticates callers, accepts inbound calls, and holds a list of **Extensions** that map a dialled number to a specific PolyAI agent.
+A **SIP Trunk** is an account-level virtual connection that carries voice calls between your telephony platform and PolyAI. It authenticates callers, accepts inbound calls, and holds a list of **Extensions** that map a dialed number to a specific PolyAI agent.
 </Note>
 
 ## Resource model
@@ -22,10 +20,8 @@ The API is organized around two nested, account-scoped resources:
 ```
 account
  └── sip-trunk              # virtual connection: CIDRs, transport, inbound auth
-      └── extension         # maps a dialled number to a PolyAI agent
+      └── extension         # maps a dialed number to a PolyAI agent
 ```
-
-Every resource is scoped to an account, so each path begins with `/v1/accounts/{accountId}/telephony/…`.
 
 ## Base URL
 
@@ -33,11 +29,11 @@ The API is served from a regional gateway. Use the region your PolyAI account is
 
 | Region | Base URL                     |
 | ------ | ---------------------------- |
+| US     | `https://api.us.poly.ai`     |
 | EU     | `https://api.eu.poly.ai`     |
 | UK     | `https://api.uk.poly.ai`     |
-| US     | `https://api.us.poly.ai`     |
 
-All management endpoints are prefixed with `/v1/accounts/{accountId}/telephony/…`.
+Every resource is scoped to an account, so all management endpoints are prefixed with `/v1/accounts/{account_id}/telephony/…`.
 
 <Warning>
 Do not use `https://api.poly.ai` without a region prefix — it returns an error. Always include the region.
@@ -45,45 +41,82 @@ Do not use `https://api.poly.ai` without a region prefix — it returns an error
 
 ## Authentication
 
-Every request must include a **Studio API key** — either a *personal access token* or an *account-level API key* — in the `X-API-Key` header:
+All endpoints authenticate with an API key sent in the `X-API-Key` header — either an Agent Studio personal access token or an account-level API key.
 
 ```bash
-curl https://api.eu.poly.ai/v1/accounts/ACCOUNT_ID/telephony/sip-trunks \
+curl https://api.us.poly.ai/v1/accounts/ACCOUNT_ID/telephony/sip-trunks \
   -H "X-API-Key: YOUR_API_KEY"
 ```
 
-The key must belong to a user who is a **telephony admin** on the account named in the request path. A missing or invalid key returns `401`; a valid key that lacks telephony-admin rights on that account returns `403`.
+The key must belong to a user who is an admin on the account named in the request path.
 
 <Note>
 Create a key from the **API Keys** tab in Agent Studio — see [API keys](/secrets/api-keys).
 </Note>
 
-## Conventions
+## Quick start
 
-- All request and response bodies are JSON (`Content-Type: application/json`).
-- `{accountId}`, `{trunkId}`, and `{extension}` are path parameters. `{extension}` must be URL-encoded.
-- On `PATCH`, any field you omit is left unchanged. To clear an optional value, send it explicitly (see each endpoint).
+Create a trunk, map a number to an agent, then point your telephony platform at PolyAI.
 
-<Warning>
-**Secrets are write-only.** SIP digest passwords and tokens are accepted when you create or update a trunk but are **never returned** on reads. Store them yourself when you set them.
-</Warning>
+### 1. Create a SIP Trunk
 
-## Inbound authentication
+Create an encrypted trunk that authenticates inbound calls with a SIP token:
 
-A trunk may use **one** inbound auth scheme, or none. The two schemes are mutually exclusive, and are configured through the `inbound` object on create/update.
+```bash
+curl -X POST https://api.us.poly.ai/v1/accounts/ACCOUNT_ID/telephony/sip-trunks \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Acme production trunk",
+    "encrypted": true,
+    "sip_cidr": ["203.0.113.0/24"],
+    "rtp_cidr": ["203.0.113.0/24"],
+    "inbound": { "sip_token_auth": { "token": "a-long-random-shared-secret" } }
+  }'
+```
 
-| Scheme     | Configure with                              | How your SBC authenticates                                            |
-| ---------- | ------------------------------------------- | --------------------------------------------------------------------- |
-| SIP digest | `inbound.sip_auth = { username, password }` | PolyAI issues a standard SIP digest challenge to the first `INVITE`.   |
-| SIP token  | `inbound.sip_token_auth = { token }`        | Your SBC sends the token in an `X-PolyAI-SIP-Trunk-Token` SIP header.  |
+The response includes the trunk `id` and its `inbound.hostname` — the host your telephony platform connects to.
 
-Field limits: `username` ≤ 255, `password` ≤ 255, `token` ≤ 1024 characters.
+### 2. Create an extension
 
-To clear a scheme on `PATCH`, send `{ "disable": true }` in place of its credentials — for example, `"inbound": { "sip_token_auth": { "disable": true } }`.
+Map a dialed number on the trunk to a PolyAI agent:
+
+```bash
+curl -X POST https://api.us.poly.ai/v1/accounts/ACCOUNT_ID/telephony/sip-trunks/TRUNK_ID/extensions \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "extension": "1000",
+    "agent": { "agent_id": "my-agent", "client_env": "live" }
+  }'
+```
+
+Calls dialed to `1000` on this trunk now route to the `my-agent` agent.
+
+### 3. Connect your telephony platform
+
+Point your SBC at the trunk's `inbound.hostname` over TLS (SIP on port 5061), and send the token on each `INVITE`:
+
+```text
+INVITE sip:1000@tr-0123456789abcdefghijklmn.sbc.sip.us.poly.ai SIP/2.0
+…
+X-PolyAI-SIP-Trunk-Token: a-long-random-shared-secret
+…
+```
+
+See [Connecting to PolyAI Telephony](/api-reference/sip-trunking/connecting) for transport, DNS, and authentication details.
 
 ## Error responses
 
-Errors return a JSON body of the shape:
+| Status | Description                                        |
+| ------ | ------------------------------------------------- |
+| 400    | Validation error — check the request body         |
+| 401    | Missing or invalid API key                        |
+| 403    | Key is not an admin on the account                |
+| 404    | Resource not found                                |
+| 409    | Conflict with the current state of the resource   |
+
+### Example error response
 
 ```json
 {
@@ -93,19 +126,11 @@ Errors return a JSON body of the shape:
 }
 ```
 
-| Status | Description                                        |
-| ------ | ------------------------------------------------- |
-| 400    | Validation error — check the request body         |
-| 401    | Missing or invalid API key                        |
-| 403    | Key is not a telephony admin on the account       |
-| 404    | Resource not found                                |
-| 409    | Conflict with the current state of the resource   |
-
 ## Related
 
 <CardGroup cols={2}>
   <Card title="Connecting to PolyAI Telephony" icon="phone-arrow-down-left" href="/api-reference/sip-trunking/connecting">
-    Point your SBC or carrier at PolyAI and send inbound calls in over SIP/RTP.
+    Route inbound phone calls into PolyAI over SIP/RTP.
   </Card>
   <Card title="Agents API" icon="robot" href="/api-reference/agents/introduction">
     Build and deploy the agents your extensions route calls to.
