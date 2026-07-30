@@ -24,49 +24,55 @@ tr-0123456789abcdefghijklmn.sbc.sip.eu.poly.ai
 
 This resolves to a **multi-A DNS record** listing all of the PolyAI SIP servers in the region. You can either:
 
-- **Round-robin** across every A record and treat each as an independent destination, or
-- Use only the **first** A record and let PolyAI handle routing across its servers for you.
+- Treat each IP as a unique destination, and route calls evenly across each, or
+- Use only the first A record to let PolyAI randomly balance calls across the destinations for you.
 
 Because the trunk ID is embedded in the hostname, **no extra SIP header is needed** — PolyAI identifies the trunk from the host you connected to.
 
+<Note>
+PolyAI recommends against DNS caching, to avoid routing traffic to any disabled SIP servers.
+</Note>
+
 ### Global A record
 
-```
-sbc.sip.<region>.poly.ai
-```
+PolyAI also publishes a shared hostname per region:
 
-Returns the same multi-A record as the SIP Trunk A record, but can be used where your SIP server routes traffic to multiple PolyAI SIP Trunks or accounts. Because the host is shared, you **must provide the SIP Trunk ID** on every `INVITE` (see [Identifying the SIP Trunk](#identifying-the-sip-trunk)).
+| Region | Global A record        |
+| ------ | ---------------------- |
+| US     | `sbc.sip.us.poly.ai`   |
+| EU     | `sbc.sip.eu.poly.ai`   |
+| UK     | `sbc.sip.uk.poly.ai`   |
+
+Returns the same multi-A record as the SIP Trunk A record, but can be used where your SIP server routes traffic to multiple PolyAI SIP Trunks or accounts. As the host is shared, you **must provide the SIP Trunk ID** on every `INVITE` (see [Identifying the SIP Trunk](#identifying-the-sip-trunk)).
 
 ### SRV records
 
-If you'd rather discover the PolyAI servers via SRV, PolyAI publishes the following. `<region>` is one of `eu`, `uk`, `us`.
+If you'd rather discover the PolyAI servers via SRV, PolyAI publishes records using the same hostnames as the Global A records (`sbc.sip.<region>.poly.ai`). `<region>` is one of `eu`, `uk`, `us`.
 
-| SRV record                            | Use for                                        |
-| ------------------------------------- | ---------------------------------------------- |
-| `_sips._tcp.sbc.sip.<region>.poly.ai` | TCP/TLS SIP with SRTP media (encrypted trunks) |
-| `_sip._udp.sbc.sip.<region>.poly.ai`  | UDP SIP with RTP media (unencrypted trunks)    |
+| Service | Protocol | Use for                                        |
+| ------- | -------- | ---------------------------------------------- |
+| `_sips` | `_tcp`   | TCP/TLS SIP with SRTP media (encrypted trunks) |
+| `_sip`  | `_udp`   | UDP SIP with RTP media (unencrypted trunks)    |
 
+<Note>
 When you connect via a Global A record or SRV, you **must provide the SIP Trunk ID** on every `INVITE` (see [Identifying the SIP Trunk](#identifying-the-sip-trunk)).
+</Note>
 
 ## Transport and encryption
 
-PolyAI supports both encrypted and unencrypted transports. Your trunk's `encrypted` flag decides which:
+PolyAI supports both encrypted and unencrypted transports.
 
-| `encrypted` | Signaling         | Media         | PolyAI SBC port |
+|             | Signaling         | Media         | PolyAI SIP port |
 | ----------- | ----------------- | ------------- | --------------- |
-| `true`      | SIP over TCP/mTLS | SRTP over UDP | 5061            |
-| `false`     | SIP over UDP      | RTP over UDP  | 5060            |
+| encrypted   | SIP over TCP/mTLS | SRTP over UDP | 5061            |
+| unencrypted | SIP over UDP      | RTP over UDP  | 5060            |
 
-The RTP port range in both cases is **9000–49000**.
+The PolyAI RTP port range in both cases is **9000–49000**.
 
 ### Certificates
 
-- PolyAI uses the **DigiCert Global Root G2** certificate in all regions — [DigiCertGlobalRootG2.crt.pem](https://cacerts.digicert.com/DigiCertGlobalRootG2.crt.pem).
-- PolyAI supports client SIP servers with any publicly trusted Root Certificate in the [Mozilla 2026-07-16 CA Trust Bundle](https://curl.se/ca/cacert-2026-07-16.pem).
-
-<Note>
-PolyAI recommends against DNS caching, to avoid routing traffic to any disabled SBCs.
-</Note>
+- PolyAI uses the **DigiCert Global Root G2** certificate in all regions — [DigiCertGlobalRootG2.crt.pem](https://cacerts.digicert.com/DigiCertGlobalRootG2.crt.pem) (download).
+- PolyAI supports client SIP servers with any publicly trusted Root Certificate in the [Mozilla 2026-07-16 CA Trust Bundle](https://curl.se/ca/cacert-2026-07-16.pem) (download).
 
 ## Identifying the SIP Trunk
 
@@ -76,7 +82,7 @@ If you're not connecting via the SIP Trunk's hostname, you must provide the SIP 
 - an `x-polyai-sip-trunk-id` request-URI parameter.
 
 <CodeGroup>
-```text SIP header
+```text SIP header {9}
 INVITE sip:1000@sbc.sip.eu.poly.ai SIP/2.0
 Via: SIP/2.0/TLS 203.0.113.10:5061;branch=z9hG4bK74bf9
 Max-Forwards: 70
@@ -92,7 +98,7 @@ Content-Length: 312
 (SDP offer…)
 ```
 
-```text Request-URI parameter
+```text Request-URI parameter {1}
 INVITE sip:1000@sbc.sip.eu.poly.ai;x-polyai-sip-trunk-id=tr-0123456789abcdefghijklmn SIP/2.0
 Via: SIP/2.0/TLS 203.0.113.10:5061;branch=z9hG4bK74bf9
 Max-Forwards: 70
@@ -108,8 +114,6 @@ Content-Length: 312
 ```
 </CodeGroup>
 
-In both examples the dialed user part (`1000`) is the **extension** — it selects which agent the call routes to via the trunk's [Extensions](/api-reference/sip-trunking/introduction#resource-model).
-
 ## Authenticating your calls
 
 Authentication is optional per trunk. If you've configured it via the management API, your `INVITE` must satisfy it.
@@ -118,36 +122,22 @@ Authentication is optional per trunk. If you've configured it via the management
 
 Send the token in the `X-PolyAI-SIP-Trunk-Token` header on your `INVITE`:
 
-```text
-INVITE sip:1000@sbc.sip.eu.poly.ai SIP/2.0
+```text {3}
+INVITE sip:1000@tr-0123456789abcdefghijklmn.sbc.sip.eu.poly.ai SIP/2.0
 …
-X-PolyAI-SIP-Trunk-ID: tr-0123456789abcdefghijklmn
-X-PolyAI-SIP-Trunk-Token: a-random-secret
+X-PolyAI-SIP-Trunk-Token: a-long-random-shared-secret
 …
 ```
 
 ### Digest-based auth
 
-Standard SIP digest. PolyAI replies to your first `INVITE` with a `401 Unauthorized` carrying a `WWW-Authenticate` challenge built from the trunk's `realm`. Your SBC then re-sends the `INVITE` with an `Authorization` header computed from the trunk's `username` and `password`.
+Standard SIP digest authentication. PolyAI replies to your first `INVITE` with a `401 Unauthorized` carrying a `WWW-Authenticate` challenge built from the trunk's `realm`.
 
-```text
-Your SBC                         PolyAI
-   |  INVITE (no credentials)       |
-   | ------------------------------>|
-   |  401 Unauthorized              |
-   |  WWW-Authenticate: Digest …    |
-   | <------------------------------|
-   |  ACK                           |
-   | ------------------------------>|
-   |  INVITE + Authorization: Digest|
-   | ------------------------------>|
-   |  100 / 180 / 200 OK            |
-   | <------------------------------|
-```
+Your SIP server then re-sends the `INVITE` with an `Authorization` header computed from the trunk's `username` and `password`.
 
 ## Checklist for an inbound call
 
-1. Connect over the right transport for the trunk — `encrypted` means TLS and SRTP, otherwise UDP and RTP.
+1. Connect over the right transport and port. If connecting over TLS, ensure you've uploaded PolyAI's Root Certificate and that your SIP server is using a supported TLS Certificate.
 2. Select a hostname to connect to, providing the SIP Trunk ID if not using the SIP Trunk's unique hostname.
 3. If the trunk has authentication, present the token header or answer the digest challenge.
 4. Set the dialed user part to a configured **extension** so the call reaches the right agent.
