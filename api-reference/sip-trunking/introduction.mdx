@@ -1,0 +1,113 @@
+---
+title: "SIP Trunking API"
+sidebarTitle: "Overview"
+description: "Connect your telephony platform to PolyAI. Provision SIP Trunks and Extensions over REST, then send inbound calls in over SIP/RTP."
+---
+
+The SIP Trunking API lets you connect your own telephony platform to PolyAI. It has two parts:
+
+1. **A management REST API** to create and configure **SIP Trunks** and their **Extensions** — the routing between a dialled number and a PolyAI agent.
+2. **A SIP/RTP interface** your SBC connects to in order to place calls into PolyAI.
+
+This reference covers the management API; see [Connecting to PolyAI Telephony](/api-reference/sip-trunking/connecting) for how your SBC or carrier sends calls in.
+
+<Note>
+A **SIP Trunk** is an account-level virtual connection that carries voice calls between your telephony platform and PolyAI. It authenticates callers, accepts inbound calls, and holds a list of **Extensions** that map a dialled number to a specific PolyAI agent.
+</Note>
+
+## Resource model
+
+The API is organized around two nested, account-scoped resources:
+
+```
+account
+ └── sip-trunk              # virtual connection: CIDRs, transport, inbound auth
+      └── extension         # maps a dialled number to a PolyAI agent
+```
+
+Every resource is scoped to an account, so each path begins with `/v1/accounts/{accountId}/telephony/…`.
+
+## Base URL
+
+The API is served from a regional gateway. Use the region your PolyAI account is hosted in:
+
+| Region | Base URL                     |
+| ------ | ---------------------------- |
+| EU     | `https://api.eu.poly.ai`     |
+| UK     | `https://api.uk.poly.ai`     |
+| US     | `https://api.us.poly.ai`     |
+
+All management endpoints are prefixed with `/v1/accounts/{accountId}/telephony/…`.
+
+<Warning>
+Do not use `https://api.poly.ai` without a region prefix — it returns an error. Always include the region.
+</Warning>
+
+## Authentication
+
+Every request must include a **Studio API key** — either a *personal access token* or an *account-level API key* — in the `X-API-Key` header:
+
+```bash
+curl https://api.eu.poly.ai/v1/accounts/ACCOUNT_ID/telephony/sip-trunks \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+The key must belong to a user who is a **telephony admin** on the account named in the request path. A missing or invalid key returns `401`; a valid key that lacks telephony-admin rights on that account returns `403`.
+
+<Note>
+Create a key from the **API Keys** tab in Agent Studio — see [API keys](/secrets/api-keys).
+</Note>
+
+## Conventions
+
+- All request and response bodies are JSON (`Content-Type: application/json`).
+- `{accountId}`, `{trunkId}`, and `{extension}` are path parameters. `{extension}` must be URL-encoded.
+- On `PATCH`, any field you omit is left unchanged. To clear an optional value, send it explicitly (see each endpoint).
+
+<Warning>
+**Secrets are write-only.** SIP digest passwords and tokens are accepted when you create or update a trunk but are **never returned** on reads. Store them yourself when you set them.
+</Warning>
+
+## Inbound authentication
+
+A trunk may use **one** inbound auth scheme, or none. The two schemes are mutually exclusive, and are configured through the `inbound` object on create/update.
+
+| Scheme     | Configure with                              | How your SBC authenticates                                            |
+| ---------- | ------------------------------------------- | --------------------------------------------------------------------- |
+| SIP digest | `inbound.sip_auth = { username, password }` | PolyAI issues a standard SIP digest challenge to the first `INVITE`.   |
+| SIP token  | `inbound.sip_token_auth = { token }`        | Your SBC sends the token in an `X-PolyAI-SIP-Trunk-Token` SIP header.  |
+
+Field limits: `username` ≤ 255, `password` ≤ 255, `token` ≤ 1024 characters.
+
+To clear a scheme on `PATCH`, send `{ "disable": true }` in place of its credentials — for example, `"inbound": { "sip_token_auth": { "disable": true } }`.
+
+## Error responses
+
+Errors return a JSON body of the shape:
+
+```json
+{
+  "success": false,
+  "error": "short_error_code",
+  "message": "Human-readable explanation."
+}
+```
+
+| Status | Description                                        |
+| ------ | ------------------------------------------------- |
+| 400    | Validation error — check the request body         |
+| 401    | Missing or invalid API key                        |
+| 403    | Key is not a telephony admin on the account       |
+| 404    | Resource not found                                |
+| 409    | Conflict with the current state of the resource   |
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Connecting to PolyAI Telephony" icon="phone-arrow-down-left" href="/api-reference/sip-trunking/connecting">
+    Point your SBC or carrier at PolyAI and send inbound calls in over SIP/RTP.
+  </Card>
+  <Card title="Agents API" icon="robot" href="/api-reference/agents/introduction">
+    Build and deploy the agents your extensions route calls to.
+  </Card>
+</CardGroup>

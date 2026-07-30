@@ -1,0 +1,958 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PolyAI SIP Trunking API",
+    "version": "1.0.0",
+    "description": "Management API for PolyAI SIP Trunks and their Extensions."
+  },
+  "security": [
+    {
+      "polyApiKey": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "SIP Trunks",
+      "description": "A SIP Trunk is a virtual connection between your telephony platform and PolyAI. It authenticates callers, accepts inbound calls, and holds the list of Extensions that map a dialled number to a PolyAI agent."
+    },
+    {
+      "name": "SIP Trunk Extensions",
+      "description": "An Extension binds a dialled number on a trunk to a PolyAI agent. When a call reaches a trunk, the dialled user part is matched against that trunk's extensions to pick the agent."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "polyApiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "An API key sent in the `X-API-Key` header — either an Agent Studio personal access token or an account-level API key. The key must belong to a user who is an admin on the account named in the request path."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "description": "Error response body.",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "error",
+          "message"
+        ]
+      },
+      "SipAuth": {
+        "type": "object",
+        "description": "SIP digest auth state.",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether SIP digest auth is enabled for this SIP Trunk."
+          },
+          "username": {
+            "type": "string",
+            "description": "SIP digest auth username. Present when enabled."
+          },
+          "realm": {
+            "type": "string",
+            "description": "SIP digest auth realm. Present when enabled."
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      },
+      "SipTokenAuth": {
+        "type": "object",
+        "description": "SIP token auth state.",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether SIP token auth is enabled for this SIP Trunk."
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      },
+      "SipTrunkInbound": {
+        "type": "object",
+        "description": "Configuration for inbound calls.",
+        "properties": {
+          "hostname": {
+            "type": "string",
+            "description": "Hostname that uniquely identifies this SIP Trunk."
+          },
+          "sip_auth": {
+            "$ref": "#/components/schemas/SipAuth"
+          },
+          "sip_token_auth": {
+            "$ref": "#/components/schemas/SipTokenAuth"
+          }
+        },
+        "required": [
+          "hostname",
+          "sip_auth",
+          "sip_token_auth"
+        ]
+      },
+      "SipTrunk": {
+        "type": "object",
+        "description": "A SIP Trunk.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "PolyAI-generated SIP Trunk ID, e.g. `tr-0123456789abcdefghijklmn`."
+          },
+          "account_id": {
+            "type": "string",
+            "description": "The PolyAI account that owns the SIP Trunk."
+          },
+          "sip_cidr": {
+            "type": "array",
+            "description": "The IPv4 CIDR blocks of your SIP servers / SBCs.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rtp_cidr": {
+            "type": "array",
+            "description": "The IPv4 CIDR blocks of your RTP / media servers.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "name": {
+            "type": "string",
+            "description": "A friendly name to help identify your SIP Trunk."
+          },
+          "encrypted": {
+            "type": "boolean",
+            "description": "Whether this SIP Trunk will handle encrypted (SIP over TCP/TLS, media over UDP/SRTP) or unencrypted (SIP over UDP, media over UDP/RTP) calls."
+          },
+          "inbound": {
+            "$ref": "#/components/schemas/SipTrunkInbound"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 timestamp of when the SIP Trunk was created."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 timestamp of when the SIP Trunk was last updated."
+          }
+        },
+        "required": [
+          "id",
+          "account_id",
+          "sip_cidr",
+          "rtp_cidr",
+          "name",
+          "encrypted",
+          "inbound",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "CreateSipAuthConfig": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "SIP digest credentials. Mutually exclusive with sip_token_auth. SIP digest passwords are never returned on reads — keep your own record of anything you set.",
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "SIP digest auth username. Up to 255 characters.",
+            "maxLength": 255
+          },
+          "password": {
+            "type": "string",
+            "description": "SIP digest auth password. Up to 255 characters.",
+            "maxLength": 255
+          }
+        }
+      },
+      "CreateTokenAuthConfig": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "SIP token credentials. Mutually exclusive with sip_auth. SIP tokens are never returned on reads — keep your own record of anything you set.",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "SIP token. Up to 1024 characters.",
+            "maxLength": 1024
+          }
+        }
+      },
+      "CreateSipTrunkInbound": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Configuration for inbound calls. sip_auth and sip_token_auth are mutually exclusive.",
+        "properties": {
+          "sip_auth": {
+            "$ref": "#/components/schemas/CreateSipAuthConfig"
+          },
+          "sip_token_auth": {
+            "$ref": "#/components/schemas/CreateTokenAuthConfig"
+          }
+        }
+      },
+      "CreateSipTrunkRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "The owning account is taken from the URL path, not the body.",
+        "properties": {
+          "sip_cidr": {
+            "type": "array",
+            "description": "The IPv4 CIDR blocks of your SIP servers / SBCs. 1–10 CIDR blocks; each entry must be a valid CIDR block no larger than /18.",
+            "minItems": 1,
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "maxLength": 43
+            }
+          },
+          "rtp_cidr": {
+            "type": "array",
+            "description": "The IPv4 CIDR blocks of your RTP / media servers. 1–10 CIDR blocks; each entry must be a valid CIDR block no larger than /18.",
+            "minItems": 1,
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "maxLength": 43
+            }
+          },
+          "name": {
+            "type": "string",
+            "description": "A friendly name to help identify your SIP Trunk. 1–255 characters.",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "\\S"
+          },
+          "encrypted": {
+            "type": "boolean",
+            "description": "Whether this SIP Trunk will handle encrypted (SIP over TCP/TLS, media over UDP/SRTP) or unencrypted (SIP over UDP, media over UDP/RTP) calls. Defaults to true when omitted."
+          },
+          "inbound": {
+            "$ref": "#/components/schemas/CreateSipTrunkInbound"
+          }
+        },
+        "required": [
+          "name",
+          "sip_cidr",
+          "rtp_cidr"
+        ]
+      },
+      "UpdateSipAuthConfig": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "SIP digest credentials. Mutually exclusive with sip_token_auth. SIP digest passwords are never returned on reads — keep your own record of anything you set.",
+        "properties": {
+          "disable": {
+            "type": "boolean",
+            "description": "Set to true to clear the SIP digest credentials."
+          },
+          "username": {
+            "type": "string",
+            "description": "SIP digest auth username. Up to 255 characters.",
+            "maxLength": 255
+          },
+          "password": {
+            "type": "string",
+            "description": "SIP digest auth password. Up to 255 characters.",
+            "maxLength": 255
+          }
+        }
+      },
+      "UpdateTokenAuthConfig": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "SIP token credentials. Mutually exclusive with sip_auth. SIP tokens are never returned on reads — keep your own record of anything you set.",
+        "properties": {
+          "disable": {
+            "type": "boolean",
+            "description": "Set to true to clear the SIP token."
+          },
+          "token": {
+            "type": "string",
+            "description": "SIP token. Up to 1024 characters.",
+            "maxLength": 1024
+          }
+        }
+      },
+      "UpdateSipTrunkInbound": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Configuration for inbound calls. sip_auth and sip_token_auth are mutually exclusive.",
+        "properties": {
+          "sip_auth": {
+            "$ref": "#/components/schemas/UpdateSipAuthConfig"
+          },
+          "sip_token_auth": {
+            "$ref": "#/components/schemas/UpdateTokenAuthConfig"
+          }
+        }
+      },
+      "UpdateSipTrunkRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Send only the fields you want to change; anything omitted is left unchanged. The owning account is immutable and cannot be changed.",
+        "properties": {
+          "sip_cidr": {
+            "type": "array",
+            "description": "The IPv4 CIDR blocks of your SIP servers / SBCs. Omit to leave unchanged; when set, 1–10 CIDR blocks and each entry must be a valid CIDR block no larger than /18.",
+            "minItems": 1,
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "maxLength": 43
+            }
+          },
+          "rtp_cidr": {
+            "type": "array",
+            "description": "The IPv4 CIDR blocks of your RTP / media servers. Omit to leave unchanged; when set, 1–10 CIDR blocks and each entry must be a valid CIDR block no larger than /18.",
+            "minItems": 1,
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "maxLength": 43
+            }
+          },
+          "name": {
+            "type": "string",
+            "description": "A friendly name to help identify your SIP Trunk. 1–255 characters. Omit to leave unchanged.",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "\\S"
+          },
+          "encrypted": {
+            "type": "boolean",
+            "description": "Whether this SIP Trunk will handle encrypted (SIP over TCP/TLS, media over UDP/SRTP) or unencrypted (SIP over UDP, media over UDP/RTP) calls."
+          },
+          "inbound": {
+            "$ref": "#/components/schemas/UpdateSipTrunkInbound"
+          }
+        }
+      },
+      "ListSipTrunksResponse": {
+        "type": "object",
+        "properties": {
+          "sip_trunks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SipTrunk"
+            }
+          }
+        },
+        "required": [
+          "sip_trunks"
+        ]
+      },
+      "Agent": {
+        "type": "object",
+        "description": "The PolyAI agent an extension routes calls to.",
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "description": "PolyAI Agent / Project ID to route to."
+          },
+          "client_env": {
+            "type": "string",
+            "description": "One of sandbox, pre-release, live.",
+            "enum": [
+              "sandbox",
+              "pre-release",
+              "live"
+            ]
+          },
+          "variant_id": {
+            "type": "string",
+            "description": "Agent variant to route to."
+          }
+        },
+        "required": [
+          "agent_id",
+          "client_env",
+          "variant_id"
+        ]
+      },
+      "AgentRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "The PolyAI agent to bind an extension to.",
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "description": "PolyAI Agent / Project ID to route to. 1–255 characters.",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "\\S"
+          },
+          "client_env": {
+            "type": "string",
+            "description": "One of sandbox, pre-release, live.",
+            "enum": [
+              "sandbox",
+              "pre-release",
+              "live"
+            ]
+          },
+          "variant_id": {
+            "type": "string",
+            "description": "Agent variant to route to. Up to 255 characters.",
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "agent_id",
+          "client_env"
+        ]
+      },
+      "Extension": {
+        "type": "object",
+        "description": "An Extension binds a dialled number on a trunk to a PolyAI agent.",
+        "properties": {
+          "extension": {
+            "type": "string",
+            "description": "The dialled number or extension."
+          },
+          "agent": {
+            "$ref": "#/components/schemas/Agent"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 timestamp of when the extension was created."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 timestamp of when the extension was last updated."
+          }
+        },
+        "required": [
+          "extension",
+          "agent",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "CreateExtensionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "extension": {
+            "type": "string",
+            "description": "The dialled number or extension. 1–128 characters.",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "\\S"
+          },
+          "agent": {
+            "$ref": "#/components/schemas/AgentRequest"
+          }
+        },
+        "required": [
+          "extension",
+          "agent"
+        ]
+      },
+      "UpdateExtensionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "$ref": "#/components/schemas/AgentRequest"
+          }
+        },
+        "required": [
+          "agent"
+        ]
+      },
+      "ListExtensionsResponse": {
+        "type": "object",
+        "properties": {
+          "extensions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Extension"
+            }
+          }
+        },
+        "required": [
+          "extensions"
+        ]
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Validation error.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid credential.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Caller is not a telephony admin on the account.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Conflict with the current state of the resource.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "accountId": {
+        "name": "accountId",
+        "in": "path",
+        "required": true,
+        "description": "ID of the account that owns the SIP Trunk(s).",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "trunkId": {
+        "name": "trunkId",
+        "in": "path",
+        "required": true,
+        "description": "The SIP Trunk ID.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "extension": {
+        "name": "extension",
+        "in": "path",
+        "required": true,
+        "description": "The dialled number or extension (URL-encoded).",
+        "schema": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "paths": {
+    "/v1/accounts/{accountId}/telephony/sip-trunks": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/accountId"
+        }
+      ],
+      "get": {
+        "operationId": "listSipTrunks",
+        "summary": "List SIP Trunks",
+        "tags": [
+          "SIP Trunks"
+        ],
+        "responses": {
+          "200": {
+            "description": "The account's SIP Trunks.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSipTrunksResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createSipTrunk",
+        "summary": "Create a SIP Trunk",
+        "tags": [
+          "SIP Trunks"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSipTrunkRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created SIP Trunk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SipTrunk"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/v1/accounts/{accountId}/telephony/sip-trunks/{trunkId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/accountId"
+        },
+        {
+          "$ref": "#/components/parameters/trunkId"
+        }
+      ],
+      "get": {
+        "operationId": "getSipTrunk",
+        "summary": "Get a SIP Trunk",
+        "tags": [
+          "SIP Trunks"
+        ],
+        "responses": {
+          "200": {
+            "description": "The SIP Trunk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SipTrunk"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateSipTrunk",
+        "summary": "Update a SIP Trunk",
+        "description": "Update a trunk. Send only the fields you want to change; anything omitted is left unchanged.",
+        "tags": [
+          "SIP Trunks"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSipTrunkRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated SIP Trunk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SipTrunk"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteSipTrunk",
+        "summary": "Delete a SIP Trunk",
+        "tags": [
+          "SIP Trunks"
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/v1/accounts/{accountId}/telephony/sip-trunks/{trunkId}/extensions": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/accountId"
+        },
+        {
+          "$ref": "#/components/parameters/trunkId"
+        }
+      ],
+      "get": {
+        "operationId": "listExtensions",
+        "summary": "List extensions for a SIP Trunk",
+        "tags": [
+          "SIP Trunk Extensions"
+        ],
+        "responses": {
+          "200": {
+            "description": "The trunk's extensions.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListExtensionsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createExtension",
+        "summary": "Create an extension",
+        "tags": [
+          "SIP Trunk Extensions"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExtensionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created extension.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Extension"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/v1/accounts/{accountId}/telephony/sip-trunks/{trunkId}/extensions/{extension}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/accountId"
+        },
+        {
+          "$ref": "#/components/parameters/trunkId"
+        },
+        {
+          "$ref": "#/components/parameters/extension"
+        }
+      ],
+      "get": {
+        "operationId": "getExtension",
+        "summary": "Get an extension",
+        "tags": [
+          "SIP Trunk Extensions"
+        ],
+        "responses": {
+          "200": {
+            "description": "The extension.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Extension"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateExtension",
+        "summary": "Update an extension",
+        "description": "Updates the agent bound to the extension.",
+        "tags": [
+          "SIP Trunk Extensions"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateExtensionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated extension.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Extension"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteExtension",
+        "summary": "Delete an extension",
+        "tags": [
+          "SIP Trunk Extensions"
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.eu.poly.ai",
+      "description": "EU region"
+    },
+    {
+      "url": "https://api.uk.poly.ai",
+      "description": "UK region"
+    },
+    {
+      "url": "https://api.us.poly.ai",
+      "description": "US region"
+    }
+  ]
+}

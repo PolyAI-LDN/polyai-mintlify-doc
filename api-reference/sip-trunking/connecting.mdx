@@ -1,0 +1,134 @@
+---
+title: "Connecting to PolyAI Telephony"
+sidebarTitle: "Connecting to Telephony"
+description: "Point your SBC or carrier at PolyAI and send inbound calls in over SIP/RTP."
+---
+
+Once a [SIP Trunk](/api-reference/sip-trunking/introduction) exists, point your SBC or carrier at PolyAI to send calls in. Every inbound call must:
+
+1. Reach a PolyAI SIP server.
+2. Tell us **which trunk** it belongs to.
+3. Satisfy the trunk's inbound auth, if configured.
+
+## Transport & encryption
+
+Your trunk's `encrypted` flag decides the transport for both signalling and media:
+
+| `encrypted` | SIP signalling | Media  |
+| ----------- | -------------- | ------ |
+| `true`      | TCP with TLS   | SRTP   |
+| `false`     | UDP            | RTP    |
+
+## Where to send calls
+
+You have two ways to reach our SIP servers. Pick whichever your platform supports.
+
+### Option A — the SIP Trunk hostname (recommended)
+
+Each SIP Trunk is issued a unique hostname (the `inbound.hostname` field returned by the API), for example:
+
+```
+tr-0123456789abcdefghijklmn.sbc.sip.eu.poly.ai
+```
+
+This resolves to a **multi-A DNS record** listing all of our SIP servers in the region. You can either:
+
+- **Round-robin** across every A record and treat each as an independent destination, or
+- Use only the **first** A record and let PolyAI handle routing across our servers for you.
+
+Because the trunk ID is embedded in the hostname, **no extra SIP header is needed** — we identify the trunk from the host you connected to.
+
+### Option B — SRV records
+
+If you'd rather discover our servers via SRV, we publish the following records. `<region>` is one of `us`, `eu`, `uk`.
+
+| SRV record                            | Use for                                        |
+| ------------------------------------- | ---------------------------------------------- |
+| `_sips._tcp.sbc.sip.<region>.poly.ai` | TCP/TLS SIP with SRTP media (encrypted trunks) |
+| `_sip._udp.sbc.sip.<region>.poly.ai`  | UDP SIP with RTP media (unencrypted trunks)    |
+
+When you connect this way, the host is shared across trunks, so you **must tell us the trunk ID** on every `INVITE` (see below).
+
+## Identifying the SIP Trunk
+
+If you don't use the per-trunk hostname, include the SIP Trunk ID in **one** of:
+
+- the `X-PolyAI-SIP-Trunk-ID` SIP header, or
+- an `x-polyai-sip-trunk-id` request-URI parameter.
+
+<CodeGroup>
+```text SIP header
+INVITE sip:1000@sbc.sip.eu.poly.ai SIP/2.0
+Via: SIP/2.0/TLS 203.0.113.10:5061;branch=z9hG4bK74bf9
+Max-Forwards: 70
+From: "Acme" <sip:+441234567890@acme.example.com>;tag=8675309
+To: <sip:1000@sbc.sip.eu.poly.ai>
+Call-ID: 3c26700c8f2b4e1a9d5f@acme.example.com
+CSeq: 1 INVITE
+Contact: <sip:203.0.113.10:5061;transport=tls>
+X-PolyAI-SIP-Trunk-ID: tr-0123456789abcdefghijklmn
+Content-Type: application/sdp
+Content-Length: 312
+
+(SDP offer…)
+```
+
+```text Request-URI parameter
+INVITE sip:1000@sbc.sip.eu.poly.ai;x-polyai-sip-trunk-id=tr-0123456789abcdefghijklmn SIP/2.0
+Via: SIP/2.0/TLS 203.0.113.10:5061;branch=z9hG4bK74bf9
+Max-Forwards: 70
+From: "Acme" <sip:+441234567890@acme.example.com>;tag=8675309
+To: <sip:1000@sbc.sip.eu.poly.ai;x-polyai-sip-trunk-id=tr-0123456789abcdefghijklmn>
+Call-ID: 3c26700c8f2b4e1a9d5f@acme.example.com
+CSeq: 1 INVITE
+Contact: <sip:203.0.113.10:5061;transport=tls>
+Content-Type: application/sdp
+Content-Length: 312
+
+(SDP offer…)
+```
+</CodeGroup>
+
+In both examples the dialled user part (`1000`) is the **extension** — it selects which agent the call routes to via the trunk's [Extensions](/api-reference/sip-trunking/introduction#resource-model).
+
+## Inbound authentication
+
+Auth is optional per trunk. If you've configured it via the management API, your `INVITE` must satisfy it.
+
+### Token-based auth
+
+Send the token in the `X-PolyAI-SIP-Trunk-Token` header on your `INVITE`:
+
+```text
+INVITE sip:1000@sbc.sip.eu.poly.ai SIP/2.0
+…
+X-PolyAI-SIP-Trunk-ID: tr-0123456789abcdefghijklmn
+X-PolyAI-SIP-Trunk-Token: a-long-random-shared-secret
+…
+```
+
+### Digest-based auth
+
+Standard SIP digest. PolyAI replies to your first `INVITE` with a `401 Unauthorized` carrying a `WWW-Authenticate` challenge (using the trunk's `realm`); your SBC then re-sends the `INVITE` with an `Authorization` header computed from the trunk's `username` and `password`.
+
+```text
+Acme SBC                         PolyAI
+   |  INVITE (no credentials)       |
+   | ------------------------------>|
+   |  401 Unauthorized              |
+   |  WWW-Authenticate: Digest …    |
+   | <------------------------------|
+   |  ACK                           |
+   | ------------------------------>|
+   |  INVITE + Authorization: Digest|
+   | ------------------------------>|
+   |  100 / 180 / 200 OK            |
+   | <------------------------------|
+```
+
+## Checklist for an inbound call
+
+1. Connect over the right transport for the trunk (`encrypted` → TLS + SRTP, else UDP + RTP).
+2. Reach us via the trunk **hostname** (Option A) **or** an SRV record plus the **trunk ID** header/URI parameter (Option B).
+3. If the trunk has auth, present the **token header** or answer the **digest challenge**.
+4. Set the dialled user part to a configured **extension** so the call reaches the right agent.
