@@ -58,6 +58,10 @@ curl -X POST https://api.us-1.platform.polyai.app/v1/outbound-sms \
 
 ## Getting started
 
+<Note>
+  SMS must be set up on your agent, and via Twilio before RCS can be enabled. RCS uses the same phone number as SMS and relies on SMS as its automatic fallback channel.
+</Note>
+
 Before RCS can be enabled for your agent, you'll need:
 
 - **An agent number managed by PolyAI's Twilio account.** This number is used as the SMS fallback whenever RCS isn't available.
@@ -72,65 +76,13 @@ Before RCS can be enabled for your agent, you'll need:
 
 ### Sending attachments to users
 
-Your agent can send rich attachments to customers using the same attachments mechanism as other channels. For RCS, the only supported attachment type is `weblink`, which PolyAI automatically renders as:
+Your agent can send rich media to customers, including images, graphs, links, and hosted videos, using the same attachments mechanism as other channels.
 
-- A **carousel** of 1 to 10 cards, or
-- A **single rich card** if there's only one attachment.
+If the customer's device doesn't support RCS, the content falls back to plain text automatically. Attachments sent to the user are not visible in Conversation Review.
 
-Both fall back to plain text automatically if the customer's device doesn't support RCS.
-
-<Frame caption="Multi-card carousel rendered on an RCS-capable device.">
-  ![RCS multi-card carousel with two attachments visible, each showing a preview image, title, source URL, and a View call-to-action.](/images/rcs/carousel-multi.png)
-</Frame>
-
-<Frame caption="Single attachment rendered as a rich card.">
-  ![RCS single rich card with a large preview image, attachment title, source URL, and a View call-to-action.](/images/rcs/carousel-single.png)
-</Frame>
-
-<Frame caption="SMS fallback when the customer's device doesn't support RCS.">
-  ![Plain SMS fallback showing each attachment as text with an image URL and a Read more link.](/images/rcs/carousel-sms-fallback.png)
-</Frame>
-
-<Warning>
-  Attachments sent to the user are not visible in Conversation Review.
-</Warning>
-
-#### Tool example: `show_carousel`
-
-**LLM description:** Returns a carousel.
-
-**Request parameters:**
-
-| Name | Context description | Type |
-| --- | --- | --- |
-| `length` | The number of cards to show | Integer |
-| `carousel_id` | The id mentioned | String |
-
-```python
-import uuid
-
-MAX_CARDS = 10
-
-def show_carousel(conv: Conversation, length: int, carousel_id: str):
-    attachment_list = []
-
-    final_length = min(length, MAX_CARDS)
-
-    for i in range(final_length):
-        attachment_list.append(Attachment(
-            content_type="weblink",
-            content_url="https://www.google.com",
-            title=f"Attachment number {i}",
-            preview_image_url=f"https://picsum.photos/600/400.jpg#{uuid.uuid4().hex}",
-            call_to_action="Read more",
-        ))
-
-    conv.add_attachments(attachment_list)
-
-    return {
-        "utterance": f"Here is the carousel {carousel_id} with {final_length} cards"
-    }
-```
+<Note>
+  More advanced UI components (for example, interactive cards, or richer layouts) are possible but incur an additional cost from Twilio. Speak to your PolyAI representative if this is required.
+</Note>
 
 ### Receiving attachments from users
 
