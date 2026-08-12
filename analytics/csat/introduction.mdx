@@ -1,12 +1,13 @@
 ---
 title: 'Surveys'
-description: 'Measure customer satisfaction with in-call voice CSAT surveys.'
+description: 'Measure customer satisfaction with in-call voice CSAT surveys and webchat CSAT surveys.'
 keywords:
   - CSAT
   - customer satisfaction
   - survey
   - feedback
   - voice survey
+  - webchat
 ---
 
 Use CSAT surveys to measure whether callers are satisfied with how the agent handled their request. Don't just rely on proxy metrics (containment, duration) that won't tell you how the caller actually felt.
@@ -15,7 +16,32 @@ Use CSAT surveys to measure whether callers are satisfied with how the agent han
 
 CSAT surveys collect feedback from customers at the end of their conversation. The agent asks customers to rate their experience on a 1–5 scale, and responses are tracked in your analytics dashboards and exported data.
 
-PolyAI currently supports voice CSAT surveys – in-call surveys where the agent asks customers to rate their experience before ending the conversation.
+PolyAI currently supports voice and webchat CSAT surveys. Voice CSAT is an in-call survey where the agent asks customers to rate their experience before ending the conversation; webchat CSAT shows a similar rating prompt in the chat widget.
+
+## Configuring webchat CSAT
+
+Webchat CSAT shows a star-rating survey (1–5, with a skip option) in the chat widget at the end of a conversation. It's configured from the **CSAT survey** card on your webchat channel's settings. Unlike voice, no end-function wiring is required — once enabled with title and question text configured, the survey shows automatically at the end of a conversation.
+
+### Step 1: Enable the survey
+
+Toggle **Enable webchat survey** at the top of the CSAT survey card. This activates the CSAT feature for your project's webchat channel. Until enabled, no surveys run.
+
+### Step 2: Define survey content
+
+Configure the survey text for each of your agent's languages — one section per language, with the default language required and additional languages optional:
+
+<ParamField path="Survey title" type="string">
+  The heading shown at the top of the survey. Maximum 60 characters.
+
+  **Default:** "Rate your chat"
+</ParamField>
+
+<ParamField path="Survey question" type="string">
+  The rating question shown to the customer, answered on a 1–5 star scale.
+  Maximum 200 characters.
+
+  **Default:** "How would you rate your experience?"
+</ParamField>
 
 ## Configuring voice CSAT
 
@@ -74,11 +100,20 @@ Once configured, every time your end function executes, the user routes into the
 
 ## How CSAT works
 
+### Voice
+
 1. **Customer completes conversation** - The agent finishes helping the customer
 2. **Lead-in message** - Agent introduces the survey
 3. **Survey question** - Agent asks the 1–5 rating question
 4. **Customer responds** - Customer provides a rating
 5. **Data collection** - Rating is stored and appears in your dashboards
+
+### Webchat
+
+1. **Customer ends the conversation** - The conversation reaches its end
+2. **Survey appears** - A star-rating modal opens in the widget, showing your configured title and question
+3. **Customer responds** - The customer picks a 1–5 star rating, or skips the survey. If they don't respond, the survey is automatically skipped
+4. **Data collection** - The rating (or skip) is stored and appears in your dashboards
 
 ## CSAT best practices
 
@@ -136,6 +171,16 @@ The following metrics are automatically tracked for CSAT surveys:
 - `CSAT_FREE_FEEDBACK` - Verbatim customer feedback (string, if collected)
 - `CSAT_COMPLETED` - Whether the survey was completed (boolean)
 
+#### Webchat CSAT metrics
+
+- `CSAT_OFFERED` - Whether the survey was shown (boolean)
+- `CSAT_ACCEPTED` - Whether the customer rated the survey (boolean)
+- `CSAT_DENIED` - Whether the customer skipped the survey (boolean)
+- `CSAT_SCORE` - Customer rating (numeric 1-5)
+- `CSAT_COMPLETED` - Whether the survey was completed (boolean)
+
+Webchat CSAT is a star-rating survey only – `CSAT_FREE_FEEDBACK` does not apply.
+
 These metrics are attached to the original conversation record and can be used for analysis and reporting.
 
 ## Rating scale
@@ -191,7 +236,7 @@ Example: If 70% of customers rate 4-5 and 10% rate 1-2, the CSAT score would be 
 
 - The rating scale is fixed at 1-5
 - Only one CSAT survey can be triggered per conversation
-- Survey must be triggered from the end function
+- Survey must be triggered from the end function (voice only)
 
 <Note>
 For custom survey requirements or multi-question surveys, contact your PolyAI representative to discuss advanced options.
