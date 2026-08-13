@@ -1,0 +1,235 @@
+---
+title: "Wren"
+sidebarTitle: Overview
+description: "Build, test, debug, and analyze your agent in natural language, from anywhere in Agent Studio."
+keywords:
+  - wren
+  - studio assistant
+  - AI builder
+  - natural language agent builder
+  - copilot
+  - assistant
+  - side panel
+  - branches
+  - voice input
+  - debugging
+---
+
+Wren is PolyAI's natural-language assistant for Agent Studio. Describe what you want — it reads your project, proposes a plan, and applies changes when you approve. Every edit lands on a branch, not on the live agent.
+
+## Where to find it
+
+Wren is available in two places:
+
+- **Full screen** — the Wren home screen, with [prompt suggestions](#a-full-session-step-by-step) grouped by **Build**, **Test**, **Ask**, and **Analyze**. Best for starting a build session.
+- **Side panel** — open Wren as a side panel from anywhere in Agent Studio to start a new conversation or pick up an existing one without leaving the page you're on. Useful for asking a question or making a quick change while you're working in Flows, Testing, or any other section. Toggle it with <kbd>⌘</kbd>+<kbd>I</kbd> (<kbd>Ctrl</kbd>+<kbd>I</kbd> on Windows).
+
+Both share the same [conversation history](/wren/chats): a chat you start in the side panel is there when you return to the full-screen view, and the other way around.
+
+<Frame caption="Wren's side panel open over Flows, with the page still usable alongside it">
+  <img src="/images/wren/side-panel.png" alt="Wren side panel open on the right of the Flows page, with a new chat ready and the Flows list still visible" style={{ maxWidth: '900px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
+
+## What you can do
+
+Wren's prompt suggestions are grouped into four intents. They're a good mental model for what to ask.
+
+<CardGroup cols={2}>
+  <Card title="Build" icon="hammer" href="/wren/building">
+    Create and edit flows, topics, entities, functions, integrations, handoffs, behavior, and agent settings.
+  </Card>
+  <Card title="Test" icon="flask" href="/testing/simulation-tests">
+    Generate simulation test scenarios, write and run test cases, and review results.
+  </Card>
+  <Card title="Ask" icon="circle-question" href="/wren/prompting#ask">
+    Ask questions about your project config, debug production issues, and explore PolyAI concepts.
+  </Card>
+  <Card title="Analyze" icon="chart-line" href="/wren/analyze">
+    Investigate performance patterns, conversation trends, and caller behavior across real calls.
+  </Card>
+</CardGroup>
+
+### Build and edit
+
+Wren operates on the same building blocks you'd edit by hand — flows, topics, entities, functions, handoffs, behavior, channel settings, and more. It can read your current config, propose changes, and write them to a branch.
+
+[See everything Wren can build →](/wren/building)
+
+If you're starting from nothing, the **Agent wizard** bootstraps a brand-new agent from a single company URL — it reads the site, creates topics, sets up behavior, and gives you a working draft in minutes. It appears under the Build suggestions on self-serve accounts.
+
+Wren is **channel-aware**: on chat projects it pulls in chat-specific guidance (message length, formatting, async turn-taking); on voice projects it stays voice-first. The plan-and-approve workflow is identical across channels.
+
+### Test
+
+Wren can author, run, and manage [simulation tests](/testing/simulation-tests) directly from chat. Ask it to generate test scenarios for a flow, and the cases land in the **Simulation tests** workspace alongside anything you've saved by hand. It updates test cases as the underlying flows and topics change.
+
+- *"Add simulation tests for the refund flow, including the 30-day cutoff."*
+- *"Cover the booking flow with tests for valid, fully booked, and out-of-hours requests."*
+- *"Run the existing simulation tests against the current draft and summarize any regressions."*
+
+Test cases Wren writes are tagged **Wren Autofix** in your test suite, so you can always tell them apart from cases you wrote yourself.
+
+### Ask and debug
+
+Beyond answering questions about your project ("what does this flow do?", "which functions reference `account_lookup`?"), Wren can debug production conversations. Give it a conversation ID or describe a caller issue, and it walks through:
+
+- Step-by-step timings for each turn
+- Latency breakdown and model behavior
+- Tool calls and their responses
+- Where and why calls dropped or handed off
+
+This is the fastest way to investigate a single problematic call without digging through logs manually. Any conversation ID Wren mentions is clickable — it opens that transcript in a side panel without leaving the chat.
+
+Wren can also look back over your project's own history — past reviews, earlier chats, branch merges, and deployments — so questions like *"what changed last week?"* have real answers behind them.
+
+### Analyze
+
+Ask natural-language questions about your agent's conversations — *"What's causing handoffs?"*, *"How did my agent perform this week?"* — and get answers backed by transcript sampling across hundreds of real conversations, with charts generated inline.
+
+[Analyze conversations →](/wren/analyze)
+
+## How changes work
+
+### Plan and approve
+
+When you ask for a change, Wren proposes a plan. **Nothing is written until you approve.** Expand the plan to see the full breakdown, or choose **Revise** to send feedback and have it re-planned. Once you approve, every applied edit produces a summary card you can inspect.
+
+### Interactive and Auto
+
+Wren runs in one of two modes, chosen from the composer:
+
+| Mode | What it does | When to use it |
+|---|---|---|
+| **Interactive** | Asks questions and waits for your approval before acting. | The default, and right for most build work. |
+| **Auto** | Handles the whole task start to finish, then reports back. | Well-scoped work you're happy to review after the fact. |
+
+<Frame caption="Switching between Interactive and Auto from the composer">
+  <img src="/images/wren/mode-selector.png" alt="Wren mode selector showing Interactive, Auto, and Review options" style={{ maxWidth: '460px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
+
+In **Auto**, Wren answers its own clarifying questions rather than stopping to ask. It doesn't hide them: the answers it chose collapse into a **Decisions** card you can expand and review. Two things stay off-limits in Auto — Wren will never ask for a secret, and it will never publish a dashboard. If a task needs either, it leaves the work as a draft and tells you what it couldn't finish.
+
+### Branches
+
+The first time you ask for a change, Wren creates a branch automatically and names it after the request, prefixed `wren/`. `Main` stays untouched. Branches are always cut from `Main`, so Wren finishes one piece of work before starting the next.
+
+**Wren never merges or publishes.** When you're ready, you merge the branch back to `Main` yourself and promote it through the normal [Sandbox → Live](/environments-and-versions/introduction) pipeline.
+
+### What it won't do
+
+- **Invent business knowledge.** Prices, hours, policies, names — if these aren't in your existing configuration or your message, the plan surfaces them as questions.
+- **Edit anything other than your draft.** It never publishes or promotes between [environments](/environments-and-versions/introduction), and it can't change `Main` directly.
+- **Access other projects.** Wren is scoped to the project you're in.
+- **Reveal what's under the hood.** Wren won't discuss which model powers it or how it's built internally. For the models available to *your* agent, see [Model use](/behavior/models/model-use).
+
+## Who can use it
+
+Wren is available to everyone with access to a project. What you can do depends on your [permissions](/user-management/access-control-scope):
+
+- **Edit access** — build, modify, test, branch, and apply changes.
+- **Read-only access** — ask questions, explore the project, investigate calls, and analyze conversations. Wren won't start a build or write to a branch, and will say so rather than working around it.
+
+Permissions are per area, so a user with edit access to Knowledge but read-only access to Flows gets exactly that from Wren too.
+
+Wren is available on all flow-based projects. It is **not available on intent-based projects**.
+
+## Limits
+
+Wren has a fair-use limit so usage stays predictable. If you reach it, Wren pauses until the next reset and tells you when that is. Manual editing in Studio still works normally.
+
+[Usage and limits →](/wren/usage-and-limits)
+
+## A full session, step by step
+
+<Accordion title="The full tour: ask → plan → approve → branch → merge">
+
+The steps you'll repeat for most build work, with screenshots from a real session.
+
+<Steps>
+  <Step title="Start from the home screen">
+    The chat panel opens with a prompt input. Choose **See prompt suggestions** for starters grouped by intent: **Build**, **Test**, **Ask**, and **Analyze**. Pick a suggestion, fill in the blank where there is one, or ignore them and type your own request.
+
+    <Frame caption="Home screen with Build, Test, Ask, and Analyze suggestions">
+      <img src="/images/wren/home.png" alt="Wren home screen with the composer and prompt suggestions grouped into Build, Test, Ask, and Analyze" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+    </Frame>
+  </Step>
+
+  <Step title="Answer any clarifying questions">
+    Rather than guess at business rules it can't infer, Wren asks. Questions come in a set you step through: pick an option, choose **Something else** to type your own answer, or **Skip** to let Wren decide.
+
+    <Frame caption="Step through the questions, or skip to let Wren choose">
+      <img src="/images/wren/clarifying-question.png" alt="Wren asking a clarifying question with numbered options, a Something else option, a Skip button, and a 1 of 3 pager" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+    </Frame>
+  </Step>
+
+  <Step title="Approve or revise the plan">
+    Once it has enough context, Wren presents a plan card summarizing what it intends to change, with **Approve** and **Revise** buttons. **Nothing is written until you approve.** Expand the card to read the full breakdown.
+
+    <Frame caption="The plan, with Approve and Revise">
+      <img src="/images/wren/plan-card.png" alt="Plan card titled Add Callback Request Flow with a summary, a what's changing section, and Revise and Approve buttons" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+    </Frame>
+
+    **Revise** opens a feedback box. Say what should be different and **Send** to re-plan, or leave it blank to reject outright.
+
+    <Frame caption="Revise sends feedback and re-plans">
+      <img src="/images/wren/plan-revise.png" alt="Plan revision feedback box reading What should be different, with Cancel and Send buttons" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+    </Frame>
+  </Step>
+
+  <Step title="Watch it work on a branch">
+    The first time Wren makes a change it creates a branch automatically, named after the request and prefixed `wren/`. `Main` stays untouched, and the branch chip replaces `Main` in the top-left for the rest of the session. Each step it takes is listed as it goes, with a running count of changes made.
+
+    <Frame caption="A branch is created automatically, and every step is listed as it runs">
+      <img src="/images/wren/branch-and-changes.png" alt="Transcript showing a branch named wren slash add-office-hours-topic being created, followed by four steps and a four changes made summary" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+    </Frame>
+  </Step>
+
+  <Step title="Merge to main">
+    Merging is yours to do — Wren never does it for you. The **Merge** button in the top-right opens a dialog where you can add an optional message, then ship the branch back to `Main`. From there, your changes flow through the normal [Sandbox → Live](/environments-and-versions/introduction) pipeline.
+
+    <Frame caption="Merge the branch back to Main when you're ready">
+      <img src="/images/wren/merge-dialog.png" alt="Merge to the main branch dialog with an optional message field and a Merge button" style={{ maxWidth: '420px', width: '100%', margin: '0 auto', display: 'block' }} />
+    </Frame>
+  </Step>
+</Steps>
+
+</Accordion>
+
+## Keyboard shortcuts
+
+| Shortcut | Action |
+|---|---|
+| <kbd>⌘</kbd>+<kbd>I</kbd> / <kbd>Ctrl</kbd>+<kbd>I</kbd> | Open or close the Wren side panel |
+| <kbd>⌘</kbd>+<kbd>/</kbd> / <kbd>Ctrl</kbd>+<kbd>/</kbd> | Start a new chat |
+| <kbd>⌘</kbd>+<kbd>.</kbd> / <kbd>Ctrl</kbd>+<kbd>.</kbd> | Show or hide chat history |
+| <kbd>⌥</kbd>+<kbd>Space</kbd> / <kbd>Ctrl</kbd>+<kbd>Space</kbd> (hold) | Push to talk |
+| <kbd>Enter</kbd> / <kbd>Shift</kbd>+<kbd>Enter</kbd> | Send / new line |
+
+## Disclaimer
+
+> AI can make mistakes. Please review all responses.
+
+Every change Wren makes appears on your draft just like a manual edit. Inspect it, tweak it, or revert it before promoting to a higher environment.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Prompting guide" icon="message-pen" href="/wren/prompting">
+    Patterns for getting consistently good results.
+  </Card>
+  <Card title="What Wren can build" icon="hammer" href="/wren/building">
+    Every building block Wren can create and edit.
+  </Card>
+</CardGroup>
+
+<CardGroup cols={3}>
+  <Card title="Analyze conversations" icon="chart-line" href="/wren/analyze">
+    Ask questions about real calls and get answers backed by transcripts.
+  </Card>
+  <Card title="Chats and context" icon="comments" href="/wren/chats">
+    History, attachments, voice input, and project context.
+  </Card>
+  <Card title="Usage and limits" icon="gauge" href="/wren/usage-and-limits">
+    Your fair-use allowance, reset cadence, and what to do when you hit it.
+  </Card>
+</CardGroup>
