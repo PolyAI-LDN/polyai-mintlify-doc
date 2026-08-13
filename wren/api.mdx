@@ -1,0 +1,114 @@
+---
+title: "Wren API"
+sidebarTitle: API
+description: "Drive Wren from your own code with a streaming HTTP endpoint."
+keywords:
+  - wren api
+  - studio assistant api
+  - streaming
+  - server-sent events
+  - personal access token
+---
+
+Everything you can ask Wren in Agent Studio, you can ask from your own code. Send a prompt, stream the response back.
+
+This is useful for wiring Wren into your own tooling — kicking off a build from a ticket, running an analysis on a schedule of your own, or bringing agent changes into an existing review process.
+
+## Authentication
+
+Requests authenticate with a **personal access token** in the `x-api-key` header. Workspace API keys are not accepted on this endpoint — the run acts as you, with your permissions.
+
+Use your region's base URL, the same one you'd use for the rest of the platform APIs. See [base URLs](/api-reference/introduction#pick-your-region) for the table.
+
+## Send a turn
+
+```bash
+curl -N -X POST "$POLYAI_BASE_URL/v1/studio-assistant/turn" \
+  -H "x-api-key: $POLYAI_PAT" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Add a topic for opening hours: 9-5 Monday to Friday, closed weekends.",
+    "context": {
+      "accountId": "acme-uk",
+      "projectId": "acme-team-4"
+    }
+  }'
+```
+
+The response is a **server-sent event stream**. Keep the connection open and read events as they arrive; the stream carries the same activity you'd watch in the chat panel — Wren's reasoning steps, the tools it runs, the changes it applies, and its final message.
+
+### Request body
+
+| Field | Required | Description |
+|---|---|---|
+| `prompt` | Yes | What you're asking Wren to do. |
+| `context.accountId` | Yes | Your account ID. |
+| `context.projectId` | Yes | The project to work in. |
+| `context.mode` | No | `auto` (default) or `interactive`. |
+| `context.branchId` | No | Work on a specific branch. Otherwise Wren creates one when it needs to. |
+| `sessionId` | No | Continue an existing conversation. Omit to start a new one. |
+| `fileIds` | No | IDs of files uploaded beforehand, to attach to the turn. |
+
+### Modes over the API
+
+API turns default to **auto** mode, which is almost always what you want: Wren runs the task start to finish, resolves its own clarifying questions, and finishes with a report rather than waiting on a human.
+
+Passing `interactive` makes Wren stop and wait for approval at plan and question gates, which needs something on your side able to answer them. Unless you've built that, stay on the default.
+
+The usual auto-mode limits apply: Wren won't ask for secrets and won't publish a dashboard. It reports those as blockers instead.
+
+## Continuing a conversation
+
+Every run belongs to a session. Pass the `sessionId` from a previous turn to continue that conversation with its full history, exactly as a follow-up in the chat panel would.
+
+**Disconnecting doesn't cancel the run.** If your connection drops mid-turn, Wren keeps working. Reconnect with the same `sessionId` to pick the conversation back up.
+
+Only one run at a time can be in flight per session — a second turn on a busy session is rejected rather than queued.
+
+## Using Wren from your own agents
+
+Because a turn is a single authenticated HTTP request that streams its result back, Wren fits into agentic workflows you have already built. Wrap the endpoint as a tool or function call and your own agent can hand work to Wren the same way it would call any other service. This works with Claude, GPT, or whichever models your stack runs on, and with any framework that can call an HTTP API.
+
+A few patterns this makes possible:
+
+- **From your issue tracker.** An agent picks up a ticket describing an agent change, calls Wren to implement it on a branch, and comments back with what changed for a human to review and merge.
+- **On your own schedule.** A nightly job asks Wren the same analytical question and posts the answer into Slack or a dashboard of your own.
+- **Inside a larger workflow.** Wren handles the Agent Studio step while the rest of your pipeline handles everything around it, such as fetching requirements, notifying reviewers, or opening a ticket.
+
+Two things make this practical. **Auto** mode is the default, so a turn runs start to finish without waiting on a human. And `sessionId` gives you continuity, so a follow-up turn keeps the full context of the last one rather than starting cold.
+
+The safety model is unchanged when Wren is driven this way. It still works on a branch, it still refuses to merge or publish, and it is still bound by the permissions of the token's owner. A human still approves what ships.
+
+## Errors
+
+| Status | Meaning |
+|---|---|
+| `400` | The request body was invalid. |
+| `401` | Missing or invalid token, or not a personal access token. |
+| `403` | You don't have access to that account or project. |
+| `409` | A run is already in progress on this session. |
+| `500` | Something went wrong on our side. |
+
+The stream sends periodic keepalive comments so idle connections aren't dropped by intermediate proxies.
+
+## Limits
+
+API turns draw on the same [fair-use allowance](/wren/usage-and-limits) as the chat panel, and are subject to the same [permissions](/user-management/access-control-scope) as the token's owner.
+
+<Warning>
+Wren never merges or publishes, over the API or anywhere else. Changes land on a branch for you to review and merge. See [Deployments](/environments-and-versions/introduction) to promote them.
+</Warning>
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="API reference" icon="code" href="/api-reference/introduction">
+    Base URLs, authentication, and the rest of the platform APIs.
+  </Card>
+  <Card title="Builder MCP" icon="wrench" href="/mcp/builder/introduction">
+    Build agents from your IDE or AI coding tool.
+  </Card>
+  <Card title="ADK" icon="terminal" href="/adk">
+    A local, Git-like workflow for Agent Studio projects.
+  </Card>
+</CardGroup>

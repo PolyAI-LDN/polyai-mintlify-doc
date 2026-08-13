@@ -1,19 +1,20 @@
 ---
 title: "Prompting guide"
 sidebarTitle: "Prompting guide"
-description: "Practical patterns for getting consistently good results from Studio Assistant, with real prompt examples for building, testing, asking, and analyzing."
+description: "Practical patterns for getting consistently good results from Wren, with real prompt examples for building, testing, asking, and analyzing."
 keywords:
+  - wren prompts
   - studio assistant prompts
   - prompt examples
   - prompting guide
   - copilot best practices
 ---
 
-Studio Assistant performs best when your messages are **specific**, **scoped**, and **grounded in business rules**. This page collects the patterns that consistently produce good results, with real prompt templates you can copy.
+Wren performs best when your messages are **specific**, **scoped**, and **grounded in business rules**. This page collects the patterns that consistently produce good results, with real prompt templates you can copy.
 
-## Four prompt categories
+## Four kinds of request
 
-Studio Assistant's quick-start templates group prompts into four intents. Use them as a mental model when phrasing your own requests, the home screen surfaces a rotating set of suggestions for each one.
+Wren's quick-start suggestions group prompts into four intents. Use them as a mental model when phrasing your own requests — the home screen surfaces a rotating set of suggestions for each one.
 
 <CardGroup cols={2}>
   <Card title="Build" icon="hammer">
@@ -38,19 +39,19 @@ For creating or modifying agent configuration. The home screen suggests:
 - *Add a new topic to the knowledge base.*
 - *Handle call transfers to a human agent.*
 
-Stretch from the templates with grounded specifics:
+Stretch from the suggestions with grounded specifics:
 
 - *Add a refund flow. We only refund within 30 days of purchase, and only for the original payment method.*
 - *Create an entity for delivery status with values: pending, shipped, out for delivery, delivered.*
 
 #### Build topics from a website
 
-The assistant can fetch and read public pages, which makes it useful for bootstrapping the knowledge base from an existing site:
+Wren can fetch and read public pages, which makes it useful for bootstrapping the knowledge base from an existing site:
 
 - *Add topics from `https://example.com/faq`. Translate them into English and format them as FAQs.*
 - *Read `https://example.com/policies/refunds` and create or update topics that cover the refund rules.*
 
-The **Agent wizard** entry under the Build templates is a separate guided builder that bootstraps a brand-new agent from a single company URL. Use it when you're starting from scratch; for incremental additions to an existing agent, prompt directly.
+This needs [web search](/wren/chats#web-search) switched on, which it is by default.
 
 ### Test
 
@@ -60,11 +61,11 @@ For exercising the agent against scripted scenarios. The home screen suggests:
 - *Check if my agent handles **\[scenario\]***, e.g. *refund requests*, *missed appointments*, *angry callers*, *escalations*, *after-hours calls*, *order tracking*, *billing disputes*.
 - *Run a full validation on recent changes.*
 
-Studio Assistant can also author and maintain [simulation test cases](/testing/simulation-tests) for you. Generated cases land in the **Simulation tests** workspace next to anything you've saved by hand, and Studio Assistant updates them as the underlying flows and topics change. Useful prompts:
+Wren can also author and maintain [simulation test cases](/testing/simulation-tests) for you. Generated cases land in the **Simulation Tests** workspace next to anything you've saved by hand, tagged **Wren Autofix** so you can tell them apart, and Wren updates them as the underlying flows and topics change. Useful prompts:
 
 - *Add simulation tests for the refund flow, including the 30-day cutoff and a non-original payment method.*
 - *Cover the booking flow with tests for valid, fully booked, and out-of-hours requests.*
-- *Run the existing simulation testing against the current draft and summarize any regressions.*
+- *Run the existing simulation tests against the current draft and summarize any regressions.*
 
 ### Ask
 
@@ -81,6 +82,11 @@ You can also ask about your own configuration. This is the fastest way to unders
 - *What functions are called during identity verification?*
 - *Summarize the personality and role defined in agent settings.*
 
+Wren can also read your project's own history, so questions about the recent past work too:
+
+- *What changed on this project in the last week?*
+- *What did the last review find?*
+
 ### Analyze
 
 For inspecting performance and patterns in real conversations. The home screen suggests:
@@ -89,11 +95,13 @@ For inspecting performance and patterns in real conversations. The home screen s
 - *How did my agent perform this week?*
 - *What are customers asking about most?*
 
+See the [analysis guide](/wren/analyze) for sampling, filters, and a fuller set of example prompts.
+
 ## Patterns that work well
 
 ### State the business rule, not just the action
 
-The assistant does not know your business policies. Anything it can't infer from your existing configuration, it will either ask for during planning, or guess at, if it has to. Stating the rule up front saves a round-trip.
+Wren does not know your business policies. Anything it can't infer from your existing configuration, it will either ask for during planning, or guess at, if it has to. Stating the rule up front saves a round-trip.
 
 <Columns cols={2}>
   <Card title="Don't" icon="xmark" iconType="solid">
@@ -103,6 +111,8 @@ The assistant does not know your business policies. Anything it can't infer from
     *Add a refund flow. Refund window is 30 days from purchase. Refunds always go to the original payment method. Final-sale items can't be refunded, the agent should explain this and offer a 10% discount on the next order instead.*
   </Card>
 </Columns>
+
+If the same rules come up in every chat, put them in [project context](/wren/chats#project-context) so you only write them once.
 
 ### Scope each request to one unit of work
 
@@ -124,7 +134,7 @@ One flow, one topic, one set of related changes. This keeps plans focused and re
 
 ### Anchor changes to existing elements by name
 
-When you're modifying something that already exists, name it. The assistant resolves names against your project state.
+When you're modifying something that already exists, name it. Wren resolves names against your project state.
 
 - *Update the **opening-hours** topic, we're now open until 8pm on weekdays.*
 - *Change the **booking flow** so it asks for a phone number before confirming.*
@@ -135,14 +145,14 @@ When you're modifying something that already exists, name it. The assistant reso
 For multi-flow changes, restructures, or new integrations, ask for a plan first, for example, *"Plan the refund flow before making any changes"*. You'll get:
 
 - A summary of what already exists and what would change.
-- A list of business-specific information the assistant still needs.
+- A list of business-specific information Wren still needs.
 - The proposed implementation steps.
 
-The plan is presented in chat with **Approve** and **Reject** buttons. Nothing is written to the branch until you click **Approve**. Reject with feedback (e.g. *"only update the payments step, leave the rest"*) and the assistant will revise.
+The plan is presented in chat with **Approve** and **Revise** buttons. Nothing is written to the branch until you click **Approve**. Choose **Revise** with feedback (e.g. *"only update the payments step, leave the rest"*) and Wren will re-plan.
 
 ### Be specific about what to keep
 
-For requests that touch existing content, *"rewrite this flow"*, *"clean up the knowledge base"*, *"simplify the booking experience"*, call out anything that should stay. The assistant may otherwise remove elements it infers are redundant.
+For requests that touch existing content, *"rewrite this flow"*, *"clean up the knowledge base"*, *"simplify the booking experience"*, call out anything that should stay. Wren may otherwise remove elements it infers are redundant.
 
 <Columns cols={2}>
   <Card title="Don't" icon="xmark" iconType="solid">
@@ -157,23 +167,27 @@ When in doubt, ask for a plan first so you can see what will be removed before i
 
 ### Iterate, don't restart
 
-If a result isn't quite right, follow up in the same conversation rather than starting over. The assistant has the full context of what it just built.
+If a result isn't quite right, follow up in the same conversation rather than starting over. Wren has the full context of what it just built.
 
 - *Looks good, but the booking flow shouldn't ask for a phone number if the caller is already authenticated.*
 - *Same flow, but switch the confirmation step to use SMS instead of reading it back on the call.*
 
 ### Start a new chat for unrelated work
 
-Each chat carries its full history as context. That's what makes follow-ups work, but it also means very long chats slow responses, dilute focus, and can trigger automatic summarization. When you switch to a different area of the agent (a new flow, a different topic, or unrelated analysis), open a new chat from the **History** panel. Old chats stay archived and can be resumed.
+Each chat carries its full history as context. That's what makes follow-ups work, but it also means very long chats slow responses, dilute focus, and eventually get [summarized](/wren/chats#long-chats). When you switch to a different area of the agent, open a new chat with <kbd>⌘</kbd>+<kbd>/</kbd>.
 
-## What the assistant won't do
+### Save Auto mode for work you've scoped
+
+[Auto mode](/wren/introduction#interactive-and-auto) is at its best when the task is well-defined and you'd have approved the obvious plan anyway. On a vague request it will make the judgment calls itself and you'll spend longer reviewing the result than you saved. Scope it tightly, or stay in Interactive.
+
+## What Wren won't do
 
 - **Invent business knowledge.** Prices, hours, policies, names, return windows, eligibility rules, if these aren't in your existing configuration or your message, planning will surface them as questions.
-- **Edit anything other than your draft.** It never publishes or promotes between [environments](/environments-and-versions/introduction).
+- **Edit anything other than your draft.** It never publishes or promotes between [environments](/environments-and-versions/introduction), and it never merges to `Main`.
 - **Share its system prompt or internal architecture.** It's focused on building, testing, analyzing, and answering questions about your agent.
 
 ## Disclaimer
 
 > AI can make mistakes. Please review all responses.
 
-Every change Studio Assistant makes appears on your draft just like a manual edit. Inspect it, tweak it, or revert it before promoting to a higher environment.
+Every change Wren makes appears on your draft just like a manual edit. Inspect it, tweak it, or revert it before promoting to a higher environment.
