@@ -24,8 +24,11 @@ Search conversations by metric filters, with sorting and pagination.
 | Parameter         | Type     | Description                                                                                                        |
 | ----------------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
 | `from` / `to`     | datetime | Bounds on conversation start time (`from` inclusive, `to` exclusive).                                              |
-| `filters`         | array    | Metric filters: `{metric, op, value}`. Operators: `eq`, `gt`, `gte`, `lt`, `lte`, `in`, `ex`, `contains`, `not_contains`, `exists`. |
+| `filters`         | array    | Metric filters: `{metric, op, value}`. Operators: `eq`, `gt`, `gte`, `lt`, `lte`, `in`, `ex`, `contains`, `not_contains`, `exists`. `conversation_id` is also accepted as a filter (`eq`/`in`) to fetch one or many conversations' metrics. |
 | `filter_operator` | string   | How filters combine: `and` (default) or `or`.                                                                      |
+| `fields`          | array    | Metric keys to include in each conversation's `metrics` map (case-insensitive). Omit to return all metrics — prefer passing only the metrics you need, especially on large searches. |
+| `channel`         | array    | Restrict to channels: `VOICE-SIP`, `CHAT`, `WEBCHAT`, `SMS`, `RCS`.                                                |
+| `client_env`      | array    | Restrict to environments: `test`, `sandbox`, `pre-release`, `live`, `scenarios`.                                   |
 | `sort`            | object   | `{field, order}` — field is `started_at`, `duration`, or `conversation_id`. Defaults to `started_at` descending.   |
 | `limit` / `offset`| integer  | Pagination. `limit` 1–100 (default 20), `offset` 0–1000.                                                           |
 | `project_id`      | string   | Optional project scope.                                                                     |
@@ -75,11 +78,12 @@ Aggregate a metric over a time window into buckets you can chart — with groupi
 | `aggs`             | array    | Aggregations to compute: `sum`, `avg`, `min`, `max`, `p50`, `p95`, `p99`, `conversation_count`, `distinct_count`. **Required.** |
 | `from` / `to`      | datetime | Window bounds (`from` inclusive, `to` exclusive).                                                                 |
 | `interval`         | string   | Time bucket: `hourly`, `daily`, `weekly`, `monthly`. Omit for a single unbucketed result.                          |
+| `timezone`         | string   | IANA timezone (e.g. `Europe/London`) applied to `hourly` and `daily` bucketing; naive `from`/`to` are interpreted in it. Ignored for other intervals. |
 | `group_by`         | array    | Group by `project_id`, `channel`, `deployment_id`, `variant_id`, `client_env`, or — for string metrics — `value_string`. |
 | `filters`          | array    | Cohort filters on other metrics: `{metric, op, value}`. Operators: `eq`, `gt`, `gte`, `lt`, `lte`, `in`, `ex`, `exists`. |
 | `filter_operator`  | string   | How filters combine: `and` (default) or `or`.                                                                     |
 | `having`           | array    | Post-aggregation thresholds: `{field, op, value}` where `field` is one of the `aggs`.                              |
-| `channel`          | array    | Restrict to channels: `VOICE-SIP`, `CHAT`, `WEBCHAT`, `SMS`.                                                       |
+| `channel`          | array    | Restrict to channels: `VOICE-SIP`, `CHAT`, `WEBCHAT`, `SMS`, `RCS`.                                                |
 | `client_env`       | array    | Restrict to environments: `test`, `sandbox`, `pre-release`, `live`, `scenarios`.                                   |
 | `deployment_id` / `variant_id` | array | Restrict to specific deployments or variants.                                                          |
 | `sort`             | object   | Secondary sort on a `group_by` or `aggs` field, applied after the ascending bucket sort.                            |
