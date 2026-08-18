@@ -1,0 +1,272 @@
+---
+title: "Realtime API"
+sidebarTitle: "Overview"
+description: "A realtime, event-based WebSocket protocol for holding a live conversation with Raven — the session object, every client and server event, function calling, and error handling."
+keywords:
+  - realtime
+  - websocket
+  - raven
+  - voice
+  - streaming
+  - function calling
+  - transcription
+tag: "Preview"
+---
+
+<Warning>
+This is a preview API. Both behavior and schema may change.
+</Warning>
+
+The Realtime API holds one conversation over one WebSocket connection, for as long as the client stays connected. It's a realtime, event-based protocol — JSON text frames, a persistent session object, streamed responses — so an existing realtime client mostly just works, aimed at Raven's own model with a deliberately narrower feature set than a general-purpose realtime API.
+
+Every event on the wire is validated against a strict, fully-typed schema — not a hand-rolled lookalike — so a field the schema requires cannot silently go missing. Underneath, generation runs on `raven-omni-api-preview`, Raven's own multimodal model.
+
+New to this API? Start with the [quickstart](/api-reference/realtime/quickstart) for a walkthrough of how the pieces fit together, ending in a complete working example.
+
+## Connecting
+
+<CodeGroup>
+
+```text websocket
+wss://<your-realtime-host>/public_api/v1/realtime
+Authorization: Bearer YOUR_API_KEY
+```
+
+</CodeGroup>
+
+On connect, the server immediately sends `session.created` with the effective (default) session — nothing needs to be sent to open the conversation.
+
+<Note>
+**No SDK required.** This is plain JSON over a plain WebSocket. Any WebSocket client in any language can speak this protocol directly — no special SDK or realtime-specific library needed.
+</Note>
+
+<Warning>
+**Keep your key server-side.** Treat it like any bearer credential — call it from a server or trusted backend, not from code that ships to a browser or a device you don't control.
+</Warning>
+
+## The session object
+
+Sent inside `session.update`, echoed back on `session.created` / `session.updated`. A partial update deep-merges onto the current session — updating `instructions` does not wipe `tools`.
+
+| Field | Notes |
+|---|---|
+| `type` | Always `"realtime"`. Omit it and the server fills it in for you. |
+| `model` | `raven-omni-api-preview` currently. Informational on update — the backend the server is wired to is what actually answers. |
+| `instructions` | System prompt, forwarded as-is. |
+| `tools` | Function tools only — `{type, name, description, parameters}`. MCP-server tool entries are dropped rather than half-supported. |
+| `output_modalities` | Must be exactly `["text"]`. Anything else is refused with an error rather than silently answered in text — see [Known limitations](#known-limitations). |
+| `audio.input.format` | `{"type": "audio/pcm"}`. Omit `rate` entirely to get Raven's native 16 kHz. |
+| `audio.input.turn_detection` | `{"type": "server_vad", "create_response": bool}`. See [Turn-taking & audio](#turn-taking-and-audio). |
+| `x_poly_knowledge` | *Extension.* Retrieved topics — `[{name, content, actions}]` — the one input Raven has with no realtime equivalent. |
+| `x_poly_input_rate` | *Extension.* A real client sample rate outside the standard 24 kHz. The server resamples on the way in rather than rejecting it. |
+
+```json session.update
+{
+  "type": "session.update",
+  "session": {
+    "type": "realtime",
+    "model": "raven-omni-api-preview",
+    "instructions": "You are a helpful voice assistant. Keep responses brief.",
+    "output_modalities": ["text"],
+    "audio": {
+      "input": {
+        "format": { "type": "audio/pcm" },
+        "turn_detection": { "type": "server_vad", "create_response": true }
+      }
+    }
+  }
+}
+```
+
+## Client → server events
+
+All eleven GA client events are accepted. Two are acknowledged without acting, because there's no audio output for them to act on.
+
+| Event | Behavior |
+|---|---|
+| `session.update` | Deep-merges onto the session. Replies `session.updated`. |
+| `input_audio_buffer.append` | Base64 PCM16 audio. Fed to voice-activity detection frame-by-frame; may trigger `speech_started`/`speech_stopped`. |
+| `input_audio_buffer.commit` | Ends the current turn manually, same path detection uses on `speech_stopped`. For a client driving its own turn-taking. |
+| `input_audio_buffer.clear` | Drops buffered, uncommitted audio. Replies `input_audio_buffer.cleared`. |
+| `conversation.item.create` | Adds an item to history — a real user/assistant/system message, or a `function_call_output`. Replies `conversation.item.added` then `.done`. |
+| `conversation.item.retrieve` | Replies `conversation.item.retrieved`, or `item_not_found`. |
+| `conversation.item.delete` | Removes an item. Replies `conversation.item.deleted`. |
+| `conversation.item.truncate` | Validated and acknowledged (`conversation.item.truncated`), but history is **not actually shortened** — see [Known limitations](#known-limitations). |
+| `response.create` | Starts a generation over the conversation as it stands. The only way to answer a tool result, since a tool output ends no turn on its own. |
+| `response.cancel` | Cancels an in-flight generation. Silent no-op if nothing is running (no error). |
+| `output_audio_buffer.clear` | Always answered with `invalid_request_error` — there's no audio output buffer to clear, over any transport. |
+
+## Server → client events
+
+Every event this service can send.
+
+**Session**
+
+| Event | Description |
+|---|---|
+| `session.created` | First event on every connection. |
+| `session.updated` | Echoes the full effective session after a merge. |
+
+**Conversation items**
+
+| Event | Description |
+|---|---|
+| `conversation.item.added` | An item entered history — pre-completion state. |
+| `conversation.item.done` | The same item, finalized. Sent whether the *server* or the *client* put the item there. |
+| `conversation.item.retrieved` | Answer to `conversation.item.retrieve`. |
+| `conversation.item.deleted` | Answer to `conversation.item.delete`. |
+| `conversation.item.truncated` | Acknowledges truncation without applying it. |
+
+**Audio input / voice activity detection**
+
+| Event | Description |
+|---|---|
+| `input_audio_buffer.speech_started` | Detection crossed into speech. Names the item id the turn will become. |
+| `input_audio_buffer.speech_stopped` | Detection crossed out of speech; triggers the turn commit. |
+| `input_audio_buffer.committed` | The turn's audio joined history as one item. |
+| `input_audio_buffer.cleared` | Answer to `input_audio_buffer.clear`. |
+
+**Transcription**
+
+| Event | Description |
+|---|---|
+| `conversation.item.input_audio_transcription.delta` | Streamed as part of the *same generation* that answers the turn — not a separate async pass. See [Voice input & transcription](#voice-input-and-transcription). |
+| `conversation.item.input_audio_transcription.completed` | Final transcript, plus a duration-based usage figure (no token counting yet). |
+
+**Response lifecycle**
+
+| Event | Description |
+|---|---|
+| `response.created` | Opens the response; the only place the client learns `response_id`. |
+| `response.output_item.added` | An output item (text message or function call) begins. |
+| `response.content_part.added` | Text items only — one content part per item, always. |
+| `response.output_text.delta` | Incremental text, diffed server-side from whole-snapshot chunks. |
+| `response.output_text.done` | Final text for the item. |
+| `response.function_call_arguments.delta` | Incremental tool-call arguments. |
+| `response.function_call_arguments.done` | Final `name` + `arguments`, plus the `call_id` a reply must echo. |
+| `response.content_part.done` | Closes the item's one content part. |
+| `response.output_item.done` | Closes the output item. |
+| `response.done` | Always terminal, whatever the outcome. Status lives at `response.status` (`completed` / `cancelled` / `failed`) — not top-level. |
+
+**Errors**
+
+| Event | Description |
+|---|---|
+| `error` | See [Errors](#errors) for the code taxonomy. |
+
+## Turn-taking and audio
+
+Server-owned voice activity detection — not yet the model's own judgment.
+
+Detection runs in-process over every appended frame. Crossing into speech opens a turn and mints its item id up front, since `speech_started` has to name an item before the audio finishes arriving. Crossing back out commits the turn automatically — unless the session set `turn_detection.create_response: false`, in which case the audio still joins history but nothing answers it until an explicit `response.create`.
+
+A short lookback buffer (roughly 150ms) replays audio the detector heard while still making up its mind, so the turn begins where the caller actually started talking rather than where the detector became confident.
+
+<Note>
+**Roadmap.** End-of-turn is decided by voice activity detection alone today. A future version will let the model decide it instead — turn status becomes the first token it emits — without changing anything else described here.
+</Note>
+
+## Voice input and transcription
+
+Raven transcribes spoken audio as part of the same generation that answers the turn. When a turn's last item is user audio, the model both answers the turn and produces its transcript in one completion, streamed to the client as `conversation.item.input_audio_transcription.delta`/`.completed`, attributed back to the audio item's id.
+
+<Note>
+**A timing note.** The transcript is a by-product of the same generation that answers the turn, not an independent asynchronous pass — a client that assumes the transcript always arrives before the response text starts should not rely on that ordering.
+</Note>
+
+What's not yet available: **voice output**. `output_modalities` stays fixed to `["text"]` — see [Known limitations](#known-limitations).
+
+## Function calling
+
+Tool calls stream the same way text does — incremental arguments, then a `.done` naming the call.
+
+Declare tools in `session.tools`. When the model calls one, arguments stream via `response.function_call_arguments.delta`, closing with `.done` carrying `name`, full `arguments`, and a server-minted `call_id`. Answer it with `conversation.item.create` (`type: "function_call_output"`, matching `call_id`), then a fresh `response.create` — a tool result carries no audio, so nothing else would trigger the follow-up turn.
+
+<Warning>
+**Stale `call_id` is rejected.** A `function_call_output` whose `call_id` doesn't match the one pending call gets `invalid_request_error`, not silent acceptance.
+</Warning>
+
+Example, for a tool declared as `get_weather(location: string)`:
+
+```json round trip
+// model calls the tool
+{ "type": "response.function_call_arguments.done",
+  "name": "get_weather", "arguments": "{\"location\": \"Tokyo\"}",
+  "call_id": "call_f02ca25a548c4a6ea8c5d8f8e89d25d6" }
+
+// client answers with a mocked result
+{ "type": "conversation.item.create",
+  "item": { "type": "function_call_output",
+             "call_id": "call_f02ca25a548c4a6ea8c5d8f8e89d25d6",
+             "output": "{\"location\": \"Tokyo\", \"temperature_f\": 68, \"condition\": \"partly cloudy\"}" } }
+
+// model's final reply, next response.create
+"It's 68 degrees and partly cloudy in Tokyo."
+```
+
+## Errors
+
+Every failure mode answers with an `error` event and keeps the connection open. One malformed frame has not earned a disconnect.
+
+| Code | When |
+|---|---|
+| `unsupported_event_type` | A syntactically valid frame whose `type` is outside the eleven-event GA union. |
+| `invalid_request_error` | Malformed payload of a known type; a stale/mismatched `function_call_output.call_id`; `output_audio_buffer.clear`. |
+| `item_not_found` | `conversation.item.retrieve` / `.delete` / `.truncate` against an id that isn't in history. |
+| `unsupported_item_type` | A `conversation.item.create` for an item shape this service has no representation for (an MCP call, say) — refused rather than silently dropped. |
+| `server_error` | The session itself failed to start (no model, no voice-detection weights) — the socket accepts, gets one `error`, and closes with code 1011. |
+| `generation_failed` | A backend failure mid-generation. Terminates the response with `response.done(status: "failed")` right behind it. The real failure detail stays in server logs — never on the wire. |
+
+## Known limitations
+
+Deliberate scope cuts, not bugs.
+
+- **No voice output.** `output_modalities` must be exactly `["text"]`. A request for audio is refused outright rather than answered in text. Raven has no TTS yet — bring your own.
+- **Truncation is acknowledged, not applied.** `conversation.item.truncate` validates the item and replies, but history is left untouched. Truncation is defined against played audio; this service produces text, and mapping a millisecond offset onto a character offset needs TTS timing the protocol has nowhere to carry.
+- **Turn-ending is voice-activity-only.** The model doesn't yet decide when a turn ends. That's on the roadmap — parked, not abandoned.
+- **No MCP tools.** Only function tool entries are honored; MCP-server tool declarations are dropped.
+- **No token-based usage accounting.** Transcription usage is reported as audio duration, not a token count.
+- **One response in flight per connection.** A new `response.create` implicitly cancels whatever was still generating, since two concurrent generations would otherwise interleave onto one socket.
+
+## Example flows
+
+Three complete conversations, shown exactly as `raven-omni-api-preview` returns them.
+
+### 1. A plain question, driven manually
+
+Session configured with `create_response: false`, so nothing answers until asked.
+
+1. **Client → server:** `conversation.item.create` — a real user message: *"What's the capital of France? Answer in one short sentence."*
+2. **Server → client:** `conversation.item.added` → `.done`
+3. **Client → server:** `response.create`
+4. **Server → client:** `response.created` → `output_item.added` → `content_part.added` → `output_text.delta` ×N → `output_text.done` → `content_part.done` → `output_item.done` → `response.done`
+
+> **raven-omni-api-preview:** "The capital of France is Paris."
+
+### 2. Tool calling, end to end
+
+1. **Client → server:** `session.update` with `tools: [get_time, get_weather]`
+2. **Client → server:** `response.create`, off "What time is it right now?"
+3. **Server → client:** `response.function_call_arguments.done` — `get_time({})` → `call_000a14b52c2c4c9dae5a307369fad224`
+4. **Client → server:** `conversation.item.create` (`function_call_output`, mocked result `{"time": "11:04 AM", "timezone": "CDT"}`) + `response.create`
+5. **Server → client:** `response.output_text.delta` → `response.done`
+
+> **raven-omni-api-preview:** "It's 11:04 AM."
+
+### 3. Cancellation mid-stream
+
+1. **Client → server:** `response.create`
+2. **Server → client:** `response.created` → a few `output_text.delta`
+3. **Client → server:** `response.cancel`
+4. **Server → client:** `response.done`, status `"cancelled"` — any open output item closes as `incomplete` rather than being left dangling, so a client waiting on a matching `.done` is never left hanging.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/api-reference/realtime/quickstart">
+    A walkthrough of how the connection, session, and a turn of conversation fit together.
+  </Card>
+  <Card title="Error codes" icon="circle-exclamation" href="/api-reference/error-codes">
+    The platform-wide error reference.
+  </Card>
+</CardGroup>
