@@ -1,0 +1,103 @@
+---
+title: "Build a voice agent using Pipecat"
+sidebarTitle: "Pipecat"
+description: "Point Pipecat's existing OpenAI Realtime service at Raven instead of OpenAI, and wire its text output to a separate text-to-speech stage."
+keywords:
+  - realtime
+  - pipecat
+  - voice agents
+  - guide
+tag: "Preview"
+---
+
+<Warning>
+This is a preview API. Both behavior and schema may change.
+</Warning>
+
+## What you'll build
+
+A Pipecat pipeline using Pipecat's existing `OpenAIRealtimeLLMService`, pointed at Raven instead of OpenAI. Since this API is wire-compatible with OpenAI's Realtime protocol, the service doesn't need patching, only redirecting, and you keep Pipecat's pipeline structure, frame processing, and tool-calling passthrough exactly as they are today.
+
+## Pointing OpenAIRealtimeLLMService at Raven
+
+```python bot.py
+from pipecat.services.openai.realtime.llm import OpenAIRealtimeLLMService
+
+llm = OpenAIRealtimeLLMService(
+    api_key="YOUR_POLYAI_KEY",
+    base_url="wss://your-polyai-host/public_api/v1/realtime",
+    model="raven-omni-api-preview",
+)
+```
+
+One detail worth flagging if you're also reading the [LiveKit guide](/realtime/guides/livekit): Pipecat's `base_url` is a native `wss://` WebSocket URL, not an `http(s)` URL that gets rewritten internally the way LiveKit's is. Copying the URL shape from one guide into the other is an easy mistake, since both frameworks are pointed at the same underlying endpoint, just expressed differently.
+
+## The audio-out gap
+
+Pipecat pipelines built around `OpenAIRealtimeLLMService` default to full speech-to-speech, expecting audio back from the same service call that generates the reply. Raven doesn't speak yet, `output_modalities` on this API is locked to `["text"]`, so a pipeline wired exactly as above generates text correctly and produces no audio at all, silently.
+
+Treat the realtime service as your text-generating LLM stage and add a separate TTS service after it in the pipeline, the same way you would for any cascaded (non-speech-to-speech) Pipecat bot:
+
+```python bot.py
+from pipecat.pipeline.pipeline import Pipeline
+from pipecat.services.openai.realtime.llm import OpenAIRealtimeLLMService
+from pipecat.services.elevenlabs.tts import ElevenLabsTTSService  # or any TTS service Pipecat supports
+
+llm = OpenAIRealtimeLLMService(
+    api_key="YOUR_POLYAI_KEY",
+    base_url="wss://your-polyai-host/public_api/v1/realtime",
+    model="raven-omni-api-preview",
+)
+tts = ElevenLabsTTSService(api_key="YOUR_ELEVENLABS_KEY")
+
+pipeline = Pipeline([
+    transport.input(),
+    llm,
+    tts,             # speaks the model's streamed text
+    transport.output(),
+])
+```
+
+This is genuinely extra pipeline wiring, not a one-line config flip: you're routing the realtime service's streamed text frames into a TTS stage the way a standard STT-LLM-TTS bot would, rather than relying on the realtime service to produce audio frames on its own.
+
+## Tool calling
+
+Function calling works as normal, since it rides the same OpenAI-Realtime-shaped events Pipecat already parses; declare tools the way you would for an OpenAI-backed service and Pipecat's passthrough handles the round trip. One caveat carries over from the underlying API: only function tools are supported, MCP-server tool declarations are dropped rather than half-honored (see [Known limitations](/realtime/reference#known-limitations)).
+
+## Full example
+
+```python bot.py
+from pipecat.pipeline.pipeline import Pipeline
+from pipecat.pipeline.task import PipelineTask
+from pipecat.services.openai.realtime.llm import OpenAIRealtimeLLMService
+from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
+
+llm = OpenAIRealtimeLLMService(
+    api_key="YOUR_POLYAI_KEY",
+    base_url="wss://your-polyai-host/public_api/v1/realtime",
+    model="raven-omni-api-preview",
+    instructions="You are a helpful voice assistant. Keep responses brief.",
+)
+tts = ElevenLabsTTSService(api_key="YOUR_ELEVENLABS_KEY")
+
+pipeline = Pipeline([
+    transport.input(),
+    llm,
+    tts,
+    transport.output(),
+])
+
+task = PipelineTask(pipeline)
+```
+
+<CardGroup cols={2}>
+  <Card title="Overview" icon="lightbulb" href="/realtime/overview">
+    What realtime streaming is, and how turn-taking, generation, and prompting fit together.
+  </Card>
+  <Card title="Reference" icon="file-lines" href="/realtime/reference">
+    Every event, the session object, function calling, and error codes.
+  </Card>
+  <Card title="LiveKit" icon="signal-stream" href="/realtime/guides/livekit">
+    The same base-URL-override pattern, for teams building on LiveKit instead.
+  </Card>
+</CardGroup>

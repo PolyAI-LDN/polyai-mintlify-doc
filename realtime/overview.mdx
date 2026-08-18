@@ -1,0 +1,112 @@
+---
+title: "Realtime API overview"
+sidebarTitle: "Overview"
+description: "What realtime streaming is, how turn-taking and generation fit together, and how the pieces of a voice agent built on this API relate to one another."
+keywords:
+  - realtime
+  - voice agents
+  - turn-taking
+  - concepts
+tag: "Preview"
+---
+
+<p className="lead">
+A realtime API holds a conversation, not a request. Everything below is about what that shift changes: for turn-taking, for generation, and for how you prompt and structure an agent on top of it.
+</p>
+
+A request/response API answers a question and forgets you asked it. A realtime API stays connected, holds a stream of audio and events, and has to decide things a stateless endpoint never had to: when has the caller finished talking, what happens if they start talking again mid-answer, and what does the agent actually know at any given moment. None of that is exotic once you see the shape of it, but it's a different shape, and worth understanding before you write the first line of client code.
+
+## The core split
+
+Two things get conflated constantly, and treating them separately clears up most of the confusion:
+
+<CardGroup cols={2}>
+  <Card title="Turn-taking" icon="waveform-lines">
+    Deciding *when* a turn ends: that the caller has stopped talking and it's the agent's turn to respond. Owned entirely by the server today, via voice activity detection.
+  </Card>
+  <Card title="Generation" icon="message-bot">
+    Deciding *what* happens once a turn starts: the reply itself, streamed token by token, with tool calls folded into the same stream.
+  </Card>
+</CardGroup>
+
+Turn-taking is infrastructure; generation is the model. You don't configure the first one much, and you don't need to. It's the second one where instructions, tools, and prompting live.
+
+## Decision table
+
+| You are building... | Use |
+|---|---|
+| A phone-style agent with barge-in | Server VAD (`turn_detection: {"type": "server_vad"}`), and let `speech_started`/`speech_stopped` drive turns automatically |
+| A push-to-talk or chat-like text UI | Manual turns: `create_response: false`, then `input_audio_buffer.commit` or `conversation.item.create` followed by an explicit `response.create` |
+| A tool-using agent | Declare `tools` in `session.update`; answer a call with `function_call_output`, then a fresh `response.create` |
+| Voice output today | Not yet available. Raven answers in text only; pair it with your own text-to-speech |
+
+## How the pieces fit together
+
+**Turn-taking** runs server-side, continuously, over whatever audio you stream in. It's voice activity detection, not the model itself, making the call: a `speech_started` event opens a turn, `speech_stopped` closes it and commits the turn's audio to history. That's deliberate. Every realtime API surveyed before building this one puts turn-taking server-side, because pushing end-of-speech detection onto every client is a worse default than owning it once, centrally. The one wrinkle worth knowing early is **barge-in**: the caller starting to talk again while a response is still streaming cancels that response automatically. It's the right default behavior, but the server has no way to know how much of the cancelled reply your own text-to-speech had already spoken aloud before the interruption, so conversation history reflects what Raven sent, not necessarily what the caller heard. Worth accounting for if you're keeping a strict transcript.
+
+**Generation and transcription share a pass.** When a turn's last item is audio, Raven both transcribes it and answers it in the same completion. The transcript isn't a separate async job racing the reply, it's a byproduct of generating the reply at all. That means a client that assumes the transcript always finishes streaming before the response text starts is assuming something the protocol doesn't promise.
+
+**Tool calling is the add-then-respond shape, applied to results instead of messages.** A tool call arrives as streamed arguments, same as text; you run the tool, add a `function_call_output` item to the conversation, then send a fresh `response.create`, because a tool result sitting in history doesn't trigger a reply on its own, any more than a user message does without you asking for one.
+
+**Text-only today, not text-only forever.** `output_modalities` is locked to `["text"]` because Raven doesn't speak yet. Everything else about the protocol (the event vocabulary, the session object, function calling) is shaped the way it is specifically so that a future audio-out mode slots in without changing anything you've already built against.
+
+<Tip>
+A quick test for which parts of this API you actually need: if you need audio *in*, server-owned turn-taking, or tool calling, this API is the whole answer. If you need audio *out* today, it's half the answer, so pair it with your own text-to-speech on the streamed reply.
+</Tip>
+
+## Prompting and agent harnesses
+
+`instructions` is a system prompt, sent as-is and forwarded to the model with no rewriting or templating in between. There's no separate persona layer or prompt-assembly step happening on the server. That's simpler than a full agent framework, and deliberately so: this API gives you a conversation and a model, not an opinion about how to structure a business's worth of conversational logic on top of it. If you need branching dialogue flows, guardrails, or a knowledge base, that's a harness you build (or one you bring, like [LiveKit](/realtime/guides/livekit) or [Pipecat](/realtime/guides/pipecat)) sitting in front of this protocol, not a mode this API switches into.
+
+Concretely, a harness's job is everything this API doesn't do for you: capturing and encoding audio, deciding what instructions to send and when to update them, running tools and feeding results back, and, until Raven speaks, turning the streamed text into audio the caller actually hears. The [Guides](/realtime/guides/introduction) section covers exactly that: building the harness yourself, or reaching for one of the frameworks that already knows how to hold up its end.
+
+## Common mistakes
+
+Two of the same mistake, in different clothes: assuming the protocol will do something for you that it explicitly doesn't, because most of the protocol looks like it should.
+
+```json wrong: expecting audio back
+{
+  "type": "session.update",
+  "session": { "output_modalities": ["audio"] }
+}
+```
+```json right: text only, for now
+{
+  "type": "session.update",
+  "session": { "output_modalities": ["text"] }
+}
+```
+Requesting `["audio"]` doesn't get you a degraded or silent response. It's refused outright with an error, so you find out immediately rather than debugging a mysteriously quiet integration.
+
+```json wrong: expecting the tool result alone to answer
+{
+  "type": "conversation.item.create",
+  "item": { "type": "function_call_output", "call_id": "call_abc123", "output": "{...}" }
+}
+// nothing else sent, and nothing happens
+```
+```json right: a tool result is followed by a fresh response.create
+{
+  "type": "conversation.item.create",
+  "item": { "type": "function_call_output", "call_id": "call_abc123", "output": "{...}" }
+}
+{ "type": "response.create" }
+```
+Adding an item, any item, never implies a reply. That's true of user messages and it's just as true of tool results, even though it's tempting to assume a tool call *feels* like it should close its own loop.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/realtime/quickstart">
+    A walkthrough of the connection, session, and a turn of conversation, ending in a runnable example.
+  </Card>
+  <Card title="Reference" icon="file-lines" href="/realtime/reference">
+    Every event, the session object, function calling, and error codes.
+  </Card>
+  <Card title="Guides" icon="compass" href="/realtime/guides/introduction">
+    Build a voice agent from scratch, or on top of a framework you already use.
+  </Card>
+  <Card title="Error codes" icon="circle-exclamation" href="/api-reference/error-codes">
+    The platform-wide error reference.
+  </Card>
+</CardGroup>

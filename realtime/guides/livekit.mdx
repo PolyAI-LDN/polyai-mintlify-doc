@@ -1,0 +1,102 @@
+---
+title: "Build a voice agent using LiveKit"
+sidebarTitle: "LiveKit"
+description: "Point LiveKit Agents' existing OpenAI Realtime plugin at Raven instead of OpenAI, and wire its text output to a separate text-to-speech stage."
+keywords:
+  - realtime
+  - livekit
+  - voice agents
+  - guide
+tag: "Preview"
+---
+
+<Warning>
+This is a preview API. Both behavior and schema may change.
+</Warning>
+
+## What you'll build
+
+A LiveKit Agents session using LiveKit's existing OpenAI Realtime plugin, pointed at Raven instead of OpenAI. Since this API is wire-compatible with OpenAI's Realtime protocol, the plugin doesn't need patching, only redirecting, and you keep LiveKit's session management, tool-calling passthrough, and pipeline structure exactly as they are today.
+
+## Pointing the OpenAI plugin at Raven
+
+LiveKit's `livekit-plugins-openai` package already knows how to speak this protocol; it just needs a different base URL and key.
+
+```python agent.py
+from livekit.plugins import openai as lk_openai
+
+realtime_model = lk_openai.realtime.RealtimeModel(
+    base_url="https://your-polyai-host/public_api/v1",
+    api_key="YOUR_POLYAI_KEY",
+    model="raven-omni-api-preview",
+)
+```
+
+`base_url` takes an `http(s)` form here, not `wss://`, since the plugin rewrites it to a WebSocket URL internally when it opens the connection. If you'd rather not pass `base_url` explicitly, the plugin also falls back to the `OPENAI_BASE_URL` environment variable, which is convenient if you're switching a deployment between OpenAI and Raven without touching code.
+
+## The audio-out gap
+
+This is the one place a straight base-URL swap isn't the whole story, so it's worth being direct about it: LiveKit's OpenAI Realtime plugin is built around OpenAI's full speech-to-speech behavior, meaning it expects to receive audio back along with text. Raven doesn't speak yet, `output_modalities` on this API is locked to `["text"]`, so a session wired exactly as above streams text correctly and produces no audio at all. A reader who only changes `base_url` and expects to hear a voice will get silence, not an error, which is worse.
+
+The fix is to treat the realtime model as your text-generating brain and add a separate text-to-speech stage after it in the pipeline, the same way you would for any cascaded (non-speech-to-speech) LiveKit agent:
+
+```python agent.py
+from livekit import agents
+from livekit.plugins import openai as lk_openai, elevenlabs  # or any TTS plugin LiveKit supports
+
+realtime_model = lk_openai.realtime.RealtimeModel(
+    base_url="https://your-polyai-host/public_api/v1",
+    api_key="YOUR_POLYAI_KEY",
+    model="raven-omni-api-preview",
+)
+
+session = agents.AgentSession(
+    llm=realtime_model,
+    tts=elevenlabs.TTS(),  # speaks the model's streamed text
+)
+```
+
+This is genuinely extra pipeline wiring, not a one-line config flip: you're asking LiveKit to route the realtime model's streamed text into a TTS node the way it would for a standard STT-LLM-TTS agent, rather than relying on the realtime session to produce audio on its own.
+
+## Tool calling
+
+Function calling works as normal, since it rides the same OpenAI-Realtime-shaped events LiveKit already parses; declare tools the way you would for an OpenAI-backed session and LiveKit's passthrough handles the round trip. One caveat carries over from the underlying API: only function tools are supported, MCP-server tool declarations are dropped rather than half-honored (see [Known limitations](/realtime/reference#known-limitations)).
+
+## Full example
+
+```python agent.py
+from livekit import agents
+from livekit.plugins import openai as lk_openai, elevenlabs
+
+async def entrypoint(ctx: agents.JobContext):
+    realtime_model = lk_openai.realtime.RealtimeModel(
+        base_url="https://your-polyai-host/public_api/v1",
+        api_key="YOUR_POLYAI_KEY",
+        model="raven-omni-api-preview",
+        instructions="You are a helpful voice assistant. Keep responses brief.",
+    )
+
+    session = agents.AgentSession(
+        llm=realtime_model,
+        tts=elevenlabs.TTS(),
+    )
+
+    await session.start(
+        room=ctx.room,
+        agent=agents.Agent(instructions="You are a helpful voice assistant."),
+    )
+
+agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint))
+```
+
+<CardGroup cols={2}>
+  <Card title="Overview" icon="lightbulb" href="/realtime/overview">
+    What realtime streaming is, and how turn-taking, generation, and prompting fit together.
+  </Card>
+  <Card title="Reference" icon="file-lines" href="/realtime/reference">
+    Every event, the session object, function calling, and error codes.
+  </Card>
+  <Card title="Pipecat" icon="cat" href="/realtime/guides/pipecat">
+    The same base-URL-override pattern, for teams building on Pipecat instead.
+  </Card>
+</CardGroup>

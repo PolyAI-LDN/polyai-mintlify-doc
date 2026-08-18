@@ -1,0 +1,240 @@
+---
+title: "Build a voice agent from scratch with Python"
+sidebarTitle: "Python from scratch"
+description: "Extend the quickstart into a real agent: tool calling, concurrent tasks, and streaming audio in, using plain websockets and no SDK."
+tag: "Preview"
+---
+
+<Warning>
+This is a preview API. Both behavior and schema may change.
+</Warning>
+
+## What you'll build
+
+A terminal-based voice agent in Python, using nothing but the standard `websockets` package, no SDK. It starts on text turns, the same add-then-respond shape from the quickstart, then adds tool calling and, finally, real audio input with the server driving turn-taking. By the end you'll have one script that holds a conversation, calls functions, and listens.
+
+## Starting from the quickstart
+
+This guide picks up exactly where the [quickstart](/realtime/quickstart) leaves off: connecting, sending `session.update`, and the add-then-respond turn shape (`conversation.item.create` followed by `response.create`). If any of that's unfamiliar, read the quickstart first, since everything below assumes it. You'll also need `sounddevice` for the audio section: `pip install websockets sounddevice`.
+
+## Adding tool calling
+
+Declare tools in the session, then dispatch on the model's tool calls with a plain dict rather than a chain of `if`/`elif` branches, it stays flat as you add more tools:
+
+```python
+TOOLS = {
+    "get_time": lambda args: {"time": "11:04 AM", "timezone": "CDT"},
+    "get_weather": lambda args: {
+        "location": args["location"],
+        "temperature_f": 68,
+        "condition": "partly cloudy",
+    },
+}
+
+SESSION_TOOLS = [
+    {"type": "function", "name": "get_time", "description": "Get the current time",
+     "parameters": {"type": "object", "properties": {}}},
+    {"type": "function", "name": "get_weather", "description": "Get the current weather for a location",
+     "parameters": {"type": "object", "properties": {"location": {"type": "string"}},
+                    "required": ["location"]}},
+]
+
+async def handle_tool_call(ws, name, arguments_json, call_id):
+    arguments = json.loads(arguments_json) if arguments_json else {}
+    result = TOOLS[name](arguments)
+    await ws.send(json.dumps({
+        "type": "conversation.item.create",
+        "item": {"type": "function_call_output", "call_id": call_id, "output": json.dumps(result)},
+    }))
+    await ws.send(json.dumps({"type": "response.create"}))
+```
+
+The wire shape here (`response.function_call_arguments.done` carrying `name`, `arguments`, and `call_id`, answered with a `function_call_output` item and a fresh `response.create`) is covered in full in the [reference's function calling section](/realtime/reference#function-calling). `handle_tool_call` is the client-side half: look up the function, run it, send the result back.
+
+## Structuring concurrent tasks
+
+A real agent needs to send audio, watch for a turn to start, and process incoming events, all at once. Three concurrent tasks, raced rather than run in sequence:
+
+```python
+async def send_audio_task(ws, mic_queue):
+    while True:
+        frame = await mic_queue.get()
+        await ws.send(json.dumps({
+            "type": "input_audio_buffer.append",
+            "audio": base64.b64encode(frame).decode(),
+        }))
+
+async def event_handler_task(ws):
+    reply = ""
+    async for raw in ws:
+        event = json.loads(raw)
+        event_type = event["type"]
+        if event_type == "response.output_text.delta":
+            reply += event["delta"]
+        elif event_type == "response.output_text.done":
+            print(reply)
+            reply = ""
+        elif event_type == "response.function_call_arguments.done":
+            await handle_tool_call(ws, event["name"], event["arguments"], event["call_id"])
+        elif event_type == "input_audio_buffer.speech_started":
+            print("(listening...)")
+
+async def run(ws, mic_queue):
+    tasks = [
+        asyncio.create_task(send_audio_task(ws, mic_queue)),
+        asyncio.create_task(event_handler_task(ws)),
+    ]
+    try:
+        await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+```
+
+`asyncio.wait(..., return_when=asyncio.FIRST_COMPLETED)` means the moment any one task ends, the rest get cancelled in `finally` rather than left running, that's what keeps a clean Ctrl-C from turning into a pile of dangling tasks.
+
+## Adding real audio input and server VAD
+
+Streaming audio in is just feeding frames into the queue `send_audio_task` already drains, base64-encoded PCM16, appended continuously:
+
+```python
+import sounddevice as sd
+
+SAMPLE_RATE = 16000  # matches Raven's native rate; omit `audio.input.format.rate` in session.update
+
+def start_microphone(mic_queue, loop):
+    def callback(indata, frames, time_info, status):
+        pcm16 = (indata * 32767).astype("int16").tobytes()
+        loop.call_soon_threadsafe(mic_queue.put_nowait, pcm16)
+
+    return sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32", callback=callback)
+```
+
+Notice there's no end-of-speech detection here, no silence threshold, no timer. The client's only job is to keep frames flowing; the server owns voice activity detection and emits `input_audio_buffer.speech_started` when it hears you start, `input_audio_buffer.speech_stopped` when it hears you stop, then commits the turn automatically. The [reference's turn-taking section](/realtime/reference#turn-taking-and-audio) covers the mechanics, including what happens if you start talking again while a response is still streaming (it gets cancelled, automatically).
+
+## Full example
+
+```python
+import asyncio
+import base64
+import json
+import os
+
+import sounddevice as sd
+import websockets
+
+URL = "wss://<your-realtime-host>/public_api/v1/realtime"
+API_KEY = os.environ["RAVEN_API_KEY"]
+SAMPLE_RATE = 16000
+
+TOOLS = {
+    "get_time": lambda args: {"time": "11:04 AM", "timezone": "CDT"},
+    "get_weather": lambda args: {
+        "location": args["location"],
+        "temperature_f": 68,
+        "condition": "partly cloudy",
+    },
+}
+
+SESSION_TOOLS = [
+    {"type": "function", "name": "get_time", "description": "Get the current time",
+     "parameters": {"type": "object", "properties": {}}},
+    {"type": "function", "name": "get_weather", "description": "Get the current weather for a location",
+     "parameters": {"type": "object", "properties": {"location": {"type": "string"}},
+                    "required": ["location"]}},
+]
+
+
+async def handle_tool_call(ws, name, arguments_json, call_id):
+    arguments = json.loads(arguments_json) if arguments_json else {}
+    result = TOOLS[name](arguments)
+    await ws.send(json.dumps({
+        "type": "conversation.item.create",
+        "item": {"type": "function_call_output", "call_id": call_id, "output": json.dumps(result)},
+    }))
+    await ws.send(json.dumps({"type": "response.create"}))
+
+
+async def send_audio_task(ws, mic_queue):
+    while True:
+        frame = await mic_queue.get()
+        await ws.send(json.dumps({
+            "type": "input_audio_buffer.append",
+            "audio": base64.b64encode(frame).decode(),
+        }))
+
+
+async def event_handler_task(ws):
+    reply = ""
+    async for raw in ws:
+        event = json.loads(raw)
+        event_type = event["type"]
+        if event_type == "response.output_text.delta":
+            reply += event["delta"]
+        elif event_type == "response.output_text.done":
+            print(reply)
+            reply = ""
+        elif event_type == "response.function_call_arguments.done":
+            await handle_tool_call(ws, event["name"], event["arguments"], event["call_id"])
+        elif event_type == "input_audio_buffer.speech_started":
+            print("(listening...)")
+
+
+def start_microphone(mic_queue, loop):
+    def callback(indata, frames, time_info, status):
+        pcm16 = (indata * 32767).astype("int16").tobytes()
+        loop.call_soon_threadsafe(mic_queue.put_nowait, pcm16)
+
+    return sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32", callback=callback)
+
+
+async def main():
+    headers = {"Authorization": f"Bearer {API_KEY}"}
+    async with websockets.connect(URL, additional_headers=headers) as ws:
+        await ws.recv()  # session.created
+
+        await ws.send(json.dumps({
+            "type": "session.update",
+            "session": {
+                "instructions": "You are a helpful voice assistant. Keep responses brief.",
+                "output_modalities": ["text"],
+                "tools": SESSION_TOOLS,
+                "audio": {"input": {"format": {"type": "audio/pcm"}}},
+            },
+        }))
+        await ws.recv()  # session.updated
+
+        mic_queue = asyncio.Queue()
+        loop = asyncio.get_running_loop()
+        mic = start_microphone(mic_queue, loop)
+        mic.start()
+
+        tasks = [
+            asyncio.create_task(send_audio_task(ws, mic_queue)),
+            asyncio.create_task(event_handler_task(ws)),
+        ]
+        try:
+            await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            mic.stop()
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+<CardGroup cols={3}>
+  <Card title="Overview" icon="lightbulb" href="/realtime/overview">
+    What realtime streaming is, and how turn-taking, generation, and prompting fit together.
+  </Card>
+  <Card title="Reference" icon="file-lines" href="/realtime/reference">
+    Every event, the session object, function calling, and error codes.
+  </Card>
+  <Card title="Browser (JavaScript)" icon="js" href="/realtime/guides/javascript-browser">
+    The same protocol, from a browser tab, with microphone capture in the client.
+  </Card>
+</CardGroup>

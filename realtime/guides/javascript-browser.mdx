@@ -1,0 +1,232 @@
+---
+title: "Build a voice agent for the browser with JavaScript"
+sidebarTitle: "Browser (JavaScript)"
+description: "Capture microphone audio in the browser, stream it to Raven, and render the reply as it arrives. No SDK, no framework."
+tag: "Preview"
+---
+
+<Warning>
+This is a preview API. Both behavior and schema may change.
+</Warning>
+
+## What you'll build
+
+A browser page that captures microphone audio, streams it to Raven over a WebSocket, and renders the reply as text while it's still arriving. Everything here is plain browser APIs: `getUserMedia` for the microphone, `AudioWorklet` to get at raw samples, and a WebSocket for the wire protocol itself. No SDK, no build step required.
+
+<Note>
+**No voice output yet.** Raven answers in text: `output_modalities` is locked to `["text"]`. This guide stops there. If you need a spoken reply, feed the accumulated text to a text-to-speech provider of your choice; that's a separate integration, not something this API or this guide covers.
+</Note>
+
+## Connecting from the browser
+
+Your API key is a bearer credential, and a browser tab is not a safe place to keep one, since anyone can open dev tools and read it out of your JavaScript. Don't connect directly from the browser to `wss://<your-realtime-host>/public_api/v1/realtime` with the key embedded in client code.
+
+Instead, put a small relay in front of it: a same-origin WebSocket endpoint on your own server that holds the real key, opens the upstream connection to Raven, and pipes frames through in both directions. The browser only ever talks to your relay.
+
+```text connect
+Browser  →  wss://your-app.example.com/realtime-relay        (no key, same-origin)
+Relay    →  wss://<your-realtime-host>/public_api/v1/realtime (holds the real key)
+```
+
+Everything below assumes that relay exists and simply connects to it:
+
+```js connect.js
+const ws = new WebSocket("wss://your-app.example.com/realtime-relay");
+```
+
+## Capturing microphone audio
+
+The browser gives you microphone audio as floating-point samples; Raven wants base64-encoded 16-bit PCM. An `AudioWorkletProcessor` is the right place to do that conversion, since it runs off the main thread, so encoding audio doesn't compete with rendering the page.
+
+```js worklet.js
+// pcm-worklet.js: registered once, runs in the audio rendering thread
+class PCMWorklet extends AudioWorkletProcessor {
+  process(inputs) {
+    const channel = inputs[0][0];
+    if (!channel) return true;
+
+    // Float32 [-1, 1] → Int16 PCM
+    const pcm16 = new Int16Array(channel.length);
+    for (let i = 0; i < channel.length; i++) {
+      const s = Math.max(-1, Math.min(1, channel[i]));
+      pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+    }
+    this.port.postMessage(pcm16.buffer, [pcm16.buffer]);
+    return true;
+  }
+}
+registerProcessor("pcm-worklet", PCMWorklet);
+```
+
+```js capture.js
+function bufferToBase64(buffer) {
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+async function startCapture(ws) {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const audioContext = new AudioContext();
+  await audioContext.audioWorklet.addModule("pcm-worklet.js");
+
+  const source = audioContext.createMediaStreamSource(stream);
+  const worklet = new AudioWorkletNode(audioContext, "pcm-worklet");
+
+  worklet.port.onmessage = (event) => {
+    if (ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({
+      type: "input_audio_buffer.append",
+      audio: bufferToBase64(event.data),
+    }));
+  };
+
+  source.connect(worklet);
+  return { audioContext, stream };
+}
+```
+
+`AudioContext`'s sample rate is whatever the browser and hardware agree on, commonly 48kHz, not Raven's native 16kHz. Rather than resample client-side, tell the server your real rate with the `x_poly_input_rate` extension field on `session.update` and let it resample on the way in:
+
+```json session.update
+{
+  "type": "session.update",
+  "session": {
+    "output_modalities": ["text"],
+    "audio": { "input": { "format": { "type": "audio/pcm" } } },
+    "x_poly_input_rate": 48000
+  }
+}
+```
+
+## Streaming audio and handling server VAD
+
+Once capture is wired up, `input_audio_buffer.append` frames flow continuously. You don't decide when a turn starts or ends. The server does, via voice activity detection, and tells you about it:
+
+```js vad.js
+ws.addEventListener("message", (event) => {
+  const msg = JSON.parse(event.data);
+  switch (msg.type) {
+    case "input_audio_buffer.speech_started":
+      console.log("caller started talking, item:", msg.item_id);
+      break;
+    case "input_audio_buffer.speech_stopped":
+      console.log("caller stopped, turn committed");
+      break;
+  }
+});
+```
+
+There's no client-side VAD to configure or tune. If the caller starts talking again while a response is still streaming, that response is cancelled automatically, the same as if you'd sent `response.cancel` yourself.
+
+## Reconstructing the streamed reply
+
+The reply arrives as a burst of small events rather than one block of text. Accumulate `response.output_text.delta` by the `item_id` it belongs to, and treat `response.done` as the signal the turn is over:
+
+```js reply.js
+const replies = new Map(); // item_id -> accumulated text
+
+ws.addEventListener("message", (event) => {
+  const msg = JSON.parse(event.data);
+
+  if (msg.type === "response.output_text.delta") {
+    const current = replies.get(msg.item_id) ?? "";
+    replies.set(msg.item_id, current + msg.delta);
+    renderPartial(msg.item_id, replies.get(msg.item_id));
+  }
+
+  if (msg.type === "response.output_text.done") {
+    renderFinal(msg.item_id, replies.get(msg.item_id));
+  }
+
+  if (msg.type === "response.done") {
+    console.log("turn finished:", msg.response.status);
+  }
+});
+
+function renderPartial(itemId, text) {
+  document.getElementById("reply").textContent = text;
+}
+function renderFinal(itemId, text) {
+  renderPartial(itemId, text);
+}
+```
+
+Keying by `item_id` matters as soon as more than one output item can exist in a turn. It's what keeps concurrent deltas from interleaving into garbled text.
+
+<Note>
+**Voice output is out of scope here.** There's no audio-out event to listen for. If the product needs a spoken reply, the accumulated text from `renderFinal` is what you'd hand to a text-to-speech provider: a separate integration you build alongside this, not an extension of the protocol itself.
+</Note>
+
+## Full example
+
+```html index.html
+<!doctype html>
+<html>
+<body>
+  <button id="start">Start talking</button>
+  <p id="reply"></p>
+  <script src="app.js"></script>
+</body>
+</html>
+```
+
+```js app.js
+const replies = new Map();
+const ws = new WebSocket("wss://your-app.example.com/realtime-relay");
+
+ws.addEventListener("open", () => {
+  ws.send(JSON.stringify({
+    type: "session.update",
+    session: {
+      instructions: "You are a helpful, concise assistant.",
+      output_modalities: ["text"],
+      audio: { input: { format: { type: "audio/pcm" } } },
+      x_poly_input_rate: 48000,
+    },
+  }));
+});
+
+ws.addEventListener("message", (event) => {
+  const msg = JSON.parse(event.data);
+  if (msg.type === "response.output_text.delta") {
+    const current = replies.get(msg.item_id) ?? "";
+    replies.set(msg.item_id, current + msg.delta);
+    document.getElementById("reply").textContent = replies.get(msg.item_id);
+  }
+});
+
+document.getElementById("start").addEventListener("click", async () => {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const audioContext = new AudioContext();
+  await audioContext.audioWorklet.addModule("pcm-worklet.js");
+
+  const source = audioContext.createMediaStreamSource(stream);
+  const worklet = new AudioWorkletNode(audioContext, "pcm-worklet");
+
+  worklet.port.onmessage = (e) => {
+    if (ws.readyState !== WebSocket.OPEN) return;
+    const bytes = new Uint8Array(e.data);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: btoa(binary) }));
+  };
+
+  source.connect(worklet);
+});
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Overview" icon="lightbulb" href="/realtime/overview">
+    What realtime streaming is, and how turn-taking, generation, and prompting fit together.
+  </Card>
+  <Card title="Realtime API reference" icon="file-lines" href="/realtime/reference">
+    Every event, the session object, function calling, and error codes.
+  </Card>
+  <Card title="Python from scratch" icon="python" href="/realtime/guides/python-from-scratch">
+    The same protocol, built server-side with plain `websockets`.
+  </Card>
+</CardGroup>

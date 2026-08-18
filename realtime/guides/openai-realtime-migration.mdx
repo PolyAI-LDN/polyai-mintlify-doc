@@ -1,0 +1,77 @@
+---
+title: "Build a voice agent using the OpenAI Realtime API"
+sidebarTitle: "Migrating from OpenAI Realtime"
+description: "Point an existing OpenAI Realtime integration at Raven instead: what stays the same, what changes, and what to strip out."
+keywords:
+  - realtime
+  - openai
+  - migration
+  - voice agents
+  - guide
+tag: "Preview"
+---
+
+<Warning>
+This is a preview API. Both behavior and schema may change.
+</Warning>
+
+## What this guide is
+
+For teams with an existing OpenAI Realtime API integration who want to point it at Raven instead. Since this API is wire-compatible with OpenAI's Realtime protocol, most of an existing client survives the move untouched. The work is in the differences, not a rewrite.
+
+## What stays the same
+
+- The JSON event shape and names: `session.update`, `conversation.item.create`, `response.create`, `response.output_text.delta`, `response.done`, and the rest of the vocabulary your client already parses.
+- The add-then-respond turn shape: add an item to the conversation, then ask for a response to it, exactly as before.
+- The function-calling shape: `response.function_call_arguments.delta`/`.done`, answered with a `function_call_output` item and a fresh `response.create`.
+
+## What to change
+
+| What | OpenAI Realtime | Raven |
+|---|---|---|
+| Connection URL | `wss://api.openai.com/v1/realtime?model=...` | `wss://your-polyai-host/public_api/v1/realtime` |
+| `model` | e.g. `gpt-realtime` | `raven-omni-api-preview` |
+| `output_modalities` | `["audio"]` or `["text", "audio"]` | must be exactly `["text"]` |
+
+## What to strip out
+
+This is where an existing, more sophisticated OpenAI Realtime client actively breaks if these pieces are carried over unchanged, rather than just sitting unused.
+
+**Semantic VAD isn't available.** Only server VAD exists on this API.
+
+```json wrong: semantic_vad doesn't exist here
+{
+  "type": "session.update",
+  "session": {
+    "audio": { "input": { "turn_detection": { "type": "semantic_vad", "eagerness": "auto" } } }
+  }
+}
+```
+```json right: server_vad only
+{
+  "type": "session.update",
+  "session": {
+    "audio": { "input": { "turn_detection": { "type": "server_vad", "create_response": true } } }
+  }
+}
+```
+
+**There's no audio output to listen for.** A real OpenAI Realtime client typically has an audio-playback path listening for `response.output_audio.delta` and feeding it to a jitter-buffered player. This API emits no `response.output_audio.*` events at all, since `output_modalities` is locked to `["text"]`. That playback code isn't a harmless no-op sitting idle: it's dead code parsing events that will never arrive, and should be deleted rather than left in place.
+
+**There's nothing to echo-avoid.** Some OpenAI Realtime clients mute the microphone while the assistant's audio is playing back, to keep the assistant from hearing its own voice through speaker leakage. Since this API produces no audio to leak in the first place, that mute-during-playback logic has nothing to protect against and can be removed along with the playback path it was guarding.
+
+## Known limitations to account for
+
+A client built against OpenAI's fuller feature set is more likely to notice the gaps than one built fresh against this API. Two worth knowing before you migrate: `conversation.item.truncate` is acknowledged but doesn't actually shorten history, and MCP-server tool declarations are dropped rather than half-supported. The full list is in [Known limitations](/realtime/reference#known-limitations).
+
+<CardGroup cols={2}>
+  <Card title="Overview" icon="lightbulb" href="/realtime/overview">
+    What realtime streaming is, and how turn-taking, generation, and prompting fit together.
+  </Card>
+  <Card title="Reference" icon="file-lines" href="/realtime/reference">
+    Every event, the session object, function calling, and error codes.
+  </Card>
+  <Card title="Python from scratch" icon="python" href="/realtime/guides/python-from-scratch">
+    Building a client against this API directly, without carrying over an existing OpenAI integration.
+  </Card>
+</CardGroup>
