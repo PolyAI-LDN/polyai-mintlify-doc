@@ -1,24 +1,28 @@
 ---
-title: "Realtime API overview"
+title: "Raven Omni overview"
 sidebarTitle: "Overview"
-description: "What realtime streaming is, how turn-taking and generation fit together, and how the pieces of a voice agent built on this API relate to one another."
+description: "How a realtime conversation differs from a request: turn-taking, generation, tool calling, and where an agent harness fits on top."
 keywords:
   - realtime
   - voice agents
   - turn-taking
+  - generation
+  - tool calling
   - concepts
 tag: "Preview"
 ---
 
-<p className="lead">
-A realtime API holds a conversation, not a request. Everything below is about what that shift changes: for turn-taking, for generation, and for how you prompt and structure an agent on top of it.
-</p>
+<Warning>
+This is a preview API. Both behavior and schema may change.
+</Warning>
 
-A request/response API answers a question and forgets you asked it. A realtime API stays connected, holds a stream of audio and events, and has to decide things a stateless endpoint never had to: when has the caller finished talking, what happens if they start talking again mid-answer, and what does the agent actually know at any given moment. None of that is exotic once you see the shape of it, but it's a different shape, and worth understanding before you write the first line of client code.
+A request/response API answers a question and forgets you asked it. A realtime API stays connected, holds a stream of audio and events, and has to decide things a stateless endpoint never had to: when the caller has finished talking, what happens if they start again mid-answer, and what the agent knows at any given moment.
+
+For the wire format, see the [reference](/realtime/reference). For a runnable example, start with the [quickstart](/realtime/quickstart).
 
 ## The core split
 
-Two things get conflated constantly, and treating them separately clears up most of the confusion:
+Two separate mechanisms:
 
 <CardGroup cols={2}>
   <Card title="Turn-taking" icon="waveform-lines">
@@ -29,9 +33,9 @@ Two things get conflated constantly, and treating them separately clears up most
   </Card>
 </CardGroup>
 
-Turn-taking is infrastructure; generation is the model. You don't configure the first one much, and you don't need to. It's the second one where instructions, tools, and prompting live.
+Turn-taking is infrastructure; generation is the model. You don't configure the first one much, and you don't need to. Instructions, tools, and prompting all live in the second.
 
-## Decision table
+## What you'll need, by what you're building
 
 | You are building... | Use |
 |---|---|
@@ -42,27 +46,43 @@ Turn-taking is infrastructure; generation is the model. You don't configure the 
 
 ## How the pieces fit together
 
-**Turn-taking** runs server-side, continuously, over whatever audio you stream in. It's voice activity detection, not the model itself, making the call: a `speech_started` event opens a turn, `speech_stopped` closes it and commits the turn's audio to history. That's deliberate. Every realtime API surveyed before building this one puts turn-taking server-side, because pushing end-of-speech detection onto every client is a worse default than owning it once, centrally. The one wrinkle worth knowing early is **barge-in**: the caller starting to talk again while a response is still streaming cancels that response automatically. It's the right default behavior, but the server has no way to know how much of the cancelled reply your own text-to-speech had already spoken aloud before the interruption, so conversation history reflects what Raven sent, not necessarily what the caller heard. Worth accounting for if you're keeping a strict transcript.
+### Turn-taking
 
-**Generation and transcription share a pass.** When a turn's last item is audio, Raven both transcribes it and answers it in the same completion. The transcript isn't a separate async job racing the reply, it's a byproduct of generating the reply at all. That means a client that assumes the transcript always finishes streaming before the response text starts is assuming something the protocol doesn't promise.
+Turn-taking runs server-side, continuously, over whatever audio you stream in. Voice activity detection makes the call, not the model: `speech_started` opens a turn, `speech_stopped` closes it and commits the turn's audio to history.
 
-**Tool calling is the add-then-respond shape, applied to results instead of messages.** A tool call arrives as streamed arguments, same as text; you run the tool, add a `function_call_output` item to the conversation, then send a fresh `response.create`, because a tool result sitting in history doesn't trigger a reply on its own, any more than a user message does without you asking for one.
+That placement is deliberate. OpenAI's Realtime API and Gemini's Live API both own turn-taking centrally too, because pushing end-of-speech detection onto every client is a worse default than solving it once.
 
-**Text-only today, not text-only forever.** `output_modalities` is locked to `["text"]` because Raven doesn't speak yet. Everything else about the protocol (the event vocabulary, the session object, function calling) is shaped the way it is specifically so that a future audio-out mode slots in without changing anything you've already built against.
+**Barge-in cancels the in-flight response.** If the caller starts talking again while a response is still streaming, that response is cancelled automatically. The server has no way to know how much of the cancelled reply your text-to-speech had already spoken aloud, so conversation history reflects what Raven sent rather than what the caller heard. Worth accounting for if you're keeping a strict transcript.
 
-<Tip>
-A quick test for which parts of this API you actually need: if you need audio *in*, server-owned turn-taking, or tool calling, this API is the whole answer. If you need audio *out* today, it's half the answer, so pair it with your own text-to-speech on the streamed reply.
-</Tip>
+### Generation and transcription
+
+When a turn's last item is audio, Raven transcribes it and answers it in the same completion. The transcript is a by-product of generating the reply, not a separate async job racing it.
+
+A client that assumes the transcript always finishes streaming before the response text starts is assuming something the protocol doesn't promise.
+
+### Tool calling
+
+Tool calling is the same **add-then-respond** shape used everywhere else on this API, applied to results instead of messages. A tool call arrives as streamed arguments, the same way text does. You run the tool, add a `function_call_output` item to the conversation, then send a fresh `response.create`.
+
+That last step is the one people miss. A tool result sitting in history doesn't trigger a reply on its own, any more than a user message does.
+
+<Note>
+**No voice output yet.** `output_modalities` is locked to `["text"]` because Raven doesn't speak on this API. Everything else about the protocol, the event vocabulary, the session object, function calling, is shaped so that a future audio-out mode slots in without changing what you've already built. Until then, pair the streamed reply with your own text-to-speech.
+</Note>
 
 ## Prompting and agent harnesses
 
-`instructions` is a system prompt, sent as-is and forwarded to the model with no rewriting or templating in between. There's no separate persona layer or prompt-assembly step happening on the server. That's simpler than a full agent framework, and deliberately so: this API gives you a conversation and a model, not an opinion about how to structure a business's worth of conversational logic on top of it. If you need branching dialogue flows, guardrails, or a knowledge base, that's a harness you build (or one you bring, like [LiveKit](/realtime/guides/livekit) or [Pipecat](/realtime/guides/pipecat)) sitting in front of this protocol, not a mode this API switches into.
+`instructions` is a system prompt, sent as-is and forwarded to the model with no rewriting or templating in between. There's no separate persona layer and no prompt-assembly step happening on the server.
 
-Concretely, a harness's job is everything this API doesn't do for you: capturing and encoding audio, deciding what instructions to send and when to update them, running tools and feeding results back, and, until Raven speaks, turning the streamed text into audio the caller actually hears. The [Guides](/realtime/guides/introduction) section covers exactly that: building the harness yourself, or reaching for one of the frameworks that already knows how to hold up its end.
+That's simpler than a full agent framework, and deliberately so. This API gives you a conversation and a model, and leaves the structure of a business's worth of conversational logic to you. Branching dialogue flows, guardrails, and knowledge bases belong to a harness sitting in front of the protocol.
+
+A harness's job is everything this API doesn't do for you: capturing and encoding audio, deciding what instructions to send and when to update them, running tools and feeding results back, and, until Raven speaks, turning the streamed text into audio the caller actually hears. You can write that yourself or bring one you already use, like [LiveKit](/realtime/guides/livekit) or [Pipecat](/realtime/guides/pipecat). The [Guides](/realtime/guides/introduction) section covers both paths.
 
 ## Common mistakes
 
-Two of the same mistake, in different clothes: assuming the protocol will do something for you that it explicitly doesn't, because most of the protocol looks like it should.
+Both of these are the same mistake: expecting the protocol to do something it explicitly doesn't.
+
+**Requesting audio back returns an error.**
 
 ```json wrong: expecting audio back
 {
@@ -76,7 +96,10 @@ Two of the same mistake, in different clothes: assuming the protocol will do som
   "session": { "output_modalities": ["text"] }
 }
 ```
-Requesting `["audio"]` doesn't get you a degraded or silent response. It's refused outright with an error, so you find out immediately rather than debugging a mysteriously quiet integration.
+
+Asking for `["audio"]` returns an error rather than a silent response, so you find out immediately instead of debugging a mysteriously quiet integration.
+
+**A tool result never answers on its own.**
 
 ```json wrong: expecting the tool result alone to answer
 {
@@ -92,9 +115,10 @@ Requesting `["audio"]` doesn't get you a degraded or silent response. It's refus
 }
 { "type": "response.create" }
 ```
-Adding an item, any item, never implies a reply. That's true of user messages and it's just as true of tool results, even though it's tempting to assume a tool call *feels* like it should close its own loop.
 
-## Related pages
+Adding an item, any item, never implies a reply. That's true of user messages, and just as true of tool results.
+
+## Next steps
 
 <CardGroup cols={2}>
   <Card title="Quickstart" icon="rocket" href="/realtime/quickstart">
