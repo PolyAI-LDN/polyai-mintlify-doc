@@ -4,7 +4,7 @@ api: "POST /v1/outbound-sms"
 description: "Send an outbound SMS or RCS message and open a reply-enabled conversation session."
 ---
 
-Sends an outbound message to the specified user number and opens a new conversation session. The endpoint handles both **SMS** and **RCS**: if the recipient's device and carrier support RCS, the message is delivered as RCS with richer formatting and read receipts; otherwise it falls back to SMS automatically. The message behaves like a greeting, so it is fully part of the conversation context that the agent can access. If the user replies, the agent handles the conversation as a normal SMS or RCS session.
+Sends an outbound message to the specified user number and opens a new conversation session. The endpoint handles both **SMS** and **RCS** on the same route: for SMS, send to a plain E.164 number; for RCS, prefix the recipient number with `rcs:` and pass a Twilio Messaging Service SID for your RCS sender in `messaging_service_sid`. If the recipient's device or carrier doesn't support RCS, delivery automatically falls back to SMS. The message behaves like a greeting, so it is fully part of the conversation context that the agent can access. If the user replies, the agent handles the conversation as a normal SMS or RCS session.
 
 <Warning>
   It is your responsibility to ensure that messages are sent in compliance with applicable laws and regulations, including [A2P 10DLC registration](/voice-channel/message-templates#a2p-10dlc-registration-us-and-canada) for US and Canadian numbers, and [RCS Business Messaging registration](/messaging-channel/sms-and-rcs/sms-and-rcs-campaign-registration-compliance-requirements-us) where applicable.
@@ -33,11 +33,15 @@ Sends an outbound message to the specified user number and opens a new conversat
 </ParamField>
 
 <ParamField body="user_number" type="string" required>
-  Recipient phone number in E.164 format (e.g. `+14155551234`).
+  Recipient phone number in E.164 format (e.g. `+14155551234`). For **RCS**, prefix the number with `rcs:` (e.g. `rcs:+14155551234`).
 </ParamField>
 
 <ParamField body="agent_number" type="string">
-  Sender phone number in E.164 format. Must be one of the numbers provisioned for your project. If omitted, the API picks one automatically from the numbers available for the connector token's environment.
+  Sender phone number in E.164 format. Must be one of the numbers provisioned for your project. If omitted, the API picks one automatically from the numbers available for the connector token's environment. Not used for RCS — RCS senders are selected via `messaging_service_sid`.
+</ParamField>
+
+<ParamField body="messaging_service_sid" type="string">
+  **Required for RCS.** The Twilio Messaging Service SID for your RCS sender.
 </ParamField>
 
 ## Response
@@ -55,6 +59,8 @@ Sends an outbound message to the specified user number and opens a new conversat
 The `202` response has an empty body.
 
 ## Example
+
+### SMS
 
 <CodeGroup>
 
@@ -110,6 +116,22 @@ console.log(response.status); // 202
 
 </CodeGroup>
 
+### RCS
+
+Outbound RCS uses the same endpoint. Prefix `user_number` with `rcs:` and pass the Twilio Messaging Service SID for your RCS sender in `messaging_service_sid`. If the recipient's device doesn't support RCS, the message automatically falls back to SMS — no extra handling needed.
+
+```bash cURL
+curl -X POST https://api.us-1.platform.polyai.app/v1/outbound-sms \
+  -H "X-PolyAi-Auth-Token: YOUR_API_KEY" \
+  -H "X-TOKEN-ID: YOUR_CONNECTOR_ID" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Hi Jane, your appointment is confirmed for tomorrow at 2pm. Reply to this message if you need to reschedule.",
+    "user_number": "rcs:+14155551234",
+    "messaging_service_sid": "YOUR_TWILIO_MESSAGING_SERVICE_SID"
+  }'
+```
+
 This can lead to a conversation like:
 
 | Direction | Message |
@@ -130,7 +152,7 @@ All error responses return a JSON object:
 
 ## Notes
 
-- **SMS vs RCS delivery** — the endpoint auto-selects RCS when the recipient's device and carrier support it, and falls back to SMS otherwise. No client changes are needed to enable RCS; ensure your project has RCS enabled and its brand/agent is registered.
+- **SMS vs RCS delivery** — SMS is sent to a plain E.164 `user_number`. RCS requires an `rcs:` prefix on `user_number` **and** a `messaging_service_sid`. If the recipient can't receive RCS, delivery automatically falls back to SMS.
 - **Agent number selection** — by default the API picks from the numbers provisioned for your project for the environment linked to the connector token. Pass `agent_number` to override; it must be one of the provisioned numbers or the request is rejected with a `400`.
 - **Rate limits** are applied per project. If you hit a `429`, back off and retry.
 - **Inactivity timeout** — if the conversation is engaged (the user has replied), after 24 hours of inactivity a warning message is sent. If the user replies within 10 minutes, the conversation stays open and a new 24-hour inactivity timer starts. Otherwise the session terminates.
