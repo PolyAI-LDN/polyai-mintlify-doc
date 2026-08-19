@@ -1,13 +1,14 @@
 ---
 title: "Raven Omni overview"
 sidebarTitle: "Overview"
-description: "How a realtime conversation differs from a request: turn-taking, generation, tool calling, and where an agent harness fits on top."
+description: "Why Raven Omni fuses transcription into generation, reasons only when a turn needs it, and where turn-taking and an agent harness fit in."
 keywords:
   - realtime
   - voice agents
   - turn-taking
   - generation
   - tool calling
+  - automatic reasoning
   - concepts
 tag: "Preview"
 ---
@@ -16,20 +17,42 @@ tag: "Preview"
 This is a preview API. Both behavior and schema may change.
 </Warning>
 
-A request/response API answers a question and forgets you asked it. A realtime API stays connected, holds a stream of audio and events, and has to decide things a stateless endpoint never had to: when the caller has finished talking, what happens if they start again mid-answer, and what the agent knows at any given moment.
+Most of the delay callers actually notice isn't the model thinking. It's the system deciding the caller is done talking, then handing a transcript across a stage boundary before generation can even start — comparing model speed alone measures the smallest part of that turn.
+
+<Frame caption="A conventional cascaded pipeline, where each stage waits for the one before it. The largest single cost is deciding the caller has actually stopped talking, not the thinking.">
+  <img src="/images/realtime/anatomy-of-one-turn.png" alt="Diagram of a traditional cascaded pipeline turn, showing deciding they're done as the largest segment, followed by smaller hear, think, and speak stages" />
+</Frame>
+
+A realtime API has to make that call continuously, holding one open stream of audio and events rather than answering one request at a time: when the caller has finished talking, what happens if they start again mid-answer, and what the agent knows at any given moment.
 
 For the wire format, see the [reference](/realtime/reference). For a runnable example, start with the [quickstart](/realtime/quickstart).
 
+## Why it's built this way
+
+A conventional voice pipeline runs speech recognition, then a language model, then speech synthesis, each stage waiting for the one before it to finish.
+
+<Frame caption="The useful target is the window in which a person would normally reply.">
+  <img src="/images/realtime/human-reply-window.png" alt="Chart showing the human reply window of 200-500ms, versus the 1-second mark where a pause starts to read as a dropped call" />
+</Frame>
+
+Every stage is a place a turn can go slow, and a place a transcript loses everything about the audio that isn't words: tone, hesitation, the sound of someone still deciding what to say.
+
+Raven Omni collapses the first two stages into one model. It hears the call directly, and the transcript comes out as a byproduct of generating the reply, not a job that has to finish first — more on this in [Generation and transcription](#generation-and-transcription) below.
+
+It also reasons selectively. Most turns don't need a distinct thinking step, so Raven decides per turn whether one is worth the time, and keeps it short when it runs one — see [Automatic reasoning](#automatic-reasoning).
+
+Raven still answers in text, not audio. That's deliberate: it gives you a place to log, test, and run the same guardrails you use elsewhere in the platform before anything is spoken aloud. Pair the streamed reply with your own text-to-speech, the same as you would today.
+
 ## The core split
 
-Two separate mechanisms:
+Inside a turn, two mechanisms are doing separate jobs:
 
 <CardGroup cols={2}>
   <Card title="Turn-taking" icon="waveform-lines">
-    Deciding *when* a turn ends: that the caller has stopped talking and it's the agent's turn to respond. Owned entirely by the server today, via voice activity detection.
+    Deciding *when* a turn ends: that the caller has stopped talking and it's the agent's turn to respond. Server-owned today, via voice activity detection — infrastructure, not where Raven's fusion does its work.
   </Card>
   <Card title="Generation" icon="message-bot">
-    Deciding *what* happens once a turn starts: the reply itself, streamed token by token, with tool calls folded into the same stream.
+    Deciding *what* happens once a turn starts: the reply itself, streamed token by token, with transcription and tool calls folded into the same stream.
   </Card>
 </CardGroup>
 
@@ -42,6 +65,7 @@ Turn-taking is infrastructure; generation is the model. You don't configure the 
 | A phone-style agent with barge-in | Server VAD (`turn_detection: {"type": "server_vad"}`), and let `speech_started`/`speech_stopped` drive turns automatically |
 | A push-to-talk or chat-like text UI | Manual turns: `create_response: false`, then `input_audio_buffer.commit` or `conversation.item.create` followed by an explicit `response.create` |
 | A tool-using agent | Declare `tools` in `session.update`; answer a call with `function_call_output`, then a fresh `response.create` |
+| A task with real thinking to do (dates, ambiguous requests, multi-step logic) | Automatic reasoning is on by default; tune it with `reasoning.effort` in `session.update` |
 | Voice output today | Not yet available. Raven answers in text only; pair it with your own text-to-speech |
 
 ## How the pieces fit together
@@ -50,15 +74,23 @@ Turn-taking is infrastructure; generation is the model. You don't configure the 
 
 Turn-taking runs server-side, continuously, over whatever audio you stream in. Voice activity detection makes the call, not the model: `speech_started` opens a turn, `speech_stopped` closes it and commits the turn's audio to history.
 
+It's worth taking seriously even though it's "just" VAD: deciding a caller has finished talking is usually the single largest cost in a turn, ahead of generation. Getting it wrong in either direction, cutting someone off or leaving dead air, is what a caller actually notices.
+
 That placement is deliberate. OpenAI's Realtime API and Gemini's Live API both own turn-taking centrally too, because pushing end-of-speech detection onto every client is a worse default than solving it once.
 
 **Barge-in cancels the in-flight response.** If the caller starts talking again while a response is still streaming, that response is cancelled automatically. The server has no way to know how much of the cancelled reply your text-to-speech had already spoken aloud, so conversation history reflects what Raven sent rather than what the caller heard. Worth accounting for if you're keeping a strict transcript.
 
 ### Generation and transcription
 
-When a turn's last item is audio, Raven transcribes it and answers it in the same completion. The transcript is a by-product of generating the reply, not a separate async job racing it.
+This is the fusion described above, as it shows up on the wire: when a turn's last item is audio, Raven transcribes it and answers it in the same completion. The transcript is a by-product of generating the reply, not a separate async job racing it.
 
 A client that assumes the transcript always finishes streaming before the response text starts is assuming something the protocol doesn't promise.
+
+### Automatic reasoning
+
+Most turns don't need a distinct thinking step. A request for store hours doesn't call for the same treatment as "move my Tuesday appointment to whichever Friday is a week after the one after next." Raven decides per turn whether reasoning is worth the time, rather than spending a fixed reasoning budget on every reply regardless of whether it's needed.
+
+`reasoning.effort` in `session.update` influences how much of that budget it's willing to spend. Field-by-field behavior is coming to the [reference](/realtime/reference); for now, the default is tuned to stay fast on simple turns and only slow down when a turn actually calls for it.
 
 ### Tool calling
 
@@ -67,7 +99,7 @@ Tool calling is the same **add-then-respond** shape used everywhere else on this
 That last step is the one people miss. A tool result sitting in history doesn't trigger a reply on its own, any more than a user message does.
 
 <Note>
-**No voice output yet.** `output_modalities` is locked to `["text"]` because Raven doesn't speak on this API. Everything else about the protocol, the event vocabulary, the session object, function calling, is shaped so that a future audio-out mode slots in without changing what you've already built. Until then, pair the streamed reply with your own text-to-speech.
+**Text out, by design, not just for now.** `output_modalities` is locked to `["text"]`. Answering in text before a separate voice layer speaks it means the reply can be logged, tested, and run through the same guardrails as everything else on the platform, before a caller ever hears it. Everything else about the protocol, the event vocabulary, the session object, function calling, is shaped so that a future audio-out mode slots in without changing what you've already built. Until then, pair the streamed reply with your own text-to-speech.
 </Note>
 
 ## Prompting and agent harnesses
