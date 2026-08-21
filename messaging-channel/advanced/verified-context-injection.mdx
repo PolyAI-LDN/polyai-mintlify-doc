@@ -14,10 +14,10 @@ A primitive implementation of context injection would allow customers to pass ca
 
 Context Vault closes that gap. The customer's backend **signs** the context; PolyAI **verifies** the signature server-side before the agent sees anything. That makes a value like `account_tier: "premium"` trustworthy enough to gate entitlements on.
 
-## What it does 
+## What it does
 
-- **Sets context from a trusted origin:** The customer's backend signs a JWT with a key they generated in Agent Studio. The token has a 30-second lifetime and carries up to 8KB of context data (fields such as customer identifier, account tier, or a short-lived auth token). The widget carries the opaque token but never sees the signing key. 
-- **Verifies the signature and stores verified values:** Our platform validates the signature, checks the token binding and expiry, then stores the verified context payload against the conversation. Nothing bypasses this validation path. 
+- **Sets context from a trusted origin:** The customer's backend signs a JWT with a key they generated in Agent Studio. The token has a 30-second lifetime and carries up to 8KB of context data (fields such as customer identifier, account tier, or a short-lived auth token). The widget carries the opaque token but never sees the signing key.
+- **Verifies the signature and stores verified values:** Our platform validates the signature, checks the token binding and expiry, then stores the verified context payload against the conversation. Nothing bypasses this validation path.
 - **Reads into functions as read-only fields:** Every turn, the function runtime receives a read-only object (accessed as `conv.context_vault`) with the verified fields. Functions can act on them, for example calling the customer's application programming interface (API) with the customer identifier, checking the account tier, or using a short-lived auth token to call a downstream service. Values are never surfaced in prompts or transcripts unless the function explicitly copies them into state.
 
 ## Benefits:
