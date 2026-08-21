@@ -4,4 +4,126 @@ sidebarTitle: "Enable Verified Context Injection"
 description: "Enable and configure verified context injection for your Messaging API sessions."
 ---
 
-Coming soon.
+## Before you start
+
+Three things must be true, and all three are on PolyAI's side.
+
+| Precondition | How to check |
+| --- | --- |
+| A signing key is provisioned for the project | Talk to your PolyAI representative about getting a key provisioned. |
+| The backend mints the context id in the session start event | Visible in the widget console on the session start payload |
+| **The agent-side read path is enabled for the project** | Set per project in experimental configuration. **Off by default** — ask your PolyAI representative to enable it. |
+
+The integrator needs: a **key ID** and a **secret** from PolyAI, a backend endpoint that can sign a JWT, and a few lines of JavaScript on the page.
+
+## Step 1 - Register the callback
+
+`onContextRequired` takes a handler receiving `{ sessionId, contextId }` and returning a signed JWT string, or a promise of one.
+
+```jsx
+WebchatAPI.onReady(function () {
+  WebchatAPI.onContextRequired(async function ({ sessionId, contextId }) {
+    const res = await fetch('/api/polyai/sign-context', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context_id: contextId }),
+    });
+    const { token } = await res.json();
+    return token; // signed JWT, sub = contextId
+  });
+});
+```
+
+The handler is read **at request time**, not snapshotted at init, so registering inside `onReady` is comfortably in time. The effective deadline is `SESSION_START`.
+
+<Warning>
+  Return-value traps. Only a non-empty string is treated as a token. `undefined` , `null` , `''` , a number, or an object like `{ token: '...' }` are all treated as declines — you get a `console.war`n and the conversation proceeds without context.
+</Warning>
+
+Other behaviours worth knowing:
+
+- **One handler slot, not a list.** Registering twice silently overwrites - last call wins, no warning. There is no way to unregister; `WebchatAPI.off()` does not apply here.
+- **`destroy()` clears the handler.** Re-initialising the widget means re-registering.
+- **`contextId` can be `undefined`.** The SDK reads it defensively off the payload. Signing `sub = undefined` will fail the vault's binding check - guard for it.
+- **A synchronous throw is caught.** The handler is invoked inside a promise chain, so a raw `throw` becomes a decline rather than stranding the widget.
+
+## Step 2 - Sign the token on your backend
+
+HS256, signed with the project's key. Never in the browser.
+
+```jsx
+import jwt from 'jsonwebtoken';
+
+app.post('/api/polyai/sign-context', (req, res) => {
+  const { context_id } = req.body;
+  const user = getAuthenticatedUser(req); // from YOUR session — never trust the client
+
+  const token = jwt.sign(
+    {
+      sub: context_id, // MUST equal the contextId the widget provided
+      ctx: { customer_id: user.id, account_tier: user.tier, is_premium: user.tier === 'premium' },
+    },
+    process.env.POLYAI_KEY_SECRET,
+    { algorithm: 'HS256', keyid: process.env.POLYAI_KEY_ID, expiresIn: '30s' }
+  );
+  res.json({ token });
+});
+```
+
+<Card title="The trap that costs the most time. " type="danger">
+  The secret is used as a UTF-8 string, not decoded from hex — pass it to your JWT library exactly as issued. If you decode it to bytes first `(Buffer.from(secret, 'hex')` or equivalent), every token you mint will fail signature verification with an opaque 401.
+</Card>
+
+### Token contract
+
+| Field | Where | Rule |
+| --- | --- | --- |
+| `alg` | header | Must be `HS256` |
+| `kid` | header | Your key ID. Stable across rotation. |
+| `sub` | payload | Must exactly equal the `contextId` passed to your callback |
+| `iat` / `exp` | payload | `exp − iat` must be **≤ 30s**. Watch for server clock skew. |
+| `ctx` | payload | **Flat** object, primitive values only (string / number / boolean / null), **≤ 8 KB**. A nested object or array anywhere in `ctx` is rejected — the most common integration mistake. The 8 KB is measured on the re-serialized decoded claim, not your original JSON. Whole token capped separately at 16 KB. |
+
+The token is **signed, not encrypted** - `ctx` is readable by anyone who sees the token. It proves origin, not confidentiality.
+
+## Step 3 - Refresh mid-conversation
+
+```jsx
+WebchatAPI.refreshVerifiedContext(); // e.g. from your login success handler
+```
+
+Re-runs the **same** callback against the live conversation and submits a fresh token. The vault set is idempotent - full replacement, last write wins - and the conversation is not interrupted.
+
+<Warning>
+  **It returns** `undefined`**, not a promise.** Fire-and-forget, with no way to await it or learn the outcome. It silently no-ops in three separate places: no handler registered, no session or no `context_id` yet, or a context request already in flight. If your handler isn't invoked, you cannot tell which of the three happened from the host page.
+</Warning>
+
+## The timing budget
+
+Three timeouts interact, and the tightest one is the one that matters.
+
+| Limit | Value | What it governs |
+| --- | --- | --- |
+| SDK cap on your handler | **4s** | Your callback, end to end, including your backend round-trip |
+| Widget backstop | 5s | Covers the SDK never replying at all |
+| Token lifetime | 30s | `exp − iat` ceiling enforced by the vault |
+
+<Tip>
+  **A signing backend slower than 4 seconds always declines**, no matter how long the token's TTL is. Budget your endpoint against the 4s cap, not the 30s TTL.
+</Tip>
+
+## Failure behaviour
+
+Verified context is best-effort and fails open. The conversation **always** starts.
+
+| Situation | User experience | Context attached? |
+| --- | --- | --- |
+| Valid token, vault accepts | Normal conversation | Yes |
+| No handler registered | Normal conversation, zero delay | No |
+| Handler returns nothing / non-string / throws | Normal conversation | No |
+| Handler exceeds 4s | Proceeds after the timeout | No |
+| Token rejected (signature, `sub` mismatch, expired, oversize) | Normal conversation | No |
+
+<Danger>
+  **No success or failure signal ever reaches the host page.** There is no `onContextSet` / `onContextFailedcallback` — the full context-related public surface is `onContextRequired` and `refreshVerifiedContext`. If the vault rejects your token, the widget logs it, resolves internally as `failed`, and the agent joins without context. Your page is not told. Budget for widget-console and network-tab debugging, and design the agent to degrade gracefully.
+</Danger>
