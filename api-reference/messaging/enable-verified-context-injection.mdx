@@ -37,7 +37,7 @@ WebchatAPI.onReady(function () {
 The handler is read **at request time**, not snapshotted at init, so registering inside `onReady` is comfortably in time. The effective deadline is `SESSION_START`.
 
 <Warning>
-  Return-value traps. Only a non-empty string is treated as a token. `undefined` , `null` , `''` , a number, or an object like `{ token: '...' }` are all treated as declines — you get a `console.war`n and the conversation proceeds without context.
+  Return-value traps. Only a non-empty string is treated as a token. `undefined` , `null` , `''` , a number, or an object like `{ token: '...' }` are all treated as declines — you get a `console.warn` and the conversation proceeds without context.
 </Warning>
 
 Other behaviours worth knowing:
@@ -70,8 +70,8 @@ app.post('/api/polyai/sign-context', (req, res) => {
 });
 ```
 
-<Card title="The trap that costs the most time. " type="danger">
-  The secret is used as a UTF-8 string, not decoded from hex — pass it to your JWT library exactly as issued. If you decode it to bytes first `(Buffer.from(secret, 'hex')` or equivalent), every token you mint will fail signature verification with an opaque 401.
+<Card title="The trap that costs the most time." type="danger">
+  The secret is used as a UTF-8 string, not decoded from hex — pass it to your JWT library exactly as issued. If you decode it to bytes first (`Buffer.from(secret, 'hex')` or equivalent), every token you mint will fail signature verification with an opaque 401.
 </Card>
 
 ### Token contract
@@ -125,7 +125,7 @@ Verified context is best-effort and fails open. The conversation **always** star
 | Token rejected (signature, `sub` mismatch, expired, oversize) | Normal conversation | No |
 
 <Danger>
-  **No success or failure signal ever reaches the host page.** There is no `onContextSet` / `onContextFailedcallback` — the full context-related public surface is `onContextRequired` and `refreshVerifiedContext`. If the vault rejects your token, the widget logs it, resolves internally as `failed`, and the agent joins without context. Your page is not told. Budget for widget-console and network-tab debugging, and design the agent to degrade gracefully.
+  **No success or failure signal ever reaches the host page.** There is no `onContextSet` / `onContextFailed` callback — the full context-related public surface is `onContextRequired` and `refreshVerifiedContext`. If the vault rejects your token, the widget logs it, resolves internally as `failed`, and the agent joins without context. Your page is not told. Budget for widget-console and network-tab debugging, and design the agent to degrade gracefully.
 </Danger>
 
 ## Related pages
