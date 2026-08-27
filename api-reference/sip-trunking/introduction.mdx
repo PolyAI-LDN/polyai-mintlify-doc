@@ -6,7 +6,7 @@ description: "Connect your telephony platform to PolyAI."
 
 The SIP Trunking API lets you connect your own telephony platform to PolyAI. It has two parts:
 
-1. **A management REST API** to create and configure **SIP Trunks** and their **Extensions**.
+1. **A management REST API** to create and configure **SIP Trunks** and their **Extensions**, and to **place outbound calls** over a trunk.
 2. **A SIP/RTP interface** your telephony system connects to.
 
 <Note>
@@ -139,6 +139,30 @@ X-PolyAI-SIP-Trunk-Token: a-long-random-shared-secret
 
 See [Connecting to PolyAI Telephony](/api-reference/sip-trunking/connecting) for transport, DNS, and authentication details.
 
+## Placing outbound calls
+
+A trunk can also place **outbound** calls: PolyAI dials a number and connects the answered call to one of your agents. First configure the trunk's outbound settings — a `default_caller_id` and the `sip_addresses` your calls route to — with [Update a SIP Trunk](/api-reference/sip-trunking/endpoint/update-a-sip-trunk). Then call the outbound-call endpoint:
+
+<CodeGroup>
+```bash Request
+curl -X POST https://api.us.poly.ai/v1/telephony/sip-trunks/TRUNK_ID/outbound-call \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent": { "agent_id": "my-agent", "client_env": "live" },
+    "to_number": "+447700900123"
+  }'
+```
+
+```json Response
+{
+  "call_sid": "OUT-3f2a7c9e-1b4d-4e6a-9c8b-2d5f7a1e0c34"
+}
+```
+</CodeGroup>
+
+Use the returned `call_sid` to poll the call with [Get outbound call status](/api-reference/sip-trunking/endpoint/get-outbound-call-status) until it reaches `success` or `failure`.
+
 ## Error responses
 
 | Status | Description                                        |
@@ -164,6 +188,9 @@ See [Connecting to PolyAI Telephony](/api-reference/sip-trunking/connecting) for
 <CardGroup cols={2}>
   <Card title="Connecting to PolyAI Telephony" icon="phone-arrow-down-left" href="/api-reference/sip-trunking/connecting">
     Route inbound phone calls into PolyAI over SIP/RTP.
+  </Card>
+  <Card title="Place an outbound call" icon="phone-arrow-up-right" href="/api-reference/sip-trunking/endpoint/place-an-outbound-call">
+    Dial a number and connect the call to one of your agents over a trunk.
   </Card>
   <Card title="Agents API" icon="robot" href="/api-reference/agents/introduction">
     Build and deploy the agents your extensions route calls to.

@@ -18,6 +18,10 @@
     {
       "name": "SIP Trunk Extensions",
       "description": "An Extension binds a dialed number on a trunk to a PolyAI agent. When a call reaches a trunk, the dialed user part is matched against that trunk's extensions to pick the agent."
+    },
+    {
+      "name": "Outbound Calls",
+      "description": "Place and query outbound calls that route over a SIP Trunk. The trunk must have a default caller ID configured before it can place outbound calls."
     }
   ],
   "components": {
@@ -47,6 +51,114 @@
           "success",
           "error",
           "message"
+        ]
+      },
+      "OutboundCallAgent": {
+        "type": "object",
+        "description": "The PolyAI agent that handles the outbound call.",
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "description": "The Agent Studio project (agent) ID.",
+            "example": "abc123"
+          },
+          "client_env": {
+            "type": "string",
+            "description": "The client environment the agent runs in.",
+            "enum": [
+              "sandbox",
+              "pre-release",
+              "live"
+            ],
+            "example": "live"
+          },
+          "variant_id": {
+            "type": "string",
+            "description": "Optional agent variant ID.",
+            "example": "default"
+          }
+        },
+        "required": [
+          "agent_id",
+          "client_env"
+        ]
+      },
+      "OutboundCallRequest": {
+        "type": "object",
+        "description": "The details of the outbound call to place.",
+        "properties": {
+          "agent": {
+            "$ref": "#/components/schemas/OutboundCallAgent"
+          },
+          "to_number": {
+            "type": "string",
+            "description": "The destination phone number in E.164, or a national number when country_code is supplied.",
+            "example": "+447700900123"
+          },
+          "caller_id": {
+            "type": "string",
+            "description": "Optional caller ID to present on the call, in E.164 (e.g. +447700900123). If omitted, the trunk's default caller ID is used.",
+            "example": "+447700900000"
+          },
+          "country_code": {
+            "type": "string",
+            "description": "ISO 3166-1 alpha-2 country code used to parse a national to_number.",
+            "example": "GB"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Optional metadata attached to the call. The encoded payload is capped at roughly 26 KB.",
+            "example": {
+              "campaign_id": "spring-sale",
+              "customer_ref": "cust-42"
+            }
+          }
+        },
+        "required": [
+          "agent",
+          "to_number"
+        ]
+      },
+      "OutboundCallResponse": {
+        "type": "object",
+        "description": "The result of placing an outbound call.",
+        "properties": {
+          "call_sid": {
+            "type": "string",
+            "description": "Identifier for the placed call; use it to query the call status. Prefixed with OUT-.",
+            "example": "OUT-3f2a7c9e-1b4d-4e6a-9c8b-2d5f7a1e0c34"
+          }
+        },
+        "required": [
+          "call_sid"
+        ]
+      },
+      "CallStatusResponse": {
+        "type": "object",
+        "description": "The current status of an outbound call.",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "The call's current status.",
+            "enum": [
+              "queued",
+              "calling",
+              "success",
+              "failure"
+            ],
+            "example": "calling"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Optional detail for the status.",
+            "example": "answered"
+          }
+        },
+        "required": [
+          "status"
         ]
       },
       "SipAuth": {
@@ -643,6 +755,24 @@
         "schema": {
           "type": "string"
         }
+      },
+      "trunkId": {
+        "name": "trunkId",
+        "in": "path",
+        "required": true,
+        "description": "The SIP Trunk's friendly ID (e.g. tr-...).",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "callSid": {
+        "name": "callSid",
+        "in": "path",
+        "required": true,
+        "description": "The identifier returned when the call was placed.",
+        "schema": {
+          "type": "string"
+        }
       }
     }
   },
@@ -1012,6 +1142,92 @@
         "responses": {
           "204": {
             "description": "Deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/v1/telephony/sip-trunks/{trunkId}/outbound-call": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/trunkId"
+        }
+      ],
+      "post": {
+        "operationId": "placeOutboundCall",
+        "summary": "Place an outbound call",
+        "tags": [
+          "Outbound Calls"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutboundCallRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call was accepted and queued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutboundCallResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/v1/telephony/sip-trunks/{trunkId}/outbound-call/{callSid}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/trunkId"
+        },
+        {
+          "$ref": "#/components/parameters/callSid"
+        }
+      ],
+      "get": {
+        "operationId": "getOutboundCallStatus",
+        "summary": "Get outbound call status",
+        "tags": [
+          "Outbound Calls"
+        ],
+        "responses": {
+          "200": {
+            "description": "The call's current status.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallStatusResponse"
+                }
+              }
+            }
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
