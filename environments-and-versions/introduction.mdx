@@ -9,8 +9,8 @@ keywords:
   - versions
   - live
   - branch
-  - branch
-  - draft
+  - sub-branch
+  - sandbox
   - staging
   - publish
   - rollback
@@ -20,34 +20,40 @@ Every project has a **Live** version, the agent actually talking to your custome
 
 ```mermaid
 stateDiagram-v2
+    Live
+    Branch
+    state "Sub-branch" as SubBranch
+    Staging
     Live --> Branch: Create a Branch
-    Branch --> Sub-branch: Create a Sub-branch
-    Sub-branch --> Branch: Merge
+    Branch --> SubBranch: Create a Sub-branch
+    SubBranch --> Branch: Merge
     Branch --> Staging: Move for telephony testing
     Staging --> Branch: Move back
     Branch --> Live: Publish (merges)
     Live --> Live: Roll back to any version
 
     note right of Live: Production traffic
-    note right of Branch: Your isolated workspace
-    note right of Sub-branch: Splits a Branch further
+    note right of Branch: Your isolated copy
+    note right of SubBranch: Splits a Branch further
     note right of Staging: Optional, real phone number
 ```
 
-## The terms
+## Terminology
 
-| Term | What it is |
+| **Term** | **Description** |
 |---|---|
 | **Live** | The environment serving your customers. You never edit it directly. Publishing merges changes onto it, and each publish creates a new version in its history. You can roll back to any previous Live version. |
-| **Branch** | An isolated workspace, branched off Live. Publishing merges it back onto Live. |
-| **Sub-branch** | An isolated workspace, branched from a Branch. It only ever merges back into its parent Branch. |
-| **Draft** | The environment where every Branch and Sub-branch lives while you work on it. It has no telephony or API connections, so nothing you build here can reach a real system. |
-| **Staging** | An optional environment where you can test any Branch with a real phone number and staging API connections, one Branch at a time. |
-| **Out of sync** | Your workspace is behind its parent. Pull the parent's changes in before you can merge. |
+| **Branch** | An isolated copy of your agent, branched off Live. Publishing merges it back onto Live. |
+| **Sub-branch** | An isolated copy of your agent, branched from a Branch. It only ever merges back into its parent Branch. |
+| **Sandbox** | The environment where every Branch and Sub-branch lives while you work on it. It has no telephony or API connections, so nothing you build here can reach a real system. |
+| **Staging** | An optional environment where you can test any Branch with a real phone number and API connections, one Branch at a time. |
+| **Out of sync** | Your Branch or Sub-branch is behind its parent. Pull the parent's changes in before you can merge. |
 
 ## How it works
 
-A Branch is a safe place to work. Branches and Sub-branches all live in Draft, which has no API or telephony connections, so nothing you build can reach a real system. Your Branch saves as you go and you can test it in the app at any time. If you need a real phone number and staging API connections, move it to Staging. When it is ready, you publish. Your Branch merges onto Live and becomes the newest version in Live's history.
+### Overview
+
+A Branch is a safe place to work. Branches and Sub-branches live in a sandbox environment, which has no API or telephony connections, so nothing you build can reach a real system. Your Branch saves as you go, and you can test it at any time by running [simulation tests](/testing/simulation-tests) or by talking to your agent over an in-app call or chat. If you need a real phone number and API connections, move it to Staging. When it is ready, you publish. Your Branch merges onto Live and becomes the newest version in Live's history.
 
 <Frame caption="The Deployments page lists your Branches, Live history and Archive">
   <img src="/images/deployment/nd-releases-tab.png" alt="The Deployments page lists your Branches, Live history and Archive" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
@@ -63,11 +69,11 @@ The navigation bar at the top shows where you are and switches between Live, Bra
 **Publishing merges, it does not replace.** If Live has moved on since you created your Branch, perhaps because a colleague published first, your Branch is marked **Out of sync**. Syncing pulls the latest changes from Live into your Branch. If you have both touched the same thing, a conflict screen lets you decide which version to keep. Nothing is silently lost.
 </Note>
 
-A Branch can be split further. Create as many Sub-branches from a Branch as you need, and each Sub-branch is an isolated workspace that only ever merges back into its parent Branch. Sub-branches keep the same sync rules with their Branch that Branches keep with Live. If someone publishes a Branch while its Sub-branches are still open, that work is not lost. The open Sub-branches move to sit directly under Live and become Branches in their own right.
+A Branch can be split further with Sub-branches. They exist so several people can build one update that ships as a package, without treading on each other's toes. Each person works in their own Sub-branch, an isolated copy that only ever merges back into its parent Branch. As pieces finish, the team merges them into the Branch and tests everything together before publishing. Sub-branches keep the same sync rules with their Branch that Branches keep with Live, and if someone publishes a Branch while its Sub-branches are still open, that work is not lost. The open Sub-branches move to sit directly under Live and become Branches in their own right.
 
 Publishing does not have to be a leap of faith. If anything goes wrong, Live rolls back to any previous version in one step.
 
-## Make a small change
+### Make a small change
 
 The everyday case: a knowledge update, a settings change, a prompt tweak.
 
@@ -96,9 +102,9 @@ The everyday case: a knowledge update, a settings change, a prompt tweak.
 
 Nothing else rides along with your change, and nobody else's work is touched.
 
-## Test in Staging
+### Test in Staging
 
-Use Staging when in-app testing is not enough, for example when you want to test with a real phone number and staging API connections. Any Branch can move into Staging, though only one can be there at a time.
+Use Staging when in-app testing is not enough, for example when you want to test with a real phone number and API connections. Any Branch can move into Staging, though only one can be there at a time.
 
 <Steps>
   <Step title="Create your Branch and make the change">
@@ -116,7 +122,7 @@ Use Staging when in-app testing is not enough, for example when you want to test
   </Step>
 </Steps>
 
-## Work on an update with several people
+### Work on an update with several people
 
 For a feature several people build together and ship as one.
 
@@ -148,16 +154,16 @@ If the work can ship independently, skip Sub-branches. Each person creates their
 Branches cannot merge into each other. Each one publishes to Live on its own.
 </Warning>
 
-## Handle an out of sync workspace
+### Handle an out of sync Branch
 
 This happens whenever a colleague merges to the parent before you do.
 
 <Steps>
-  <Step title="Your workspace is marked Out of sync">
+  <Step title="Your Branch is marked Out of sync">
     This is expected, not an error.
   </Step>
   <Step title="Sync">
-    This pulls the latest changes from the parent into your workspace.
+    This pulls the latest changes from the parent into your Branch.
   </Step>
   <Step title="Resolve any conflicts">
     If you have both edited the same thing, a conflict resolution screen asks which version to keep.
@@ -173,7 +179,7 @@ This happens whenever a colleague merges to the parent before you do.
 
 The same sync rules apply between a Branch and Live, and between a Sub-branch and its parent Branch.
 
-## Roll back Live
+### Roll back Live
 
 <Steps>
   <Step title="Open Live's version history">
@@ -194,11 +200,11 @@ The same sync rules apply between a Branch and Live, and between a Sub-branch an
 
 Because publishing merges rather than replaces, a rollback cannot be silently undone by someone else's publish.
 
-## When someone publishes while your Sub-branches are open
+### When someone publishes while your Sub-branches are open
 
 Nothing is lost. Any Sub-branch still open at that point moves to sit directly under Live and becomes a Branch in its own right. Carry on working, then publish it like any other Branch.
 
-## Compare before you publish
+### Compare before you publish
 
 You can compare any two versions side by side to confirm only your intended change is present. See [Compare versions](/environments-and-versions/diffs).
 
@@ -215,6 +221,6 @@ You can compare any two versions side by side to confirm only your intended chan
     Run tests on any Branch or Sub-branch before it merges anywhere.
   </Card>
   <Card title="Environments and testing FAQ" icon="circle-question" href="/troubleshoot/faq-environments">
-    Common questions about Draft, Staging and Live.
+    Common questions about Sandbox, Staging and Live.
   </Card>
 </CardGroup>
