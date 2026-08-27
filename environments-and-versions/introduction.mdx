@@ -22,17 +22,22 @@ Every project has a **Live** version, the agent actually talking to your custome
 flowchart TD
     subgraph Live["Live (production traffic)"]
         direction LR
-        v1["v1"] --> v2["v2"] --> v3["v3 (current)"]
+        v1["Version 1"] --> v2["Version 2"] --> v3["Version 3"]
     end
-    Live -->|"Create a Branch"| Branch["Branch (your isolated copy)"]
-    Branch -->|"Publish (merges onto Live as v4)"| Live
+    subgraph Staging["Staging (real phone number and API connections)"]
+        B2["Branch B"]
+    end
+    subgraph Sandbox["Sandbox (build and test, no real connections)"]
+        B1["Branch A"]
+        B1 -->|"Create a Sub-branch"| S1["Sub-branch A1"]
+        B1 --> S2["Sub-branch A2"]
+        S1 -->|"Merge back"| B1
+        S2 --> B1
+    end
     v3 -.->|"Roll back"| v2
-    Branch <-->|"Optional Staging tag (live-test on a real number)"| Staging["Staging"]
-    Branch -->|"Create a Sub-branch"| Sub["Sub-branch (splits the work)"]
-    Sub -->|"Merge back"| Branch
-
-    classDef tag fill:none,stroke-dasharray: 5 5
-    class Staging tag
+    Live -->|"Create a Branch"| Sandbox
+    Sandbox -->|"Publish (merges onto Live as Version 4)"| Live
+    Sandbox <-.->|"Move a Branch in or out"| Staging
 ```
 
 ## Terminology
