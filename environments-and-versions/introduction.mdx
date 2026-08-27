@@ -1,14 +1,14 @@
 ---
 title: 'Deployments'
 sidebarTitle: 'Overview'
-description: 'Work in your own Release, test it safely, publish it onto Live, and roll back in one step.'
+description: 'Work in your own Branch, test it safely, publish it onto Live, and roll back in one step.'
 mode: wide
 keywords:
   - deployments
   - environments
   - versions
   - live
-  - release
+  - branch
   - branch
   - draft
   - staging
@@ -16,21 +16,21 @@ keywords:
   - rollback
 ---
 
-Every project has a **Live** version, the agent actually talking to your customers. You never edit Live directly. Instead you create a **Release**, your own working copy branched off Live, so you start from what is actually running.
+Every project has a **Live** version, the agent actually talking to your customers. You never edit Live directly. Instead you create a **Branch**, your own working copy branched off Live, so you start from what is actually running.
 
 ```mermaid
 stateDiagram-v2
-    Live --> Release: Create a Release
-    Release --> Branch: Create a Branch
-    Branch --> Release: Merge
-    Release --> Staging: Move for telephony testing
-    Staging --> Release: Move back
-    Release --> Live: Publish (merges)
+    Live --> Branch: Create a Branch
+    Branch --> Sub-branch: Create a Sub-branch
+    Sub-branch --> Branch: Merge
+    Branch --> Staging: Move for telephony testing
+    Staging --> Branch: Move back
+    Branch --> Live: Publish (merges)
     Live --> Live: Roll back to any version
 
     note right of Live: Production traffic
-    note right of Release: Your isolated workspace
-    note right of Branch: Splits a Release further
+    note right of Branch: Your isolated workspace
+    note right of Sub-branch: Splits a Branch further
     note right of Staging: Optional, real phone number
 ```
 
@@ -39,31 +39,31 @@ stateDiagram-v2
 | Term | What it is |
 |---|---|
 | **Live** | The environment serving your customers. You never edit it directly. Publishing merges changes onto it, and each publish creates a new version in its history. You can roll back to any previous Live version. |
-| **Release** | An isolated workspace, branched off Live. Publishing merges it back onto Live. |
-| **Branch** | An isolated workspace, branched from a Release. It only ever merges back into its parent Release. |
-| **Draft** | The environment where every Release and Branch lives while you work on it. It has no telephony or API connections, so nothing you build here can reach a real system. |
-| **Staging** | An optional environment where you can test any Release with a real phone number and staging API connections, one Release at a time. |
+| **Branch** | An isolated workspace, branched off Live. Publishing merges it back onto Live. |
+| **Sub-branch** | An isolated workspace, branched from a Branch. It only ever merges back into its parent Branch. |
+| **Draft** | The environment where every Branch and Sub-branch lives while you work on it. It has no telephony or API connections, so nothing you build here can reach a real system. |
+| **Staging** | An optional environment where you can test any Branch with a real phone number and staging API connections, one Branch at a time. |
 | **Out of sync** | Your workspace is behind its parent. Pull the parent's changes in before you can merge. |
 
 ## How it works
 
-A Release is a safe place to work. Releases and Branches all live in Draft, which has no API or telephony connections, so nothing you build can reach a real system. Your Release saves as you go and you can test it in the app at any time. If you need a real phone number and staging API connections, move it to Staging. When it is ready, you publish. Your Release merges onto Live and becomes the newest version in Live's history.
+A Branch is a safe place to work. Branches and Sub-branches all live in Draft, which has no API or telephony connections, so nothing you build can reach a real system. Your Branch saves as you go and you can test it in the app at any time. If you need a real phone number and staging API connections, move it to Staging. When it is ready, you publish. Your Branch merges onto Live and becomes the newest version in Live's history.
 
-<Frame caption="The Deployments page lists your Releases, Live history and Archive">
-  <img src="/images/deployment/nd-releases-tab.png" alt="The Deployments page lists your Releases, Live history and Archive" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+<Frame caption="The Deployments page lists your Branches, Live history and Archive">
+  <img src="/images/deployment/nd-releases-tab.png" alt="The Deployments page lists your Branches, Live history and Archive" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
 </Frame>
 
-The navigation bar at the top shows where you are and switches between Live, Releases and Branches.
+The navigation bar at the top shows where you are and switches between Live, Branches and Sub-branches.
 
-<Frame caption="Switch between Live and your Releases from the navigation bar">
-  <img src="/images/deployment/nd-nav-switcher.png" alt="Switch between Live and your Releases from the navigation bar" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+<Frame caption="Switch between Live and your Branches from the navigation bar">
+  <img src="/images/deployment/nd-nav-switcher.png" alt="Switch between Live and your Branches from the navigation bar" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
 </Frame>
 
 <Note>
-**Publishing merges, it does not replace.** If Live has moved on since you created your Release, perhaps because a colleague published first, your Release is marked **Out of sync**. Syncing pulls the latest changes from Live into your Release. If you have both touched the same thing, a conflict screen lets you decide which version to keep. Nothing is silently lost.
+**Publishing merges, it does not replace.** If Live has moved on since you created your Branch, perhaps because a colleague published first, your Branch is marked **Out of sync**. Syncing pulls the latest changes from Live into your Branch. If you have both touched the same thing, a conflict screen lets you decide which version to keep. Nothing is silently lost.
 </Note>
 
-A Release can be split further. Create as many Branches from a Release as you need, and each Branch is an isolated workspace that only ever merges back into its parent Release. Branches keep the same sync rules with their Release that Releases keep with Live. If someone publishes a Release while its Branches are still open, that work is not lost. The open Branches move to sit directly under Live and become Releases in their own right.
+A Branch can be split further. Create as many Sub-branches from a Branch as you need, and each Sub-branch is an isolated workspace that only ever merges back into its parent Branch. Sub-branches keep the same sync rules with their Branch that Branches keep with Live. If someone publishes a Branch while its Sub-branches are still open, that work is not lost. The open Sub-branches move to sit directly under Live and become Branches in their own right.
 
 Publishing does not have to be a leap of faith. If anything goes wrong, Live rolls back to any previous version in one step.
 
@@ -72,24 +72,24 @@ Publishing does not have to be a leap of faith. If anything goes wrong, Live rol
 The everyday case: a knowledge update, a settings change, a prompt tweak.
 
 <Steps>
-  <Step title="Create a Release from Live">
+  <Step title="Create a Branch from Live">
     It branches off the current Live version, so you start from what is actually running.
 
-    <Frame caption="Creating a Release">
-  <img src="/images/deployment/nd-create-release.png" alt="Creating a Release" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+    <Frame caption="Creating a Branch">
+  <img src="/images/deployment/nd-create-release.png" alt="Creating a Branch" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
 </Frame>
   </Step>
   <Step title="Make your change">
     It saves as you go.
   </Step>
   <Step title="Test it">
-    Run [simulation tests](/testing/simulation-tests) on the Release, or talk to the agent yourself over an in-app call or chat.
+    Run [simulation tests](/testing/simulation-tests) on the Branch, or talk to the agent yourself over an in-app call or chat.
   </Step>
   <Step title="Publish">
-    The changes in your Release merge onto Live and become the newest version in Live's history.
+    The changes in your Branch merge onto Live and become the newest version in Live's history.
 
-    <Frame caption="Publishing a Release onto Live, with an optional message">
-  <img src="/images/deployment/nd-publish-live.png" alt="Publishing a Release onto Live, with an optional message" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+    <Frame caption="Publishing a Branch onto Live, with an optional message">
+  <img src="/images/deployment/nd-publish-live.png" alt="Publishing a Branch onto Live, with an optional message" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
 </Frame>
   </Step>
 </Steps>
@@ -98,21 +98,21 @@ Nothing else rides along with your change, and nobody else's work is touched.
 
 ## Test in Staging
 
-Use Staging when in-app testing is not enough, for example when you want to test with a real phone number and staging API connections. Any Release can move into Staging, though only one can be there at a time.
+Use Staging when in-app testing is not enough, for example when you want to test with a real phone number and staging API connections. Any Branch can move into Staging, though only one can be there at a time.
 
 <Steps>
-  <Step title="Create your Release and make the change">
+  <Step title="Create your Branch and make the change">
     Exactly as above.
   </Step>
-  <Step title="Move the Release to Staging">
-    Use the Release's actions menu on the Deployments page, then call the number.
+  <Step title="Move the Branch to Staging">
+    Use the Branch's actions menu on the Deployments page, then call the number.
 
-    <Frame caption="Moving a Release to Staging">
-  <img src="/images/deployment/nd-move-to-staging.png" alt="Moving a Release to Staging" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+    <Frame caption="Moving a Branch to Staging">
+  <img src="/images/deployment/nd-move-to-staging.png" alt="Moving a Branch to Staging" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
 </Frame>
   </Step>
   <Step title="Publish when you are happy">
-    Staging is optional. A Release can publish straight to Live once you have tested it.
+    Staging is optional. A Branch can publish straight to Live once you have tested it.
   </Step>
 </Steps>
 
@@ -121,31 +121,31 @@ Use Staging when in-app testing is not enough, for example when you want to test
 For a feature several people build together and ship as one.
 
 <Steps>
-  <Step title="Create a single shared Release">
-    One Release for the whole piece of work.
+  <Step title="Create a single shared Branch">
+    One Branch for the whole piece of work.
   </Step>
-  <Step title="Each person creates a Branch">
-    Every Branch comes off that shared Release.
+  <Step title="Each person creates a Sub-branch">
+    Every Sub-branch comes off that shared Branch.
 
-    <Frame caption="Creating a Branch from a Release">
-  <img src="/images/deployment/nd-create-branch.png" alt="Creating a Branch from a Release" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+    <Frame caption="Creating a Sub-branch from a Branch">
+  <img src="/images/deployment/nd-create-branch.png" alt="Creating a Sub-branch from a Branch" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
 </Frame>
   </Step>
-  <Step title="Test each Branch">
-    Run tests on a Branch to check its changes in isolation before merging.
+  <Step title="Test each Sub-branch">
+    Run tests on a Sub-branch to check its changes in isolation before merging.
   </Step>
-  <Step title="Merge each Branch back">
-    Merge into the parent Release as each piece is finished.
+  <Step title="Merge each Sub-branch back">
+    Merge into the parent Branch as each piece is finished.
   </Step>
-  <Step title="Test the Release, then publish">
+  <Step title="Test the Branch, then publish">
     Test all the changes together, then publish. Everything lands on Live at once.
   </Step>
 </Steps>
 
-If the work can ship independently, skip Branches. Each person creates their own Release and publishes on their own schedule. Nobody queues behind anyone. While one team spends weeks building a new flow in their Release, a colleague can open a small Release of their own, update the knowledge base, and publish the same day without touching the team's work.
+If the work can ship independently, skip Sub-branches. Each person creates their own Branch and publishes on their own schedule. Nobody queues behind anyone. While one team spends weeks building a new flow in their Branch, a colleague can open a small Branch of their own, update the knowledge base, and publish the same day without touching the team's work.
 
 <Warning>
-Releases cannot merge into each other. Each one publishes to Live on its own.
+Branches cannot merge into each other. Each one publishes to Live on its own.
 </Warning>
 
 ## Handle an out of sync workspace
@@ -171,7 +171,7 @@ This happens whenever a colleague merges to the parent before you do.
   </Step>
 </Steps>
 
-The same sync rules apply between a Release and Live, and between a Branch and its parent Release.
+The same sync rules apply between a Branch and Live, and between a Sub-branch and its parent Branch.
 
 ## Roll back Live
 
@@ -194,9 +194,9 @@ The same sync rules apply between a Release and Live, and between a Branch and i
 
 Because publishing merges rather than replaces, a rollback cannot be silently undone by someone else's publish.
 
-## When someone publishes while your Branches are open
+## When someone publishes while your Sub-branches are open
 
-Nothing is lost. Any Branch still open at that point moves to sit directly under Live and becomes a Release in its own right. Carry on working, then publish it like any other Release.
+Nothing is lost. Any Sub-branch still open at that point moves to sit directly under Live and becomes a Branch in its own right. Carry on working, then publish it like any other Branch.
 
 ## Compare before you publish
 
@@ -212,7 +212,7 @@ You can compare any two versions side by side to confirm only your intended chan
     Everyday workflows, hotfixes and rollback practice.
   </Card>
   <Card title="Testing" icon="flask-vial" href="/testing/simulation-tests">
-    Run tests on any Release or Branch before it merges anywhere.
+    Run tests on any Branch or Sub-branch before it merges anywhere.
   </Card>
   <Card title="Environments and testing FAQ" icon="circle-question" href="/troubleshoot/faq-environments">
     Common questions about Draft, Staging and Live.
