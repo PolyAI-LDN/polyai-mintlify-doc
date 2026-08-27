@@ -19,23 +19,20 @@ keywords:
 Every project has a **Live** version, the agent actually talking to your customers. You never edit Live directly. Instead you create a **Branch**, your own working copy branched off Live, so you start from what is actually running.
 
 ```mermaid
-stateDiagram-v2
-    Live
-    Branch
-    state "Sub-branch" as SubBranch
-    Staging
-    Live --> Branch: Create a Branch
-    Branch --> SubBranch: Create a Sub-branch
-    SubBranch --> Branch: Merge
-    Branch --> Staging: Move for telephony testing
-    Staging --> Branch: Move back
-    Branch --> Live: Publish (merges)
-    Live --> Live: Roll back to any version
+flowchart TD
+    subgraph Live["Live (production traffic)"]
+        direction LR
+        v1["v1"] --> v2["v2"] --> v3["v3 (current)"]
+    end
+    Live -->|"Create a Branch"| Branch["Branch (your isolated copy)"]
+    Branch -->|"Publish (merges onto Live as v4)"| Live
+    v3 -.->|"Roll back"| v2
+    Branch <-->|"Optional Staging tag (live-test on a real number)"| Staging["Staging"]
+    Branch -->|"Create a Sub-branch"| Sub["Sub-branch (splits the work)"]
+    Sub -->|"Merge back"| Branch
 
-    note right of Live: Production traffic
-    note right of Branch: Your isolated copy
-    note right of SubBranch: Splits a Branch further
-    note right of Staging: Optional, real phone number
+    classDef tag fill:none,stroke-dasharray: 5 5
+    class Staging tag
 ```
 
 ## Terminology
@@ -53,7 +50,7 @@ stateDiagram-v2
 
 ### Overview
 
-A Branch is a safe place to work. Branches and Sub-branches live in a sandbox environment, which has no API or telephony connections, so nothing you build can reach a real system. Your Branch saves as you go, and you can test it at any time by running [simulation tests](/testing/simulation-tests) or by talking to your agent over an in-app call or chat. If you need a real phone number and API connections, move it to Staging. When it is ready, you publish. Your Branch merges onto Live and becomes the newest version in Live's history.
+A Branch is a safe place to work. Branches and Sub-branches live in the Sandbox environment, which has no API or telephony connections, so nothing you build can reach a real system. Your Branch saves as you go, and you can test it at any time by running [simulation tests](/testing/simulation-tests) or by talking to your agent over an in-app call or chat. If you need a real phone number and API connections, move it to Staging. When it is ready, you publish. Your Branch merges onto Live and becomes the newest version in Live's history.
 
 <Frame caption="The Deployments page lists your Branches, Live history and Archive">
   <img src="/images/deployment/nd-releases-tab.png" alt="The Deployments page lists your Branches, Live history and Archive" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
