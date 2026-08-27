@@ -1,7 +1,7 @@
 ---
 title: 'Deployments'
 sidebarTitle: 'Overview'
-description: 'Work in your own Branch, test it safely, publish it onto Live, and roll back if necessary.'
+description: 'Work in an isolated copy of your agent, test it safely, publish it onto Live, and roll back if necessary.'
 mode: wide
 keywords:
   - deployments
@@ -16,10 +16,10 @@ keywords:
   - rollback
 ---
 
-Every project has a **Live** version, the agent actually talking to your customers. You never edit Live directly. Instead you create a **Branch**, your own working copy branched off Live, and publish your changes back onto it when ready. You can also roll Live back to any previous version.
+Every project has a **Live** version, the agent actually talking to your customers. You never edit Live directly. Instead you make your changes in an isolated copy of your agent and publish them onto Live when ready. Each publish creates a new version in Live's history, and you can roll Live back to any previous version.
 
-<img className="block dark:hidden" src="/images/deployment/deployment-model-light.svg" alt="The deployment model: Live holds the version history, Staging holds one Branch for live testing, Sandbox holds Branches and Sub-branches being built" style={{ maxWidth: '920px', width: '100%', margin: '0 auto' }} />
-<img className="hidden dark:block" src="/images/deployment/deployment-model-dark.svg" alt="The deployment model: Live holds the version history, Staging holds one Branch for live testing, Sandbox holds Branches and Sub-branches being built" style={{ maxWidth: '920px', width: '100%', margin: '0 auto' }} />
+<img className="block dark:hidden" src="/images/deployment/deployment-overview-light.svg" alt="Live holds a version history; publishing merges a new version onto it" style={{ maxWidth: '920px', width: '100%', margin: '0 auto' }} />
+<img className="hidden dark:block" src="/images/deployment/deployment-overview-dark.svg" alt="Live holds a version history; publishing merges a new version onto it" style={{ maxWidth: '920px', width: '100%', margin: '0 auto' }} />
 
 ## Terminology
 
@@ -28,131 +28,23 @@ Every project has a **Live** version, the agent actually talking to your custome
 | **Live** | The environment serving your customers. You never edit it directly. Publishing merges changes onto it, and each publish creates a new version in its history. You can roll back to any previous Live version. |
 | **Branch** | An isolated copy of your agent, branched off Live. Publishing merges it back onto Live. |
 | **Sub-branch** | An isolated copy of your agent, branched from a Branch. It only ever merges back into its parent Branch. |
-| **Sandbox** | The environment where every Branch and Sub-branch lives while you work on it. It has no telephony or API connections, so nothing you build here can reach a real system. |
-| **Staging** | An optional environment where you can test any Branch with a real phone number and API connections, one Branch at a time. |
-| **Out of sync** | Your Branch or Sub-branch is behind its parent. Pull the parent's changes in before you can merge. |
+| **Sandbox** | The environment where you build and test. It has no telephony or API connections, so nothing you build here can reach a real system. |
+| **Staging** | An optional environment where you can test with a real phone number and API connections, one Branch at a time. |
+| **Out of sync** | Your working copy is behind its parent. Pull the parent's changes in before you can merge. |
 
 ## Deployment modes
 
-Not every project needs the full model. Choose a mode under **Deployment settings**, and change it as your team grows.
+Choose how you want to manage changes under **Deployment settings**, and change mode as your team grows.
 
 | **Mode** | **How it works** | **Best for** |
 |---|---|---|
-| **Simple** | No Branches. You edit your agent's working copy and publish it onto Live when ready. | A single builder making straightforward changes. |
-| **Branches** | Branches off Live, each publishing onto Live on its own. No Sub-branches. | Small teams who want isolated changes and review before they go live. |
-| **Sub-branches** | The full model on this page: Branches off Live, split further into Sub-branches. | Several people building updates that ship as one package. |
+| [**Simple**](/environments-and-versions/simple-mode) | No Branches. You edit your agent's working copy and publish it onto Live when ready. | A single builder making straightforward changes. |
+| [**Branches**](/environments-and-versions/branches-mode) | Branches off Live, each publishing onto Live on its own. No Sub-branches. | Small teams who want isolated changes and review before they go live. |
+| [**Sub-branches**](/environments-and-versions/sub-branches-mode) | The full model: Branches off Live, split further into Sub-branches. | Several people building updates that ship as one package. |
 
 Every mode keeps the same foundations: publishing merges onto Live, each publish creates a version in Live's history, and you can roll Live back to any previous version. A lighter mode simply removes layers. Switching to a lighter mode never deletes existing work; it only stops you creating the layer it removes.
 
-## How it works
-
-### Overview
-
-This section describes the full Sub-branches mode. In lighter modes the same rules apply, with fewer layers.
-
-A Branch is a safe place to work. Branches and Sub-branches live in the Sandbox environment, which has no API or telephony connections, so nothing you build can reach a real system. Your Branch saves as you go, and you can test it at any time by running [simulation tests](/testing/simulation-tests) or by talking to your agent over an in-app call or chat. If you want to test with a real phone number and API connections, move it to Staging. When ready, publish: your Branch merges onto Live and becomes the newest version in Live's history. Publishing does not have to be a leap of faith. If anything goes wrong, Live rolls back to any previous version in one step.
-
-A Branch can be split further with Sub-branches. They exist so several people can work together on an update that ships as a package, without treading on each other's toes. Each person works in their own Sub-branch, an isolated copy that only ever merges back into its parent Branch. As pieces finish, the team merges them into the Branch and tests everything together before publishing. Sub-branches keep the same sync rules with their parent Branch that Branches keep with Live, and if someone publishes a Branch while its Sub-branches are still open, that work is not lost. The open Sub-branches move to sit directly under Live and become Branches in their own right.
-
-The navigation bar at the top shows where you are and allows you to switch between Live, Branches and Sub-branches.
-
-<Tip>
-**Publishing merges, it does not replace.** If Live has moved on since you created your Branch, perhaps because a colleague published first, your Branch is marked **Out of sync**. Syncing pulls the latest changes from Live into your Branch. If you have both touched the same thing, a conflict screen lets you decide which edit to keep. Nothing is silently lost.
-</Tip>
-
-### Make a small change
-
-The everyday case: a knowledge update, a settings change, a behaviour prompt tweak.
-
-<Steps>
-  <Step title="Create a Branch from Live">
-    It branches off the current Live version, so you start from what is actually running.
-  </Step>
-  <Step title="Make your change">
-    It saves as you go.
-  </Step>
-  <Step title="Test it">
-    Run [simulation tests](/testing/simulation-tests) on the Branch, or talk to the agent yourself over an in-app call or chat.
-  </Step>
-  <Step title="Move to Staging (optional)">
-    Move the Branch to Staging from its actions menu on the Deployments page, then call the number.
-
-    <Tip>
-    Skip this step unless you want to test with a real phone number and API connections.
-    </Tip>
-  </Step>
-  <Step title="Publish">
-    The changes in your Branch merge onto Live and become the newest version in Live's history.
-  </Step>
-</Steps>
-
-Nothing else rides along with your change, and nobody else's work is touched.
-
-### Work on an update with several people
-
-For an update several people work on together and ship as one.
-
-<Steps>
-  <Step title="Create a single shared Branch">
-    One Branch for the whole piece of work.
-  </Step>
-  <Step title="Each person creates a Sub-branch">
-    Every Sub-branch comes off that shared Branch.
-  </Step>
-  <Step title="Make your changes">
-    Each person works in their own Sub-branch. It saves as you go.
-  </Step>
-  <Step title="Test each Sub-branch">
-    Run tests on a Sub-branch to check its changes in isolation before merging.
-  </Step>
-  <Step title="Merge each Sub-branch back">
-    Merge into the parent Branch as each piece is finished.
-  </Step>
-  <Step title="Test the Branch">
-    Test all the changes together.
-  </Step>
-  <Step title="Move to Staging (optional)">
-    Move the Branch to Staging from its actions menu on the Deployments page, then call the number.
-
-    <Tip>
-    Skip this step unless you want to test with a real phone number and API connections.
-    </Tip>
-  </Step>
-  <Step title="Publish">
-    Publish the Branch. Everything lands on Live at once.
-  </Step>
-</Steps>
-
-If the work can ship independently, skip Sub-branches. Each person creates their own Branch and publishes on their own schedule. Nobody queues behind anyone. While one team spends weeks building a new flow in their Branch, a colleague can open a Branch of their own, update the knowledge base, and publish the same day without affecting the team's work.
-
-<Warning>
-Branches cannot merge into each other. Each one publishes to Live on its own.
-</Warning>
-
-### Handle an out of sync Branch
-
-This happens whenever a colleague merges to the parent before you do.
-
-<Steps>
-  <Step title="Your Branch is marked Out of sync">
-    This is expected, not an error.
-  </Step>
-  <Step title="Sync">
-    This pulls the latest changes from the parent into your Branch.
-  </Step>
-  <Step title="Resolve any conflicts">
-    If you have both edited the same thing, a conflict resolution screen asks which version to keep.
-  </Step>
-  <Step title="Test, then merge">
-    Check the merged result before you merge or publish.
-  </Step>
-</Steps>
-
-<Warning>
-The same sync rules apply between a Branch and Live, and between a Sub-branch and its parent Branch.
-</Warning>
-
-### Roll back Live
+## Roll back Live
 
 <Steps>
   <Step title="Open Live's version history">
@@ -167,25 +59,27 @@ The same sync rules apply between a Branch and Live, and between a Sub-branch an
 Because publishing merges rather than replaces, a rollback cannot be silently undone by someone else's publish.
 </Tip>
 
-### When someone publishes while Sub-branches are still open
-
-Nothing is lost. Any Sub-branch still open at that point moves to sit directly under Live and becomes a Branch in its own right. Carry on working, then publish it like any other Branch.
-
-### Comparing branches
+## Comparing branches
 
 You can compare any two branches side by side to confirm only your intended change is present. See [Compare branches](/environments-and-versions/diffs).
 
 ## Related pages
 
 <CardGroup cols={2}>
+  <Card title="Simple mode" icon="circle-play" href="/environments-and-versions/simple-mode">
+    Edit your working copy and publish. No Branches.
+  </Card>
+  <Card title="Branches mode" icon="code-branch" href="/environments-and-versions/branches-mode">
+    Isolated Branches off Live, each publishing on its own.
+  </Card>
+  <Card title="Sub-branches mode" icon="sitemap" href="/environments-and-versions/sub-branches-mode">
+    The full model for updates that ship as one package.
+  </Card>
   <Card title="Compare branches" icon="code-compare" href="/environments-and-versions/diffs">
     Side-by-side diff of any two branches before you publish.
   </Card>
   <Card title="Branch management" icon="clock-rotate-left" href="/learn/maintain/version-management">
     Everyday workflows, hotfixes and rollback practice.
-  </Card>
-  <Card title="Testing" icon="flask-vial" href="/testing/simulation-tests">
-    Run tests on any Branch or Sub-branch before it merges anywhere.
   </Card>
   <Card title="Environments and testing FAQ" icon="circle-question" href="/troubleshoot/faq-environments">
     Common questions about Sandbox, Staging and Live.
