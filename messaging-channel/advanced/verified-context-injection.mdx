@@ -1,0 +1,101 @@
+---
+title: "Verified Context Injection"
+sidebarTitle: "Verified Context Injection"
+description: "Pass verified user context (e.g. signed-in identity) into your web chat agent securely at session start."
+---
+
+Verified Context Injection lets your backend pass trustworthy, cryptographically verified user context into a PolyAI conversation. Your backend creates a short-lived signed token (a JWT, or JSON Web Token) using a signing key you generate in Agent Studio. PolyAI verifies the signature, stores the verified values against the conversation, and makes them available to the agent's functions as read-only fields at every turn.
+
+Think of it as a per-conversation lockbox. Only your backend, which holds the signing key, can put values into it. The agent's functions can only read them out. Nothing in the browser, the widget, or any other layer can forge or tamper with the values.
+
+## The problem it solves
+
+A basic implementation of context injection lets you pass casual context into the widget for the agent to use, but with that approach the widget can't vouch for it. Anyone can edit a value in the browser, so it can't be relied on for anything that matters.
+
+Verified Context Injection closes that gap. Your backend **signs** the context; PolyAI **verifies** the signature server-side before the agent sees anything. That makes a value like `account_tier: "premium"` trustworthy enough to gate entitlements on.
+
+## What it does
+
+- **Sets context from a trusted origin.** Your backend signs a JWT with a key you generated in Agent Studio. The token has a 30-second lifetime and carries up to 8 KB of context data (fields such as customer identifier, account tier, or a short-lived auth token). The widget carries the opaque token but never sees the signing key.
+- **Verifies the signature and stores verified values.** PolyAI validates the signature, checks the token binding and expiry, then stores the verified context payload against the conversation. Nothing bypasses this validation path.
+- **Reads into functions as read-only fields.** Every turn, the function runtime receives a read-only object (accessed as `conv.context_vault`) with the verified fields. Functions can act on them, for example calling your API with the customer identifier, checking the account tier, or using a short-lived auth token to call a downstream service. Values are never surfaced in prompts or transcripts unless a function explicitly copies them into state.
+
+## Benefits
+
+- **Trust.** You know the identity and entitlement values came from your own systems, not from a manipulated browser session. That is the difference between an assistant that can act on account data and one that cannot.
+- **Personalised from the first turn.** The agent skips identity verification questions when the user is already authenticated on your side. Cuts turns, cuts abandonment.
+- **Compliance-friendly.** Verified context lives only as long as the conversation, is never surfaced in prompts by default, and is scoped strictly to a single session. The security posture holds up in procurement conversations.
+
+## How it works
+
+- **A conversation starts.** PolyAI mints a unique `context_id` for that specific conversation and hands it to the widget. Just before the agent joins, the widget calls your `onContextRequired` callback with it.
+- **Your backend signs a token.** A short-lived JWT whose subject is exactly that `context_id`, carrying the context payload. Signing always happens on your server, never in the browser.
+- **PolyAI verifies and attaches it.** The vault checks the signature and that the token was minted for this conversation, then stores the context. The agent reads it on turn 1.
+
+Because verification is server-side and bound to a PolyAI-issued `context_id`, a token can't be replayed against a different conversation, and a forged token is rejected.
+
+**Two usage patterns, one integration.** The same callback powers both:
+
+- **At conversation start** (default, recommended). Verified context is present before the agent joins.
+- **Mid-conversation refresh.** If the user's context changes while chatting, your page calls `refreshVerifiedContext()`. Same callback, fresh token, last write wins, no interruption to the live conversation.
+
+## Example use cases
+
+- **Entitlement gating.** An `account_tier` of `premium` is signed by your backend, so the agent can act on it with confidence rather than taking the browser's word for it.
+- **Identified-from-turn-1 conversations.** A `customer_id` is attached before the agent joins, so there's no "can I take your account number?" opening.
+- **Passing a short-lived auth token.** Your backend mints and signs it; the agent receives it as trusted, read-only context.
+- **User logs in partway through a chat.** Your page calls `refreshVerifiedContext()` from your login success handler. The same callback re-runs, a fresh token replaces the old context, and the conversation carries on uninterrupted.
+
+## What you need to build
+
+- A **signing key** provisioned for your project (a key ID and a secret from Agent Studio or your PolyAI representative). The key ID is stable across rotation.
+- A **backend endpoint** that signs a JWT with that secret.
+- A small amount of JavaScript on your page to register the `onContextRequired` callback inside `onReady`.
+
+You never fetch, store, or submit the `context_id` or the token, the widget owns all of that. You only sign and return.
+
+## Key facts
+
+| Fact | Value |
+| --- | --- |
+| Token type | JWT, HS256, signed with a shared secret |
+| Token lifetime | ≤ 30 seconds (short-lived, single-use in practice) |
+| Context payload | Flat JSON: string / number / boolean values, ≤ 8 KB |
+| Bound to | A per-conversation `context_id`, cannot be replayed elsewhere |
+| Typical round-trip | 200–500 ms; agent-join is held only for the callback path |
+| Where signing happens | Your backend, never in the browser |
+| Impact on integrations not using it | None, zero delay, behaviour unchanged |
+| Availability | Web chat widget via the browser SDK |
+
+## It always fails open
+
+The conversation **always** starts. Verified context is best-effort and never blocks the user.
+
+| Situation | What the user experiences | Context attached? |
+| --- | --- | --- |
+| Valid token, vault accepts it | Normal conversation | Yes |
+| No callback registered | Normal conversation, zero delay | No |
+| Callback returns nothing / throws | Normal conversation | No |
+| Callback hangs | Proceeds after a short timeout (~4–5s) | No |
+| Token rejected (bad signature / expired / mismatched) | Normal conversation | No |
+
+## Constraints and caveats
+
+- **Signed, not encrypted.** The token proves _origin_, not _secrecy_, values travel in plaintext inside it. Hyper-sensitive data isn't a fit today; a server-to-server path is planned. Speak to your PolyAI representative if you need it.
+- **Web chat only.** Verified Context Injection today covers the web chat widget via the browser SDK. Server-to-server and voice transports are future work.
+- **V2 widget only.** V1 is deprecated.
+- **Your agent must degrade gracefully.** Because context can legitimately be absent, agents should fall back sensibly, for example asking the user to identify themselves, rather than assuming verified context is always there.
+
+## Good to know
+
+- **Signing key provisioning.** Get a key from Agent Studio or your PolyAI representative.
+- **One integration point, two behaviours.** You only ever implement `onContextRequired`. The mid-conversation refresh reuses it rather than needing anything new wired up.
+- **The vault set is idempotent.** A refresh fully replaces the previous context, last write wins.
+
+## Related pages
+
+<CardGroup cols={1}>
+  <Card title="Enable Verified Context Injection" icon="plug" href="/api-reference/messaging/enable-verified-context-injection">
+    Step-by-step integration: register the callback, sign the token, handle refresh and timeouts.
+  </Card>
+</CardGroup>

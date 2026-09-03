@@ -2084,6 +2084,90 @@
             "description": "Always null for error responses."
           }
         }
+      },
+      "CreateSecretBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Display name of the secret"
+          },
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Secret value"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the secret"
+          }
+        },
+        "required": [
+          "name",
+          "value"
+        ],
+        "additionalProperties": false,
+        "title": "CreateSecretBody"
+      },
+      "UpdateSecretBody": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "description": "New secret value"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the secret (unchanged if omitted)"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false,
+        "title": "UpdateSecretBody"
+      },
+      "SecretResponse": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Display name of the secret"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the secret"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "ISO 8601 timestamp of creation"
+          },
+          "lastUpdated": {
+            "type": "string",
+            "description": "ISO 8601 timestamp of last update"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false,
+        "title": "SecretResponse"
+      },
+      "DeleteSecretResponse": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Display name of the deleted secret"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false,
+        "title": "DeleteSecretResponse"
       }
     }
   },
@@ -5710,6 +5794,113 @@
           "in": "path",
           "required": true,
           "description": "The unique call identifier returned from the trigger endpoint (prefixed with OUT-).",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/secrets": {
+      "post": {
+        "summary": "Create a secret",
+        "description": "Create a secret for the account this agent belongs to. Use for credentials the agent needs at runtime. Secrets are scoped to the account/workspace, not the individual agent.",
+        "tags": [
+          "Secrets"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSecretBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/v1/agents/{agentId}/secrets/{secretName}": {
+      "put": {
+        "summary": "Update a secret",
+        "description": "Update a secret's value. Value is a required parameter and will always replace the existing value",
+        "tags": [
+          "Secrets"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSecretBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a secret",
+        "description": "Delete a secret. This cannot be undone.",
+        "tags": [
+          "Secrets"
+        ],
+        "responses": {
+          "200": {
+            "description": "Secret deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteSecretResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "agentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "secretName",
+          "in": "path",
+          "required": true,
           "schema": {
             "type": "string"
           }

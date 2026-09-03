@@ -1,0 +1,127 @@
+---
+title: "Automated call review"
+sidebarTitle: Automated review
+description: "Let Wren read a stretch of recent calls on its own, find what's going wrong, and draft the fixes."
+keywords:
+  - wren review
+  - automated call review
+  - recommendations
+  - insights
+  - findings
+  - agent quality
+---
+
+Analysis answers the questions you think to ask. Automated review is for the ones you don't. Wren reads a stretch of recent calls on its own, works out what's going wrong, and brings you a report.
+
+## Review a stretch of calls
+
+Start a review from the mode selector in the composer. Wren asks for:
+
+| Option | What it does |
+|---|---|
+| **Period** | The stretch of days to review. Pick a single day or a range. |
+| **Draft fixes** | Wren implements what it finds on a branch and tests the fix, instead of only reporting it. |
+| **Use review history** | Builds on past reviews rather than re-reporting what you've already seen. |
+| **Extra instructions** | Optional. Anything specific you want it to look for. |
+
+<Frame caption="Setting up a review before it runs">
+  <img src="/images/wren/review-dialog.png" alt="Review recent calls dialog with period picker, Draft fixes and Use review history toggles, and an extra instructions field" style={{ maxWidth: '560px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
+
+The review then runs on its own, without stopping to ask questions, and ends with a report. It reads real production calls, so expect it to take several minutes.
+
+<Note>
+Reviews always run hands-off, regardless of whether you're in Interactive or Auto mode. That's why the options above are set up front.
+</Note>
+
+### What a review produces
+
+Wren works through your project area by area (the caller journey, the knowledge base, and everything else), and for each candidate problem it checks itself before reporting: it verifies the issue is real, and sizes how often it actually happens across the period.
+
+Each finding comes with:
+
+- **What's wrong**, and which part of the project it sits in
+- **A type:** a defect, a knowledge gap, or an opportunity
+- **A severity:** high, medium, or low
+- **Evidence:** how many of the sampled calls were affected, with example conversations you can click straight into
+
+Where a problem can't be reliably sized, Wren says so rather than inventing a percentage.
+
+With **Draft fixes** enabled, Wren goes a step further on what it finds: it reproduces the problem against a test build, writes a failing test, makes the smallest change that fixes it, and re-runs to confirm. Each fix lands on its own branch.
+
+<Warning>
+**Wren never merges a fix.** Reviews and drafted fixes always stop at a branch. Nothing reaches `Main` or a live environment without you approving and merging it yourself.
+</Warning>
+
+Sometimes the cause sits outside your project: telephony, an upstream service, or the platform itself. Wren reports those too, and says plainly that it can't fix them from here.
+
+<Note>
+Automated review is rolling out gradually. If you don't see it in the mode selector, ask your PolyAI contact whether it's enabled for your account.
+</Note>
+
+## Continuous review
+
+<Note>
+**Coming soon.** The features below are in development and not yet available on customer accounts. The screenshots are previews of work in progress, so the final version may differ. Ask your PolyAI contact if you'd like to hear when they land.
+</Note>
+
+Running a review by hand is the starting point. The direction is for Wren to do it continuously, so problems find you instead of the other way around. It surfaces on the Wren home screen, under **Insights**.
+
+<Frame caption="Preview: the Insights zone on the Wren home screen">
+  <img src="/images/wren/insights-cards.png" alt="Insights zone showing a Recommendations card and a Daily reports card" style={{ maxWidth: '760px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
+
+### Recommendations
+
+Rather than a report you read once, findings become a **standing list** on your project: an inbox of things that need your attention, each one persisting until it's resolved or dismissed. Open findings are summarized by how many are ready to act on and how severe they are.
+
+<Frame caption="Preview: open findings, grouped by what they need from you and how severe they are">
+  <img src="/images/wren/recommendations-summary.png" alt="Open recommendations summary showing counts for Fix ready, Fix proposed, and Question, with a High, Medium, and Low severity breakdown" style={{ maxWidth: '760px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
+
+Each finding shows its status, severity, how many calls it affects, and whether it's a defect, a knowledge gap, or an opportunity.
+
+<Frame caption="Preview: the findings list">
+  <img src="/images/wren/recommendations-table.png" alt="Recommendations table listing findings with status, severity, affected calls, type, and last updated" style={{ maxWidth: '860px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
+
+Open one and you get the full picture: what's wrong, which part of the project it relates to, and the evidence behind it.
+
+<Frame caption="Preview: a single finding, with its evidence">
+  <img src="/images/wren/finding-panel.png" alt="Finding detail panel showing type, severity, status, description, and evidence with affected call counts" style={{ maxWidth: '520px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
+
+Every finding will carry a status through its life: *Needs your attention*, *Question for you*, *Fix proposed*, *Fix ready*, *Resolved*, or *Dismissed*. From a finding you'll be able to:
+
+- **Approve and merge** a fix Wren has drafted and verified
+- **View the diff** before deciding
+- **Refine it in chat** if the fix is close but not right
+- **Answer a question** Wren has about your business rules, when it needs one to proceed
+- **Dismiss it** as working as intended, already resolved, not worth addressing, or simply wrong, with the reason feeding back into what gets surfaced next
+- **Revert** a change after the fact if it doesn't hold up
+
+Where Wren has drafted a fix, it shows you the change it proposes, the branch it sits on, and proof that it works: the test case failed before the fix and passes on the branch.
+
+<Frame caption="Preview: a drafted fix, verified against the test suite before you approve it">
+  <img src="/images/wren/finding-proposed-fix.png" alt="Proposed fix section showing example calls, the change description, the branch it lives on, a View diff button, and a verified baseline and fix run" style={{ maxWidth: '560px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
+
+Because findings persist across reviews, Wren builds on what it already knows about your agent instead of re-reporting the same issue every time.
+
+### Scheduled reviews
+
+Reviews will also run on a schedule (nightly, weekly, or on a cadence you choose) against the environment you pick, with a standing prompt. You'd arrive to a digest of what happened overnight: what's working, what needs you, and where it's trending.
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="Analyze conversations" icon="chart-line" href="/wren/analyze">
+    Ask your own questions about real calls.
+  </Card>
+  <Card title="Conversation review" icon="magnifying-glass" href="/analytics/conversations/review">
+    Read the calls behind a finding.
+  </Card>
+  <Card title="Simulation tests" icon="flask" href="/testing/simulation-tests">
+    Where verified fixes leave their test coverage.
+  </Card>
+</CardGroup>

@@ -2,23 +2,14 @@
 title: "Android SDK"
 sidebarTitle: "Android SDK"
 description: "Embed a PolyAI messaging agent natively in your Android app with a headless Kotlin library."
-mode: wide
-keywords:
-  - Android
-  - SDK
-  - Kotlin
-  - mobile
-  - in-app messaging
-  - native
-  - Jetpack Compose
-  - Views
-  - Maven Central
+mode: "wide"
+keywords: ["Android", "SDK", "Kotlin", "mobile", "in-app messaging", "native", "Jetpack Compose", "Views", "Maven Central"]
 ---
 
-The Android SDK is a native Kotlin library that embeds PolyAI's messaging agent directly inside your Android app. It's **headless by design** — you own the UI, PolyAI provides the AI layer underneath. Your app connects to the same agent logic used across voice, webchat, and other channels.
+The Android SDK is a native Kotlin library that embeds PolyAI's messaging agent directly inside your Android app. It's **headless by design** — you own the UI, PolyAI provides the AI layer underneath. Your app connects to the same agent logic used across voice, webchat, and other channels. As of v0.9.0 it covers two channels, chat (`ai.poly:messaging`) and live two-way [voice calls](/messaging-channel/android-sdk-voice) (`ai.poly:voice`).
 
 <Info>
-The Android SDK wraps the [Messaging API](/api-reference/messaging/introduction). All WebSocket events, streaming, and handoff behavior documented in the API reference apply.
+  The Android SDK wraps the [Messaging API](/api-reference/messaging/introduction). All WebSocket events, streaming, and handoff behavior documented in the API reference apply.
 </Info>
 
 <Card title="Source on GitHub" icon="github" href="https://github.com/polyai/android-sdk">
@@ -28,6 +19,8 @@ The Android SDK wraps the [Messaging API](/api-reference/messaging/introduction)
 ## How it works
 
 The SDK handles authentication, session management, WebSocket connections, and reconnection logic. Your app sends and receives messages through the SDK and renders them however you choose — in **Jetpack Compose** or **Android Views**.
+
+Voice calling ships as a separate artifact, `ai.poly:voice`, so chat-only apps stay lean. It reuses the same configuration and vocabulary as messaging, so there are no new concepts to learn if you already run chat. See [Voice calling (Android)](/messaging-channel/android-sdk-voice) for the full guide.
 
 <Steps>
   <Step title="Install the SDK">
@@ -53,7 +46,8 @@ The SDK is published to Maven Central as `ai.poly:messaging`. Ensure `mavenCentr
     ```kotlin
     // build.gradle.kts
     dependencies {
-        implementation("ai.poly:messaging:0.8.0")
+        implementation("ai.poly:messaging:0.9.0")
+        implementation("ai.poly:voice:0.9.0")   // only if you need voice calling
     }
     ```
   </Tab>
@@ -61,7 +55,8 @@ The SDK is published to Maven Central as `ai.poly:messaging`. Ensure `mavenCentr
     ```groovy
     // build.gradle
     dependencies {
-        implementation 'ai.poly:messaging:0.8.0'
+        implementation 'ai.poly:messaging:0.9.0'
+        implementation 'ai.poly:voice:0.9.0'   // only if you need voice calling
     }
     ```
   </Tab>
@@ -69,16 +64,18 @@ The SDK is published to Maven Central as `ai.poly:messaging`. Ensure `mavenCentr
     ```toml
     # libs.versions.toml
     [versions]
-    polyMessaging = "0.8.0"
-
+    polyMessaging = "0.9.0"
+    
     [libraries]
     poly-messaging = { module = "ai.poly:messaging", version.ref = "polyMessaging" }
+    poly-voice = { module = "ai.poly:voice", version.ref = "polyMessaging" }   # only if you need voice calling
     ```
 
     ```kotlin
     // build.gradle.kts
     dependencies {
         implementation(libs.poly.messaging)
+        implementation(libs.poly.voice)   // only if you need voice calling
     }
     ```
   </Tab>
@@ -87,31 +84,30 @@ The SDK is published to Maven Central as `ai.poly:messaging`. Ensure `mavenCentr
 ### Requirements
 
 | Requirement | Minimum |
-|---|---|
+| --- | --- |
 | **Android** | API 24 (Android 7.0) |
 | **compileSdk** | 36 |
-| **Kotlin** | 2.2+ |
+| **Kotlin** | 2.2\+ |
 | **JDK** (to build) | 17 |
 | **Java consumers** | Supported |
+| **R8 / minify** | Works without extra configuration |
 
-No permissions to declare — the SDK's manifest merges `INTERNET` and `ACCESS_NETWORK_STATE` into your app automatically. R8/minify works without extra configuration.
+No permissions to declare — the SDK's manifest merges `INTERNET` and `ACCESS_NETWORK_STATE` into your app automatically. (Voice calls need `RECORD_AUDIO` — see [Voice calling permissions](/messaging-channel/android-sdk-voice#permissions).)
 
 ## Authentication setup
 
 The Android SDK authenticates using a connector token and your app's package name.
 
+Voice calling needs one further credential from the same page, the **WebRTC token**, a distinct value that authenticates the media connection. Both tokens come from the same connector you use for chat. See [Voice calling credentials](/messaging-channel/android-sdk-voice#credentials).
+
 <Steps>
   <Step title="Generate a connector token">
-    In Agent Studio, go to **Messaging > API Configuration** and generate a new Messaging API key.
+    In Agent Studio, go to **Messaging \> API Configuration** and generate a new Messaging API key.
   </Step>
   <Step title="Register your package name">
     Your app's `applicationId` is sent as the `X-Host` header. It must match the host registered in Agent Studio for your API key.
   </Step>
 </Steps>
-
-<Warning>
-Never embed the connector token directly in your app binary. Use a backend service to mint short-lived access tokens and pass them to the SDK. See [security best practices](/api-reference/messaging/best-practices#security).
-</Warning>
 
 ## Quick start
 
@@ -157,14 +153,14 @@ Register it in your manifest with `android:name=".HelloApplication"`. No network
     import androidx.compose.ui.unit.dp
     import androidx.lifecycle.compose.collectAsStateWithLifecycle
     import kotlinx.coroutines.launch
-
+    
     @Composable
     fun ChatScreen() {
         val session: ChatSession = remember { PolyMessaging.chat() }
         val messages by session.messages.collectAsStateWithLifecycle()
         val scope = rememberCoroutineScope()
         var input by remember { mutableStateOf("") }
-
+    
         Column(Modifier.fillMaxSize().imePadding()) {
             LazyColumn(Modifier.weight(1f)) {
                 items(messages, key = { it.id }) { message ->
@@ -197,23 +193,27 @@ Register it in your manifest with `android:name=".HelloApplication"`. No network
     import ai.poly.messaging.ChatMessage
     import ai.poly.messaging.ChatSession
     import ai.poly.messaging.PolyMessaging
+    import android.os.Bundle
+    import androidx.activity.ComponentActivity
     import androidx.lifecycle.Lifecycle
     import androidx.lifecycle.lifecycleScope
     import androidx.lifecycle.repeatOnLifecycle
+    import androidx.recyclerview.widget.LinearLayoutManager
     import kotlinx.coroutines.launch
-
+    
     class ChatActivity : ComponentActivity() {
+        private lateinit var binding: ActivityChatBinding
         private val session: ChatSession by lazy { PolyMessaging.chat() }
         private val adapter = MessageAdapter()
-
+    
         override fun onCreate(savedInstanceState: Bundle?) {
             super.onCreate(savedInstanceState)
             binding = ActivityChatBinding.inflate(layoutInflater)
             setContentView(binding.root)
-
+    
             binding.list.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
             binding.list.adapter = adapter
-
+    
             binding.send.setOnClickListener {
                 val body = binding.composer.text.toString().trim()
                 if (body.isNotEmpty()) {
@@ -221,7 +221,7 @@ Register it in your manifest with `android:name=".HelloApplication"`. No network
                     lifecycleScope.launch { runCatching { session.send(body) } }
                 }
             }
-
+    
             lifecycleScope.launch {
                 repeatOnLifecycle(Lifecycle.State.STARTED) {
                     session.messages.collect { messages ->
@@ -240,13 +240,14 @@ Register it in your manifest with `android:name=".HelloApplication"`. No network
 
 ### Session persistence
 
-Sessions persist across app launches. If the user leaves and returns, the SDK reconnects to the existing session and replays the conversation history automatically. Use `PolyMessaging.chat()` to resume or `PolyMessaging.start()` to always start fresh.
+Conversations survive an app relaunch. `PolyMessaging.chat()` resumes the stored session automatically if it's still valid, or starts a fresh one — you don't need to check anything first. Sessions can only be resumed within the session timeout of **~10 minutes** (matching the backend's WebSocket idle timeout); after that, `chat()` starts a new conversation.
+
+Use `PolyMessaging.start()` when you want to _always_ begin fresh (an explicit "New chat" entry point), and `PolyMessaging.hasResumableSession()` when you want to offer the user the choice before showing the chat:
 
 ```kotlin
-val session = if (PolyMessaging.hasResumableSession()) {
-    PolyMessaging.chat()    // resume the previous conversation
-} else {
-    PolyMessaging.start()   // start a new one
+if (PolyMessaging.hasResumableSession()) {
+    // offer "Resume previous chat?" → PolyMessaging.chat()
+    // or "Start new" → PolyMessaging.start()
 }
 ```
 
@@ -275,14 +276,15 @@ Agent messages may include rich content via the `attachments` field — images (
 
 ### Delivery tracking
 
-User messages appear immediately as `Delivery.PENDING`, then settle to `SENT` or `FAILED`. The SDK retries automatically (every 3s, up to 3 times). On `FAILED`, call `removeMessage(draftId)` then re-send.
+User messages appear immediately as `Delivery.PENDING`, then settle to `SENT` or `FAILED`. The SDK never auto-resends — one send is one send, so a message can't be delivered twice. An unconfirmed message is marked `FAILED` as soon as it can't be confirmed: immediately if it was sent while offline, at the moment the connection drops if it was still in flight, or after a 10-second wait if the server never echoes it back. **Your UI must offer its own retry affordance** — it isn't a backstop for SDK retries, it's the only way a failed message gets sent. On `FAILED`, call `removeMessage(draftId)` then re-send the text.
 
 ### Connection & reconnect
 
-The SDK reconnects automatically with exponential backoff and jitter. Observe `session.connection` to show a reconnect banner:
+The SDK _reconnects_ automatically with exponential backoff and jitter. Reconnection applies to the socket only — failed messages are never resent automatically (see [Delivery tracking](#delivery-tracking) above). Observe `session.connection` to show a reconnect banner:
 
 ```kotlin
-// StateFlow<ConnectionStatus> — Connecting / Open / Reconnecting(attempt) / Failed(reason)
+// StateFlow<ConnectionStatus> —
+// Idle / Connecting / Open / Reconnecting(attempt) / Closing / Closed(event) / Failed(reason)
 session.connection.collect { status ->
     showBanner = status is ConnectionStatus.Reconnecting
 }
@@ -290,10 +292,44 @@ session.connection.collect { status ->
 
 When the reconnect budget is exhausted (`ConnectionStatus.Failed`), recover with `session.client.startNewSession()`.
 
+### Voice calling
+
+`ai.poly:voice` places live, two-way WebRTC [voice calls](/messaging-channel/android-sdk-voice) to the same agent that powers your chat. Calls are user-initiated: the user taps to call your agent.
+
+```kotlin
+import ai.poly.voice.PolyVoice
+
+val call = PolyVoice.call(
+    context,
+    Configuration(apiKey = "YOUR_API_KEY"),            // connector token — Agent Studio › Connector Settings
+    VoiceOptions(webrtcToken = "YOUR_WEBRTC_TOKEN"),   // WebRTC token — same place, a distinct value
+)
+
+// Observe the call lifecycle (Idle → Connecting → Connected → Ended / Failed).
+lifecycleScope.launch {
+    repeatOnLifecycle(Lifecycle.State.STARTED) {
+        call.state.collect { state -> render(state) }
+    }
+}
+
+// After the RECORD_AUDIO permission is granted:
+lifecycleScope.launch { call.start() }
+
+// In-call controls:
+call.setMuted(true)   // mute the mic
+call.end()            // hang up and release the mic
+```
+
+A call needs **two credentials** (the API key plus a separate WebRTC token, both from Agent Studio › Connector Settings) and the `RECORD_AUDIO` runtime permission granted before starting; the SDK's manifest declares everything else a basic call needs. Beyond that the SDK handles the hard parts for you: accessory-aware audio routing, automatic reconnection on transient network drops, and graceful handling of interruptions like incoming phone calls.
+
+<Card title="Voice calling (Android)" icon="phone" href="/messaging-channel/android-sdk-voice">
+  The full voice guide: installation, credentials, permissions, audio output, interruptions, background calls, and R8.
+</Card>
+
 ## Configuration reference
 
 | Field | Default | Description |
-|---|---|---|
+| --- | --- | --- |
 | `apiKey` | — (required) | API key from Agent Studio |
 | `environment` | `Environment.US` | `US` / `UK` / `EUW` / `cluster("name")` / `custom(restUrl, wsUrl)` |
 | `hostIdentifier` | package name | `X-Host` for connector validation |
@@ -301,10 +337,12 @@ When the reconnect budget is exhausted (`ConnectionStatus.Failed`), recover with
 | `logLevel` | `LogLevel.ERROR` | `NONE` / `ERROR` / `WARN` / `INFO` / `DEBUG` |
 | `maxReconnectAttempts` | `10` | Reconnect budget before `Failed` |
 
+The same `environment` also selects the gateway for voice calls. The full configuration reference on GitHub covers the remaining options, error handling and connection states.
+
 ### Environments
 
 | Environment | Endpoint |
-|---|---|
+| --- | --- |
 | `Environment.US` (default) | `messaging.us-1.poly.ai` |
 | `Environment.UK` | `messaging.uk-1.poly.ai` |
 | `Environment.EUW` | `messaging.euw-1.poly.ai` |
@@ -315,7 +353,7 @@ When the reconnect budget is exhausted (`ConnectionStatus.Failed`), recover with
 ### State (read-only `StateFlow` properties)
 
 | Property | Type | Description |
-|---|---|---|
+| --- | --- | --- |
 | `messages` | `StateFlow<List<ChatMessage>>` | Full transcript — `ChatMessage.User` / `.Agent` / `.System` |
 | `isReady` | `StateFlow<Boolean>` | Connected and ready to send |
 | `connection` | `StateFlow<ConnectionStatus>` | Socket state |
@@ -327,7 +365,7 @@ When the reconnect budget is exhausted (`ConnectionStatus.Failed`), recover with
 ### Methods
 
 | Method | Description |
-|---|---|
+| --- | --- |
 | `suspend send(text)` | Send a user message (optimistic) |
 | `suspend sendTyping()` | Broadcast typing (throttled internally) |
 | `suspend end()` | End the conversation |
@@ -338,10 +376,10 @@ When the reconnect budget is exhausted (`ConnectionStatus.Failed`), recover with
 
 ## Platform values
 
-When the SDK creates a session, it sets `platform` to `android` automatically. This is visible in Agent Studio analytics and can be used in your agent logic to tailor behavior for mobile users.
+When the SDK creates a session, it sets `platform` to `android` automatically, alongside a `device_type` (mobile / tablet). This is visible in Agent Studio analytics and can be used in your agent logic to tailor behavior for mobile users. It identifies the **device**, not the channel — for the channel a conversation arrives on, see [Multichannel](#multichannel) below.
 
 | Platform value | Source |
-|---|---|
+| --- | --- |
 | `android` | Android SDK (native) |
 | `ios` | iOS SDK (native) |
 | `ios-web` | Webchat widget on iOS Safari |
@@ -350,27 +388,27 @@ When the SDK creates a session, it sets `platform` to `android` automatically. T
 ## Limitations
 
 <Note>
-These limitations apply to the initial release. Check the [release notes](/releases/overview) for updates.
+  These limitations apply to the initial release. Check the [release notes](/releases/overview) for updates.
 </Note>
 
 | Limitation | Details |
-|---|---|
-| **Text only** | Voice input is not supported in V1. WebRTC voice support is planned for a future release. |
-| **No push notifications** | While the app is active, the SDK delivers messages in real time. When the app is killed by the system, no messages arrive. Local notifications work as a workaround while the process is alive. Remote push (FCM) is not yet supported. |
-| **No React Native or Flutter** | The SDK is native Kotlin (Java-compatible). Cross-platform frameworks would require a separate SDK. |
+| --- | --- |
+| **No remote notifications** | The SDK has no remote push integration (no FCM). Messages arrive over the WebSocket while the app is open and for a short period after backgrounding; what's missing is lock-screen delivery once Android kills the app. Local notifications are possible while the session is live. |
+| **User-initiated calls only** | Calls are always started by the user from inside your app. The agent cannot ring the user (no push-triggered incoming calls). |
+| **Android only** | Native Kotlin only; no React Native or Flutter wrapper. |
 
 ## Example apps
 
-The SDK ships with a 7-rung example ladder, mirrored across Jetpack Compose and Android Views:
+The android-sdk repository ships runnable example apps for both chat and voice, each mirrored across Compose and Views: a full chat implementation with streaming, suggestions and handoff, and a one-screen tap-to-call demo with the audio-output picker. With a 7 rung example ladder:
 
 | Level | What it adds |
-|---|---|
+| --- | --- |
 | **01 Hello** | Initialize, render, send |
-| **02 Standard** | Typing, suggestions, delivery, reconnect, end + start-new |
+| **02 Standard** | Typing, suggestions, delivery, reconnect, end \+ start-new |
 | **03 Rich Content** | Attachments, link cards, tel: actions, Markdown |
-| **04 Resilience** | Offline banner, loading skeleton, terminal error + retry |
+| **04 Resilience** | Offline banner, loading skeleton, terminal error \+ retry |
 | **05 Handoff** | Full live-agent ladder |
-| **06 Full Reference** | Production resume + start-new flows |
+| **06 Full Reference** | Production resume \+ start-new flows |
 | **07 Playground** | Diagnostics, runtime config, streaming toggle |
 
 Browse the examples on [GitHub](https://github.com/polyai/android-sdk/tree/main/examples).
@@ -379,29 +417,37 @@ Browse the examples on [GitHub](https://github.com/polyai/android-sdk/tree/main/
 
 The Android SDK connects to the same agent project as your voice and webchat channels. Agent behavior, knowledge, and flows are shared — only channel-specific settings (greetings, formatting) differ. See [multichannel agents](/messaging-channel/multichannel) for how to tailor behavior per channel.
 
-In your agent's start function, detect the mobile channel using `conv.channel_type`:
+Two values tell your agent where a conversation came from, and they answer different questions:
+
+- **`conv.channel_type`** identifies the **channel**. Its possible values are `webchat.polyai`, `chat.polyai`, `sms.twilio`, `sms.polyai`, `rcs.polyai`, `whatsapp.polyai`, and `sip.polyai` — it is never `"android"` or `"ios"`.
+- **`platform`** identifies the **device**: the SDK sends `platform: "android"` (alongside `device_type`) when the session is created. Use this to tailor behavior for native app users.
+
+To branch on the channel in your agent's start function:
 
 ```python
 def start(conv):
-    if conv.channel_type == "android":
-        conv.state.greet_message = "Hi! How can I help you today?"
-    elif conv.channel_type.startswith("webchat"):
+    if conv.channel_type == "webchat.polyai":
         conv.state.greet_message = "Hi there! How can I help?"
+    elif conv.channel_type == "whatsapp.polyai":
+        conv.state.greet_message = "Hi! How can I help you today?"
 ```
 
 ## Related pages
 
 <CardGroup cols={2}>
+  <Card title="Voice calling (Android)" icon="phone" href="/messaging-channel/android-sdk-voice">
+    WebRTC voice calls with ai.poly:voice: setup, permissions, audio output, and background calls
+  </Card>
+
   <Card title="Messaging API reference" icon="plug" href="/api-reference/messaging/introduction">
     Full WebSocket protocol, events, streaming, and handoff
   </Card>
+
   <Card title="Sessions and authentication" icon="key" href="/api-reference/messaging/sessions">
     Access tokens, session creation, and platform values
   </Card>
+
   <Card title="Multichannel agents" icon="layer-group" href="/messaging-channel/multichannel">
     Build agents that work across voice, webchat, and mobile
-  </Card>
-  <Card title="Best practices" icon="star" href="/api-reference/messaging/best-practices">
-    Connection management, UX, and security recommendations
   </Card>
 </CardGroup>

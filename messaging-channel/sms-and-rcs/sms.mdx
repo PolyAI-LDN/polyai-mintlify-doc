@@ -1,0 +1,203 @@
+---
+title: "SMS"
+sidebarTitle: "SMS"
+description: "Deploy your agent over SMS with the same brain that powers voice and web chat."
+mode: "wide"
+keywords: ["sms", "2-way sms", "messaging", "text", "outbound", "triggered"]
+---
+
+PolyAI SMS extends your agent to text messaging on a PolyAI-managed Twilio number. The same agent brain that handles voice and web chat now supports SMS, so customers get consistent answers, live agent handoff with full context, and end-to-end resolution over text.
+
+<Note>
+  The current capability supports transactional use cases, campaign orchestration and marketing use case support is coming soon.
+</Note>
+
+## Three SMS modes
+
+Through Twilio PolyAI is able to offer three directional modes of 2-way SMS. What changes is who starts the conversation and whether replies are expected.
+
+<CardGroup cols={3}>
+  <Card title="Inbound (2-way)" icon="inbox">
+    Customer texts the agent number. Best for FAQ, account servicing, and queue callback replies from a live voice queue.
+  </Card>
+
+  <Card title="Outbound (2-way)" icon="paper-plane">
+    CRM event fires a HTTPS POST. Best for re-engagement, utility use cases, and status updates that expect a reply.
+  </Card>
+
+  <Card title="Triggered (1-way)" icon="bolt">
+    Agent sends via the `send_sms` function in Agent Studio. Best for reminders, confirmations, OTPs, and post-call follow-up.
+  </Card>
+</CardGroup>
+
+<Info>
+  Outbound and Triggered use the same webhook. Once a customer replies to an outbound message, the conversation routes automatically into the inbound flow with the same agent.
+</Info>
+
+## Key features
+
+### PolyAI-managed Twilio
+
+PolyAI provisions and manages the Twilio infrastructure. No customer Twilio account is needed, and the agent phone number is provisioned in Agent Studio.
+
+### Reuse your voice number
+
+If PolyAI already handles your voice deployment, the same Twilio number serves both voice and inbound SMS. Once an SMS camapign has been approved by Twilio, you can also use the same number for outbound SMS. No extra number management.
+
+### Unified conversation flow
+
+SMS runs on the shared messaging architecture, so it inherits live agent handoff, CSAT, and events from voice and web chat. Multi-turn dialogue keeps context across the thread, and every conversation is visible in Agent Studio Conversation Review.
+
+### Live agent handoff
+
+Native handoff to Salesforce, Zendesk, NICE, Amazon Connect, and Webex. When the customer needs a person, the agent transfers the thread with full conversation context.
+
+### Compliance and safety
+
+- STOP/START/HELP keyword enforcement at Twilio level (case-insensitive, tolerant of trailing punctuation).
+- End-users are have opt-in and opt-out consent enabled, with blocklist enforcement.
+- Repeated-message detection and abuse auto-block.
+- Per-sender and per-project rate limiting.
+
+### Operational control
+
+Conversation lifecycle controls for inactivity timeout, end-of-conversation logic, and termination messaging.
+
+## How it works
+
+### Inbound
+
+<Steps>
+  <Step title="Customer texts in">
+    The customer texts the PolyAI agent number from their phone.
+  </Step>
+  <Step title="Twilio receives">
+    Twilio fires a webhook to the PolyAI messaging service.
+  </Step>
+  <Step title="Twilio compliance check and PolyAI conversation creation">
+    Rate limit, blocklist, and opt-in checks run before the message is accepted. A conversation record and session are created by PolyAI.
+  </Step>
+  <Step title="Agent conversation">
+    The shared messaging architecture handles the turn, including handoff and CSAT events.
+  </Step>
+  <Step title="Reply sent">
+    The agent reply is routed via Twilio back to the customer.
+  </Step>
+</Steps>
+
+### Outbound and Triggered
+
+<Steps>
+  <Step title="CRM event fires">
+    Salesforce, Zendesk, Oracle, or Dynamics raises an event.
+  </Step>
+  <Step title="HTTPS POST">
+    The CRM posts to the PolyAI outbound webhook with the recipient and message.
+  </Step>
+  <Step title="PolyAI compliance check">
+    A specific agent number is selected. A conversation record and session are created.
+  </Step>
+  <Step title="Twilio delivers">
+    Rate limit, blocklist, and opt-in checks run, then Twilio delivers the SMS.
+  </Step>
+  <Step title="Reply routes to inbound">
+    If the customer replies, the reply lands in the standard inbound flow and the same agent picks up.
+  </Step>
+</Steps>
+
+## Setting up SMS
+
+<Steps>
+  <Step title="Provision the agent number">
+    PolyAI provisions and manages the Twilio number in Agent Studio. If you already have PolyAI voice, the same number can serve inbound SMS.
+  </Step>
+  <Step title="Configure the SMS channel">
+    Enable SMS on the agent in Agent Studio. Set the greeting, customise your styling prompt, and set channel specific configuration where required.
+  </Step>
+  <Step title="Register for compliance (US)">
+    Complete 10DLC brand and campaign registration via Twilio. PolyAI handles platform-level keyword compliance. You manage consent records.
+  </Step>
+  <Step title="Wire your CRM (Outbound and Triggered)">
+    Point your CRM at the PolyAI outbound webhook using a single HTTPS POST. Salesforce, Zendesk, Oracle (OIC / Eloqua), and Dynamics 365 are natively supported. Other CRMs work via Zapier middleware or a custom HTTPS POST.
+  </Step>
+  <Step title="Configure live agent handoff">
+    Connect the CCaaS or ticketing platform your live agents work in (Salesforce, Zendesk, NICE, Amazon Connect, Webex).
+  </Step>
+  <Step title="Review conversations">
+    Monitor traffic in Agent Studio **Conversation Review**. Filter SMS conversations using the `TW_SMS_` Call SID prefix.
+  </Step>
+</Steps>
+
+## Compliance posture
+
+| Region | Behavior |
+| --- | --- |
+| TCPA (US) | 10DLC brand and campaign registration via Twilio. Platform-level keyword compliance. Customer manages consent records. |
+| GDPR / PECR (UK and EU) | Customer manages opt-in. Platform enforces STOP at the keyword layer. |
+| CASL (Canada) and DLT (India) | Express consent and audit trail managed in the customer CRM. PolyAI does not store consumer consent records. |
+
+### Default rate limits
+
+- Per-sender: 10 messages / 60 seconds. STOP/START/HELP keywords are exempt.
+- Per-project: 100 messages / minute across all senders.
+- Repeated-message auto-block: same message sent 5\+ times in 5 minutes triggers a 10-minute auto-block that lifts automatically.
+
+## Use cases
+
+<CardGroup cols={2}>
+  <Card title="FAQ and inbound support" icon="circle-question">
+    Store hours, eligibility, and status checks. Highest volume, lowest complexity SMS traffic on the platform.
+  </Card>
+
+  <Card title="Queue callback and voice deflection" icon="phone-arrow-down-left">
+    Deflect from a busy voice queue. Customers wait outside the queue while agents work down the backlog.
+  </Card>
+
+  <Card title="Appointment reminders and confirmations" icon="calendar-check">
+    Booking system fires a templated confirmation. Reschedule and cancel replies route to a live agent.
+  </Card>
+
+  <Card title="Post-call follow-up and surveys" icon="message-check">
+    Send a CSAT link or an open survey prompt after a voice call ends to capture feedback in the moment.
+  </Card>
+
+  <Card title="Order updates and delivery tracking" icon="box">
+    OMS or WMS fires status updates over SMS. Tracking questions route back to an inbound agent for resolution.
+  </Card>
+
+  <Card title="Re-engagement and lifecycle campaigns" icon="rotate">
+    Marketing CRM fires templated sends. Two-way replies route into the inbound agent flow for follow-up.
+  </Card>
+
+  <Card title="Outage and disruption alerts" icon="triangle-exclamation">
+    Monitoring platform triggers alerts to affected customers. Cuts inbound voice volume on outage days.
+  </Card>
+
+  <Card title="Account alerts and fraud notifications" icon="shield-check">
+    Banking or FS system triggers alerts with a one-tap reply flow for identity verification and dispute.
+  </Card>
+
+  <Card title="OTPs and auth confirmations" icon="key">
+    Fire-and-forget one-time passwords and authentication confirmations sent from Agent Studio functions.
+  </Card>
+</CardGroup>
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="SMS API" icon="code" href="/api-reference/messaging/SMS %26 RCS API/Overview/send-sms">
+    Send outbound SMS messages through the PolyAI outbound webhook API.
+  </Card>
+
+  <Card title="Campaign registration (US)" icon="clipboard-check" href="/messaging-channel/sms-and-rcs/sms-and-rcs-campaign-registration-compliance-requirements-us">
+    10DLC brand and campaign registration requirements for US SMS traffic.
+  </Card>
+
+  <Card title="RCS" icon="mobile" href="/messaging-channel/sms-and-rcs/rcs">
+    Rich, branded messaging over the RCS channel with SMS fallback.
+  </Card>
+
+  <Card title="Chat handoffs" icon="user-headset" href="/integrations/introduction">
+    CCaaS handoff integrations to transfer SMS threads to live agents.
+  </Card>
+</CardGroup>

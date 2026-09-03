@@ -1,0 +1,78 @@
+---
+title: "Five9 chat handoff"
+sidebarTitle: "Five9"
+description: "Hand off a webchat or SMS conversation from PolyAI to a Five9 agent."
+---
+
+Hand off a live webchat or SMS conversation from your PolyAI agent to a [Five9](https://www.five9.com/) agent. PolyAI continues to proxy messages between the end user and the Five9 agent for the rest of the session, so the customer stays in the same conversation while a human takes over.
+
+## Prerequisites
+
+- A Five9 tenant with administrator access, and an **Open Messaging** license enabled on the domain. Open Messaging is consumption-billed by Five9, confirm availability with your Five9 representative.
+- An inbound Five9 campaign in the **Running** state, with a chat profile and at least one skill assigned. At least one agent with that skill should be logged in and set to **Ready** with the Chat channel enabled.
+- A PolyAI project with at least one Knowledge topic that should escalate to a human.
+
+## 1. Open the Five9 setup wizard in Studio
+
+PolyAI connects to Five9 through Five9's **Open Messaging** channel. At handoff time, PolyAI opens a chat in Five9 and proxies messages between the user and the Five9 agent for the rest of the session.
+
+In Agent Studio, open **Integrations** and click **Connect** on the **Five9** tile to start the setup wizard. The wizard generates a webhook URL, username, and password you'll paste into Five9. Keep the wizard open, you'll come back to it in step 3.
+
+<Warning>
+  The webhook password is shown once and cannot be retrieved later. Copy it before leaving the page.
+</Warning>
+
+## 2. Configure Five9
+
+Using the values from the wizard, your Five9 administrator sets up the pieces Five9 needs to receive and route the chat. Your PolyAI contact will walk through this with you if it's your first Five9 integration. The main steps are:
+
+- Create an API credential (OAuth client) that PolyAI uses to open chats in Five9.
+- Create an authorization profile and a delivery profile using the webhook values from the wizard, so Five9 can send agent events back to PolyAI.
+- Point the delivery profile at your inbound campaign, and confirm the campaign, chat profile, skills, and agent availability are all in place.
+
+## 3. Finish setup in Studio
+
+Return to the wizard and enter your Five9 details: region, domain ID, delivery profile ID, campaign name, and the API consumer key and secret. Save to complete the connection.
+
+## 4. Write the handoff function
+
+```python
+def transfer_to_five9(conv: Conversation):
+    return {
+        "utterance": "No problem, I'll transfer you to one of our agents now.",
+        "handoff": {
+            "text_chat": {
+                "five9_integration": {}
+            }
+        }
+    }
+```
+
+## 5. Assign the function to a topic
+
+Open the Knowledge topic that should escalate, add an **Action**, and select `transfer_to_five9`. The same function can be called from any flow step or directly via `conv.call_handoff()` for dynamic routing.
+
+## 6. Verify
+
+1. Start a session in your webchat widget and steer the conversation into the topic you wired the handoff to.
+2. Confirm a new chat appears in the Five9 agent desktop for the skill you configured.
+3. Reply from Five9 and confirm the message is delivered back to the user inside the same widget.
+4. End the session from Five9 and confirm the widget shows the conversation as closed.
+
+If the conversation never reaches Five9, check that the inbound campaign is **Running**, the skill is assigned to both the campaign and the agent user, and the agent is **Ready** with the Chat channel enabled.
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="Chat handoff overview" icon="message" href="/integrations/chat/introduction">
+    All chat handoff integrations and the shared payload shape.
+  </Card>
+
+  <Card title="Managed Topic actions" icon="bolt" href="/managed-topics/how-to-setup-action/handoff">
+    Wire a function into a Knowledge topic.
+  </Card>
+
+  <Card title="Managed services" icon="handshake" href="/integrations/managed-services">
+    Scope a custom CCaaS integration if Five9 isn't enough.
+  </Card>
+</CardGroup>

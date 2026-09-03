@@ -1,0 +1,104 @@
+---
+title: "What Wren can build"
+sidebarTitle: Build and edit
+description: "Every part of your agent Wren can create and change, and the guardrails around each one."
+keywords:
+  - wren build
+  - natural language agent builder
+  - edit flows
+  - edit topics
+  - secrets
+  - real-time config
+  - custom metrics
+---
+
+Wren operates on the same building blocks you'd edit by hand. For any of these it can read your current configuration, propose a change, and write it to a branch once you approve.
+
+## Building blocks
+
+| Building block | What Wren can do | Where it lands in Studio |
+|---|---|---|
+| **Flows** | Create flows; restructure steps, transitions, and conditions; rewrite step prompts | Flows |
+| **Entities** | Define entities and their values; update definitions used by flows | Flows |
+| **Topics** | Create knowledge-base topics from a description or a URL; update wording or scope | Knowledge > FAQs |
+| **Functions** | Wire flows to existing functions; describe and create new function specs | Tools |
+| **Handoffs** | Add transfer-to-human steps with the right conditions and metadata | Voice > Handoffs |
+| **Behavior** | Set or update purpose, role, personality, languages, and translations | Behavior |
+| **Guardrails** | Adjust safety filters and phrase filtering | Behavior > Guardrails |
+| **Voice settings** | Greeting, style prompt, disclaimer, ringing tone | Voice > Settings |
+| **Speech recognition** | Keyphrase boosting, transcript corrections, pronunciations, phrase filters | Voice > Advanced settings |
+| **Chat settings** | Messaging channel configuration on multichannel projects | Messaging |
+| **API integrations** | Configure integrations and connect them to flows | Integrations > APIs |
+| **Variants** | Variant attributes and variant definitions | Knowledge > Variants |
+| **SMS templates** | Message templates triggered from voice flows | Voice > Message templates |
+| **Simulation tests** | Author, run, and maintain [test cases](/testing/simulation-tests) and keep coverage in step as the agent changes | Testing |
+| **Custom metrics** | Register new metrics and edit existing ones | Analytics > Metrics |
+| **Real-time config** | Read and edit the config schema and its per-environment values | Real-time config |
+| **Secrets** | Prompt you to add, update, or remove account secrets | Account > Secrets |
+| **Dashboards** | Build, preview, and publish self-serve dashboards | Analytics > Dashboards |
+
+## How edits reach your project
+
+Wren doesn't edit your project as it works. It drafts everything on its own copy first, then saves it to your branch all at once:
+
+1. **It reads your project** at the start of the session, and reads it again whenever you switch branches.
+2. **It drafts the change**, across as many parts of the project as the change touches.
+3. **It saves the change** to your branch once you approve, then shows you a summary of every resource that changed, each with a link to open it.
+
+Saving everything together is what keeps a half-finished change from ever reaching your branch. If saving fails, Wren retries once and then tells you plainly rather than reporting success.
+
+None of this touches `Main`. See [Branches](/wren/introduction#branches).
+
+## Real-time configuration
+
+Wren can read your [real-time config](/real-time-config/introduction) schema and values, and edit both.
+
+Because real-time config takes effect immediately, **writes to the live environment always ask first**. Wren shows you exactly what it intends to change and waits for your confirmation. Sandbox and pre-release edits follow the normal plan-and-approve flow.
+
+## Secrets
+
+When a change needs a credential, such as an API key for a new integration, Wren opens a secure modal for you to enter it.
+
+**Secret values are never sent to the model.** Wren can see that a secret exists and reference it by name, but it never receives the value itself. The same applies when it uses a secret to authenticate a request: the value is injected server-side and stripped out of anything Wren reads back.
+
+Wren can prompt you to add, edit, or delete secrets. It cannot read one, and it will never echo a secret back into the chat.
+
+<Note>
+Secrets are unavailable in **Auto** mode by design: there's nobody there to type the value. Wren records it as a blocker in its report instead.
+</Note>
+
+## Connecting to your APIs
+
+When you ask Wren to wire up an integration, it doesn't guess at your API's response shape. It makes a **single read-only request** against the endpoint and reads the real response, so the function it writes matches what your API actually returns.
+
+The guardrails on that request:
+
+- **Read-only.** It only ever performs a GET. Wren cannot create, update, or delete anything through your API.
+- **Authenticated by reference.** If the endpoint needs a key, you point Wren at an existing secret by name. The value is injected server-side and scrubbed from the response before Wren sees it.
+- **Public hosts only.** Requests to private or internal network addresses are refused.
+
+## Custom metrics
+
+Wren can list, create, and edit [custom metrics](/analytics/kpis/introduction) from chat. This is useful when you're building a flow and want the metric that measures it registered at the same time.
+
+<Warning>
+**Registering a metric is permanent.** A metric's name and type can't be changed once registered, and registration applies across all your environments at once. Only the description and a string metric's expected values can be edited later.
+
+Wren asks you to confirm before registering, because environments are shared across teams.
+</Warning>
+
+A metric your agent writes reports nothing until it's registered here, so if Wren adds a `conv.write_metric` call it will usually offer to register the matching metric too.
+
+## Related pages
+
+<CardGroup cols={3}>
+  <Card title="Prompting guide" icon="message-pen" href="/wren/prompting">
+    How to phrase a build request so you get what you meant.
+  </Card>
+  <Card title="Simulation tests" icon="flask" href="/testing/simulation-tests">
+    Author and run test cases for your agent.
+  </Card>
+  <Card title="Deployments" icon="layer-group" href="/environments-and-versions/introduction">
+    Promote branches from `Main` to Live.
+  </Card>
+</CardGroup>

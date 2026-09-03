@@ -2,22 +2,14 @@
 title: "iOS SDK"
 sidebarTitle: "iOS SDK"
 description: "Embed a PolyAI messaging agent natively in your iOS app with a headless Swift library."
-mode: wide
-keywords:
-  - iOS
-  - SDK
-  - Swift
-  - mobile
-  - in-app messaging
-  - native
-  - CocoaPods
-  - Swift Package Manager
+mode: "wide"
+keywords: ["iOS", "SDK", "Swift", "mobile", "in-app messaging", "native", "CocoaPods", "Swift Package Manager"]
 ---
 
-The iOS SDK is a native Swift library that embeds PolyAI's messaging agent directly inside your iOS app. It's **headless by design** — you own the UI, PolyAI provides the AI layer underneath. Your app connects to the same agent logic used across voice, webchat, and other channels.
+The iOS SDK is a native Swift library that embeds PolyAI's messaging agent directly inside your iOS app. It's **headless by design** — you own the UI, PolyAI provides the AI layer underneath. Your app connects to the same agent logic used across voice, webchat, and other channels. As of v0.9.0 it covers two channels, chat (`PolyMessaging`) and live two-way [voice calls](/messaging-channel/ios-sdk-voice) (`PolyVoice`).
 
 <Info>
-The iOS SDK wraps the [Messaging API](/api-reference/messaging/introduction). All WebSocket events, streaming, and handoff behavior documented in the API reference apply.
+  The iOS SDK wraps the [Messaging API](/api-reference/messaging/introduction). All WebSocket events, streaming, and handoff behavior documented in the API reference apply.
 </Info>
 
 <Card title="Source on GitHub" icon="github" href="https://github.com/polyai/ios-sdk">
@@ -27,6 +19,8 @@ The iOS SDK wraps the [Messaging API](/api-reference/messaging/introduction). Al
 ## How it works
 
 The SDK handles authentication, session management, WebSocket connections, and reconnection logic. Your app sends and receives messages through the SDK and renders them however you choose.
+
+Voice calling ships as a separate product, `PolyVoice`, so chat-only apps never link the WebRTC binary. It reuses the messaging `Configuration` and the same `CallState` / `PolyError` vocabulary, so there are no new concepts to learn if you already run chat. See [Voice calling (iOS)](/messaging-channel/ios-sdk-voice) for the full guide.
 
 <Steps>
   <Step title="Install the SDK">
@@ -43,25 +37,48 @@ The SDK handles authentication, session management, WebSocket connections, and r
   </Step>
 </Steps>
 
+## Requirements
+
+| Requirement | Minimum |
+| :-- | :-- |
+| iOS | 15.0\+ |
+| Swift | 5.9\+ |
+| Xcode | 15.0\+ |
+| Dependencies | None for chat (`PolyMessaging` is source-only); `PolyVoice` pulls the WebRTC xcframework |
+
+`PolyMessaging` (chat) also supports macOS; `PolyVoice` is iOS-only.
+
 ## Installation
 
-The SDK is distributed as a native Swift package. Choose either method:
+The SDK is pre-1.0, so a **minor** version bump is allowed to include breaking changes. Always pin to the next minor version — don't use Xcode's default "Up to Next Major" rule.
 
 <Tabs>
   <Tab title="Swift Package Manager">
-    In Xcode, go to **File > Add Package Dependencies** and enter the repository URL:
+    In Xcode, go to **File \> Add Package Dependencies** and enter the repository URL:
 
-    ```
+    ```text
     https://github.com/polyai/ios-sdk
     ```
 
-    Select the latest version and add the package to your target.
+    Set the **Dependency Rule** to _Up to Next Minor Version_ from `0.9.0`, then tick the **PolyMessaging** library for your app target. If you're using [voice calling](/messaging-channel/ios-sdk-voice), also tick **PolyVoice** — it's a separate product and isn't added automatically.
+
+    Or in `Package.swift`:
+
+    ```swift
+    // Pre-1.0: breaking changes bump the MINOR version, so pin to next-minor.
+    .package(url: "https://github.com/polyai/ios-sdk.git", .upToNextMinor(from: "0.9.0"))
+    
+    // target dependencies:
+    .product(name: "PolyMessaging", package: "ios-sdk")
+    .product(name: "PolyVoice", package: "ios-sdk")   // only if you need voice calling
+    ```
   </Tab>
   <Tab title="CocoaPods">
-    Add the pod to your `Podfile`:
+    Add the pod(s) to your `Podfile`:
 
     ```ruby
-    pod 'PolyMessaging'
+    pod 'PolyMessaging', '~> 0.9.0'
+    pod 'PolyVoice', '~> 0.9.0'   # only if you need voice calling
     ```
 
     Then run:
@@ -78,16 +95,14 @@ The iOS SDK authenticates using a connector token and your app's bundle identifi
 
 <Steps>
   <Step title="Generate a connector token">
-    In Agent Studio, go to **Messaging > API Configuration** and generate a new Messaging API key.
+    In Agent Studio, go to **Connector Settings** and generate a connector token for your agent.
   </Step>
   <Step title="Register your bundle identifier">
     When generating the token, set the **host identifier** to your app's bundle identifier (e.g. `com.yourcompany.app`). This must match the `CFBundleIdentifier` in your app's `Info.plist`. The backend rejects connections from apps with a mismatched bundle identifier.
   </Step>
 </Steps>
 
-<Warning>
-Never embed the connector token directly in your app binary. Use a backend service to mint short-lived access tokens and pass them to the SDK. See [security best practices](/api-reference/messaging/best-practices#security).
-</Warning>
+For voice calling you need one further credential from the same page, the **web calling token** — a separate value that authenticates the voice media gateway. See [Voice calling credentials](/messaging-channel/ios-sdk-voice#credentials).
 
 ## Key features
 
@@ -111,12 +126,39 @@ Agent messages can include `response_suggestions` — pre-written reply options.
 
 Agent messages may include rich content like links and images via the `attachments` field. Render these inline in your chat UI.
 
+### Voice calling
+
+`PolyVoice` places live, two-way WebRTC [voice calls](/messaging-channel/ios-sdk-voice) to the same agent that powers your chat. Calls are user-initiated: the user taps to call your agent. Call `PolyVoice.call` from the **main actor**:
+
+```swift
+import PolyMessaging
+import PolyVoice
+
+let call = try PolyVoice.call(
+    config: Configuration(apiKey: "YOUR_CONNECTOR_TOKEN"),        // connector token — Agent Studio › Connector Settings
+    options: VoiceOptions(webrtcToken: "YOUR_WEB_CALLING_TOKEN")  // web calling token — same page, a distinct value
+)
+
+// Observe the lifecycle: .idle → .connecting → .connected → .ended / .failed
+Task { for await state in call.states { render(state) } }
+
+try await call.start()   // after the microphone permission is granted
+await call.setMuted(true)
+await call.end()
+```
+
+Your app needs the microphone permission (`NSMicrophoneUsageDescription` — a call without it **crashes**, it doesn't fail gracefully) and the `audio` background mode so calls survive backgrounding. Beyond that the SDK handles the hard parts for you: accessory-aware audio routing (headsets and Bluetooth are used automatically, with a speaker/earpiece toggle for the user), automatic reconnection on transient network drops, and graceful handling of interruptions like incoming phone calls. Optional CallKit support runs the call as a system call, with lock-screen controls and phone-call audio priority — it requires specific delegate wiring, covered on the [voice page](/messaging-channel/ios-sdk-voice#callkit).
+
+<Card title="Voice calling (iOS)" icon="phone" href="/messaging-channel/ios-sdk-voice">
+  The full voice guide: installation, credentials, CallKit integration, audio routing, resilience, and troubleshooting.
+</Card>
+
 ## Platform values
 
-When the SDK creates a session, it sets `platform` to `ios` automatically. This is visible in Agent Studio analytics and can be used in your agent logic to tailor behavior for mobile users.
+The platform identifier is sent automatically when the session is created, alongside a `device_type` (mobile / tablet). It identifies the **device**, not the channel — for the channel a conversation arrives on, see [Multichannel](#multichannel) below.
 
 | Platform value | Source |
-|---|---|
+| :-- | :-- |
 | `ios` | iOS SDK (native) |
 | `android` | Android SDK (native) |
 | `ios-web` | Webchat widget on iOS Safari |
@@ -124,43 +166,48 @@ When the SDK creates a session, it sets `platform` to `ios` automatically. This 
 
 ## Limitations
 
-<Note>
-These limitations apply to the initial release. Check the [release notes](/releases/overview) for updates.
-</Note>
-
 | Limitation | Details |
-|---|---|
-| **Text only** | Voice input is not supported in V1. WebRTC voice support is planned for a future release and will require declaring microphone permissions (`NSMicrophoneUsageDescription`) in your `Info.plist`. |
-| **No push notifications** | While the app is active, the SDK delivers messages in real time. When the app is backgrounded, the SDK cannot receive messages. You can listen for incoming messages and trigger your own local notifications while the app is in the foreground, but true remote push notifications (APNs) are not yet supported. |
-| **iOS only** | The SDK is native Swift. There is no React Native or Flutter wrapper. Cross-platform frameworks would require a separate SDK. |
+| :-- | :-- |
+| **No remote notifications** | The SDK has no remote push integration (no APNs). Messages arrive over the WebSocket while the session is live; if your app holds a `beginBackgroundTask`, the connection keeps delivering for roughly 30 seconds after backgrounding and you can raise local banners from that — without one, iOS suspends the app immediately and nothing arrives. |
+| **User-initiated calls only** | Calls are always started by the user from inside your app. The agent cannot ring the user (no push-triggered incoming calls). |
+| **Voice needs a physical device** | WebRTC media does not run on the iOS simulator. |
+| **iOS only** | Native Swift only; no React Native or Flutter wrapper. |
 
 ## Multichannel
 
 The iOS SDK connects to the same agent project as your voice and webchat channels. Agent behavior, knowledge, and flows are shared — only channel-specific settings (greetings, formatting) differ. See [multichannel agents](/messaging-channel/multichannel) for how to tailor behavior per channel.
 
-In your agent's start function, detect the mobile channel using `conv.channel_type`:
+Two values tell your agent where a conversation came from, and they answer different questions:
+
+- **`conv.channel_type`** identifies the **channel**. Its possible values are `webchat.polyai`, `chat.polyai`, `sms.twilio`, `sms.polyai`, `rcs.polyai`, `whatsapp.polyai`, and `sip.polyai` — it is never `"ios"` or `"android"`.
+- **`platform`** identifies the **device**: the SDK sends `platform: "ios"` (alongside `device_type`) when the session is created. Use this to tailor behavior for native app users.
+
+To branch on the channel in your agent's start function:
 
 ```python
 def start(conv):
-    if conv.channel_type == "ios":
-        conv.state.greet_message = "Hi! How can I help you today?"
-    elif conv.channel_type.startswith("webchat"):
+    if conv.channel_type == "webchat.polyai":
         conv.state.greet_message = "Hi there! How can I help?"
+    elif conv.channel_type == "whatsapp.polyai":
+        conv.state.greet_message = "Hi! How can I help you today?"
 ```
 
 ## Related pages
 
 <CardGroup cols={2}>
+  <Card title="Voice calling (iOS)" icon="phone" href="/messaging-channel/ios-sdk-voice">
+    WebRTC voice calls with PolyVoice: setup, CallKit, audio routing, and troubleshooting
+  </Card>
+
   <Card title="Messaging API reference" icon="plug" href="/api-reference/messaging/introduction">
     Full WebSocket protocol, events, streaming, and handoff
   </Card>
+
   <Card title="Sessions and authentication" icon="key" href="/api-reference/messaging/sessions">
     Access tokens, session creation, and platform values
   </Card>
+
   <Card title="Multichannel agents" icon="layer-group" href="/messaging-channel/multichannel">
     Build agents that work across voice, webchat, and mobile
-  </Card>
-  <Card title="Best practices" icon="star" href="/api-reference/messaging/best-practices">
-    Connection management, UX, and security recommendations
   </Card>
 </CardGroup>
