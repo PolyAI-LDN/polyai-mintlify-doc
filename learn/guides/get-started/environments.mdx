@@ -1,7 +1,7 @@
 ---
-title: "Tutorial: Environments"
-sidebarTitle: "Environments"
-description: "PolyAcademy Level 1 – Understand Draft, Published, and Environment stages to safely promote changes to production."
+title: "Tutorial: Deployments"
+sidebarTitle: "Deployments"
+description: "PolyAcademy Level 1 – Work in a Branch, test it safely, and publish onto Live with confidence."
 icon: "code-branch"
 noindex: true
 ---
@@ -12,95 +12,75 @@ import { FillBlank } from '/snippets/fill-blank.jsx'
 import { Challenge } from '/snippets/challenge.jsx'
 import { LessonMeta } from '/snippets/lesson-meta.jsx'
 
-**Lesson 5 of 6** – Before your agent goes live, you need to understand environments. This is how you test safely – so changes never reach real users until you're ready.
+**Lesson 5 of 6** – Before your agent goes live, you need to understand how deployments work. This is how you test safely – so changes never reach real users until you're ready.
 
 <LessonMeta level={1} difficulty="Beginner" time="15 min" />
 
-Think of environments as stages: **Sandbox** (your workspace) → **Pre-release** (QA review) → **Live** (real users). Each stage runs a specific published version of your agent.
+Every project has a **Live** version, the agent actually talking to your customers. You never edit Live directly. Instead you work in a **Branch**, your own isolated copy branched off Live, and publish it back when it's ready.
 
-## How environments work
-
-Think of environments as **checkpoints**, not branches.
+## How it works
 
 <CardGroup cols={3}>
-  <Card title="Draft" icon="pencil">
-    Your working state. Changes exist only for you.
+  <Card title="Live" icon="signal-stream">
+    Production. The version handling real traffic. Never edited directly.
   </Card>
-  <Card title="Published version" icon="camera">
-    A snapshot of the agent at a moment in time.
+  <Card title="Branch" icon="code-branch">
+    Your isolated copy of the agent, branched off Live. Publishing merges it back.
   </Card>
-  <Card title="Environment" icon="server">
-    A place where a specific version is running and can receive traffic.
+  <Card title="Sub-branch" icon="code-merge">
+    Splits a Branch further, so several people can share one piece of work.
   </Card>
 </CardGroup>
 
-Multiple environments can point to the same version, but **only one version per environment** is active at any time.
+Branches and Sub-branches live in the **Sandbox** environment, which has no telephony or API connections, so nothing you build can reach a real system. When you want to test with a real phone number and API connections, move your Branch into **Staging**.
 
-## The full promotion flow
+## The flow
 
 ```mermaid
 flowchart TD
-    A[Make changes in Draft] --> B[Publish version]
-    B --> C[Test in Sandbox]
-    C --> D{Tests pass?}
-    D -->|Yes| E[Promote to Pre-release]
-    D -->|No| F[Fix in Draft]
-    F --> B
-    E --> G{UAT approved?}
-    G -->|Yes| H[Promote to Live]
-    G -->|No| F
-    H --> I[Monitor first calls]
+    A[Create a Branch from Live] --> B[Make your changes]
+    B --> C[Test in the app]
+    C --> D{Need a real phone number?}
+    D -->|Yes| E[Move to Staging and call it]
+    D -->|No| F{Tests pass?}
+    E --> F
+    F -->|Yes| G[Publish onto Live]
+    F -->|No| B
+    G --> H[Monitor first calls]
 ```
 
-## The Environments page
-
-This page shows every published version of your agent and where it is currently deployed.
-
-<AccordionGroup>
-  <Accordion title="What you'll see" icon="list">
-    - Version name or description
-    - Author and timestamp
-    - Which environments it's active in (Sandbox / Pre-release / Live)
-    - An overflow menu for actions
-  </Accordion>
-
-  <Accordion title="Key actions" icon="ellipsis-vertical">
-    - **Preview version** – load the agent exactly as that version behaves
-    - **Compare versions** – open a side-by-side diff
-    - **Rollback to this version** – immediately restore a previous state
-  </Accordion>
-</AccordionGroup>
+Publishing **merges** your Branch onto Live and creates a new version in Live's history. It never replaces Live outright, so nobody's work gets silently overwritten.
 
 ## Check your understanding
 
 <Quiz questions={[
   {
-    q: "Version 14 is active in Sandbox. You publish version 15 and promote it to Sandbox. What happens to version 14?",
+    q: "A colleague publishes their Branch while you are still working in yours. What happens to your Branch?",
     options: [
-      "It keeps running alongside version 15 until manually removed",
-      "It is replaced – version 15 becomes the only active version in Sandbox",
-      "Both versions run simultaneously for a short overlap period",
-      "Version 14 is automatically promoted to Pre-release",
+      "It is deleted, and you have to start again",
+      "It publishes automatically alongside theirs",
+      "It is marked Out of sync – you sync to pull in Live's latest changes before you can publish",
+      "Nothing – your Branch will silently overwrite theirs when you publish",
     ],
-    correct: 1,
-    explanation: "Only one version per environment is active at any time. Promoting version 15 to Sandbox replaces version 14 immediately. Multiple environments can each point to the same version, but each environment runs exactly one.",
+    correct: 2,
+    explanation: "When Live moves on, your Branch is marked Out of sync. Syncing pulls the latest changes from Live into your Branch, and if you have both touched the same thing, a conflict screen lets you decide which version to keep. Nothing is lost on either side.",
   }
 ]} />
 
 <FillBlank
-  prompt='Clicking Publish creates a _____ of the agent at that point in time. It does not push to any environment automatically.'
-  answer={["version", "snapshot", "Version", "Snapshot"]}
-  hint="Think of it like taking a photograph of the current state — immutable, dated, reviewable."
-  explanation="Publish creates a version (a snapshot) of the agent. You still need to promote that version to Sandbox, Pre-release, or Live separately. This separation means publishing is always safe — it never touches a live environment until you explicitly promote."
+  prompt='Publishing a Branch does not replace Live. It _____ your changes onto Live, creating a new version in its history.'
+  answer={["merges", "merge", "Merges"]}
+  hint="It is the same word you would use for combining two branches of work."
+  explanation="Publishing merges the Branch onto Live. Only genuine differences raise a conflict, and every publish becomes a version you can roll back to."
 />
 
-## Environment types
+## The environments
 
 <Tabs>
   <Tab title="Sandbox" icon="flask">
-    Sandbox is your **development and testing environment**.
+    Sandbox is where every Branch and Sub-branch lives while you work on it.
 
-    **Use Sandbox for:**
+    **Use a Branch in Sandbox for:**
     - Writing or editing KB topics
     - Adjusting rules and behavior
     - Changing voice settings
@@ -108,56 +88,41 @@ This page shows every published version of your agent and where it is currently 
 
     <AccordionGroup>
       <Accordion title="Best practices" icon="circle-check">
-        - Confirm you are in **Sandbox** before editing
-        - Publish frequently with short, descriptive notes
-        - Test after every meaningful change
-
-        **Example publish note:**
-        "Clarified late checkout KB and added SMS consent language"
+        - Check the navigation bar so you know which Branch or Sub-branch you are in
+        - Test after every meaningful change – your work saves as you go
+        - Keep each Branch focused on one piece of work
       </Accordion>
 
       <Accordion title="Verification" icon="magnifying-glass">
-        - Chat testing reflects your latest changes
-        - Test calls hit Sandbox numbers, not Live numbers
-        - Conversation Review shows the Sandbox environment tag
+        - In-app chat and call testing reflects your latest changes
+        - Nothing in Sandbox can reach a real phone number or API
       </Accordion>
     </AccordionGroup>
   </Tab>
 
-  <Tab title="Pre-release" icon="vial">
-    Pre-release is your **staging / UAT environment**.
+  <Tab title="Staging" icon="vial">
+    Staging is **optional**. Use it when in-app testing is not enough.
 
-    It should be treated as:
-    - Stable
-    - Reviewable
-    - Close to production
-
-    **Use Pre-release for:**
-    - Final review and approval
-    - QA review
-    - Final voice and pacing checks
-    - Regression testing
+    **Use Staging for:**
+    - Testing with a real phone number
+    - Testing against API connections
+    - Final voice and pacing checks over a real call
 
     <AccordionGroup>
       <Accordion title="Best practices" icon="circle-check">
-        - Promote to Pre-release only after Sandbox tests pass
-        - Re-run your tests for what you've built so far:
+        - Move a Branch into Staging once its in-app tests pass
+        - Only one Branch can be in Staging at a time
+        - Re-run your key tests over a real call:
           - Simple FAQ (Chat and Call)
           - Voice and greeting
           - Out-of-scope refusal
           - Any topics or actions you've added
-        - Review Conversation Review data again
-
-        **Example UAT checklist:**
-        - Do your FAQ topics still trigger correctly?
-        - Does voice sound identical to Sandbox?
-        - Are there any unexpected regressions?
       </Accordion>
 
       <Accordion title="Verification" icon="magnifying-glass">
+        - The staging number reaches your Branch, not Live
         - No unexpected KB topics are triggered
-        - No new hallucinations appear
-        - Behavior matches expectations across channels
+        - Behavior matches what you saw in Sandbox
       </Accordion>
     </AccordionGroup>
   </Tab>
@@ -166,47 +131,37 @@ This page shows every published version of your agent and where it is currently 
     Live is **production**. Real users are here.
 
     **Rules for Live:**
-    - Never edit directly
-    - Never "just test something quickly"
+    - Never edit directly – create a Branch instead
     - Always know exactly what version is live
+    - Every publish is a version you can roll back to
 
     <AccordionGroup>
       <Accordion title="Best practices" icon="circle-check">
-        - Promote to Live only from Pre-release
-        - Confirm promotion explicitly in the dialog
-        - Monitor first calls after release
+        - Test a Branch before publishing it
+        - Confirm the publish explicitly in the dialog
+        - Monitor first calls after publishing
 
-        **Example safe release habit:**
-        Promote → make one test call → open Conversation Review → confirm behavior → continue monitoring
+        **Example safe publishing habit:**
+        Publish → make one test call → open Conversation Review → confirm behavior → continue monitoring
       </Accordion>
     </AccordionGroup>
   </Tab>
 </Tabs>
 
-## Publishing and promotion flow
+## Working with others
 
-<Steps>
-  <Step title="Make changes">
-    Work in Draft mode
-  </Step>
-  <Step title="Publish">
-    Click **Publish** and add a clear description
-  </Step>
-  <Step title="Version appears in Sandbox">
-    Test thoroughly in Sandbox environment
-  </Step>
-  <Step title="Promote to Pre-release">
-    Move to staging for QA review
-  </Step>
-  <Step title="Test and review">
-    Complete full regression testing
-  </Step>
-  <Step title="Promote to Live">
-    Deploy to production
-  </Step>
-</Steps>
+Two ways to work in parallel:
 
-Nothing skips steps. If it does, something is wrong.
+<CardGroup cols={2}>
+  <Card title="Ship together" icon="people-group">
+    Share one Branch and give each person a **Sub-branch**. Merge each Sub-branch back as it finishes, test the Branch as a whole, then publish. Everything lands on Live at once.
+  </Card>
+  <Card title="Ship independently" icon="person-running">
+    Each person opens their own Branch and publishes on their own schedule. Branches never merge into each other; each one publishes to Live on its own.
+  </Card>
+</CardGroup>
+
+Nobody queues behind anyone. While one team spends weeks on a new flow in their Branch, a colleague can open a small Branch, update the knowledge base, and publish the same day.
 
 ## Comparing versions
 
@@ -221,113 +176,87 @@ The **Compare versions** view is your primary safety tool.
     - Sample question edits
   </Card>
   <Card title="When to use it" icon="shield-check">
-    Before every promotion to verify all changes are intentional
+    Before every publish, to verify all changes are intentional
   </Card>
 </CardGroup>
 
-**Example comparison insight:**
-- Late checkout KB text changed
-- New SMS action added
-- No rule or voice changes
-
-If you can't explain every change in the diff, don't promote.
+If you can't explain every change in the diff, don't publish.
 
 ## Rollbacks
 
 Rollbacks are instant and safe.
 
 <AccordionGroup>
-  <Accordion title="When to use rollback" icon="clock-rotate-left">
+  <Accordion title="When to roll back" icon="clock-rotate-left">
     - A KB topic misfires
     - Voice sounds wrong
     - Handoffs spike unexpectedly
-    - A release introduces confusion
+    - A publish introduces confusion
   </Accordion>
 
-  <Accordion title="How to rollback" icon="list-ol">
-    1. Select a known-good version
-    2. Click rollback
-    3. Confirm rollback
+  <Accordion title="How to roll back" icon="list-ol">
+    1. Open Live's version history – every publish is a version there
+    2. Select a known-good version and click rollback
+    3. Confirm
     4. Verify with a live test call
 
-    Rollback restores behavior immediately without deleting newer versions.
+    Rollback restores behavior immediately without deleting newer versions, and because publishing merges rather than replaces, nobody else's publish can silently undo it.
   </Accordion>
 </AccordionGroup>
-
-## Phone numbers and environments
-
-Each environment can have its own phone number.
-
-<CardGroup cols={3}>
-  <Card title="Sandbox number" icon="flask">
-    Internal testing only
-  </Card>
-  <Card title="Pre-release number" icon="vial">
-    QA and acceptance testing
-  </Card>
-  <Card title="Live number" icon="phone">
-    Public traffic
-  </Card>
-</CardGroup>
-
-This prevents accidental testing on production users.
 
 ## Common mistakes
 
 <Warning>
   **Avoid these pitfalls:**
-  - Editing while in Live without noticing
-  - Forgetting to publish before testing
-  - Assuming KB edits propagate automatically
-  - Skipping version comparison
-  - Using vague publish notes like "updates"
+  - Making a quick change without noticing which Branch you are in
+  - Leaving a Branch out of sync and letting conflicts pile up
+  - Skipping version comparison before publishing
+  - Testing in Sandbox when the behavior depends on a real phone call – use Staging
 </Warning>
 
 ## Check your understanding
 
 <Quiz questions={[
   {
-    q: "What does clicking 'Publish' do?",
+    q: "You need to make a hotfix while your team has a half-finished feature in a shared Branch. What do you do?",
     options: [
-      "Pushes the agent live immediately",
-      "Sends the agent to Pre-release for QA",
-      "Creates a snapshot (version) of the agent",
-      "Notifies your team of pending changes",
+      "Add the fix to the team's Branch and publish everything together",
+      "Edit Live directly – it's only a small change",
+      "Create your own Branch from Live, make the fix, test it, and publish it on its own",
+      "Wait for the team to finish their feature first",
     ],
     correct: 2,
-    explanation: "Publish creates a snapshot (version) of the agent at that moment. It does not push to Live – you still need to promote the version to an environment separately.",
+    explanation: "Branches are isolated. Your hotfix Branch branches off Live and merges straight back, so nothing from the team's half-finished work rides along, and their Branch is untouched.",
   }
 ]} />
 
 ## Verification checklist
 
 <Check>
-  You understand environments when:
+  You understand deployments when:
   - You can say which version is live without checking
   - You know how to roll back in under a minute
   - You can explain what changed between two versions
   - You never feel tempted to "just tweak production"
-
-  If environments feel slow, that usually means they're doing their job.
 </Check>
 
 <Challenge
-  scenario="Your agent is live. The helpdesk reports that since last night's release, the agent incorrectly tells callers that refunds take 3 days — the real policy is 5 business days. Version 22 is currently live. Version 21 was working correctly. What do you do first, and why?"
+  scenario="Your agent is live. The helpdesk reports that since last night's publish, the agent incorrectly tells callers that refunds take 3 days when the real policy is 5 business days. The latest version in Live's history is version 22; version 21 was working correctly. What do you do first, and why?"
   hints={[
-    "You have a way to restore correct behavior immediately, without building or testing a new version.",
-    "The Environments page shows all published versions and their current deployment status.",
-    "Restoring speed matters more than perfection right now — you can fix the root cause in Draft afterward."
+    "You have a way to restore correct behavior immediately, without building or testing anything new.",
+    "Live's version history shows every published version.",
+    "Restoring speed matters more than perfection right now. You can fix the root cause in a Branch afterward."
   ]}
-  solution="Roll back to version 21 immediately. Open the Environments page, locate version 21, click Rollback, and confirm. Make one test call to verify the correct refund policy is stated. Then fix the content error in Draft, publish version 23, test in Sandbox, and promote through Pre-release to Live as normal. Rollbacks are safe and instant — always prefer them over deploying a rushed fix under pressure."
+  solution="Roll back to version 21 immediately. Open Live's version history, select version 21, click rollback, and confirm. Make one test call to verify the correct refund policy is stated. Then create a Branch from Live, fix the content error, test it, and publish as normal. Rollbacks are safe and instant — always prefer them over publishing a rushed fix under pressure."
 />
 
 ## Try it yourself
 
 <Steps>
-  <Step title="Challenge: Pre-release checklist">
-    You've made three changes in Sandbox: updated the pet policy topic, added a new SMS offer for late checkout, and changed the agent voice stability from 0.6 to 0.8.
+  <Step title="Challenge: pre-publish checklist">
+    You've made three changes in your Branch: updated the pet policy topic, added a new SMS offer for late checkout, and changed the agent voice stability from 0.6 to 0.8.
 
-    List **at least 4 specific tests** you would run before promoting to Pre-release.
+    List **at least 4 specific tests** you would run before publishing.
 
     <Accordion title="Hint">
       Think about each change you made and what could have broken. Also consider: what tests should always run, regardless of what changed?
@@ -336,8 +265,8 @@ This prevents accidental testing on production users.
     <Accordion title="Example solution">
       1. **Test pet policy topic** – ask "are dogs allowed?" in both Chat and Call; confirm the correct topic triggers.
       2. **Test SMS consent flow** – ask "can you text me the late checkout info?" and confirm the agent asks for consent before sending.
-      3. **Make a test call** – listen for the voice stability change; confirm the agent sounds more consistent and no audio artifacts were introduced.
-      4. **Run a regression test** – test a simple FAQ, out-of-scope refusal, and a handoff to confirm nothing regressed from your other changes.
+      3. **Make a test call from Staging** – listen for the voice stability change over a real call; confirm no audio artifacts were introduced.
+      4. **Run a regression test** – test a simple FAQ, out-of-scope refusal, and a handoff to confirm nothing regressed.
       5. **Compare versions** – open the diff and confirm the three changes are the only ones present.
     </Accordion>
   </Step>
@@ -349,26 +278,26 @@ This prevents accidental testing on production users.
   {
     q: "Which environment should receive real user traffic?",
     options: [
-      "Sandbox – it's the most stable because it's been through the most testing",
-      "Pre-release – it's the last step before Live, so it's safe for real users",
+      "Sandbox – it always has the latest changes",
+      "Staging – it has a real phone number, so it's safe for real users",
       "Live",
-      "Either Pre-release or Live – the difference is just a naming convention",
+      "Either Staging or Live – the difference is just a naming convention",
     ],
     correct: 2,
-    explanation: "Only Live should receive real user traffic. Sandbox is for development and initial testing; Pre-release is for QA and UAT with test users only. Exposing real callers to earlier environments risks hitting untested behavior.",
+    explanation: "Only Live receives real user traffic. Sandbox is for building and in-app testing; Staging is for testing with a real phone number and API connections before you publish.",
   }
 ]} />
 
 ## Go deeper
 
-The Environments reference covers version diffs, project history, and advanced workflows:
+The Deployments reference covers the model in full, along with version diffs and everyday workflows:
 
 <CardGroup cols={3}>
-  <Card title="Environments reference" icon="server" href="/environments-and-versions/introduction">
-    Full reference for environments and version management
+  <Card title="Deployments reference" icon="server" href="/environments-and-versions/introduction">
+    How Live, Branches, Sub-branches and Staging fit together
   </Card>
   <Card title="Version diffs" icon="code-compare" href="/environments-and-versions/diffs">
-    How to compare versions side-by-side before promoting
+    How to compare versions side-by-side before publishing
   </Card>
   <Card title="Version management" icon="clock-rotate-left" href="/learn/maintain/version-management">
     Best practices for maintaining versions in a live project

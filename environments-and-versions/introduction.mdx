@@ -1,246 +1,65 @@
 ---
 title: 'Deployments'
 sidebarTitle: 'Overview'
-description: 'Learn how to ship safely: branch, promote, A/B test, and roll back from one timeline.'
+description: 'Work in an isolated copy of your agent, test it safely, publish it onto Live, and roll back if necessary.'
 mode: wide
 keywords:
-  - environments
-  - deployment
-  - versions
-  - sandbox
-  - pre-release
-  - live
-  - promote
   - deployments
+  - environments
+  - versions
+  - live
+  - branch
+  - sub-branch
+  - sandbox
+  - staging
+  - publish
+  - rollback
 ---
 
+Every project has a **Live** version, the agent actually talking to your customers. You never edit Live directly. Instead you make your changes in an isolated copy of your agent and publish them onto Live when ready. Each publish creates a new version in Live's history, and you can roll Live back to any previous version.
 
+## Terminology
 
-<Note>
-**New to environments?** Start with the [Environments tutorial](/learn/guides/get-started/environments) for a hands-on introduction. For detailed workflows and best practices, see [Version management](/learn/maintain/version-management).
-</Note>
+| **Term** | **Description** |
+|---|---|
+| **Live** | The environment serving your customers. You never edit it directly. Publishing merges changes onto it, and each publish creates a new version in its history. You can roll back to any previous Live version. |
+| **Branch** | An isolated copy of your agent, branched off Live. Publishing merges it back onto Live. |
+| **Sub-branch** | An isolated copy of your agent, branched from a Branch. It only ever merges back into its parent Branch. |
+| **Sandbox** | The environment where you build and test. It has no telephony or API connections, so nothing you build here can reach a real system. |
+| **Staging** | An optional environment where you can test with a real phone number and API connections, one Branch at a time. |
+| **Out of sync** | Your working copy is behind its parent. Pull the parent's changes in before publishing or merging. |
 
-<Tip>
-**Wren edits on branches.** Changes from [Wren](/wren/introduction) land on a branch off `Main`. Once merged, they flow through this same Draft → Sandbox → Pre-release → Live pipeline. Promotion is always manual.
-</Tip>
+## Deployment modes
 
-<Warning>
-**Saving is not the same as going live.** Saved changes are drafts. Drafts must be **published** to Sandbox, then **promoted** through Pre-release to Live. Unpublished changes don't appear in any environment.
-</Warning>
+Choose how you want to manage changes under **Deployment settings**, and change mode as your team grows. Click each mode to learn how it works.
 
-```mermaid
-stateDiagram-v2
-    [*] --> Draft: Make changes
-    Draft --> Sandbox: Publish
-    Sandbox --> PreRelease: Promote
-    PreRelease --> Live: Promote
-    
-    Live --> PreRelease: Rollback
-    PreRelease --> Sandbox: Rollback
-    
-    note right of Draft: Development
-    note right of Sandbox: Testing
-    note right of PreRelease: UAT staging
-    note right of Live: Production
-```
+| **Mode** | **How it works** | **Best for** |
+|---|---|---|
+| [**Simple**](/environments-and-versions/simple-mode) | No Branches. You edit your agent's working copy and publish it onto Live when ready. | A single builder making straightforward changes. |
+| [**Branches**](/environments-and-versions/branches-mode) | Everyone works in their own Branch, tests it, and publishes onto Live when ready, so nobody blocks anyone else. Optional Staging environment for live testing. No Sub-branches. | Small teams working in parallel, each publishing their own isolated changes. |
+| [**Sub-branches**](/environments-and-versions/sub-branches-mode) | The full model. A team splits one Branch into Sub-branches, merges them back, tests together, and publishes as one. Optional Staging environment for live testing. | Several people building updates that ship as one package. |
 
-## Creating a version
-
-A <Tooltip tip="The state between the latest published version and ongoing changes. Drafts become versions upon publishing.">draft</Tooltip> version
-is created whenever changes are made to an agent. A draft banner appears at the top of the page, allowing you to:
-
-* **Delete**: Revert to the most recent published version.
-
-* **Publish**: Save the draft as a version, optionally adding a description highlighting changes made and any notes for future
-  collaborators.
-
-<Frame caption="Removing a draft from a version line">
-  <img src="/images/deployment/draft-line.png" alt="delete-publish" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
-</Frame>
-
-Once published, the version becomes your active <Tooltip tip="Development environment where users build, change, and test versions of an agent.">Sandbox</Tooltip> deployment
-and you can access it from **Deployments** in the sidebar.
-
-<Frame caption="Promoting a version across environments">
-  <img src="/images/deployment/publish.png" alt="active-publish" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
-</Frame>
-
-## Working on branches
-
-Some areas of Agent Studio — such as **Knowledge** and **Tools** — use a git-style branching workflow so you can develop changes in isolation before they reach the shared version line. A **branch selector** dropdown (top-left) lists your branches alongside **Main**; switch branches to work on a set of changes without affecting `Main`.
-
-<Frame caption="Branch selector">
-  <img src="/images/knowledge/branch-selector.png" alt="Branch selector" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
-</Frame>
-
-When a branch is ready, open the **Merge to main branch** popover, add a commit message describing the change, and select **Merge**. Once merged into `Main`, the changes join the shared version line and can be promoted through the Draft → Sandbox → Pre-release → Live pipeline described below.
-
-<Frame caption="Merge to the main branch">
-  <img src="/images/flows/branch-merge.png" alt="Merge to the main branch" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
-</Frame>
-
-## Promoting a version
-
-Promotion moves a version from one environment to the next. The environments include Sandbox,
-<Tooltip tip="A staging environment for user acceptance testing (UAT) before promoting to production.">Pre-release</Tooltip>,
-and <Tooltip tip="The production environment. This is where the agent handles live traffic.">Live</Tooltip>.
-
-### Pre-release
-
-Staging environment for user acceptance testing (UAT).
-
-1. Go to **Deployments** in the sidebar.
-
-2. Click the **Options Menu** next to the desired version.
-
-3. Select **Promote to Pre-release**.
-
-### Live
-
-Production. Changes affect all active calls immediately.
-
-1. Go to the **Pre-release** tab in **Deployments**.
-
-2. Click the overflow menu (three vertical dots) next to the version.
-
-3. Select **Promote to Live**.
-
-4. Confirm your selection by checking the box and clicking **Promote**.
-
-<Tabs>
-  <Tab title="Confirm">
-    <Frame caption="initiate release">
-      <img src="/images/deployment/initiate-release.png" alt="initiate release" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
-    </Frame>
-  </Tab>
-
-  <Tab title="Complete">
-    <Frame caption="release confirmed and live">
-      <img src="/images/deployment/release-confirmed.png" alt="release confirmed and live" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
-    </Frame>
-  </Tab>
-</Tabs>
-
-## Comparing versions and environments
-
-Before promoting changes, you can compare versions across environments using a side-by-side diff view.
-
-1. Go to the **Deployments** section and open **Environments** or **Project History**.
-
-2. Select a version and click **Compare** to view differences between **Sandbox**, **Pre-release**, and **Live**.
-
-3. Versions appear in **reverse chronological order** (newest first) for easier navigation.
-
-For detailed information on tracking changes between versions, see [Tracking changes](/environments-and-versions/diffs).
-
-## Rolling back to a previous version
-
-Roll back to a previous version if needed:
-
-1. Go to **Deployments** in the sidebar.
-
-2. Select the **Options Menu** for the desired version.
-
-3. Click **Rollback**.
-
-4. Confirm the rollback.
-
-The system confirms when the rollback is complete.
-
-<Tabs>
-  <Tab title="Initiate">
-    <Frame caption="initiate rollback">
-      <img src="/images/deployment/initiate-rollback.png" alt="initiate rollback" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
-    </Frame>
-  </Tab>
-
-  <Tab title="Confirm">
-    <Frame caption="confirm rollback">
-      <img src="/images/deployment/rollback-confirmed.png" alt="confirm rollback" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
-    </Frame>
-  </Tab>
-</Tabs>
-
-## Testing your agent
-
-Main page: [Quickstart: test your agent](/get-started/quickstart#test-your-agent)
-
-Test your agent in any environment:
-
-1. Click the **Play Chat** icon in the top-right corner of the screen.
-
-2. Select the environment containing the version you want to test.
-
-## Assigning phone numbers
-
-Each environment can have its own phone number. To assign:
-
-1. Go to **Voice > Numbers** in the sidebar.
-
-Assign phone numbers and SIP headers per version.
-
-<Frame caption="assign version phone numbers">
-  <img src="/images/deployment/assign-number.png" alt="assign version phone numbers" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
-</Frame>
-
-## Automate with the Agents API
-
-The same pipeline is available programmatically, which is useful for wiring deployments into CI or orchestrating releases across many agents.
-
-<AccordionGroup>
-  <Accordion title="Deploy via the Agents API" icon="code">
-    The [Agents API](/api-reference/agents/introduction) exposes [publish](/api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment), [promote](/api-reference/agents/endpoint/deployments/promote-a-deployment-to-the-next-environment), and [rollback](/api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment) as the CI-friendly equivalents of the UI actions above. Note that merging a branch into `main` already publishes to Sandbox, so a standalone `publish` call is only needed when you have an undeployed `main` draft. Both `publish` and `promote` return the resulting deployment under a `deployment` key.
-
-    <CodeGroup>
-    ```bash curl
-    # Publish the current draft to sandbox
-    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/deployments/publish \
-      -H "x-api-key: $POLYAI_API_KEY" \
-      -H "Content-Type: application/json" \
-      -d '{ "environment": "sandbox" }'
-
-    # Promote a sandbox deployment to pre-release
-    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/deployments/DEPLOYMENT_ID/promote \
-      -H "x-api-key: $POLYAI_API_KEY"
-    ```
-
-    ```python Python
-    import os, requests
-
-    BASE = "https://api.us.poly.ai"
-    HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
-
-    # Publish the current draft to sandbox
-    resp = requests.post(
-        f"{BASE}/v1/agents/{AGENT_ID}/deployments/publish",
-        headers=HEADERS,
-        json={"environment": "sandbox"},
-    )
-    deployment_id = resp.json()["deployment"]["id"]
-
-    # Promote to pre-release once sandbox checks pass
-    requests.post(
-        f"{BASE}/v1/agents/{AGENT_ID}/deployments/{deployment_id}/promote",
-        headers=HEADERS,
-    )
-    ```
-    </CodeGroup>
-  </Accordion>
-</AccordionGroup>
+Every mode keeps the same foundations: publishing merges onto Live, each publish creates a version in Live's history, and you can roll Live back to any previous version. A lighter mode simply removes layers. Switching to a lighter mode never deletes existing work; it only stops you creating the layer it removes.
 
 ## Related pages
 
 <CardGroup cols={2}>
-  <Card title="Compare versions" icon="code-compare" href="/environments-and-versions/diffs">
-    Side-by-side diff of any two versions before promoting.
+  <Card title="Simple mode" icon="circle-play" href="/environments-and-versions/simple-mode">
+    Edit your working copy and publish. No Branches.
   </Card>
-  <Card title="Project history" icon="clock-rotate-left" href="/environments-and-versions/project-history">
-    Audit trail of all published versions and changes.
+  <Card title="Branches mode" icon="code-branch" href="/environments-and-versions/branches-mode">
+    Isolated Branches off Live, each publishing on its own.
   </Card>
-  <Card title="Testing" icon="flask-vial" href="/testing/simulation-tests">
-    Run regression tests against Draft or Sandbox.
+  <Card title="Sub-branches mode" icon="sitemap" href="/environments-and-versions/sub-branches-mode">
+    The full model for updates that ship as one package.
   </Card>
-  <Card title="Deployments endpoints" icon="square-terminal" href="/api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment">
-    Publish, promote, and rollback from the Agents API.
+  <Card title="Compare branches" icon="code-compare" href="/environments-and-versions/diffs">
+    Side-by-side diff of any two branches before you publish.
+  </Card>
+  <Card title="Branch management" icon="clock-rotate-left" href="/learn/maintain/version-management">
+    Everyday workflows, hotfixes and rollback practice.
+  </Card>
+  <Card title="Environments and testing FAQ" icon="circle-question" href="/troubleshoot/faq-environments">
+    Common questions about Sandbox, Staging and Live.
   </Card>
 </CardGroup>
