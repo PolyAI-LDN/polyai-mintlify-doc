@@ -8,6 +8,9 @@ keywords:
   - staging
   - live
   - deployments
+  - credentials
+  - channels
+  - integrations
 ---
 
 An **environment** is where your agent runs. Your project has more than one, so you can build and test a new version without affecting the one your customers are using.
@@ -24,15 +27,55 @@ Sandbox has no channel connections. A channel connection is what lets a real pho
 
 ## Staging
 
-Staging is optional, and not available in Simple mode. It holds one Branch at a time, which is what lets it have its own channel connections. Use it to test a change the way a customer would experience it, for example by calling a real phone number, before you publish.
+Staging is available in Branches and Sub-branches modes. It is not available in Simple mode, which has no separate Branches to move into it.
 
-Staging also has its own integration credentials, so most teams point it at test accounts and services rather than production ones. See [Staging](/environments-and-versions/staging) for how to set it up and how to move a Branch into it.
+Staging holds one Branch at a time, which is what lets it have its own channel connections, such as a real phone number. Use it to test a change the way a customer would experience it, before you publish.
+
+### When to use Staging
+
+Most changes go straight from Sandbox to Live. You can already test a Branch in Sandbox over an in-app call or chat, with your integrations working as configured.
+
+Use Staging when you need to reach your agent the way a customer would. That means a final check on voice and pacing over a real call, or confirming a channel is wired up correctly. It is also how you hand a colleague something to try.
+
+### Move a Branch to Staging
+
+<Frame caption="Move to staging, in a Branch's actions menu on the Deployments page">
+  <img src="/images/deployment/deployments-branch-menu.png" alt="Branch actions menu on the Deployments page, showing Move to staging" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
+
+<Steps>
+  <Step title="Open the Deployments page">
+    Find your Branch in the list.
+  </Step>
+  <Step title="Move it to Staging">
+    Use the Branch's actions menu.
+  </Step>
+  <Step title="Test it the way a customer would">
+    Call the Staging number, or use whichever channel you connected. Your agent answers from that Branch, using the connections configured for Staging.
+  </Step>
+  <Step title="Publish when you are ready">
+    Publishing works the same as it does from Sandbox. Your Branch's changes are added onto Live.
+  </Step>
+</Steps>
+
+<Note>
+Each project has one Staging environment, holding one Branch at a time. Moving another Branch to Staging replaces the one already there, so agree with your team who is using Staging before you move yours. Support for multiple Staging environments is coming soon.
+</Note>
+
+### Edit a Branch in Staging
+
+You cannot edit a Branch directly while it is in Staging. How you change it depends on your mode.
+
+- **In [Branches mode](/environments-and-versions/branches-mode)**, move the Branch out of Staging, make your change, then move it back.
+- **In [Sub-branches mode](/environments-and-versions/sub-branches-mode)**, make your edit in a Sub-branch and merge that Sub-branch into the Branch.
+
+Either route makes the update to Staging deliberate. Your changes save as you go, so without this a Branch would change while someone was testing on it. If you have given the Staging number to a colleague, they keep a stable, tested version until you choose to update it.
 
 ## Live
 
 Live is the version serving your customers. You never edit it directly.
 
-Publishing merges your changes onto Live and creates a new version in its history. If something goes wrong, you can roll back to any previous version in one step. See [Roll back a change](/environments-and-versions/introduction#rolling-back-a-change).
+Publishing merges your changes onto Live and creates a new version in its history. If something goes wrong, you can roll back to any previous version in one step. See [Rolling back a change](/environments-and-versions/introduction#rolling-back-a-change).
 
 <Frame caption="Live history on the Deployments page, with every published version in order">
   <img src="/images/deployment/deployments-live-history.png" alt="Deployments page Live history tab, listing published versions with the current one marked Live" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
@@ -49,15 +92,36 @@ Publishing merges your changes onto Live and creates a new version in its histor
 | **Integrations** | Shared by everything in Sandbox | Its own | Your production credentials |
 | **Who reaches it** | Agent Studio users with access to your project | Anyone you give the details to | Your customers |
 
-## What is set per environment
+## Set up each environment
 
-Some settings hold a separate value in each environment, so you can point Staging at test systems while Live points at real ones.
+Connections and credentials are configured per environment. Whatever you connect to an environment is what a test there, or a customer conversation on Live, will reach. Most teams point Sandbox and Staging at test accounts and services, and Live at production. If you are unsure what a test will reach, check how that environment is configured.
 
-- **Channel connections.** A channel connection points at one environment. Staging and Live each have their own, and Sandbox has none. See [Staging](/environments-and-versions/staging) for how to set them up.
-- **Integrations.** Apps, the [APIs](/integrations/api/introduction) you add yourself, and [knowledge sources](/knowledge/sources/introduction) each hold their own configuration per environment. Everything in Sandbox shares one set.
-- **Real-time configuration.** Values and schemas are set per environment, and changes take effect immediately rather than waiting for a publish. See [Real-time configuration](/real-time-config/introduction).
+### Channels
 
-Functions can also behave differently per environment by reading `conv.env`. A custom handoff function can use it to transfer to a different destination in Staging than on Live. See [Environment configuration](/tools/variables#environment-configuration).
+Channel connections exist in Staging and Live only. Each one points at a single version of your agent, and Sandbox holds many at once.
+
+- **Phone numbers.** Grouped by environment under **Voice > Numbers**. Assign a number to Staging or Live. This needs a telephony integration between your provider and PolyAI first. See [Phone numbers](/voice-channel/numbers/route-management).
+- **Widgets.** Chosen under **Integrations > Widgets**. Point a widget at Staging to test it against a Branch, or at Live for your website. You can move it between environments later without re-embedding. See [Configure a widget](/widgets/configure).
+
+### Integrations
+
+Integrations work in every environment, including Sandbox, where every Branch shares one set of credentials.
+
+- **Apps.** Pre-built integrations under **Integrations > Apps**, each with a guided setup. Connect an account and pick the environment its credentials apply to. The steps differ for each app. See [Integrations](/integrations/introduction).
+- **APIs you set up yourself.** Added under **Integrations > APIs**. Each environment gets its own base URL and authorisation, so Sandbox and Staging can reach your test services while Live reaches production. See [APIs](/integrations/api/introduction).
+- **Knowledge sources.** Each source is enabled per environment. See [Sources](/knowledge/sources/introduction).
+
+<Warning>
+API authentication is set per environment, not per Branch. Changing it on one Branch changes it for every Branch in that environment.
+</Warning>
+
+### Real-time configuration
+
+Values and schemas are set per environment, and changes take effect immediately rather than waiting for a publish. See [Real-time configuration](/real-time-config/introduction).
+
+### Functions
+
+Functions can behave differently per environment by reading `conv.env`. A custom handoff function can use it to transfer to a different destination in Staging than on Live. See [Environment configuration](/tools/variables#environment-configuration).
 
 <Note>
 MCP servers are the exception. They are not configured per environment, so an agent connects to the same MCP server wherever it runs.
@@ -69,8 +133,8 @@ MCP servers are the exception. They are not configured per environment, so an ag
   <Card title="Deployments" icon="rocket" href="/environments-and-versions/introduction">
     How changes reach your customers, and the three deployment modes.
   </Card>
-  <Card title="Staging" icon="flask" href="/environments-and-versions/staging">
-    Set up Staging and move a Branch into it.
+  <Card title="Branches mode" icon="code-branch" href="/environments-and-versions/branches-mode">
+    Everyone works in their own Branch and publishes when ready.
   </Card>
   <Card title="Compare changes" icon="code-compare" href="/environments-and-versions/diffs">
     See what changed before you publish.
