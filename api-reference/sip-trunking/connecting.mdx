@@ -1,0 +1,148 @@
+---
+title: "Connecting to PolyAI Telephony"
+sidebarTitle: "Connecting to Telephony"
+description: "Start routing phone calls into PolyAI."
+---
+
+Once you've created a [SIP Trunk](/api-reference/sip-trunking/introduction), you can start routing calls to it. Every inbound call must:
+
+1. Reach a PolyAI SIP server.
+2. Tell PolyAI **which trunk** it belongs to.
+3. Satisfy the trunk's authentication, if you have configured any.
+
+## Where to send calls
+
+PolyAI provides both DNS A records and SRV records to route calls to PolyAI SIP servers.
+
+### SIP Trunk A record (recommended)
+
+Each SIP Trunk is issued a unique hostname, returned as `inbound.hostname`:
+
+```
+tr-0123456789abcdefghijklmn.sbc.sip.eu.poly.ai
+```
+
+This resolves to a **multi-A DNS record** listing all of the PolyAI SIP servers in the region. You can either:
+
+- Treat each IP as a unique destination, and route calls evenly across each, or
+- Use only the first A record to let PolyAI randomly balance calls across the destinations for you.
+
+Because the trunk ID is embedded in the hostname, **no extra SIP header is needed** — PolyAI identifies the trunk from the host you connected to.
+
+<Note>
+PolyAI recommends against DNS caching, to avoid routing traffic to any disabled SIP servers.
+</Note>
+
+### Global A record
+
+PolyAI also publishes a shared hostname per region:
+
+| Region | Global A record        |
+| ------ | ---------------------- |
+| US     | `sbc.sip.us.poly.ai`   |
+| EU     | `sbc.sip.eu.poly.ai`   |
+| UK     | `sbc.sip.uk.poly.ai`   |
+
+Returns the same multi-A record as the SIP Trunk A record, but can be used where your SIP server routes traffic to multiple PolyAI SIP Trunks or accounts. As the host is shared, you **must provide the SIP Trunk ID** on every `INVITE` (see [Identifying the SIP Trunk](#identifying-the-sip-trunk)).
+
+### SRV records
+
+If you'd rather discover the PolyAI servers via SRV, PolyAI publishes records using the same hostnames as the Global A records (`sbc.sip.<region>.poly.ai`). `<region>` is one of `eu`, `uk`, `us`.
+
+| Service | Protocol | Use for                                        |
+| ------- | -------- | ---------------------------------------------- |
+| `sips`  | `tcp`    | TCP/TLS SIP with SRTP media (encrypted trunks) |
+| `sip`   | `udp`    | UDP SIP with RTP media (unencrypted trunks)    |
+
+<Note>
+When you connect via a Global A record or SRV, you **must provide the SIP Trunk ID** on every `INVITE` (see [Identifying the SIP Trunk](#identifying-the-sip-trunk)).
+</Note>
+
+## Transport and encryption
+
+PolyAI supports both encrypted and unencrypted transports.
+
+|             | Signaling         | Media         | PolyAI SIP port |
+| ----------- | ----------------- | ------------- | --------------- |
+| encrypted   | SIP over TCP/mTLS | SRTP over UDP | 5061            |
+| unencrypted | SIP over UDP      | RTP over UDP  | 5060            |
+
+The PolyAI RTP port range in both cases is **9000–49000**.
+
+### Firewall
+
+PolyAI uses static IP addresses for all of its SIP and RTP servers. If you need these to add to your firewall, please reach out to support.
+
+### Certificates
+
+- PolyAI supports **TLS version 1.2** for SIP over TLS.
+- PolyAI uses the **DigiCert Global Root G2** certificate in all regions — [DigiCertGlobalRootG2.crt.pem](https://cacerts.digicert.com/DigiCertGlobalRootG2.crt.pem) (download).
+- PolyAI supports client SIP servers with any publicly trusted Root Certificate in the [Mozilla 2026-07-16 CA Trust Bundle](https://curl.se/ca/cacert-2026-07-16.pem) (download).
+
+## Identifying the SIP Trunk
+
+If you're not connecting via the SIP Trunk's hostname, you must provide the SIP Trunk ID in **one** of:
+
+- the `X-PolyAI-SIP-Trunk-ID` SIP header, or
+- an `x-polyai-sip-trunk-id` request-URI parameter.
+
+<CodeGroup>
+```text SIP header highlight={9}
+INVITE sip:1000@sbc.sip.eu.poly.ai SIP/2.0
+Via: SIP/2.0/TLS 203.0.113.10:5061;branch=z9hG4bK74bf9
+Max-Forwards: 70
+From: "Example" <sip:+441234567890@example.com>;tag=8675309
+To: <sip:1000@sbc.sip.eu.poly.ai>
+Call-ID: 3c26700c8f2b4e1a9d5f@example.com
+CSeq: 1 INVITE
+Contact: <sip:203.0.113.10:5061;transport=tls>
+X-PolyAI-SIP-Trunk-ID: tr-0123456789abcdefghijklmn
+Content-Type: application/sdp
+Content-Length: 312
+
+(SDP offer…)
+```
+
+```text Request-URI parameter highlight={1}
+INVITE sip:1000@sbc.sip.eu.poly.ai;x-polyai-sip-trunk-id=tr-0123456789abcdefghijklmn SIP/2.0
+Via: SIP/2.0/TLS 203.0.113.10:5061;branch=z9hG4bK74bf9
+Max-Forwards: 70
+From: "Example" <sip:+441234567890@example.com>;tag=8675309
+To: <sip:1000@sbc.sip.eu.poly.ai;x-polyai-sip-trunk-id=tr-0123456789abcdefghijklmn>
+Call-ID: 3c26700c8f2b4e1a9d5f@example.com
+CSeq: 1 INVITE
+Contact: <sip:203.0.113.10:5061;transport=tls>
+Content-Type: application/sdp
+Content-Length: 312
+
+(SDP offer…)
+```
+</CodeGroup>
+
+## Authenticating your calls
+
+Authentication is optional per trunk. If you've configured it via the management API, your `INVITE` must satisfy it.
+
+### Token-based auth
+
+Send the token in the `X-PolyAI-SIP-Trunk-Token` header on your `INVITE`:
+
+```text highlight={3}
+INVITE sip:1000@tr-0123456789abcdefghijklmn.sbc.sip.eu.poly.ai SIP/2.0
+…
+X-PolyAI-SIP-Trunk-Token: a-long-random-shared-secret
+…
+```
+
+### Digest-based auth
+
+Standard SIP digest authentication. PolyAI replies to your first `INVITE` with a `401 Unauthorized` carrying a `WWW-Authenticate` challenge built from the trunk's `realm`.
+
+Your SIP server then re-sends the `INVITE` with an `Authorization` header computed from the trunk's `username` and `password`.
+
+## Checklist for an inbound call
+
+1. Connect over the right transport and port. If connecting over TLS, ensure you've uploaded PolyAI's Root Certificate and that your SIP server is using a supported TLS Certificate.
+2. Select a hostname to connect to, providing the SIP Trunk ID if not using the SIP Trunk's unique hostname.
+3. If the trunk has authentication, present the token header or answer the digest challenge.
+4. Set the dialed user part to a configured **extension** so the call reaches the right agent.
