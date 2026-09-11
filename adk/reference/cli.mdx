@@ -81,6 +81,36 @@ poly login --region studio
 |---|---|
 | `--region` | Region to log in to. If omitted, you are prompted to pick one. Choices match the standard region list. |
 
+### `poly apikey`
+
+`poly apikey` exists to get an account API key into `POLY_API_KEY` for the PolyAI APIs and Dialog RSN, and is runnable by an AI coding assistant. One-shot, non-interactive setup: sign-in, creates the account if needed, reuses or creates an account-scoped API key, saves it to `~/.poly/credentials.json`, and exports `POLY_API_KEY` into the shell profile (Windows: user environment). Never prompts. `--region` is required — pass `studio` (PLG) for GitHub-only device sign-in, or any other cluster for the standard sign-in page instead. See [Set up with an AI coding assistant](/adk/get-started/agentic-setup) for the copy-paste prompt that runs this for you. To set up the ADK itself, use `poly setup`/`poly login` instead.
+
+Examples:
+
+~~~bash
+poly apikey --region studio
+poly apikey --region studio --account-id acc-123
+poly apikey --region studio --key-name my-key -f
+poly apikey --region studio --json
+poly apikey --region us-1
+~~~
+
+| Flag | Description |
+|---|---|
+| `--region REGION` | Region/cluster to create the key for. Required — no default. Choices match the standard region list. |
+| `--key-name NAME` | Name for the account-scoped API key. Defaults to `cli-generated-key` for `studio`, or `cli-generated-key-<region>` for any other region. |
+| `--account-id ID` | Account ID to scope the key to. Skips polling for a newly created account. |
+| `-f`, `--force` | Overwrite an existing `POLY_API_KEY` if it holds a different value. |
+| `--json` | Print a single JSON object on stdout. The sign-in URL goes to stderr instead of being suppressed. |
+
+Exit codes: `0` on success, `1` on a sign-in, account, or API failure, `2` when `POLY_API_KEY` is already set to a different value and `--force` was not passed.
+
+<Info>
+**Which region should I pick?**
+
+Pass `--region studio` (PLG) — the cluster individual developers sign up on via GitHub — unless you already have an enterprise account provisioned in a production region (`us-1`, `uk-1`, `euw-1`). Those regions require signing in through the standard email/SSO login page rather than GitHub, since the GitHub-only client only exists for `studio`.
+</Info>
+
 ### `poly project`
 
 Manage Agent Studio projects.
