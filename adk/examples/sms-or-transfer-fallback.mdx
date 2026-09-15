@@ -2,7 +2,7 @@
 title: "SMS link with transfer fallback"
 ---
 
-A common pattern in voice agents: offer to send the caller a link by SMS, but transfer to a live agent if SMS isn't an option or the caller asks for it. The decision lives in a function so it is deterministic — not subject to LLM interpretation.
+A common pattern in voice agents: offer to send the caller a link by SMS, but transfer to a live agent if SMS isn't an option or the caller asks for it. The decision lives in a function so it is deterministic, not subject to LLM interpretation.
 
 ## Files involved
 
@@ -65,12 +65,12 @@ actions: |-
 **Testing via `poly chat`: `caller_number` will be empty**
 
 
-`conv.state.caller_number` is populated from inbound caller ID, which is only available on a real voice call. When testing with `poly chat`, `caller_number` is always empty regardless of `--channel` — `wants_sms: True` will always hit the "unable to send" branch.
+`conv.state.caller_number` is populated from inbound caller ID, which is only available on a real voice call. When testing with `poly chat`, `caller_number` is always empty regardless of `--channel`, so `wants_sms: True` will always hit the "unable to send" branch.
 
 To exercise the SMS path locally, mock the value in `start_function.py`:
 
 ~~~python
-conv.state.caller_number = "+15551234567"  # remove before deploying
+conv.state.caller_number = "+15551234567"  # remove before publishing
 ~~~
 
 </Warning>
@@ -93,7 +93,7 @@ See the [handoffs reference](/adk/reference/handoffs) for all SIP method options
 
 ## Per-environment sender number
 
-If the sender number differs between environments, the simplest approach is to configure `env_phone_numbers` directly in `config/sms_templates.yaml` — no code required:
+If the sender number differs between environments, the simplest approach is to configure `env_phone_numbers` directly in `config/sms_templates.yaml`, with no code required:
 
 ~~~yaml
 sms_templates:
@@ -105,9 +105,9 @@ sms_templates:
       live: "+443333333333"
 ~~~
 
-The platform selects the right number automatically when `conv.send_sms_template()` is called. See the [SMS setup reference](https://docs.poly.ai/sms/introduction) for full template configuration options.
+The keys are the environment ids: `sandbox` for Sandbox, `pre_release` for Staging and `live` for Live. The platform selects the right number automatically when `conv.send_sms_template()` is called. See the [SMS setup reference](https://docs.poly.ai/sms/introduction) for full template configuration options.
 
-If you need more control — for example, when using `conv.send_sms()` to send free-form content rather than a template — you can read `conv.env` directly:
+If you need more control, for example when using `conv.send_sms()` to send free-form content rather than a template, you can read `conv.env` directly. It returns `sandbox`, `pre-release` (the Staging environment) or `live`:
 
 ~~~python
 ENV_SENDER_NUMBERS = {
