@@ -30,6 +30,22 @@ The installed CLI is the fastest way to confirm the commands and flags available
 
 </Tip>
 
+<Info>
+
+**How the CLI maps to the new deployment system**
+
+
+The CLI keeps its own names. On projects using the new deployment system they map as follows:
+
+- `main` is the Live version. A branch is a Branch, cut from Live. A branch created from another branch is a Sub-branch.
+- `poly branch merge` merges into the parent. Merging a Branch into `main` publishes it to Live. Merging a Sub-branch merges it into its Branch.
+- `poly branch sync` is Sync. It pulls the parent's changes into your branch. Run it before merging if the parent has moved on.
+- `poly branch tag` moves the current Branch to Staging (`pre-release` in the CLI). `poly branch untag` removes it.
+- `poly deployments promote`, and the old sequence of promoting from sandbox to pre-release to live, apply only to projects that have not yet moved to the new deployment system.
+- `poly deployments rollback` rolls Live back on new-system projects.
+
+</Info>
+
 ## Core commands
 
 ### `poly start`
@@ -295,13 +311,16 @@ poly branch switch my-feature
 poly branch switch my-feature --force
 poly branch merge 'Merge feature branch'
 poly branch merge 'Merge feature branch' --interactive
+poly branch sync
+poly branch tag
+poly branch untag
 poly branch delete
 poly branch delete my-feature
 ~~~
 
 #### `poly branch merge`
 
-Merge the current branch into `main` via the CLI. A merge message is required.
+Merge the current branch into its parent via the CLI. A merge message is required. On the new deployment system, merging a Branch into `main` publishes it to Live, and merging a Sub-branch merges it into its Branch.
 
 ~~~bash
 poly branch merge 'Merge message'
@@ -310,6 +329,23 @@ poly branch merge 'Merge message' --resolutions resolutions.json
 ~~~
 
 For the full merge workflow — conflict tables, `--interactive` flow, the `--resolutions` JSON format, post-merge behavior, and troubleshooting — see the dedicated [Branch merging reference](/adk/reference/branch_merge).
+
+#### `poly branch sync`
+
+Pull the parent's changes into the current branch. A Branch's parent is `main` (Live on the new deployment system); a Sub-branch's parent is its Branch. Run it before merging if the parent has changed since you created or last synced the branch.
+
+~~~bash
+poly branch sync
+~~~
+
+#### `poly branch tag`
+
+Move the current Branch to Staging (`pre-release` in the CLI) so you can test it over a real phone number or widget. Staging is available in Branches and Sub-branches modes, not in Simple mode. `main` cannot be tagged. Use `poly branch untag` to take the Branch out of Staging.
+
+~~~bash
+poly branch tag
+poly branch untag
+~~~
 
 #### `poly branch delete`
 
@@ -336,14 +372,14 @@ On some projects, the delete command hits the same platform endpoint as branch c
 
 #### `poly branch create`
 
-Creates a new branch. By default the branch is sourced from the project's `main` branch (the sandbox environment).
+Creates a new branch. By default the branch is sourced from the project's `main` branch. On the new deployment system `main` is Live, so the new Branch starts as a copy of Live. On projects that have not yet moved, `main` is the sandbox environment.
 
 | Flag | Description |
 |---|---|
-| `--env`, `--environment` | Source the new branch from a deployed environment snapshot instead of `main`. Choices: `sandbox`, `pre-release`, `live`. |
+| `--env`, `--environment` | Source the new branch from a deployed environment snapshot instead of `main`. Choices: `sandbox`, `pre-release`, `live`. `pre-release` is the Staging environment. |
 | `--force`, `-f` | Force branch creation even if there are uncommitted local changes on main. |
 
-When `--env live` or `--env pre-release` is specified:
+When `--env live` or `--env pre-release` (Staging) is specified:
 
 - the version of the deployed environment is pulled into your local workspace
 - a branch is created from that snapshot
@@ -356,16 +392,16 @@ When `--env live` or `--env pre-release` is specified:
 **Use `--env live` with caution**
 
 
-Branching from a live deployment snapshot will overwrite your local project with the live state. Merging this branch back to main may roll back changes that were introduced after the snapshot was taken.
+Branching from a Live deployment snapshot will overwrite your local project with the Live state. On projects that have not yet moved to the new deployment system, merging this branch back to `main` may roll back changes that were introduced after the snapshot was taken. On the new deployment system, if Live changes after the snapshot, run `poly branch sync` before merging so those changes are kept.
 
 </Warning>
 
 <Info>
 
-**Only one active branch is allowed at a time**
+**Simple mode allows one Branch at a time**
 
 
-Agent Studio supports one non-main branch per project. Attempting to create a second branch while one already exists returns an error. Merge or delete the existing branch in Agent Studio before creating a new one.
+In Simple mode a project has one Branch, so creating a second returns an error. Switch to Branches or Sub-branches mode under Settings on the Deployments page to open more than one.
 
 </Info>
 
@@ -469,7 +505,7 @@ poly chat --conv-id <conversation_id> -m 'Follow-up message'
 
 #### Pushing before chatting
 
-Use `--push` to push the local project to Agent Studio before starting the chat session. This ensures local changes are live before testing without requiring a separate `poly push` step:
+Use `--push` to push the local project to Agent Studio before starting the chat session. This ensures the branch has your latest local changes before testing, without requiring a separate `poly push` step:
 
 ~~~bash
 poly chat --push
@@ -499,7 +535,7 @@ Use language flags to specify the expected input and output language when chatti
 | `--input-file FILE` | Read messages line-by-line from a file (`-` for stdin). |
 | `--conversation-id`, `--conv-id` | Resume an existing conversation by ID. |
 | `--json` | Emit a single JSON object when the session ends (see below). |
-| `--environment` | Target environment. Choices: `branch`, `sandbox`, `pre-release`, `live`. Defaults to `branch`. `branch` chats against the last **pushed** state of your current branch (not local uncommitted changes); on main it falls back to `sandbox`. Use `--push` to push local changes before chatting. |
+| `--environment` | Target environment. Choices: `branch`, `sandbox`, `pre-release`, `live`. Defaults to `branch`. `pre-release` is the Staging environment. `branch` chats against the last **pushed** state of your current branch (not local uncommitted changes); on main it falls back to `sandbox`. Use `--push` to push local changes before chatting. |
 | `--channel` | Channel to use (e.g. `webchat`, `voice`). |
 | `--lang` | Set both input and output language. |
 | `--input-lang` | Set input language only. |
@@ -644,7 +680,7 @@ List deployments for the project.
 
 | Flag | Description |
 |---|---|
-| `--env` | Environment to list deployments for. Choices: `sandbox`, `pre-release`, `live`. Defaults to `sandbox`. |
+| `--env` | Environment to list deployments for. Choices: `sandbox`, `pre-release`, `live`. `pre-release` is the Staging environment. Defaults to `live` on projects using the new deployment system, otherwise `sandbox`. |
 | `--details` | Show additional deployment details. |
 | `--verbose` | Show full error tracebacks for debugging. |
 
@@ -658,6 +694,8 @@ The default tabular view may wrap long URLs across multiple rows, making it unre
 </Tip>
 
 #### `poly deployments promote`
+
+This command applies to projects that have not yet moved to the new deployment system, where publishing a Branch replaces promotion.
 
 Promote a deployment to the next environment (`pre-release` or `live`), removing the need to use the Agent Studio UI.
 
@@ -691,7 +729,7 @@ Without `--force`, the command prompts for confirmation before proceeding and op
 
 #### `poly deployments rollback`
 
-Roll back sandbox to a previous deployment version.
+Roll back to a previous deployment version. On projects using the new deployment system this rolls Live back. On other projects it rolls back sandbox.
 
 Examples:
 
@@ -938,8 +976,9 @@ A typical CLI workflow looks like this:
 8. optionally review with `poly review`
 9. test or chat with the agent using `poly chat`
 10. browse and debug conversations with `poly conversations list` and `poly conversations get`
-11. merge the branch with `poly branch merge '<message>'`
-12. promote to pre-release or live with `poly deployments promote`
+11. optionally move the Branch to Staging with `poly branch tag` to test it over a real phone number or widget
+12. merge the branch with `poly branch merge '<message>'`; on the new deployment system, merging into `main` publishes the Branch to Live
+13. on projects that have not yet moved to the new deployment system, promote to pre-release or live with `poly deployments promote`
 
 <Info>
 

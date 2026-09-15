@@ -3,10 +3,24 @@ title: "Branch merging"
 ---
 
 <p className="lead">
-Merge a feature branch back into <code>main</code> with <code>poly branch merge</code>, including interactive and pre-defined conflict resolution.
+Merge a branch into its parent with <code>poly branch merge</code>, including interactive and pre-defined conflict resolution. On the new deployment system, merging a Branch into <code>main</code> publishes it to Live.
 </p>
 
-`poly branch merge` is the CLI-native counterpart to merging in the Agent Studio web UI. It brings everything you've changed on the current branch back onto `main`, surfaces any conflicts in a structured table, and lets you resolve them either interactively or from a JSON file.
+`poly branch merge` is the CLI-native counterpart to merging in the Agent Studio web UI. It brings everything you've changed on the current branch back onto its parent (`main` for a Branch, or the parent Branch for a Sub-branch). It surfaces any conflicts in a structured table and lets you resolve them either interactively or from a JSON file.
+
+<Info>
+
+**How the CLI maps to the new deployment system**
+
+
+- `main` is the Live version on projects using the new deployment system. A branch is a Branch, cut from Live. A branch created from another branch is a Sub-branch.
+- `poly branch merge` merges into the parent. Merging a Branch into `main` publishes it to Live. Merging a Sub-branch merges it into its Branch.
+- `poly branch sync` is Sync. It pulls the parent's changes into your branch. Run it before merging if the parent has moved on.
+- `poly branch tag` moves the current Branch to Staging (`pre-release` in the CLI). `poly branch untag` removes it.
+- `poly deployments promote`, and the old sequence of promoting from sandbox to pre-release to live, apply only to projects that have not yet moved to the new deployment system.
+- `poly deployments rollback` rolls Live back on new-system projects.
+
+</Info>
 
 For the broader branching workflow (creating, switching, listing, deleting branches), see the [`poly branch` section of the CLI reference](/adk/reference/cli#poly-branch). For the team-level guardrails around branching and merging, see [Multi-user workflows and guardrails](/adk/concepts/multi-user-and-guardrails).
 
@@ -17,14 +31,14 @@ You'll typically reach for `poly branch merge` at the end of a feature loop:
 1. Create a branch with `poly branch create my-feature` (see [`poly branch create`](/adk/reference/cli#poly-branch-create)).
 2. Iterate locally, pushing with `poly push` (see [Working locally](/adk/concepts/working-locally)).
 3. Test with `poly chat` against the branch's pushed state.
-4. Merge back to `main` with `poly branch merge '<message>'` — described on this page.
-5. Optionally deploy through Agent Studio.
+4. Merge back to `main` with `poly branch merge '<message>'`, described on this page. On the new deployment system this publishes the Branch to Live.
+5. On projects that have not yet moved to the new deployment system, promote the merged state with `poly deployments promote`.
 
-You can also merge from the Agent Studio web UI by switching to the branch and clicking **Merge**. The CLI command and the UI hit the same platform endpoint, so the result is identical.
+You can also do this in Agent Studio. Open a Branch and click **Publish** in the top-right corner, or open a Sub-branch and click **Merge**. The CLI command and the UI hit the same platform endpoint, so the result is identical.
 
 ## Basic usage
 
-`poly branch merge` requires a merge message and merges the **current branch** into `main`. Switch to the source branch first if you aren't on it.
+`poly branch merge` requires a merge message and merges the **current branch** into its parent (`main` for a Branch, or the parent Branch for a Sub-branch). Switch to the source branch first if you aren't on it.
 
 ~~~bash
 poly branch switch my-feature
@@ -46,10 +60,10 @@ If the merge has no conflicts, the branch is merged immediately and the CLI auto
 
 If the merge has conflicts, the command prints a conflict table and exits with a non-zero status code. The table shows, for each conflicting field:
 
-- **Path** — the resource and field that conflicts (for example `topics > Booking > content`)
-- **Base / Ours / Theirs** — the original value and the two competing values
-- **Auto-merged value** — what the ADK would produce by line-merging the two sides
-- **Auto-mergeable** — whether the auto-merged value contains any unresolved markers
+- **Path**: the resource and field that conflicts (for example `topics > Booking > content`)
+- **Base / Ours / Theirs**: the original value and the two competing values
+- **Auto-merged value**: what the ADK would produce by line-merging the two sides
+- **Auto-mergeable**: whether the auto-merged value contains any unresolved markers
 
 If every conflict is auto-mergeable and you want to accept the auto-merge, re-run the command with `--interactive` and accept the suggestions, or pre-populate `--resolutions` with the auto-merge values.
 
@@ -82,7 +96,7 @@ Use `--resolutions` to supply pre-defined resolutions non-interactively. The sou
 - a literal JSON string
 - `-` to read JSON from stdin
 
-If the resolutions cover every conflict the merge proceeds without prompting. Combine `--resolutions` with `--interactive` to seed an interactive session — pre-defined choices are applied automatically and you'll only be prompted for the conflicts they don't cover.
+If the resolutions cover every conflict the merge proceeds without prompting. Combine `--resolutions` with `--interactive` to seed an interactive session. Pre-defined choices are applied automatically and you'll only be prompted for the conflicts they don't cover.
 
 #### Resolution file format
 
@@ -118,18 +132,18 @@ You can capture the structure of a resolution file by running `poly branch merge
 
 - The CLI switches your local checkout to `main`.
 - Run [`poly pull`](/adk/reference/cli#poly-pull) if you need to refresh local state to match the post-merge `main`.
-- Run [`poly chat`](/adk/reference/cli#poly-chat) against `main` (which falls back to the sandbox environment) to smoke-test the merged result.
-- If you're ready to ship, follow up with [`poly deployments`](/adk/reference/cli#poly-deployments) to promote the merged state to a live environment.
+- Run [`poly chat`](/adk/reference/cli#poly-chat) against `main` (which falls back to the sandbox environment) to smoke-test the merged result. On the new deployment system, merging a Branch into `main` publishes it to Live straight away, so test the Branch with `poly chat` before you merge.
+- On projects that have not yet moved to the new deployment system, follow up with [`poly deployments`](/adk/reference/cli#poly-deployments) to promote the merged state to a live environment. On the new deployment system the merge has already published the Branch. If you need to undo it, [`poly deployments rollback`](/adk/reference/cli#poly-deployments-rollback) rolls Live back.
 
 ## Merging through the Agent Studio web UI
 
 You can also merge through the Agent Studio interface:
 
 1. Open the project in Agent Studio.
-2. Switch to the branch.
-3. Click **Merge**.
+2. Open the Branch or Sub-branch.
+3. Click **Publish** in the top-right corner for a Branch, or **Merge** for a Sub-branch.
 
-The web UI surfaces the same conflicts as the CLI and lets you resolve them in the browser. Use whichever path fits your workflow — they hit the same platform endpoint, so there is no functional difference between them.
+The web UI surfaces the same conflicts as the CLI and lets you resolve them in the browser. Use whichever path fits your workflow. They hit the same platform endpoint, so there is no functional difference between them.
 
 ## Troubleshooting
 

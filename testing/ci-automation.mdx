@@ -1,30 +1,29 @@
 ---
 title: "Automate with API"
 sidebarTitle: "Automate with API"
-description: "Gate deployments on simulation test results using the Agents API."
+description: "Gate publishing on simulation test results using the Agents API."
 keywords:
   - CI
   - automation
   - agents API
   - deploy
-  - promote
+  - publish
   - pipeline
 ---
 
-Test runs are most useful when they gate deployments. The [Agents API](/api-reference/agents/introduction) gives you publish and promote actions you can chain behind a passing test set.
+Test runs are most useful when they gate what reaches Live. The [Agents API](/api-reference/agents/introduction) lets you publish only after a test set passes. On the new deployment system, merging a Branch into `main` publishes it to Live.
 
-## Gate promotions on test results
+## Gate publishing on test results
 
-A typical CI job [publishes](/api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment) the current draft to Sandbox, runs the relevant test set, and only [promotes](/api-reference/agents/endpoint/deployments/promote-a-deployment-to-the-next-environment) to Pre-release if the set passes.
+A typical CI job runs the relevant test set on a Branch. If the set passes, the job [merges the Branch into `main`](/api-reference/agents/endpoint/branches/merge-branch), which publishes it to Live. If the set fails, the Branch stays where it is and Live is unaffected.
 
 ```mermaid
 flowchart LR
-    A[Publish Draft → Sandbox] --> B[Run test set]
-    B -->|Pass| C[Promote → Pre-release]
-    B -->|Fail| D[Block promotion]
+    A[Run test set on Branch] -->|Pass| B[Publish Branch → Live]
+    A -->|Fail| C[Block publish]
 ```
 
-Use the [Deployments endpoints](/api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment) to wire this into your CI pipeline.
+Use the [Merge branch](/api-reference/agents/endpoint/branches/merge-branch) and [Rollback](/api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment) endpoints to wire this into your CI pipeline.
 
 ## Related pages
 
@@ -36,9 +35,9 @@ Use the [Deployments endpoints](/api-reference/agents/endpoint/deployments/publi
     Organize tests into sets for CI.
   </Card>
   <Card title="Environments" icon="server" href="/environments-and-versions/introduction">
-    How versions move through Sandbox, Pre-release, and Live.
+    How changes move from a Branch to Live, with Staging optional.
   </Card>
-  <Card title="Deployments API" icon="square-terminal" href="/api-reference/agents/endpoint/deployments/publish-the-current-draft-to-an-environment">
-    Publish, promote, and rollback endpoints.
+  <Card title="Deployments API" icon="square-terminal" href="/api-reference/agents/endpoint/deployments/rollback-to-a-previous-deployment">
+    Rollback and other deployment endpoints.
   </Card>
 </CardGroup>

@@ -10,6 +10,8 @@ keywords:
   - control
   - variant
   - pre-release
+  - staging
+  - branch
   - live
 ---
 
@@ -17,26 +19,26 @@ keywords:
 **Availability (Beta).** A/B testing is available on US and UK enterprise clusters behind a feature flag. Ask your PolyAI representative to enable it for your project.
 </Note>
 
-A/B tests promote a second version to Live alongside the current one and split real caller traffic between them. You compare key metrics in your dashboards before ending the test and promoting a winner to receive 100% of traffic.
+A/B tests publish a second version to Live alongside the current one and split real caller traffic between them. You compare key metrics in your dashboards before ending the test and picking a winner to receive 100% of traffic.
 
-Use it for any change where you want evidence before fully rolling out — a new prompt, a reworked flow, a different routing rule, a model swap. Until now every change went to 100% of traffic on promotion; A/B testing gives you a controlled rollout.
+Use it for any change where you want evidence before fully rolling out: a new prompt, a reworked flow, a different routing rule, a model swap. Until now every change went to 100% of traffic when you published; A/B testing gives you a controlled rollout.
 
 ## How it works
 
-- The **current Live version** is the **control (A)**. The **version you promote from Pre-release** is the **variant (B)**.
+- The **current Live version** is the **control (A)**. The **Branch you publish as an A/B test** is the **variant (B)**.
 - At test start you set a traffic split between A and B (between 5% / 95% and 95% / 5%, in 5% steps; defaults to 50 / 50).
 - Both versions handle real customer traffic. Calls are routed at the start of the conversation and stay on the assigned version for the whole call.
-- The split is fixed for the duration of the test. (Mid-test adjustments are on the roadmap.)
+- You can change the split while the test runs. Open **Edit A/B test** on the active test in Live history.
 - Only one A/B test can be active per project at a time.
-- You end the test by picking a winner. The chosen version is promoted to Live and receives 100% of traffic. The losing version stays in its previous environment.
+- You end the test by picking a winner. The chosen version receives 100% of live traffic. The other version stops receiving traffic. If the control loses, it stays in Live history. If the variant loses, it stays available as a Branch.
 
 ```mermaid
 stateDiagram-v2
     direction LR
-    [*] --> Live: Promote (no test)
-    Live --> ABTest: Start A/B test\nfrom Pre-release
+    [*] --> Live: Publish (no test)
+    Live --> ABTest: Start A/B test\nfrom a Branch
     ABTest --> Live: End test\npick winner
-    note right of ABTest: Traffic split A / B\nFixed for test duration
+    note right of ABTest: Traffic split A / B\nAdjustable while the test runs
 ```
 
 ## Before you start
@@ -44,32 +46,28 @@ stateDiagram-v2
 You need:
 
 - An active Live deployment (this becomes the control).
-- A Branch in Staging that you want to test against it (this becomes the variant). Get there with the standard [Staging flow](/environments-and-versions/branches-mode#make-a-small-change).
+- A Branch that you want to test against it (this becomes the variant). It must be synced with Live and in Staging, so A/B testing needs Branches or Sub-branches mode. Create the Branch with the standard [Branches flow](/environments-and-versions/branches-mode#making-a-change), then [move it to Staging](/environments-and-versions/environments#moving-a-branch-to-staging).
 - No other A/B test currently running on the project.
 - The `ab_tests` feature flag enabled for the project.
 
-You also need write access to environments. Run a regression pass on the variant against your [simulation testing](/testing/simulation-tests) before promoting it to Pre-release — A/B testing measures real-world performance, not correctness.
+You also need write access to environments. Run [simulation tests](/testing/simulation-tests) on the variant Branch before you start the test. A/B testing measures real-world performance, not correctness.
 
 ## Start a test
 
-1. Open **Deployments** in the sidebar and go to the **Pre-release** tab.
-2. On the Pre-release version you want to test, open the overflow menu (three dots) and select **Run A/B test**.
+1. Open the Branch you want to test as the variant.
+2. Open the **Publish** menu (top-right) and select **Publish as an A/B test**. The option is greyed out until the Branch is synced with Live and in Staging.
 
-<Frame caption="Pre-release tab with the version overflow menu open, showing the Run A/B test option alongside Promote to Live, Preview version, Chat with Pre-release, and Compare versions">
-  <img src="/images/deployment/ab-test-overflow-menu.png" alt="Pre-release tab in Environments with the overflow menu open on a version, listing Promote to Live, Run A/B test, Preview version, Chat with Pre-release, and Compare versions" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
+<Frame caption="The Publish menu on a Branch, with Publish as an A/B test below Publish">
+  <img src="/images/deployment/publish-menu-branch.png" alt="Publish menu on a Branch showing View branch history, Compare changes with live, Move to staging, Publish, Publish as an A/B test and Delete branch" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
 </Frame>
 
 3. In the **Start A/B test** modal:
-   - **Name** — defaults to the current date and time. Override with something you'll recognize in history (for example, `Refund flow rewrite`).
-   - **Traffic split** — use the slider to set the split between A (control / current Live) and B (variant / Pre-release). Steps of 5%, from 5/95 to 95/5.
+   - **Name**: defaults to the current date and time. Override with something you'll recognize in history (for example, `Refund flow rewrite`).
+   - **Traffic split**: use the slider to set the split between A (control, the current Live version) and B (variant, your Branch). Steps of 5%, from 5/95 to 95/5.
    - Review both version cards to confirm you're testing the right deployments.
 4. Tick **Please confirm both versions will start receiving live customer traffic** and click **Start test**.
 
-<Frame caption="Start A/B test modal with a name field, a traffic-split slider defaulting to 50/50, cards for the current Live version (A) and the new Pre-release version (B), and a confirmation checkbox above Cancel and Start test buttons">
-  <img src="/images/deployment/ab-test-start-modal.png" alt="Start A/B test modal showing the A/B Test name field, the Live A / New B traffic-split slider at 50/50, version cards for current Live (A) and Pre-release (B) with their share, the live-traffic confirmation checkbox ticked, and Cancel and Start test buttons" style={{ maxWidth: '640px', width: '100%', margin: '0 auto', display: 'block' }} />
-</Frame>
-
-Both versions now serve live traffic at the configured split. The Environments page groups them together under the test name with **Live A** and **Live B** tags showing each version's traffic share.
+Both versions now serve live traffic at the configured split. **Live history** on the Deployments page groups them together under the test name with **Live A** and **Live B** tags showing each version's traffic share.
 
 <Warning>
 **Both versions are live.** Once you start the test, every caller is routed to either A or B and receives a real, production interaction. Don't start a test with a variant you wouldn't be comfortable shipping to all customers if it had to.
@@ -77,22 +75,18 @@ Both versions now serve live traffic at the configured split. The Environments p
 
 ## While a test is running
 
-<Frame caption="Pre-release tab in Environments during an active A/B test, with both versions tagged Live A 50% and Live B 50%">
-  <img src="/images/deployment/ab-test-running.png" alt="Environments page on the Pre-release tab during an active A/B test, showing both versions side by side tagged Live B 50% and Live A 50%" style={{ maxWidth: '720px', width: '100%', margin: '0 auto', display: 'block' }} />
-</Frame>
-
-- Both versions stay visible on the **Pre-release tab** with their traffic share shown next to each row (for example, *Live A 50%* and *Live B 50%*), and the active test appears as a grouped card on the **Live tab**.
+- The active test appears as a group in **Live history** on the Deployments page, with each version's traffic share shown next to it (for example, *Live A 50%* and *Live B 50%*). On the **Branches** tab, the variant Branch carries an **A/B** tag.
 - The **Agent Studio chat and call panels** show a banner: *"A/B test in progress, you may be served either live version."* Either version may answer when you test from inside Studio.
-- **Other promotions to Live are blocked** until the test ends — you'll see *"End A/B test before promoting a new version to live"* on the promote action.
+- **Publishing to Live is blocked** until the test ends. The Publish option is unavailable, and a Branch's menu on the Deployments page shows *"End A/B test before publishing to live"*.
 - **Rollback** of the control version is also blocked while a test is active. End the test first.
-- You can still promote other versions through Sandbox → Pre-release; only the final promotion to Live is gated.
+- You can keep working in other Branches and test them in Sandbox. Moving a Branch to or from Staging is blocked while the test runs, as is publishing to Live.
 
 ## Track performance
 
 Compare A vs B in your existing dashboards. Both versions write to the same analytics tables, tagged with their deployment version.
 
 - Open **Analytics > Dashboards** (QuickSight).
-- Filter by **deployed version** to slice any metric — CSAT, containment, latency, handover rate, function errors, anything you already track.
+- Filter by **deployed version** to slice any metric: CSAT, containment, latency, handover rate, function errors, anything you already track.
 - Compare the two version IDs side by side over the duration of the test.
 
 <Tip>
@@ -103,11 +97,11 @@ Conversation Review filtering by version is on the roadmap; for now, use dashboa
 
 ## End the test
 
-1. On the **Environments** page, click **End A/B test** on the active test group (top-right of the grouped card).
-2. In the **End A/B test** modal, select the version you want to keep as Live — either the control (A) or the variant (B).
+1. On the **Deployments** page, open **Live history** and click **End A/B Test** on the active test group.
+2. In the **End A/B test** modal, select the version you want to keep as Live, either the control (A) or the variant (B).
 3. Click **Confirm**.
 
-The chosen version is promoted to Live and receives 100% of traffic immediately. The other version stays in its previous environment (Live becomes Pre-release if the variant won; the variant stays in Pre-release if the control won).
+The chosen version receives 100% of live traffic immediately. The other version stops receiving traffic. If the variant won, the previous Live version stays in Live history and you can roll back to it. If the control won, the variant stays available as a Branch.
 
 <Note>
 **No automated significance testing yet.** You decide when there's enough data to call a winner based on your own thresholds. Statistical comparison is on the roadmap.
@@ -115,7 +109,7 @@ The chosen version is promoted to Live and receives 100% of traffic immediately.
 
 ## History
 
-Ended A/B tests appear in the **Live Version History** section of the Environments page, grouped under the test name with:
+Ended A/B tests appear in **Live history** on the Deployments page, grouped under the test name with:
 
 - Both versions and their traffic shares at the time the test ran.
 - An indicator on the chosen winner.
@@ -128,30 +122,28 @@ Expand any past test to view either version's full deployment details or compare
 Today:
 
 - One active A/B test per project.
-- Traffic split is set at test start and fixed for the test's duration.
-- Variant must be promoted from Pre-release.
-- No automated significance testing — you read the dashboards and decide.
+- The variant must be a Branch that is synced with Live and in Staging.
+- No automated significance testing. You read the dashboards and decide.
 - Conversation Review can't yet filter by deployment version.
 
 Planned:
 
-- Mid-test split adjustments.
 - Conversation Review filtering by version.
 - Automated significance testing and statistical comparison.
 
 ## Related pages
 
 <CardGroup cols={2}>
-  <Card title="The deployment pipeline" icon="layer-group" href="/environments-and-versions/introduction">
-    How versions move through Sandbox, Pre-release, and Live.
+  <Card title="Environments and versions" icon="layer-group" href="/environments-and-versions/introduction">
+    How changes move from a Branch to Live, with Staging optional.
   </Card>
-  <Card title="Compare versions" icon="code-compare" href="/environments-and-versions/diffs">
-    Side-by-side diff of any two versions before promoting.
+  <Card title="Compare changes" icon="code-compare" href="/environments-and-versions/diffs">
+    Side-by-side diff of any two versions before publishing.
   </Card>
-  <Card title="Project history" icon="clock-rotate-left" href="/environments-and-versions/project-history">
-    Audit trail of published versions, including A/B test history.
+  <Card title="Live history" icon="clock-rotate-left" href="/environments-and-versions/environments#live">
+    Every published version of Live, including A/B test history.
   </Card>
   <Card title="Testing" icon="flask-vial" href="/testing/simulation-tests">
-    Automated regression checks to run before promoting a variant.
+    Automated regression checks to run before publishing a variant.
   </Card>
 </CardGroup>

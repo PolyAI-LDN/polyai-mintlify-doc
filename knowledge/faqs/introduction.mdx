@@ -21,7 +21,7 @@ FAQs are found under **Knowledge > FAQs tab**.
 </Note>
 
 <Tip>
-**Use [Wren](/wren/introduction) to maintain topics in natural language.** Ask it to *"add a topic for store hours"*, *"tighten the refund answer"*, or *"create topics from `https://example.com/faq`"* — it edits FAQs on a branch you review before merging. You can also edit topics directly in this tab.
+**Use [Wren](/wren/introduction) to maintain topics in natural language.** Ask it to *"add a topic for store hours"*, *"tighten the refund answer"*, or *"create topics from `https://example.com/faq`"*. It edits FAQs on a Branch you review before publishing. You can also edit topics directly in this tab.
 </Tip>
 
 If you need to add custom logic to your topics, such as API calls, data lookups, or conditional behavior, see the [Tools](/tools/introduction) section under **Build** in the sidebar.
@@ -260,10 +260,10 @@ Multiple users can edit FAQs at the same time. Changes are synced in real time, 
 Not every topic needs to be available all the time. You can temporarily **deactivate** a topic to keep it out of retrieval without deleting it or removing its content.
 
 - Inactive topics are **ignored by the [LLM](https://en.wikipedia.org/wiki/Large_language_model)** and marked clearly in the UI.
-- Activation status is **environment-specific**, so you can test changes safely in Sandbox before going live. Learn more about [environments and versions](/environments-and-versions/introduction).
+- Activation status is **environment-specific**, so you can test changes safely in Sandbox before publishing to Live. Learn more about [environments and versions](/environments-and-versions/introduction).
 - CSV import/export includes an `Active` column (`Y`/`N`) for bulk updates.
 
-This is useful for seasonal articles, phased rollouts, A/B tests, or hiding content that is not ready for production.
+This is useful for seasonal articles, phased rollouts, A/B tests, or hiding content that is not ready for Live.
 
 ## Automate with the Agents API
 
@@ -273,11 +273,11 @@ If you already have a knowledge base somewhere else (a help center, CMS, or inte
   <Accordion title="Seed or sync topics via the Agents API" icon="code">
     The [Agents API](/api-reference/agents/introduction) has full CRUD for knowledge base topics. This is especially handy for the initial migration or for scheduled syncs from an external source.
 
-    Topics can't be written to `main` directly — create a branch, add them there, then merge it into `main` (which also publishes to Sandbox). Example queries go in `exampleQueries.queries`.
+    Topics can't be written to `main` directly. Create a Branch, add them there, then merge it into `main` (on the new deployment system, merging into `main` publishes to Live). Example queries go in `exampleQueries.queries`.
 
     <CodeGroup>
     ```bash curl
-    # Create a branch, add a topic on it, then merge to main
+    # Create a branch, add a topic on it, then merge to main, which publishes to Live
     curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches \
       -H "x-api-key: $POLYAI_API_KEY" \
       -H "Content-Type: application/json" \
@@ -305,7 +305,7 @@ If you already have a knowledge base somewhere else (a help center, CMS, or inte
     HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
 
     # Sync all FAQ entries from your CMS into PolyAI topics.
-    # main is read-only, so seed the topics on a branch and merge once.
+    # main is read-only, so seed the topics on a branch and merge once, which publishes to Live.
     branch_id = requests.post(
         f"{BASE}/v1/agents/{AGENT_ID}/branches",
         headers=HEADERS,
