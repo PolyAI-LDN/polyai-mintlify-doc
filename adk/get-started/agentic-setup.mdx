@@ -1,0 +1,79 @@
+---
+title: "Set up with an AI coding assistant"
+description: "Get a PolyAI account and an API key for the PolyAI APIs and Dialog RSN from Claude Code, Cursor, or Codex by pasting one prompt. The assistant installs the PolyAI CLI and runs `poly apikey --region studio`, a non-interactive GitHub sign-in that saves your key and exports POLY_API_KEY."
+---
+
+If you use an AI coding assistant, you can hand it the setup instead of doing it by hand. Copy the prompt below into your assistant. It installs the PolyAI CLI, signs you in with GitHub in your browser, creates your account if needed, and saves an API key for the PolyAI APIs and Dialog RSN.
+
+Nothing sensitive passes through the assistant — the sign-in and the key stay inside the `poly apikey` command.
+
+---
+
+### The prompt
+
+Copy everything in this block.
+
+```text Prompt
+I'm setting up a PolyAI account and an API key for the PolyAI APIs using
+PolyAI's CLI (the polyai-adk package on PyPI, source at github.com/polyai/adk,
+docs at https://docs.poly.ai/adk/get-started/agentic-setup). Please walk me
+through it.
+
+Before running anything, summarise the plan in three lines and wait for my "go".
+The last step writes POLY_API_KEY to my shell profile (or user environment on
+Windows), so include that in the summary.
+
+1. Check for uv with `uv --version`. If it's missing, ask me how I'd like to
+   install it: `brew install uv` on macOS, `winget install astral-sh.uv` on
+   Windows, or `pipx install uv` anywhere. Don't pipe a script into a shell.
+2. Install the CLI: `uv tool install --python 3.14 polyai-adk`. If `poly` isn't
+   found afterwards, run `uv tool update-shell` and tell me to open a new terminal.
+   If `poly apikey` isn't recognised, run `uv tool upgrade polyai-adk`.
+3. Run `poly apikey --region studio`. It prints a sign-in URL and opens it if it
+   can. Show me the URL either way; I'll sign in with GitHub in my browser. Allow
+   up to five minutes, since it waits for me.
+4. Show me the summary it prints. It only prints a masked key. Don't read
+   ~/.poly/credentials.json, the registry, or my shell profile to see the key.
+5. Verify with `poly project list --region studio` and tell me what it shows.
+   Remind me to open a new terminal so POLY_API_KEY is available.
+
+If any step fails, show me the output and stop. Don't retry with different flags.
+```
+
+### What the assistant will do
+
+1. Check for **uv** and ask how you'd like to install it if it's missing.
+2. Install the CLI with `uv tool install --python 3.14 polyai-adk`.
+3. Run [`poly apikey --region studio`](/adk/reference/cli#poly-apikey) and show you the sign-in URL.
+4. Wait while you approve the sign-in in your browser with GitHub.
+5. Show you the masked summary once it completes.
+6. Verify the key with `poly project list --region studio`.
+
+The assistant will ask for your "go" before running anything, and again before anything that needs a permission prompt in its own tool.
+
+This only gets you an API key — to set up the ADK itself for building agents, use `poly setup`/`poly login` instead.
+
+### What gets written where
+
+- The API key, to `~/.poly/credentials.json` (mode `600`) under the `studio` region — every `poly` command reads this.
+- `POLY_API_KEY`, to your shell profile (`~/.zshrc`, `~/.bash_profile`, `~/.bashrc`, or your fish config) — for the PolyAI SDKs and other tools that read it directly.
+- On Windows, `POLY_API_KEY` goes into your user environment variables instead of a profile file.
+
+### Requirements
+
+- **Python** — handled by uv, which downloads 3.14 if you don't already have it.
+- **uv itself** — `brew install uv`, `winget install astral-sh.uv`, or `pipx install uv`.
+- **A GitHub account.**
+- **An AI coding assistant** that can run shell commands — Claude Code, Cursor, Codex, and Copilot CLI all qualify. This prompt has been tested with Claude Code.
+
+### If something goes wrong
+
+- `poly` not found after install — run `uv tool update-shell` and open a new terminal.
+- `poly apikey` not recognised — run `uv tool upgrade polyai-adk`.
+- `POLY_API_KEY` already set to a different value — the command stops with exit code `2`; the assistant will ask you before rerunning with `--force`.
+
+You can always do the same steps yourself — see [Getting started](/adk/get-started/get-started) for the `poly login` flow.
+
+### Telemetry
+
+`poly apikey` sends anonymous usage events so we can see where setup fails; the key and sign-in token are never included. Set `DO_NOT_TRACK=1` or `POLY_NO_TELEMETRY=1` to opt out.
