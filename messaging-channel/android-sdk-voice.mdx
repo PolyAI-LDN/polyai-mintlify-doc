@@ -5,60 +5,246 @@ description: "Add live two-way WebRTC voice calls to your Android app with ai.po
 mode: "wide"
 ---
 
-`ai.poly:voice` places live, two-way WebRTC voice calls to a PolyAI agent — the companion artifact to the [Android SDK's](/messaging-channel/android-sdk) chat product. It ships **separately** so chat-only apps stay lean (the call path pulls in the native libwebrtc audio engine), and it reuses the messaging `Configuration` plus the same `CallState` / `PolyError.Voice` / `Environment` vocabulary — no new concepts.
+`ai.poly:voice` places live, two-way WebRTC voice calls to a PolyAI agent. It is the companion artifact to the [Android SDK's](/messaging-channel/android-sdk) chat product. It ships **separately** so chat-only apps stay lean (the call path pulls in the native libwebrtc audio engine), and it reuses the messaging `Configuration` plus the same `CallState` / `PolyError.Voice` / `Environment` vocabulary.
 
 Calls are user-initiated: the user taps to call your agent. Inbound (push-triggered) calls are not supported.
 
-<Card title="Source on GitHub" icon="github" href="https://github.com/polyai/android-sdk/tree/main/polyvoice">
-  polyai/android-sdk — includes the full polyvoice technical guide and runnable voice example apps.
+<Card title="Source on GitHub" icon="github" href="https://github.com/polyai/android-sdk/blob/main/polyvoice/README.md">
+  polyai/android-sdk: the full polyvoice technical guide and runnable voice example apps.
 </Card>
 
 ## Installation
 
+The `0.11.0` voice artifacts are compiled with Kotlin 2.4, so they require **Kotlin plugin `2.4.10` or newer**. In a fresh Android Studio project, set the Kotlin version first:
+
+```toml
+# gradle/libs.versions.toml
+[versions]
+kotlin = "2.4.10"
+```
+
+Then add the dependencies to the **app module**, not the top-level project file:
+
 ```kotlin
-// build.gradle.kts
+// app/build.gradle.kts
 dependencies {
-    implementation("ai.poly:messaging:0.9.0")
-    implementation("ai.poly:voice:0.9.0")
+    implementation("ai.poly:messaging:0.11.0")
+    implementation("ai.poly:voice:0.11.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0") // for the Compose quick start
 }
 ```
 
-## Quickstart
+`mavenCentral()` is already present in new Android Studio projects. If your project removed it, restore it under `dependencyResolutionManagement.repositories` in `settings.gradle.kts`.
 
-A call needs the **`RECORD_AUDIO`** runtime permission. The SDK declares it in its manifest, but your app must request the grant from the user before starting a call.
+## Initialize once, then call
+
+Both credentials go on the shared `Configuration` in `PolyMessaging.initialize(...)`. `PolyVoice.call(context)` then reads the initialized configuration, the same way `PolyMessaging.chat()` does for chat:
 
 ```kotlin
-import ai.poly.voice.PolyVoice
-
-val call = PolyVoice.call(
+PolyMessaging.initialize(
     context,
-    Configuration(apiKey = "YOUR_API_KEY"),            // connector token — Agent Studio › Connector Settings
-    VoiceOptions(webrtcToken = "YOUR_WEBRTC_TOKEN"),   // WebRTC token — same place (see Credentials below)
+    Configuration(
+        apiKey = "YOUR_API_KEY",
+        webrtcToken = "YOUR_WEBRTC_TOKEN",
+    ),
 )
 
-// Observe the call lifecycle (Idle → Connecting → Connected → Ended / Failed).
-lifecycleScope.launch {
-    repeatOnLifecycle(Lifecycle.State.STARTED) {
-        call.state.collect { state ->
-            when (state) {
-                is CallState.Connected -> showInCallUi()
-                is CallState.Failed -> showError(state.error)   // a PolyError.Voice
-                is CallState.Ended -> dismissInCallUi()
-                else -> Unit
+val call = PolyVoice.call(context)
+```
+
+- Both credentials are **required and distinct**.
+- The WebRTC token belongs in **`Configuration.webrtcToken`**. Do not set it on `VoiceOptions`.
+- `PolyVoice.call(context)` reads the configuration set by `PolyMessaging.initialize(...)`. Call `initialize` first.
+- If `Configuration.webrtcToken` is missing, `PolyVoice.call(...)` throws `PolyError.InvalidConfiguration`.
+
+For a call that needs a different connector than the one `initialize(...)` set, pass an explicit `Configuration` with both credentials:
+
+```kotlin
+PolyVoice.call(
+    context,
+    Configuration(apiKey = "YOUR_API_KEY", webrtcToken = "YOUR_WEBRTC_TOKEN"),
+)
+```
+
+`CallState`, `PolyError.Voice.*`, `Configuration`, and `Environment` are the same types from `ai.poly:messaging`.
+
+## Quick start
+
+The following is a complete foreground-only calling app for the current Android Studio **Empty Activity** Compose template. Create a project with minimum SDK 24 or newer, update Kotlin and add the dependencies above, then replace the generated activity. No manifest changes or extra application class are needed for this first call.
+
+<Steps>
+  <Step title="Paste one file: MainActivity.kt">
+    Open the `MainActivity.kt` Android Studio generated. Keep its first `package …` line, delete **everything below that line**, and paste the block below directly after it. Replace the two credential placeholders with your connector token and WebRTC token from **Agent Studio › Connector Settings**.
+
+    ```kotlin
+    // Paste below the package line already in your MainActivity.kt.
+    import ai.poly.messaging.Configuration
+    import ai.poly.messaging.PolyMessaging
+    import ai.poly.messaging.voice.CallState
+    import ai.poly.voice.PolyVoice
+    import android.Manifest
+    import android.content.pm.PackageManager
+    import android.os.Bundle
+    import androidx.activity.ComponentActivity
+    import androidx.activity.compose.rememberLauncherForActivityResult
+    import androidx.activity.compose.setContent
+    import androidx.activity.result.contract.ActivityResultContracts
+    import androidx.compose.foundation.layout.Arrangement
+    import androidx.compose.foundation.layout.Column
+    import androidx.compose.foundation.layout.Spacer
+    import androidx.compose.foundation.layout.fillMaxSize
+    import androidx.compose.foundation.layout.fillMaxWidth
+    import androidx.compose.foundation.layout.height
+    import androidx.compose.foundation.layout.padding
+    import androidx.compose.material3.Button
+    import androidx.compose.material3.MaterialTheme
+    import androidx.compose.material3.OutlinedButton
+    import androidx.compose.material3.Surface
+    import androidx.compose.material3.Text
+    import androidx.compose.runtime.Composable
+    import androidx.compose.runtime.DisposableEffect
+    import androidx.compose.runtime.getValue
+    import androidx.compose.runtime.mutableStateOf
+    import androidx.compose.runtime.remember
+    import androidx.compose.runtime.rememberCoroutineScope
+    import androidx.compose.runtime.setValue
+    import androidx.compose.ui.Alignment
+    import androidx.compose.ui.Modifier
+    import androidx.compose.ui.graphics.Color
+    import androidx.compose.ui.platform.LocalContext
+    import androidx.compose.ui.text.style.TextAlign
+    import androidx.compose.ui.unit.dp
+    import androidx.core.content.ContextCompat
+    import androidx.lifecycle.compose.collectAsStateWithLifecycle
+    import kotlinx.coroutines.launch
+    
+    class MainActivity : ComponentActivity() {
+        override fun onCreate(savedInstanceState: Bundle?) {
+            super.onCreate(savedInstanceState)
+    
+            // For this quick test, initialize before Compose creates the VoiceCall.
+            PolyMessaging.initialize(
+                context = this,
+                config = Configuration(
+                    apiKey = "YOUR_CONNECTOR_TOKEN",
+                    webrtcToken = "YOUR_WEB_CALLING_TOKEN",
+                ),
+            )
+    
+            setContent {
+                MaterialTheme {
+                    Surface(Modifier.fillMaxSize()) { CallScreen() }
+                }
             }
         }
     }
-}
+    
+    @Composable
+    private fun CallScreen() {
+        val context = LocalContext.current
+        val scope = rememberCoroutineScope()
+        val call = remember { PolyVoice.call(context.applicationContext) }
+        val state by call.state.collectAsStateWithLifecycle()
+        var muted by remember { mutableStateOf(false) }
+        var permissionDenied by remember { mutableStateOf(false) }
+    
+        DisposableEffect(call) {
+            onDispose { call.close() }
+        }
+    
+        fun startCall() {
+            permissionDenied = false
+            muted = false
+            scope.launch { runCatching { call.start() } }
+        }
+    
+        val requestMicrophone = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { granted ->
+            if (granted) startCall() else permissionDenied = true
+        }
+    
+        fun toggleCall() {
+            when (state) {
+                is CallState.Connecting, is CallState.Connected -> scope.launch { call.end() }
+                else -> {
+                    val granted = ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.RECORD_AUDIO,
+                    ) == PackageManager.PERMISSION_GRANTED
+                    if (granted) startCall()
+                    else requestMicrophone.launch(Manifest.permission.RECORD_AUDIO)
+                }
+            }
+        }
+    
+        val status = if (permissionDenied) {
+            "Microphone permission is required"
+        } else {
+            when (val current = state) {
+                is CallState.Idle -> "Tap to call the agent"
+                is CallState.Connecting -> "Connecting…"
+                is CallState.Connected -> "Connected — say hello 👋"
+                is CallState.Ended -> "Call ended"
+                is CallState.Failed -> "Failed: ${current.error.message}"
+            }
+        }
+    
+        Column(
+            modifier = Modifier.fillMaxSize().padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text("PolyAI Voice", style = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = status,
+                color = if (state is CallState.Failed || permissionDenied) Color.Red else Color.Unspecified,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(32.dp))
+            Button(
+                onClick = ::toggleCall,
+                enabled = state !is CallState.Connecting,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+            ) {
+                Text(if (state is CallState.Connected) "End call" else "Start call")
+            }
+            if (state is CallState.Connected) {
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = {
+                        muted = !muted
+                        scope.launch { call.setMuted(muted) }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (muted) "Unmute" else "Mute")
+                }
+            }
+        }
+    }
+    ```
+  </Step>
+  <Step title="Sync and run">
+    Click **Sync Project with Gradle Files**, select a **physical Android device**, and run the app. Tap **Start call** and allow microphone access. The status moves through **Connecting** to **Connected**.
+  </Step>
+</Steps>
 
-// After RECORD_AUDIO is granted:
-lifecycleScope.launch { call.start() }   // suspends until the call is connecting; throws on setup failure
+What the quick start covers:
 
-// In-call controls:
-call.setMuted(true)   // mute the mic
-call.end()            // hang up and release the mic
-```
+- **Runtime permission:** it requests `RECORD_AUDIO` before `start()`, and shows a message if the user denies it.
+- **State:** it observes `call.state` with `collectAsStateWithLifecycle()` and renders the connecting, connected, ended and failed states. `start()` returning means setup is under way, not that the call is already connected.
+- **Controls:** start, mute and end.
+- **Cleanup:** the screen holds one `VoiceCall` and calls `call.close()` in `DisposableEffect` when it leaves the composition.
 
-`CallState`, `PolyError.Voice.*`, `Configuration`, and `Environment` are the same types from `ai.poly:messaging`. Java callers get `Executor` \+ `Callback<Unit>` overloads of `start` / `end` / `setMuted`, mirroring the chat API.
+<Warning>
+  Initializing inside `MainActivity` is acceptable **only for this one-file first test**. It runs again if Android recreates the activity. In a production app, call `PolyMessaging.initialize(...)` once in `Application.onCreate()`.
+</Warning>
+
+This first call works only while the app is in the foreground. Once it works, add the [foreground service](#background-calls) before testing background calls.
+
+If Gradle reports `Unresolved reference 'implementation'`, the dependency lines were added to the top-level `build.gradle.kts`; move them into `app/build.gradle.kts`. If it reports incompatible Kotlin metadata version `2.4.0`, update the Kotlin version as shown under [Installation](#installation), then sync again.
 
 ## Credentials
 
@@ -66,23 +252,36 @@ A voice call needs **two credentials**, both on your agent in [Agent Studio](htt
 
 | Value | What it is | Required? | Sent as |
 | --- | --- | --- | --- |
-| **API key** — `Configuration.apiKey` | your **connector token** | **Yes** | `X-Token` (authenticates the call) |
-| **WebRTC token** — `VoiceOptions.webrtcToken` | the **gateway auth token** for the media connection — a **distinct** token from the API key | **Yes** | the offer `authToken` \+ ICE-servers fetch |
+| **API key**: `Configuration.apiKey` | Your **connector token** | **Yes** | `X-Token` (authenticates the call) |
+| **WebRTC token**: `Configuration.webrtcToken` | The auth token for the media connection, a **distinct** token from the API key | **Yes** | `Authorization: Bearer` when `webrtc-bridge` provisions the call |
 
-Both are always required and always distinct: the API key authenticates the _connector_ and is shared by chat and voice, so it lives on the shared `Configuration`; the WebRTC token authenticates the _media gateway_ only, so it lives on `VoiceOptions`.
+The API key authenticates the _connector_. The WebRTC token authenticates the _media backend_.
 
 Two more values have sensible defaults, so most apps don't set them:
 
-- **`environment`** defaults to `Environment.US`. Set `.UK` / `.EUW` — or `.cluster("…")` for a named cluster — only if your agent lives in another region. The same `Environment` you use for chat also selects the voice gateway.
+- **`environment`** defaults to `Environment.US`. Set `.UK` / `.EUW`, or `.cluster("…")` for a named cluster, only if your agent lives in another region. The same `Environment` also selects the corresponding `webrtc-bridge` deployment.
 - **`hostIdentifier`** (sent as `X-Host`) defaults to your app's package name (`applicationId`).
 
 <Note>
-  **Custom / self-hosted gateway:** the WebRTC gateway host is derived from your `Environment`. If you run a dev or self-hosted gateway, set `VoiceOptions.signalingHost` (no scheme, e.g. `"webrtc-gateway.example.com"`) — it's **required** with `Environment.Custom`, since the gateway host can't be derived from a custom messaging endpoint.
+  **Custom / self-hosted bridge:** the `webrtc-bridge` host is derived from your `Environment`. If you run a dev or self-hosted bridge, set `VoiceOptions.signalingHost` (no scheme, e.g. `"webrtc-bridge.example.com"`). It is **required** with `Environment.Custom`, since the bridge host can't be derived from a custom messaging endpoint.
 </Note>
+
+## How a call connects
+
+Calls are placed over PolyAI's **`webrtc-bridge`**. The older `webrtc-gateway` path has been **removed and no longer works**, so there is nothing to choose between.
+
+1. The SDK calls `POST /api/v1/call`, sending the WebRTC token as `Authorization: Bearer`.
+2. `webrtc-bridge` creates the call ID and returns it, together with the ICE servers for the call.
+3. ICE gathering completes **before** the SDP offer is sent.
+4. The SDP offer and answer are exchanged over HTTPS.
+5. Once media connects, a second negotiation starts the agent's audio.
+6. Teardown uses `DELETE /api/v1/call/{id}`.
+
+`start()` returns as soon as the call is under way, with the state `Connecting`. Observe `state` for `Connected`. The agent-track negotiation in step 5 runs after that, on your behalf. The call still links to the same messaging session, so the agent transcript is the same. The default fallback STUN server (`IceServer.DEFAULT`) is `stun.cloudflare.com`.
 
 ## Permissions
 
-The SDK's manifest **auto-merges** the three permissions every call needs — you don't declare these:
+The SDK's manifest **auto-merges** the three permissions every call needs. You don't declare these:
 
 ```xml
 <uses-permission android:name="android.permission.INTERNET" />
@@ -90,7 +289,7 @@ The SDK's manifest **auto-merges** the three permissions every call needs — yo
 <uses-permission android:name="android.permission.RECORD_AUDIO" />   <!-- runtime grant required -->
 ```
 
-`RECORD_AUDIO` is a **runtime** permission — request it before `start()` (the call fails fast with `PolyError.Voice.MediaFailed` if it's missing). Add the rest **only for the optional features you use**:
+`RECORD_AUDIO` is a **runtime** permission. Your app must still request it before `start()`; the call fails fast with `PolyError.Voice.MediaFailed` if it's missing. Add the rest **only for the optional features you use**:
 
 ```xml
 <!-- Bluetooth audio output — so BT headsets show up in call.audio (see "Audio output") -->
@@ -103,9 +302,39 @@ The SDK's manifest **auto-merges** the three permissions every call needs — yo
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />   <!-- ongoing-call notification -->
 ```
 
+`BLUETOOTH_CONNECT` is not declared by the SDK. Your app adds it and requests the grant when it needs Bluetooth routing.
+
+## Call lifecycle
+
+- Retain **one `VoiceCall`** while the owning screen is active.
+- Observe its `state` `StateFlow`: `collectAsStateWithLifecycle()` in Compose, or `repeatOnLifecycle(Lifecycle.State.STARTED)` in Views.
+- Call **`call.close()`** when the owning screen or component is permanently disposed.
+
+<Tabs>
+  <Tab title="Jetpack Compose">
+    ```kotlin
+    val call = remember { PolyVoice.call(context.applicationContext) }
+    val state by call.state.collectAsStateWithLifecycle()
+    
+    DisposableEffect(call) {
+        onDispose { call.close() }
+    }
+    ```
+  </Tab>
+  <Tab title="Android Views">
+    ```kotlin
+    lifecycleScope.launch {
+        repeatOnLifecycle(Lifecycle.State.STARTED) {
+            call.state.collect { state -> render(state) } // state.error is a PolyError.Voice on Failed
+        }
+    }
+    ```
+  </Tab>
+</Tabs>
+
 ## Audio output
 
-By default the call **follows the connected accessory** — a wired or Bluetooth headset is used automatically (and auto-switches when you plug/unplug one mid-call); when nothing's connected it falls back to the **loudspeaker** (`VoiceOptions(speakerphone = false)` falls back to the earpiece instead). To let users **pin a specific output**, observe `call.audio` and call `setAudioDevice` — and pass `null` to return to automatic:
+By default the call **follows the connected accessory**: a wired or Bluetooth headset is used automatically (and auto-switches when you plug/unplug one mid-call). When nothing is connected it falls back to the **loudspeaker** (`VoiceOptions(speakerphone = false)` falls back to the earpiece instead). To let users **pin a specific output**, observe `call.audio` and call `setAudioDevice`. Pass `null` to return to automatic:
 
 ```kotlin
 // A consistent snapshot: the outputs available now + the active one.
@@ -115,22 +344,25 @@ lifecycleScope.launch {
     }
 }
 
-call.setAudioDevice(speakerDevice)  // route to a device from availableDevices
-call.setAudioDevice(null)           // revert to automatic routing (wired > Bluetooth > earpiece/speaker)
+// setAudioDevice is a suspend function, so call it from a coroutine:
+lifecycleScope.launch {
+    call.setAudioDevice(speakerDevice)  // route to a device from availableDevices
+    call.setAudioDevice(null)           // revert to automatic routing (wired > Bluetooth > earpiece/speaker)
+}
 ```
 
-- `AudioDevice.type` is one of `EARPIECE` / `SPEAKER_PHONE` / `WIRED_HEADSET` / `BLUETOOTH`; `name` is a picker-friendly label. The list updates live as headsets connect/disconnect.
-- **Switching is asynchronous** — Bluetooth can take a few seconds to engage. Drive your UI off `call.audio`, not off `setAudioDevice` returning. Selecting an unavailable device is a no-op.
-- **Bluetooth needs `BLUETOOTH_CONNECT`.** The library does **not** declare this runtime permission for you; add it to your app and request the grant if you want Bluetooth outputs to appear. Without it, Bluetooth is simply absent — no crash.
+- `AudioDevice.type` is one of `EARPIECE` / `SPEAKER_PHONE` / `WIRED_HEADSET` / `BLUETOOTH`; `name` is a picker-friendly label. The list updates live as headsets connect and disconnect.
+- **Switching is asynchronous.** Bluetooth can take a few seconds to engage. Drive your UI off `call.audio`, not off `setAudioDevice` returning. Selecting an unavailable device is a no-op.
+- **Bluetooth needs `BLUETOOTH_CONNECT`.** The library does **not** declare this runtime permission for you. Add it to your app and request the grant if you want Bluetooth outputs to appear. Without it, Bluetooth is simply absent, with no crash.
 
 ## Interruptions (incoming calls, other apps)
 
-The SDK manages audio focus for you — it takes focus on `start()` and releases it on `end()`/teardown. It also **reacts to losing focus** while a call is live, so you don't have to:
+The SDK manages audio focus for you: it takes focus on `start()` and releases it on `end()` or teardown. It also **reacts to losing focus** while a call is live:
 
-- A **transient** loss (a notification, a navigation prompt) **mutes the mic** for the duration and restores it automatically when focus returns — the call stays `Connected`. Nothing to handle.
-- A **permanent** loss (the user answers an **incoming phone call**, or another app starts an exclusive audio session) **ends the call**: it surfaces as `CallState.Failed(PolyError.Voice.Interrupted)` and the mic is released.
+- A **transient** loss (a notification, a navigation prompt) **mutes the mic** for the duration and restores it automatically when focus returns. The call stays `Connected`.
+- A **permanent** loss (the user answers an **incoming phone call**, or another app starts an exclusive audio session) **ends the call**. It surfaces as `CallState.Failed(PolyError.Voice.Interrupted)` and the mic is released.
 
-So all you do is observe `state` and tell the user — the mic is already released for you:
+Observe `state` and tell the user; the mic is already released:
 
 ```kotlin
 lifecycleScope.launch {
@@ -144,10 +376,10 @@ lifecycleScope.launch {
 
 ## Background calls
 
-A `VoiceCall` is a plain object on its own coroutine scope — it is **not** tied to your Activity/Fragment lifecycle, so the SDK won't end a call just because your UI is backgrounded. **However**, when your app goes to the background Android 9\+ **cuts mic capture** and **throttles the WebRTC media/network threads**, so the connection silently dies within ~15s and the SDK reports `CallState.Failed(PolyError.Voice.Disconnected)`. To keep a call alive in the background you need **two things** while the call is active:
+A `VoiceCall` is a plain object on its own coroutine scope. It is **not** tied to your Activity or Fragment lifecycle, so the SDK won't end a call just because your UI is backgrounded. **However**, when your app goes to the background, Android 9+ **cuts mic capture** and **throttles the WebRTC media and network threads**, so the connection silently dies within ~15s and the SDK reports `CallState.Failed(PolyError.Voice.Disconnected)`. To keep a call alive in the background you need **two things** while the call is active:
 
-1. A **microphone foreground service** — grants background mic \+ keeps the process foregrounded.
-2. A **partial wake lock** — keeps the CPU running for the media/network threads.
+1. A **microphone foreground service**: grants background mic access and keeps the process foregrounded.
+2. A **partial wake lock**: keeps the CPU running for the media and network threads.
 
 ```xml
 <service android:name=".CallForegroundService" android:foregroundServiceType="microphone" android:exported="false" />
@@ -163,15 +395,15 @@ wakeLock = getSystemService(PowerManager::class.java)
 // release it in onDestroy()
 ```
 
-Start the service **before** `call.start()` and stop it when the call ends. The SDK is headless and deliberately doesn't impose a service (it has no notification UI) — that's your app's call. A foreground-only call works fine without any of this. Both voice example apps ship a complete, working `CallForegroundService` you can copy.
+Start the service **before** `call.start()` and stop it when the call ends. The SDK is headless and deliberately doesn't impose a service (it has no notification UI). A foreground-only call works without any of this. Both voice example apps ship a complete, working `CallForegroundService` you can copy.
 
 ## R8 / ProGuard
 
-**No keep rules needed in your app.** The `ai.poly:voice` AAR ships **consumer R8 rules** (applied automatically) that keep `org.webrtc.**` — libwebrtc is reached by name over JNI from native code, which R8 can't see, so stripping it would crash the audio engine. If you maintain a global `proguard-rules.pro` that's unusually aggressive, the shipped consumer rules still protect the SDK; you don't add anything.
+**No keep rules needed in your app.** The `ai.poly:voice` AAR ships **consumer R8 rules** (applied automatically) that keep `org.webrtc.**`. libwebrtc is reached by name over JNI from native code, which R8 can't see, so stripping it would crash the audio engine. If you maintain an unusually aggressive global `proguard-rules.pro`, the shipped consumer rules still protect the SDK; you don't add anything.
 
 ## Example apps
 
-A one-screen **tap-to-call** demo with the audio-output picker ships in both toolkits — drop your connector token and WebRTC token into the `PolyVoice.call(...)` block and run:
+A one-screen **tap-to-call** demo with the audio-output picker ships in both toolkits. Add your connector token and WebRTC token to the `PolyMessaging.initialize(...)` call in the example's `Application` class and run:
 
 - [`examples/voice/compose`](https://github.com/polyai/android-sdk/tree/main/examples/voice/compose)
 - [`examples/voice/views`](https://github.com/polyai/android-sdk/tree/main/examples/voice/views)

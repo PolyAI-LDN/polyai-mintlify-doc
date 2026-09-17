@@ -5,100 +5,473 @@ description: "Add live two-way WebRTC voice calls to your iOS app with PolyVoice
 mode: "wide"
 ---
 
-`PolyVoice` places live, two-way WebRTC voice calls to a PolyAI agent — the companion to the [iOS SDK's](/messaging-channel/ios-sdk) chat product. It ships as a **separate product/pod** so chat-only apps never link the WebRTC binary, and it reuses the messaging `Configuration` plus the same `CallState` / `PolyError` vocabulary, so there are no new concepts if you already run chat.
+`PolyVoice` places live, two-way WebRTC voice calls to a PolyAI agent. It is the companion to the [iOS SDK's](/messaging-channel/ios-sdk) chat product. It ships as a **separate product/pod** so chat-only apps never link the WebRTC binary, and it reuses the messaging `Configuration` plus the same `CallState` / `PolyError` vocabulary.
 
 Calls are user-initiated: the user taps to call your agent. Inbound (push-triggered) calls are not supported.
 
-<Card title="Source on GitHub" icon="github" href="https://github.com/polyai/ios-sdk">
-  polyai/ios-sdk — includes the full PolyVoice technical guide and runnable voice example apps.
+<Card title="Source on GitHub" icon="github" href="https://github.com/polyai/ios-sdk/blob/main/docs/PolyVoice.md">
+  polyai/ios-sdk: the full PolyVoice technical guide and runnable voice example apps.
 </Card>
 
 ## Installation
 
-The SDK is pre-1.0, so pin to the next minor version — a minor bump is allowed to include breaking changes.
+The SDK is pre-1.0, so pin to the next minor version. A minor bump is allowed to include breaking changes.
 
 <Tabs>
   <Tab title="Swift Package Manager">
-    Add the package and depend on the `PolyVoice` product (alongside `PolyMessaging`):
+    Add the package and depend on the `PolyVoice` product alongside `PolyMessaging`:
 
     ```swift
     // Pre-1.0: breaking changes bump the MINOR version, so pin to next-minor.
-    .package(url: "https://github.com/polyai/ios-sdk.git", .upToNextMinor(from: "0.9.0"))
+    .package(
+        url: "https://github.com/polyai/ios-sdk.git",
+        .upToNextMinor(from: "0.11.0")
+    )
     
     // target dependencies (the package identity is the repo name, `ios-sdk`):
     .product(name: "PolyMessaging", package: "ios-sdk")
     .product(name: "PolyVoice", package: "ios-sdk")
     ```
 
-    In Xcode, this means ticking **both** the PolyMessaging and PolyVoice libraries for your app target when adding the package.
+    In Xcode, tick **both** the PolyMessaging and PolyVoice libraries for your app target when adding the package.
   </Tab>
   <Tab title="CocoaPods">
     ```ruby
-    pod 'PolyVoice', '~> 0.9.0'   # chat-only apps use `pod 'PolyMessaging', '~> 0.9.0'` instead
+    pod 'PolyMessaging', '~> 0.11.0'
+    pod 'PolyVoice', '~> 0.11.0'
     ```
   </Tab>
 </Tabs>
 
-`PolyVoice` transitively pulls the WebRTC xcframework; `PolyMessaging` stays source-only. With CocoaPods the WebRTC dependency lives solely in `PolyVoice`, so a chat-only install pulls nothing extra.
+`PolyVoice` transitively pulls the WebRTC xcframework. `PolyMessaging` stays source-only, so a chat-only target links only `PolyMessaging`. With SPM, adding the repo still resolves the WebRTC package for the whole dependency graph, so a chat-only target downloads the xcframework without linking it. With CocoaPods the WebRTC dependency lives solely in `PolyVoice`, so a chat-only install pulls nothing extra.
 
-## Quickstart
+## Initialize once, then call
 
-Call `PolyVoice.call` from the **main actor** (it won't compile otherwise):
+Set both credentials once on the shared `Configuration` in `PolyMessaging.initialize(...)` at launch. `PolyVoice.call()` then takes no arguments: it reads that `Configuration` back, the same way `PolyMessaging.chat()` does for chat.
 
 ```swift
 import PolyMessaging
 import PolyVoice
 
-let call = try PolyVoice.call(
-    config: Configuration(apiKey: "YOUR_CONNECTOR_TOKEN"),        // connector token — Agent Studio › Connector Settings
-    options: VoiceOptions(webrtcToken: "YOUR_WEB_CALLING_TOKEN")  // web calling token — same page, a distinct value
-)   // throws PolyError.invalidConfiguration on a blank token, or a .custom environment without signalingHost
+PolyMessaging.initialize(.init(
+    apiKey: "YOUR_CONNECTOR_TOKEN",
+    webrtcToken: "YOUR_WEB_CALLING_TOKEN"
+))
 
-// Observe the lifecycle: .idle → .connecting → .connected → .ended / .failed
-Task { for await state in call.states { render(state) } }
-
-try await call.start()   // after the microphone permission is granted
-await call.setMuted(true)
-await call.end()
+let call = try PolyVoice.call()
+try await call.start()
 ```
 
+`PolyVoice.call()` returns a `PolyCall`. Observe its `state` (`.idle → .connecting → .connected → .ended` / `.failed`) and call `start()` / `end()` / `setMuted(_:)`. `PolyVoice.call` is `@MainActor`, so call it from the main actor. It throws `PolyError.invalidConfiguration` if the connector token or web calling token is blank, or for a `.custom` environment without `signalingHost`.
+
+To place a call with a different connector than the one `initialize(...)` set, pass a `Configuration` explicitly with `PolyVoice.call(config:options:)`.
+
 `CallState`, `PolyError`, and `Configuration` are the same types from `PolyMessaging`.
+
+## Quick start
+
+The smallest working call, in both toolkits. Create a new Xcode App project, add your connector token and web calling token to `PolyMessaging.initialize(...)`, and run on a **physical device**. WebRTC media needs real hardware (see [Troubleshooting](#troubleshooting)). Read [Microphone permission](#microphone-permission) and [Backgrounding](#backgrounding) before your first real call.
+
+<Tabs>
+  <Tab title="SwiftUI">
+    `PolyCall` is an `ObservableObject`: `state` and `audioState` are `@Published`. A view that binds it with `@ObservedObject var call: PolyCall` re-renders on every state and audio-route change, with no `for await` loop to write.
+
+    ```swift
+    // MyApp.swift
+    import SwiftUI
+    import PolyMessaging
+    
+    @main
+    struct MyApp: App {
+        init() {
+            PolyMessaging.initialize(.init(
+                apiKey: "YOUR_CONNECTOR_TOKEN",       // Agent Studio → Connector Settings
+                webrtcToken: "YOUR_WEB_CALLING_TOKEN" // same place — needed only for PolyVoice.call()
+            ))
+        }
+        var body: some Scene { WindowGroup { ContentView() } }
+    }
+    ```
+
+    ```swift
+    // ContentView.swift
+    import SwiftUI
+    import PolyMessaging
+    import PolyVoice
+    
+    struct ContentView: View {
+        @State private var call: PolyCall?
+        /// Only used before the first call exists (and to surface a construction failure) —
+        /// once there's a `PolyCall`, `CallPanel` observes it directly.
+        @State private var setupFailure: PolyError?
+    
+        var body: some View {
+            VStack(spacing: 24) {
+                Text("PolyAI Voice").font(.largeTitle.bold())
+    
+                if let call {
+                    CallPanel(call: call, onEnd: { self.call = nil })
+                } else {
+                    Text(setupFailure.map { "Failed: \($0)" } ?? "Tap to call the agent")
+                        .foregroundStyle(setupFailure == nil ? Color.secondary : Color.red)
+                        .multilineTextAlignment(.center)
+                    Button(action: startCall) {
+                        Text("Start call").frame(maxWidth: .infinity).padding(.vertical, 6)
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            .padding(32)
+        }
+    
+        private func startCall() {
+            do {
+                // No config/options to pass — PolyVoice.call() reads what MyApp.swift set.
+                let newCall = try PolyVoice.call()
+                setupFailure = nil
+                call = newCall
+                Task { try? await newCall.start() }
+            } catch {
+                setupFailure = error as? PolyError ?? .voice(.signalingFailed("\(error)"))
+            }
+        }
+    }
+    
+    /// The live-call UI. Binding to `PolyCall` directly is the whole point: `state`
+    /// and `audioState` are `@Published`, so this view stays in sync on its own.
+    private struct CallPanel: View {
+        @ObservedObject var call: PolyCall
+        let onEnd: () -> Void
+    
+        @State private var muted = false
+    
+        var body: some View {
+            VStack(spacing: 24) {
+                Text(statusText)
+                    .foregroundStyle(statusColor)
+                    .multilineTextAlignment(.center)
+    
+                Button(action: toggleCall) {
+                    Text(buttonText).frame(maxWidth: .infinity).padding(.vertical, 6)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(call.state.isActive ? .red : .accentColor)
+                .disabled(isConnecting)
+    
+                if isConnected {
+                    Button(muted ? "Unmute" : "Mute") { toggleMute() }
+                        .buttonStyle(.bordered)
+    
+                    // iOS keeps one active output + auto-routes accessories; the app's real
+                    // control is speaker ↔ earpiece. Show the current route, toggle the speaker.
+                    if let selected = call.audioState.selectedDevice {
+                        Text("Output: \(selected.name)").font(.caption).foregroundStyle(.secondary)
+                        Button(isSpeaker ? "Speaker: on" : "Speaker: off") { toggleSpeaker() }
+                            .buttonStyle(.bordered)
+                    }
+                }
+            }
+        }
+    
+        // MARK: - Derived UI
+    
+        private var isConnecting: Bool { if case .connecting = call.state { return true }; return false }
+        private var isConnected: Bool { if case .connected = call.state { return true }; return false }
+        private var isSpeaker: Bool { call.audioState.selectedDevice?.kind == .speakerphone }
+    
+        private var statusText: String {
+            switch call.state {
+            case .idle: return "Tap to call the agent"
+            case .connecting: return "Connecting…"
+            case .connected: return "Connected — say hello 👋"
+            case .ended: return "Call ended"
+            case .failed(let error): return "Failed: \(error)"
+            }
+        }
+    
+        private var statusColor: Color {
+            switch call.state {
+            case .connected: return .green
+            case .failed: return .red
+            case .connecting: return .orange
+            default: return .secondary
+            }
+        }
+    
+        private var buttonText: String {
+            switch call.state {
+            case .connecting: return "Connecting…"
+            case .connected: return "End call"
+            default: return "Start another call"
+            }
+        }
+    
+        // MARK: - Actions
+    
+        private func toggleCall() {
+            if call.state.isActive {
+                Task { await call.end() }
+            } else {
+                onEnd() // drop this call so the start screen can build a fresh one
+            }
+        }
+    
+        private func toggleMute() {
+            muted.toggle()
+            Task { await call.setMuted(muted) }
+        }
+    
+        /// Flip between the loudspeaker and the earpiece. Accessories (headset/Bluetooth) are
+        /// routed by the system automatically; this is the one output an app reliably controls.
+        private func toggleSpeaker() {
+            let target: AudioDevice.Kind = isSpeaker ? .earpiece : .speakerphone
+            if let device = call.audioState.availableDevices.first(where: { $0.kind == target }) {
+                Task { await call.setAudioDevice(device) }
+            }
+        }
+    }
+    ```
+  </Tab>
+  <Tab title="UIKit">
+    UIKit and other non-SwiftUI consumers observe the `states` and `audioStates` async sequences.
+
+    ```swift
+    //
+    //  AppDelegate.swift
+    //
+    
+    import UIKit
+    import PolyMessaging
+    
+    @main
+    class AppDelegate: UIResponder, UIApplicationDelegate {
+    
+        func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+            PolyMessaging.initialize(.init(
+                apiKey: "YOUR_CONNECTOR_TOKEN",       // Agent Studio → Connector Settings
+                webrtcToken: "YOUR_WEB_CALLING_TOKEN" // same place — needed only for PolyVoice.call()
+            ))
+            return true
+        }
+    
+        func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+            UISceneConfiguration(name: "Default Configuration", sessionRole: connectingSceneSession.role)
+        }
+    }
+    ```
+
+    ```swift
+    //
+    //  CallViewController.swift
+    //
+    
+    import UIKit
+    import PolyMessaging
+    import PolyVoice
+    
+    /// The smallest voice call in UIKit: PolyVoice.call(...), observe state, start/end.
+    /// The UIKit counterpart of the SwiftUI Voice example.
+    final class CallViewController: UIViewController {
+    
+        private let titleLabel = UILabel()
+        private let statusLabel = UILabel()
+        private let callButton = UIButton(type: .system)
+        private let muteButton = UIButton(type: .system)
+        private let outputLabel = UILabel()
+        private let speakerButton = UIButton(type: .system)
+    
+        private var call: PolyCall?
+        private var observer: Task<Void, Never>?
+        private var audioObserver: Task<Void, Never>?
+        private var muted = false
+        private var state: CallState = .idle { didSet { render() } }
+        private var audioState: AudioState = .empty { didSet { renderAudio() } }
+    
+        override func viewDidLoad() {
+            super.viewDidLoad()
+            view.backgroundColor = .systemBackground
+    
+            titleLabel.text = "PolyAI Voice"
+            titleLabel.font = .systemFont(ofSize: 34, weight: .bold)
+            titleLabel.textAlignment = .center
+    
+            statusLabel.textAlignment = .center
+            statusLabel.numberOfLines = 0
+            statusLabel.textColor = .secondaryLabel
+    
+            callButton.setTitle("Start call", for: .normal)
+            callButton.titleLabel?.font = .systemFont(ofSize: 20, weight: .semibold)
+            callButton.addTarget(self, action: #selector(toggleCall), for: .touchUpInside)
+    
+            muteButton.setTitle("Mute", for: .normal)
+            muteButton.addTarget(self, action: #selector(toggleMute), for: .touchUpInside)
+            muteButton.isHidden = true
+    
+            outputLabel.textAlignment = .center
+            outputLabel.font = .systemFont(ofSize: 13)
+            outputLabel.textColor = .secondaryLabel
+            outputLabel.isHidden = true
+    
+            speakerButton.addTarget(self, action: #selector(toggleSpeaker), for: .touchUpInside)
+            speakerButton.isHidden = true
+    
+            let stack = UIStackView(arrangedSubviews: [titleLabel, statusLabel, callButton, muteButton, outputLabel, speakerButton])
+            stack.axis = .vertical
+            stack.spacing = 20
+            stack.alignment = .fill
+            stack.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(stack)
+            NSLayoutConstraint.activate([
+                stack.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+                stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
+                stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -32),
+            ])
+            render()
+        }
+    
+        @objc private func toggleCall() {
+            if state.isActive {
+                Task { await call?.end() }
+            } else {
+                startCall()
+            }
+        }
+    
+        private func startCall() {
+            let newCall: PolyCall
+            do {
+                // No config/options to pass — PolyVoice.call() reads what AppDelegate set.
+                newCall = try PolyVoice.call()
+            } catch {
+                state = .failed(error as? PolyError ?? .voice(.signalingFailed("\(error)")))
+                return
+            }
+            muted = false
+            call = newCall
+    
+            observer?.cancel()
+            audioObserver?.cancel()
+            let states = newCall.states
+            observer = Task { [weak self] in
+                for await newState in states {
+                    await MainActor.run { self?.state = newState }
+                }
+            }
+            let audioStates = newCall.audioStates
+            audioObserver = Task { [weak self] in
+                for await snapshot in audioStates {
+                    await MainActor.run { self?.audioState = snapshot }
+                }
+            }
+            Task { try? await newCall.start() }
+        }
+    
+        @objc private func toggleMute() {
+            muted.toggle()
+            muteButton.setTitle(muted ? "Unmute" : "Mute", for: .normal)
+            Task { await call?.setMuted(muted) }
+        }
+    
+        // iOS keeps one active output + auto-routes accessories; speaker ↔ earpiece is the one
+        // output an app reliably controls.
+        @objc private func toggleSpeaker() {
+            let isSpeaker = audioState.selectedDevice?.kind == .speakerphone
+            let target: AudioDevice.Kind = isSpeaker ? .earpiece : .speakerphone
+            if let device = audioState.availableDevices.first(where: { $0.kind == target }) {
+                Task { await call?.setAudioDevice(device) }
+            }
+        }
+    
+        private func renderAudio() {
+            let hasAudio = !audioState.availableDevices.isEmpty
+            outputLabel.isHidden = !hasAudio
+            speakerButton.isHidden = !hasAudio
+            outputLabel.text = audioState.selectedDevice.map { "Output: \($0.name)" }
+            let isSpeaker = audioState.selectedDevice?.kind == .speakerphone
+            speakerButton.setTitle(isSpeaker ? "Speaker: on" : "Speaker: off", for: .normal)
+        }
+    
+        private func render() {
+            switch state {
+            case .idle: statusLabel.text = "Tap to call the agent"
+            case .connecting: statusLabel.text = "Connecting…"
+            case .connected: statusLabel.text = "Connected — say hello 👋"
+            case .ended: statusLabel.text = "Call ended"
+            case .failed(let error): statusLabel.text = "Failed: \(error)"
+            }
+            switch state {
+            case .connecting: callButton.setTitle("Connecting…", for: .normal)
+            case .connected: callButton.setTitle("End call", for: .normal)
+            default: callButton.setTitle("Start call", for: .normal)
+            }
+            callButton.isEnabled = { if case .connecting = state { return false }; return true }()
+            muteButton.isHidden = { if case .connected = state { return false }; return true }()
+        }
+    }
+    ```
+
+    A fresh Xcode iOS App template already wires a `SceneDelegate` and a storyboard. Set `CallViewController` as the storyboard's initial view controller, or set `window.rootViewController = CallViewController()` in `SceneDelegate.scene(_:willConnectTo:options:)`.
+  </Tab>
+</Tabs>
+
+Both examples are runnable as-is from [`Examples/SwiftUI/Voice/01-Hello`](https://github.com/polyai/ios-sdk/tree/main/Examples/SwiftUI/Voice/01-Hello) and [`Examples/UIKit/Voice/01-Hello`](https://github.com/polyai/ios-sdk/tree/main/Examples/UIKit/Voice/01-Hello).
 
 ## Credentials
 
 A voice call needs **two credentials**, both on your agent in [Agent Studio](https://studio.poly.ai) › Connector Settings (the same connector you use for chat):
 
-| Value | What it is | Sent as |
-| :-- | :-- | :-- |
-| **Connector token** — `Configuration.apiKey` | your connector token | `X-Token` (authenticates the call) |
-| **Web calling token** — `VoiceOptions.webrtcToken` | the media-gateway auth token — a **distinct** value from the connector token | the offer `authToken` and the ICE-servers fetch |
+| Value | Where it goes | What it is | Sent as |
+| :-- | :-- | :-- | :-- |
+| **Connector token** | `Configuration.apiKey` | Your connector token | `X-Token` (authenticates the call) |
+| **Web calling token** | Normally `Configuration.webrtcToken` | The media auth token, a **distinct** value from the connector token | `Authorization: Bearer` when `webrtc-bridge` provisions the call |
+| **Web calling token (per-call override)** | `VoiceOptions.webrtcToken` (optional) | Overrides `Configuration.webrtcToken` for one call | `Authorization: Bearer` when `webrtc-bridge` provisions the call |
+
+`Configuration.webrtcToken` is the normal place for the web calling token: set it once alongside `apiKey`, and every `PolyVoice.call()` picks it up. `VoiceOptions.webrtcToken` is an optional per-call override for apps that juggle multiple agents or tokens. **If both are set, the `VoiceOptions` value wins.**
+
+```swift
+// Optional per-call override: VoiceOptions.webrtcToken wins over Configuration.webrtcToken.
+let call = try PolyVoice.call(options: VoiceOptions(webrtcToken: "YOUR_WEB_CALLING_TOKEN"))
+```
 
 <Note>
-  **Region:** calls default to the US gateway. For a UK / EUW / other-region agent, set the environment on the shared `Configuration` — e.g. `Configuration(apiKey: …, environment: .cluster("…"))` — the same `Configuration` you use for chat.
+  **Region:** calls default to the US cluster. For a UK / EUW / other-region agent, set the environment on the shared `Configuration`, for example `Configuration(apiKey: …, environment: .cluster("…"))`. This is the same `Configuration` you use for chat.
 
-  **Custom / self-hosted gateway:** pass `VoiceOptions(webrtcToken:, signalingHost:)` to point at a specific gateway host (required when the environment is `.custom`).
+  **Custom / self-hosted host:** `VoiceOptions(signalingHost:)` overrides the `webrtc-bridge` host. It is required when the environment is `.custom`.
 </Note>
+
+## How a call connects
+
+Calls are placed over PolyAI's **`webrtc-bridge`**. The older `webrtc-gateway` path has been **removed and no longer works**. There is nothing to choose between and no API change: the same `PolyVoice.call` with the same two credentials.
+
+1. The SDK calls `POST /api/v1/call`, sending the web calling token as `Authorization: Bearer`.
+2. `webrtc-bridge` creates the call ID and returns it, together with the STUN/TURN servers for the call.
+3. ICE gathering completes **before** the SDP offer is sent.
+4. The SDP offer and answer are exchanged over HTTPS.
+5. Once media connects, a second negotiation starts the agent's audio.
+6. Teardown uses `DELETE /api/v1/call/{id}`.
+
+`start()` returns as soon as the call is under way, with the state `.connecting`. Watch for `.connected`. The agent-track negotiation in step 5 runs after that, on your behalf. The call still links to the same messaging session, so the agent transcript is the same.
 
 ## Microphone permission
 
-A call needs the microphone. Add **`NSMicrophoneUsageDescription`** to your app's `Info.plist` — a call without it **crashes** on iOS, it does not fail gracefully. The system prompts the user on the first call; the SDK activates the `AVAudioSession` for you (under [CallKit](#callkit), the system activates it instead — the permission requirement is unchanged).
+A call needs the microphone. Add **`NSMicrophoneUsageDescription`** to your app's `Info.plist`. A call without it **crashes** on iOS; it does not fail gracefully. The system prompts the user on the first call, and the SDK activates the `AVAudioSession` for you (under [CallKit](#callkit), the system activates it instead; the permission requirement is unchanged).
 
 ## Backgrounding
 
-To keep a call running while your app is in the background (the norm for a voice call), enable the **`audio` background mode** in your `Info.plist`:
+To keep a call running while your app is in the background, enable the **`audio` background mode** in your `Info.plist`:
 
 ```xml
 <key>UIBackgroundModes</key>
 <array><string>audio</string></array>
 ```
 
-Without it, iOS suspends the app when backgrounded and the call drops. By default a call is a normal app audio session, not a system phone call — for the system call UI, see [CallKit](#callkit), which additionally requires the **`voip`** background mode alongside `audio`.
+The SDK holds a `playAndRecord` `AVAudioSession`, so with this mode the call keeps running when the app is backgrounded. Without it, iOS suspends the app and the call drops. By default a call is a normal app audio session, not a system phone call. For the system call UI, see [CallKit](#callkit), which additionally requires the **`voip`** background mode alongside `audio`.
 
 ## Audio routing
 
 The call is **accessory-aware** by default: a connected wired or Bluetooth headset is used automatically (and followed if connected or removed mid-call); otherwise it falls back to the loudspeaker. Set `VoiceOptions(speakerphone: false)` to fall back to the earpiece instead.
 
-iOS keeps one active output and routes accessories for you, so the output an app reliably controls is speaker ↔ earpiece. Observe the live route via `call.audioStates` and switch with `call.setAudioDevice(_:)`:
+iOS keeps one active output and routes accessories for you, so the output an app reliably controls is speaker ↔ earpiece. In SwiftUI, read `call.audioState` from your `@ObservedObject`, as the [quick start](#quick-start) does. In UIKit, observe `call.audioStates`. Switch with `call.setAudioDevice(_:)`:
 
 ```swift
 Task { for await snapshot in call.audioStates {
@@ -111,13 +484,13 @@ await call.setAudioDevice(earpieceDevice)   // .kind == .earpiece
 let muted = await call.isMuted
 ```
 
-`availableDevices` also lists connected headsets and Bluetooth devices (`.kind` is `.earpiece` / `.speakerphone` / `.wiredHeadset` / `.bluetooth`) for display. To let users pick among connected outputs the iOS-standard way, drop in the system route picker (`AVRoutePickerView`).
+`availableDevices` also lists connected headsets and Bluetooth devices (`.kind` is `.earpiece` / `.speakerphone` / `.wiredHeadset` / `.bluetooth`) for display. To let users pick among connected outputs the iOS-standard way, use the system route picker (`AVRoutePickerView`).
 
 ## CallKit
 
 Opt in with **`VoiceOptions(callKit: true)`** to run a call as a **system call**: the green in-call indicator, lock-screen / AirPods / car-Bluetooth controls, phone-call audio priority, and hold arbitration when a cellular call arrives.
 
-In this mode the SDK never activates or deactivates the audio session itself — CallKit does — and your `CXProviderDelegate` **must** forward three moments to the SDK. Without this forwarding, the call connects but has no sound.
+In this mode the SDK never activates or deactivates the audio session itself; CallKit does. Your `CXProviderDelegate` **must** forward all three `PolyVoice.callKit*` callbacks. Without this forwarding, the call connects but has no sound.
 
 ```swift
 func provider(_ provider: CXProvider, perform action: CXStartCallAction) {
@@ -136,16 +509,18 @@ func provider(_ provider: CXProvider, didDeactivate audioSession: AVAudioSession
 
 Rules the integration must follow:
 
-- **Declare the `voip` background mode** (alongside `audio`) in `UIBackgroundModes`. Without it every `CXCallController` transaction is refused (`com.apple.CallKit.error.requesttransaction Code=1`) and the call never starts.
+- **Declare the `voip` background mode** alongside `audio` in `UIBackgroundModes`. Without it every `CXCallController` transaction is refused (`com.apple.CallKit.error.requesttransaction Code=1`) and the call never starts.
 - **Request, don't command:** start / end / mute go through `CXCallController` actions and are executed in the matching `perform` callback, so the system can arbitrate and the system UI stays in sync. Remote endings (the agent hangs up, a failure) are **reported** via `reportCall(with:endedAt:reason:)` instead.
-- **Never call `AVAudioSession.setActive(true)`** during a CallKit call — a self-activated session blocks CallKit's elevated activation and `didActivate` never fires (the classic "call connects, no audio" bug).
-- **System interruptions move to CallKit:** a cellular call arrives as a hold action plus `didDeactivate`, not as the SDK's interruption handling. After the interrupting call ends, iOS may not resume you automatically — offer a manual un-hold path.
+- **Never activate `AVAudioSession` manually** (`AVAudioSession.setActive(true)`) during a CallKit call. A self-activated session blocks CallKit's elevated activation and `didActivate` never fires (the classic "call connects, no audio" bug).
+- **System interruptions move to CallKit:** a cellular call arrives as a hold action plus `didDeactivate`, not as the SDK's interruption handling. After the interrupting call ends, iOS may not resume you automatically, so offer a manual un-hold path.
 - **Simulator:** CallKit is broken there (iOS 17\+ auto-ends calls). Gate on `targetEnvironment(simulator)` and fall back to a plain call.
 - **China:** Apple rejects CallKit UI for the Chinese App Store. Keep `callKit:` behind a region or remote-config gate if you ship there.
 
+The **02-CallKit** examples ([SwiftUI](https://github.com/polyai/ios-sdk/tree/main/Examples/SwiftUI/Voice/02-CallKit) · [UIKit](https://github.com/polyai/ios-sdk/tree/main/Examples/UIKit/Voice/02-CallKit)) encode all of these rules.
+
 ## Resilience
 
-- **Connectivity:** STUN/TURN servers are fetched from the gateway per call, so calls connect behind symmetric NAT / CGNAT (falls back to public STUN if the fetch fails).
+- **Connectivity:** STUN/TURN servers come from the bridge's provision response per call, so calls connect behind symmetric NAT / CGNAT. If that fails, the SDK falls back to public STUN at `stun.cloudflare.com`.
 - **Reconnect:** a dropped signaling socket reconnects automatically (backoff 1s / 2s / 4s) on the same session before the call is failed.
 - **Interruptions:** an incoming phone call or Siri mutes the mic and restores it; a non-resumable interruption ends the call as `PolyError.voice(.interrupted)`.
 - **Retryable errors:** a post-connect drop surfaces as `PolyError.voice(.disconnected)`. Both it and `.interrupted` are `isRetryable`, so you can offer a one-tap retry.
@@ -154,25 +529,21 @@ Rules the integration must follow:
 
 | Symptom | Likely cause |
 | :-- | :-- |
-| Token rejected / fails while connecting | Both tokens come from the _same_ connector in Agent Studio › Connector Settings, and the `Configuration` must match that connector's environment (region/cluster) and registered host (bundle identifier). A token from one environment silently 401s on another. |
-| Call connects but is silent (CallKit) | The app isn't forwarding the provider callbacks — all three `PolyVoice.callKit*` calls are required, and `UIBackgroundModes` must include `voip`. |
+| Token rejected / fails while connecting | Both tokens come from the _same_ connector in Agent Studio › Connector Settings, and the `Configuration` must match that connector's environment (region/cluster) and registered host (`hostIdentifier` / bundle identifier). A token from one environment silently 401s on another. |
+| Call connects but is silent (CallKit) | The app isn't forwarding the provider callbacks. All three `PolyVoice.callKit*` calls are required, and `UIBackgroundModes` must include `voip`. |
 | Call connects but is silent (no CallKit) | Check the mic permission was granted (Settings › your app › Microphone) and that nothing else in the app deactivated the `AVAudioSession` mid-call. |
-| `failed(.voice(.timedOut))` after ~30 s | Signaling reached the gateway but media never connected — usually a firewalled or relay-only network where the TURN fetch failed. |
-| Works on Wi-Fi, dies on the move | Transient drops reconnect automatically; a `.disconnected` failure is retryable (`error.isRetryable`) — offer a redial button. |
-| Nothing works on the simulator | Expected: WebRTC media needs a physical device, and CallKit is additionally broken on iOS 17\+ simulators. |
-
-## Architecture
-
-`PolyVoice` provides a real `CallMediaEngine` (an `RTCPeerConnection` audio engine) and an `AVAudioSession` controller, injected into the existing `PolyMessaging` `CallCoordinator` via `PolyCall.wired(config:webrtcToken:signalingHost:mediaEngine:)` (SPI — `@_spi(PolyVoice)`, not public API). The signaling pipeline (auth → session → link → signaling → offer/answer/ICE) lives in `PolyMessaging` and is exercised end-to-end by its test suite.
+| `failed(.voice(.timedOut))` after ~30 s | Signaling reached the bridge but media never connected. Usually a firewalled or relay-only network where the TURN fetch failed (the SDK then falls back to STUN, which can't cross symmetric NAT). Check connectivity or the bridge's provision route. |
+| Works on Wi-Fi, dies on the move | Transient drops reconnect automatically. A `.disconnected` failure is retryable (`error.isRetryable`), so offer a redial button. |
+| Nothing works on the simulator | Expected. WebRTC media needs a physical device; do not test calls on the iOS simulator. CallKit is additionally broken on iOS 17+ simulators. |
 
 ## Example apps
 
-A one-screen tap-to-call demo ships in both toolkits — drop your connector token and web calling token into the `PolyVoice.call(...)` block and run:
+One-screen tap-to-call demos ship in both toolkits. Add your connector token and web calling token to the `PolyMessaging.initialize(...)` call and run on a physical device:
 
 - [`Examples/SwiftUI/Voice/01-Hello`](https://github.com/polyai/ios-sdk/tree/main/Examples/SwiftUI/Voice/01-Hello)
 - [`Examples/UIKit/Voice/01-Hello`](https://github.com/polyai/ios-sdk/tree/main/Examples/UIKit/Voice/01-Hello)
 
-The **02-CallKit** examples encode all of the CallKit rules above.
+The **02-CallKit** examples encode all of the [CallKit](#callkit) rules above.
 
 ## Related pages
 
