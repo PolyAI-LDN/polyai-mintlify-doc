@@ -1,328 +1,180 @@
 ---
-title: 'Rules'
-sidebarTitle: 'Behavior'
-description: 'Set global rules to control your agent behavior, tone, and compliance.'
+title: 'Prompting guide'
+sidebarTitle: 'Prompting guide'
+description: 'How to write the Role and Behavior fields so your agent is consistent on every turn.'
 keywords:
+  - prompting guide
+  - system prompt
+  - behavior
+  - role
   - rules
-  - behavior
-  - behavior
-  - constraints
-  - compliance
-  - agent rules
-  - agent actions
+  - prompt engineering
+  - agent instructions
 ---
 
-Use behavioral rules to enforce consistency across every conversation. Define correct terminology, compliance guardrails, pronunciation overrides, and edge-case handling, and ensure LLM does not improvise on these decisions.
-
-Define your agent's behavior by going to **[Behavior > General](/behavior/introduction)** and then scrolling to the **Behavior** section.
-
-**Example:**
-
-For a museum agent that always refers to "exhibits" instead of "artworks":
-
-<Card
-  icon="plus"
-  iconType="solid"
-  color="#4CAF50"
-  horizontal
->
-  *"Always refer to 'artworks' as **exhibits**. Do not use the term 'artworks' in any context."*
-</Card>
-
-### Types of rules
-
-![rules-examples](/images/agent-settings/rules-types.png)
-
-#### 1. Behavior and interaction guidelines
-
-Specify how the agent interacts with users:
-
-- **Tone**: Choose formal, casual, empathetic, or calm tones.
-  - **Example**: "Always remain polite and professional, even with frustrated users."
-
-- **Language style**: Simplify language or avoid jargon as needed.
-  - **Example**: "Use clear, simple language suitable for non-technical users."
-
-- **Consistency**: Align responses with branding and messaging.
-  - **Example**: "Always address visitors as 'guests' rather than 'customers.'"
-
-#### 2. Task execution
-
-
-
-- **Explicit instructions**: Clearly define actions.
-  - **Example**: "If asked about upcoming events, provide the event details and offer to send them in a text message."
-
-- **Response scope**: Limit responses to specific tasks or topics.
-  - **Example**: "Only answer questions related to museum exhibits. Avoid general queries outside this domain."
-
-#### 3. Content restrictions
-
-Set boundaries for what the agent can or cannot say:
-
-- **Sensitive topics**: Avoid prohibited subjects. For details, see the [Self-serve dashboards](/analytics/dashboards/introduction).
-  - **Example**: "Do not discuss politics, religion, or personal opinions."
-
-- **Accuracy**: Avoid fabricated or uncertain answers.
-  - **Example**: "If unsure, direct the user to a staff member or a verified source."
-
-### Best practices
-
-1. **Be specific**: Avoid ambiguity.
-   - **Example**: Instead of "Be helpful," use "Answer visitor questions about exhibits within two sentences and provide follow-up options."
-
-2. **Provide examples**: Demonstrate expected interactions and responses.
-   - **Example**:
-     - Visitor: "What time does the museum close?"
-     - Agent: "The museum closes at 6 PM. Would you like a list of activities available before closing?"
-
-3. **Plan for edge cases**: Handle emergency or high-risk scenarios.
-   - **Example**: "For emergencies, advise users to contact the nearest staff member immediately."
-
-4. **Don't have overlapping topic areas**: Keep things separate to avoid confusing your agent.
-   - **Example**: Instead of adding multiple similar rules:
-     - "Never send a follow-up message automatically."
-     - "If a follow-up message is available, always offer it."
-     - "Never send a follow-up message without user consent."
-
-     Use a single rule:
-     - "Only send follow-ups if the user agrees."
-
-5. **Don't use negative rules when a positive one will work**:
-   - **Instead of**: "Do not transfer a caller with no verifying ID."
-   - **Use**: "Always verify ID before transferring."
-
-6. **Test and iterate**: Regularly review and refine rules.
-
-### Example behavior
-
-- **Handoff to a staff member**
-  - **Example**: "If visitors ask for a staff member or seem confused, notify the front desk and provide directions."
-
-- **When handling sensitive queries**
-  - **Example**: "For questions about controversial exhibits, respond: 'I'm sorry, I can't provide additional context. Please contact our curator for more information.'"
-
-- **Consistency in responses**
-  - **Example**: "Always greet visitors with 'Welcome to the museum!' before answering their question."
-
-### Scope rules to a channel or language
-
-You can scope rules (and any prompt content) to specific channels or languages using conditional tags. Each opening tag requires a matching closing tag (`</channel>` or `</language>`):
-
-```text
-<channel:voice>Always confirm the caller's name before proceeding.</channel>
-<channel:webchat>Offer clickable links instead of reading URLs aloud.</channel>
-<channel:sms>Reply STOP to unsubscribe.</channel>
-<language:en>Use American English spelling conventions.</language>
-<language:es>Respond in formal Spanish (usted).</language>
-```
-
-Tags can be nested – the order doesn't matter:
-
-```text
-<channel:voice><language:en-US>Call us at 1-800-555-0100.</language></channel>
-```
+Two free-form fields on **Behavior > General** make up your agent's system prompt: **Role** and **Behavior**. The model reads both on every turn of every conversation. That is the test for what belongs in them. If an instruction is not needed on every turn, it belongs somewhere else in Agent Studio.
 
 <Note>
-  Closing tags are always plain `</channel>` or `</language>` – never `</channel:voice>` or `</language:en>`. The closing tag matches the most recently opened tag.
-
-  Supported channels: `voice`, `webchat`, `sms`. Languages use ISO codes – `xx` (e.g. `en`) or `xx-XX` (e.g. `en-US`). Rules without a tag apply to all channels and languages.
+  This page is what the **Prompting guide** link next to the Behavior field opens. For what each field on the page does, see [General settings](/behavior/general/agent).
 </Note>
 
-The same syntax works in [FAQs](/knowledge/faqs/introduction) content, [Flow steps](/flows/introduction), and [tool](/tools/introduction) descriptions.
+## What goes where
 
-## Prompting guide
+Agent Studio gives each kind of instruction its own home. The prompt works best when it only carries what the other parts cannot.
 
-LLMs operate by predicting the most likely next token based on your prompt. Your main job is to shape that probability distribution – making the text you want the most likely output.
+| You want to | Put it in | Why not the prompt |
+|---|---|---|
+| Say who the agent is and what it covers | **Role** | This is the one thing Role is for. |
+| Set how the agent speaks and behaves on every turn | **Behavior** | This is what Behavior is for. |
+| Answer questions about opening hours, prices, policies, products | [Knowledge](/knowledge/faqs/introduction) | Facts in the prompt go stale, cannot be tested per topic, and cost tokens on every turn. |
+| Walk a caller through a multi-step process (booking, identity check, cancellation) | [Flows](/flows/introduction) | Step-by-step logic in the prompt turns into an untestable script the model follows loosely. |
+| Look something up, update a record, transfer the call | [Tools](/tools/introduction) and [call handoff](/voice-channel/handoffs) | The prompt says *when* to use a tool; the tool does the work. |
+| Block jailbreaks, hallucination, prompt extraction, crisis situations, or enforce your own hard rules | [Guardrails](/behavior/guardrails/introduction) | Guardrails are enforced by the platform on every turn, tested separately, and visible in transcripts. A "never" in the prompt is a request; a guardrail is a control. |
+| Set the opening line | Channel settings ([voice](/voice-channel/advanced/call-settings), messaging) | The greeting is spoken as written, without the model. |
+| Pick the voice or the model | Voice settings, [Models](/behavior/models/model-use) | Not prompt content. |
 
-### Make the desired outcome the most likely output
+## Role
 
-Craft your prompt so the best next token for the model is exactly what you want it to produce. Give clear, well-structured instructions without contradictory statements.
+Role tells the model who it is. One to three sentences: the identity, the organization, and the scope of what it helps with. Write it in the second person.
 
-### Less is more
+```text
+You are the virtual assistant for Linden Hotels. You help guests with
+reservations, amenities and directions for our twelve UK properties.
+```
 
-Every detail in your prompt is another piece of data the model must reconcile. If a piece of information isn't proven to help, leave it out. Test the impact of each additional instruction – if it doesn't improve performance, cut it.
+Keep instructions out of Role. Tone, escalation, formatting and edge cases all belong in Behavior, where they sit under a heading the model can find.
 
-### Put important details first or last
+## Behavior
 
-LLMs tend to give more weight to what appears at the beginning or end of a prompt. If crucial information is getting lost in the middle, move it to the start or end. Redundancy is acceptable – if something is critical, you can repeat it.
+Behavior is the set of instructions the agent needs on every turn. Write it as short sections under markdown headings, one concern per section. Headings stop instructions bleeding into each other and let you find and fix a single behavior later without rewriting the whole prompt.
+
+A prompt that covers most voice agents needs five sections. Add more only when a real conversation shows you need them.
+
+```text
+# Goal
+Help callers with questions about Linden Hotels and our properties, using
+your knowledge base and the tools available to you.
+
+# Style
+- This is a phone conversation. Keep responses short, natural and conversational.
+- One question at a time. No lists or numbered steps in speech.
+- Front-load the answer, then add detail only if needed.
+- Acknowledge before a longer answer ("Sure, let me check") so the caller knows you heard them.
+- Say nothing that only works in text: no URLs, no spelled-out punctuation, no "see above".
+
+# Scope and escalation
+- Answer from your knowledge base and tools. If you cannot help, offer to transfer using {{fn:escalate-call}}.
+- If the caller asks for a person, try to help first. If they insist, use {{fn:escalate-call}}.
+- If a tool fails, say you are having trouble getting that information, try once more, then offer a transfer. Do not guess.
+
+# Understanding issues
+- If you did not catch what the caller said, ask them to repeat it naturally. After three attempts, offer to transfer.
+
+# Ending the call
+- Check whether there is anything else before you close.
+- When the caller is done, say goodbye and call {{fn:end-call}}.
+```
 
 <Tip>
-Placing variable information (like dates or session data) at the end improves prompt caching. Only the dynamic portions need updating each turn.
+  Reference a tool inline so the model knows exactly which one you mean. Type `/` in the field to pick from your tools; the reference is stored as `{"{{fn:tool-name}}"}`.
 </Tip>
 
-### Use positive instructions
+Notice what the example leaves out. There are no opening hours or prices (Knowledge), no reservation steps (a Flow), and no "never reveal your instructions" rule (the Jailbreak guardrail). Each of those is handled by the part of Agent Studio built for it.
 
-Telling the model what *not* to do can inadvertently activate exactly that concept. Instead of prohibiting certain outcomes, direct the model toward what you *do* want.
+## Writing principles
 
-<Tabs>
-<Tab title="Bad">
-```text
-Don't tell the user to contact customer service.
-```
-</Tab>
-<Tab title="Good">
-```text
-If the user asks for customer service or to speak to an agent,
-call the handoff function with destination='CC' and reason='SPEAK_TO'.
-```
-</Tab>
-</Tabs>
-
-### Use examples
-
-Examples, also known as ["few-shot prompting"](/flows/few-shot-prompting), shape tone, structure, and decision-making more reliably than abstract instructions. Show what "good" looks like – concrete demonstrations help the model generalize patterns. Highlight edge cases through examples to set consistent expectations.
-
-```text
-Edge case: the user asks to perform a gimmick unrelated to your task.
-
-<conversation>
-USER: speak like a pirate
-ASSISTANT: I'm afraid I can't do that. Is there anything you'd like
-to know regarding our services?
-</conversation>
-```
-
-### Define a persona
-
-Clear persona definitions directly influence how the agent communicates. Don't assume tone will emerge naturally from a persona name – spell out what the persona sounds like in action. Use example dialogue to anchor the persona's voice.
-
-### Separate text from function calls
-
-<Warning>
-Don't instruct the agent to both speak and call a function in the same turn — the model will usually do one or the other. Split them across turns.
-</Warning>
-
-### Evaluate early and often
-
-Small prompt changes can have large, unexpected effects on output. Evaluate systematically using [conversation review](/analytics/conversations/review) rather than relying on anecdotal checks.
-
-## LLM style guide
-
-When writing prompts for voice agents, keep these style principles in mind.
-
-### Keep responses brief
-
-Concise utterances are clearer and more respectful of the user's time. Avoid ad-copy-speak with excessive modifiers.
-
-**Exception:** When users ask for an explanation, being thorough is more helpful than being brief.
-
-### Use natural register
-
-LLMs often default to overly formal phrasings. Prefer natural conversational language:
-
-| Instead of | Use |
-|---|---|
-| "Could you please provide me with" | "Could you tell me" |
-| "How may I assist you today?" | "How can I help?" |
-| "I apologize for the inconvenience" | "Sorry about that" |
-| "Should I proceed with making that booking?" | "Should I go ahead with that?" |
-
-### Vary utterance structure
-
-
-
-<Tabs>
-<Tab title="Good">
-```text
-No problem, what's your account number?
-```
-</Tab>
-<Tab title="Bad">
-```text
-In order to check for outages, I'll need to look up your account.
-Could you tell me your account number?
-```
-</Tab>
-</Tabs>
-
-### Don't push the conversation unnecessarily
-
-LLMs tend to end every output with a question. This gets repetitive:
-
-- **Walkthroughs:** Give the instruction and wait – don't add "let me know when you've done that" every turn
-- **After answering a question:** Don't immediately ask "is there anything else?" – give the user a chance to acknowledge or follow up
-
-## Automate with the Agents API
-
-Rules are just text, which makes them easy to template, diff, and sync from a source-controlled file.
+These are the habits that separate prompts that hold up in production from prompts that work in one test call. They follow the same principles as ElevenLabs' prompting guidance, adapted to where each concern lives in Agent Studio.
 
 <AccordionGroup>
-  <Accordion title="Manage behavior rules via the Agents API" icon="code">
-    The [Agents API](/api-reference/agents/introduction) exposes the same behavior field that the UI edits. That makes it useful for applying a shared rule set across many agents, or for A/B testing prompts on a Branch. You can read `main` directly, but writes must go to a Branch that you then merge back into `main` (on the new deployment system, merging into `main` publishes to Live).
+  <Accordion title="Separate concerns with headings" icon="heading">
+    A single paragraph mixes tone with escalation with formatting, and the model applies rules from one context in another. Give each concern its own `#` heading and keep the content under it to that concern.
+  </Accordion>
 
-    <CodeGroup>
-    ```bash curl
-    # Read the current behavior from main
-    curl https://api.us.poly.ai/v1/agents/AGENT_ID/branches/main/behavior \
-      -H "x-api-key: $POLYAI_API_KEY"
+  <Accordion title="Cut every line that does not change behavior" icon="scissors">
+    Every instruction is one more thing the model has to weigh on every turn. If you cannot name the conversation a line fixes, remove it and test. Shorter prompts are more reliable and cheaper.
 
-    # To change it: create a branch, update behavior on it, then merge to main, which publishes to Live
-    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches \
-      -H "x-api-key: $POLYAI_API_KEY" \
-      -H "Content-Type: application/json" \
-      -d '{ "branchName": "update-tone" }'   # response includes { "branchId": "BRANCH-…" }
+    **Long:** "When you are talking to customers you should always try to be really friendly and helpful and make sure they feel looked after."
 
-    curl -X PATCH https://api.us.poly.ai/v1/agents/AGENT_ID/branches/BRANCH_ID/behavior \
-      -H "x-api-key: $POLYAI_API_KEY" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "behavior": "Always refer to artworks as exhibits. Use a warm, curious tone."
-      }'
+    **Better:** "Be warm and direct."
+  </Accordion>
 
-    curl -X POST https://api.us.poly.ai/v1/agents/AGENT_ID/branches/BRANCH_ID/merge \
-      -H "x-api-key: $POLYAI_API_KEY" \
-      -H "Content-Type: application/json" \
-      -d '{ "deploymentMessage": "Update tone" }'
+  <Accordion title="Say what to do, not what to avoid" icon="check">
+    Naming a behavior you want to suppress puts it in front of the model. Point it at the behavior you want instead.
+
+    **Avoid:** "Do not tell the caller to email customer service."
+
+    **Better:** "If the caller wants customer service, transfer them with {"{{fn:escalate-call}}"}."
+  </Accordion>
+
+  <Accordion title="Mark the instructions that matter most" icon="exclamation">
+    Models weight the start and end of a prompt more than the middle, and recent turns more than old instructions. For the one or two rules that must never slip, add "This is important" after the line, and repeat it once at the end of the prompt. Do this sparingly; if everything is important, nothing is.
+  </Accordion>
+
+  <Accordion title="Show tone with an example" icon="comment">
+    "Be professional" produces no measurable change. A short exchange does.
+
+    ```text
+    Caller: can you just tell me the price
+    Agent: Of course. A standard double is one hundred and forty pounds a night. Would you like me to check availability?
     ```
+  </Accordion>
 
-    ```python Python
-    import os, requests
+  <Accordion title="Write for speech" icon="microphone">
+    On voice, everything the model writes is spoken aloud. Ask for numbers, emails and reference codes in words ("one four zero", "john dot smith at example dot com") and confirm them back. Keep sentences short enough to be said in one breath.
+  </Accordion>
 
-    BASE = "https://api.us.poly.ai"
-    HEADERS = {"x-api-key": os.environ["POLYAI_API_KEY"]}
+  <Accordion title="Tell the model when to use each tool and what to do if it fails" icon="wrench">
+    The tool's own description says what it does. The prompt says when to reach for it, what to collect first, and what to say when it errors. Without the failure path, the model improvises an answer.
 
-    # Apply the same behavior rules across a fleet of agents.
-    # main is read-only, so each edit goes on a branch that's then merged, which publishes to Live.
-    AGENT_IDS = [...]
-    BEHAVIOR = open("rules/support-agent.md").read()
-
-    for agent_id in AGENT_IDS:
-        branch_id = requests.post(
-            f"{BASE}/v1/agents/{agent_id}/branches",
-            headers=HEADERS,
-            json={"branchName": "sync-rules"},
-        ).json()["branchId"]
-
-        requests.patch(
-            f"{BASE}/v1/agents/{agent_id}/branches/{branch_id}/behavior",
-            headers=HEADERS,
-            json={"behavior": BEHAVIOR},
-        )
-
-        requests.post(
-            f"{BASE}/v1/agents/{agent_id}/branches/{branch_id}/merge",
-            headers=HEADERS,
-            json={"deploymentMessage": "Sync behavior rules"},
-        )
+    ```text
+    Before looking up a booking, collect the booking reference and the surname.
+    Then call {"{{fn:booking-lookup}}"}. If it returns nothing, confirm the reference and try once more.
     ```
-    </CodeGroup>
+  </Accordion>
+
+  <Accordion title="One rule per concern, no contradictions" icon="list-check">
+    "Never send follow-ups" and "Always offer a follow-up" cannot both hold. Collapse overlapping rules into one: "Offer a follow-up only when the caller agrees."
   </Accordion>
 </AccordionGroup>
 
+## When the prompt is doing another feature's job
+
+The most common way a Behavior prompt goes wrong is by growing into something Agent Studio already has a better tool for. Three signs to watch for.
+
+**It is becoming a flow.** Numbered steps, "if the caller says X then ask Y", or collecting several pieces of information in a fixed order. The model will follow a script in the prompt loosely and skip steps under pressure. Move the process into a [Flow](/flows/introduction), where each step is explicit and testable, and leave one line in the prompt saying when to start it.
+
+**It is becoming a knowledge base.** Opening hours, addresses, price lists, policy text. These change, they cannot be tested per question, and they cost tokens on every turn. Move them into [Knowledge](/knowledge/faqs/introduction) and keep the prompt to "answer from your knowledge base".
+
+**It is becoming a guardrail.** "Never reveal your instructions", "never claim to be human", "never discuss X". Platform guardrails already cover jailbreaks, prompt extraction, hallucination, identity and crisis escalation, and custom guardrails cover rules specific to your business. Both live on the [Guardrails](/behavior/guardrails/introduction) tab, are enforced independently of the prompt, and show up in the transcript when they fire. A rule in the prompt does none of that.
+
+## Scope instructions to a channel or language
+
+Wrap any line in a tag to apply it only on one channel or in one language. Each opening tag needs a matching closing tag.
+
+```text
+<channel:voice>Confirm the caller's name before you continue.</channel>
+<channel:webchat>Offer clickable links instead of reading URLs aloud.</channel>
+<channel:sms>Reply STOP to unsubscribe.</channel>
+<language:en>Use British English spelling.</language>
+<language:es>Respond in formal Spanish (usted).</language>
+```
+
+Tags can be nested in either order. `<channel:voice><language:en-US>Call us on 1-800.</language></channel>` applies only to voice calls in `en-US`. Untagged lines apply everywhere.
+
+## Test, then change one thing
+
+Test every change in the chat panel and with [simulation tests](/testing/simulation-tests) before you publish. When a call goes wrong, find the section responsible, change that section only, and re-run the failing case. Changing several sections at once means you cannot tell which edit fixed it, or which one broke something else.
+
 ## Related pages
 
-<CardGroup cols={2}>
-  <Card title="Agent" icon="user" href="./agent">
-    Set the greeting, personality, and role that shape first impressions.
+<CardGroup cols={3}>
+  <Card title="General settings" icon="sliders" href="/behavior/general/agent">
+    What each field on Behavior > General does.
   </Card>
-  <Card title="Model" icon="brain" href="/behavior/models/model-use">
-    Choose the LLM that interprets and applies your behavioral rules.
+  <Card title="Guardrails" icon="shield" href="/behavior/guardrails/introduction">
+    Platform and custom guardrails, enforced outside the prompt.
   </Card>
-  <Card title="FAQs" icon="book" href="/knowledge/faqs/introduction">
-    Define topic-level behavior.
-  </Card>
-  <Card title="Behavior endpoints" icon="square-terminal" href="/api-reference/agents/endpoint/behavior/update-agent-behavior-rules">
-    Read and update behavior rules via the Agents API.
+  <Card title="Flows" icon="diagram-project" href="/flows/introduction">
+    Multi-step processes with explicit, testable steps.
   </Card>
 </CardGroup>
