@@ -24,8 +24,8 @@ Agent Studio gives each kind of instruction its own home. The prompt works best 
 
 | You want to | Put it in | Why not the prompt |
 |---|---|---|
-| Say who the agent is and what it covers | **Role** | This is the one thing Role is for. |
-| Set how the agent speaks and behaves on every turn | **Behavior** | This is what Behavior is for. |
+| Say who the agent is and what it covers | **Role** | It is. One to three sentences. |
+| Set how the agent speaks and behaves on every turn | **Behavior** | It is. Short sections under headings. |
 | Answer questions about opening hours, prices, policies, products | [Knowledge](/knowledge/faqs/introduction) | Facts in the prompt go stale, cannot be tested per topic, and cost tokens on every turn. |
 | Walk a caller through a multi-step process (booking, identity check, cancellation) | [Flows](/flows/introduction) | Step-by-step logic in the prompt turns into an untestable script the model follows loosely. |
 | Look something up, update a record, transfer the call | [Tools](/tools/introduction) and [call handoff](/voice-channel/handoffs) | The prompt says *when* to use a tool; the tool does the work. |
@@ -46,40 +46,66 @@ Keep instructions out of Role. Tone, escalation, formatting and edge cases all b
 
 ## Behavior
 
-Behavior is the set of instructions the agent needs on every turn. Write it as short sections under markdown headings, one concern per section. Headings stop instructions bleeding into each other and let you find and fix a single behavior later without rewriting the whole prompt.
+Behavior is the set of instructions the agent needs on every turn. Write it as short sections under markdown headings, one concern per section. Headings stop instructions bleeding into each other, and they let you find and fix one behavior later without rewriting the whole prompt.
 
-A prompt that covers most voice agents needs five sections. Add more only when a real conversation shows you need them.
+Five sections cover most voice agents. Build them in this order, and add a section only when a real conversation shows you need one.
 
-```text
-# Goal
-Help callers with questions about Linden Hotels and our properties, using
-your knowledge base and the tools available to you.
+<Steps>
+  <Step title="Goal">
+    One or two sentences on what a successful conversation achieves, and what the agent draws on to get there.
 
-# Style
-- This is a phone conversation. Keep responses short, natural and conversational.
-- One question at a time. No lists or numbered steps in speech.
-- Front-load the answer, then add detail only if needed.
-- Acknowledge before a longer answer ("Sure, let me check") so the caller knows you heard them.
-- Say nothing that only works in text: no URLs, no spelled-out punctuation, no "see above".
+    ```text
+    # Goal
+    Help callers with questions about Linden Hotels and our properties, using
+    your knowledge base and the tools available to you.
+    ```
+  </Step>
+  <Step title="Style">
+    How the agent speaks. On voice, everything it writes is spoken aloud, so say so, and say what that rules out. Callers may be in a hurry or frustrated; one question at a time and a short acknowledgement before a longer answer keep them with you.
 
-# Scope and escalation
-- Answer from your knowledge base and tools. If you cannot help, offer to transfer using {{fn:escalate-call}}.
-- If the caller asks for a person, try to help first. If they insist, use {{fn:escalate-call}}.
-- If a tool fails, say you are having trouble getting that information, try once more, then offer a transfer. Do not guess.
+    ```text
+    # Style
+    - This is a phone conversation. Keep responses short, natural and conversational.
+    - One question at a time. No lists or numbered steps in speech.
+    - Front-load the answer, then add detail only if needed.
+    - Acknowledge before a longer answer ("Sure, let me check") so the caller knows you heard them.
+    - Say nothing that only works in text: no URLs, no spelled-out punctuation, no "see above".
+    ```
+  </Step>
+  <Step title="Scope and escalation">
+    Where answers come from, what to do when the agent cannot help, and what to do when a tool fails. Name the tool for each case.
 
-# Understanding issues
-- If you did not catch what the caller said, ask them to repeat it naturally. After three attempts, offer to transfer.
+    ```text
+    # Scope and escalation
+    - Answer from your knowledge base and tools. If you cannot help, offer to transfer using {{fn:escalate-call}}.
+    - If the caller asks for a person, try to help first. If they insist, use {{fn:escalate-call}}.
+    - If a tool fails, say you are having trouble getting that information, try once more, then offer a transfer. Do not guess.
+    ```
 
-# Ending the call
-- Check whether there is anything else before you close.
-- When the caller is done, say goodbye and call {{fn:end-call}}.
-```
+    <Tip>
+      Type `/` in the field to pick a tool. The reference is stored as `{"{{fn:tool-name}}"}`, so the model knows exactly which one you mean.
+    </Tip>
+  </Step>
+  <Step title="Understanding issues">
+    What to do when the agent mishears. Set a limit so the caller is not asked to repeat themselves indefinitely.
 
-<Tip>
-  Reference a tool inline so the model knows exactly which one you mean. Type `/` in the field to pick from your tools; the reference is stored as `{"{{fn:tool-name}}"}`.
-</Tip>
+    ```text
+    # Understanding issues
+    - If you did not catch what the caller said, ask them to repeat it naturally. After three attempts, offer to transfer.
+    ```
+  </Step>
+  <Step title="Ending the call">
+    How the conversation closes, and which tool ends it.
 
-Notice what the example leaves out. There are no opening hours or prices (Knowledge), no reservation steps (a Flow), and no "never reveal your instructions" rule (the Jailbreak guardrail). Each of those is handled by the part of Agent Studio built for it.
+    ```text
+    # Ending the call
+    - Check whether there is anything else before you close.
+    - When the caller is done, say goodbye and call {{fn:end-call}}.
+    ```
+  </Step>
+</Steps>
+
+Together those five sections are the whole prompt for the Linden Hotels agent, about 200 words. Notice what is not in it. There are no opening hours or prices (Knowledge), no reservation steps (a Flow), and no "never reveal your instructions" rule (the Jailbreak guardrail). Each of those is handled by the part of Agent Studio built for it.
 
 ## Writing principles
 
@@ -163,7 +189,9 @@ Tags can be nested in either order. `<channel:voice><language:en-US>Call us on 1
 
 ## Test, then change one thing
 
-Test every change in the chat panel and with [simulation tests](/testing/simulation-tests) before you publish. When a call goes wrong, find the section responsible, change that section only, and re-run the failing case. Changing several sections at once means you cannot tell which edit fixed it, or which one broke something else.
+Test every edit on your Branch before you publish: run [simulation tests](/testing/simulation-tests), or talk to the agent yourself over an in-app call or chat. When a conversation goes wrong, find the section responsible, change that section only, and re-run the failing case. Changing several sections at once means you cannot tell which edit fixed it, or which one broke something else.
+
+Expect to revise. The first version of a prompt is a hypothesis; the transcripts tell you which lines are doing work and which are not.
 
 ## Related pages
 
