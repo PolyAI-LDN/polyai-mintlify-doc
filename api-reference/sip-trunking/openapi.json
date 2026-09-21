@@ -136,6 +136,25 @@
           "call_sid"
         ]
       },
+      "SipReply": {
+        "type": "object",
+        "description": "The SIP response the call attempt ended on. Present only when the carrier replied; a call that failed before reaching one has none.",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The SIP response code, e.g. `403`.",
+            "example": "403"
+          },
+          "reason": {
+            "type": "string",
+            "description": "The carrier's reason phrase, unvalidated and not under PolyAI's control. Escape it before display.",
+            "example": "Caller ID is unauthorized"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
       "CallStatusResponse": {
         "type": "object",
         "description": "The current status of an outbound call.",
@@ -153,8 +172,32 @@
           },
           "reason": {
             "type": "string",
-            "description": "Optional human-readable detail for the status, typically populated on failure to explain why the call did not connect. This is a free-form message, not a fixed set of codes.",
-            "example": "call origination request: timeout limit exceeded"
+            "description": "Human-readable detail for the status. Free text, with no stability contract — classify on `failure_code` rather than parsing this.",
+            "example": "call failed: SIP 403 Caller ID is unauthorized"
+          },
+          "failure_code": {
+            "type": "string",
+            "description": "Why the call failed, set whenever `status` is `failure`. Members may be added without a major version bump, so treat an unrecognised value as `unknown`.",
+            "enum": [
+              "queue_timeout",
+              "originate_timeout",
+              "status_lookup_timeout",
+              "status_lookup_failed",
+              "retry_failed",
+              "max_retries_exceeded",
+              "busy",
+              "no_answer",
+              "unavailable",
+              "invalid_number",
+              "declined",
+              "rejected",
+              "carrier_error",
+              "unknown"
+            ],
+            "example": "rejected"
+          },
+          "sip": {
+            "$ref": "#/components/schemas/SipReply"
           }
         },
         "required": [
