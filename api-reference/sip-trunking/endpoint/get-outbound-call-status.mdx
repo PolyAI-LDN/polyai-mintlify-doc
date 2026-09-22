@@ -1,0 +1,73 @@
+---
+title: "Get outbound call status"
+openapi: "GET /v1/telephony/sip-trunks/{trunkId}/outbound-call/{callSid}"
+---
+
+Retrieve the current status of an outbound call, using the `call_sid` returned when the call was placed. Poll this endpoint until the status reaches a terminal value — `success` or `failure`.
+
+## Call statuses
+
+| Status    | Description                                             |
+| --------- | ------------------------------------------------------- |
+| `queued`  | The call has been accepted and is queued for dialing.   |
+| `calling` | PolyAI is dialing the destination number.               |
+| `success` | The call connected and completed successfully.          |
+| `failure` | The call did not connect or ended in an error.          |
+
+When `status` is `failure`, the response also carries a `failure_code` — a closed set of machine-readable causes you can branch on. The `reason` field is free text with no stability contract, so classify on `failure_code` rather than parsing it.
+
+## Failure codes
+
+Six failures happen before the destination carrier replies at all:
+
+| `failure_code`          | Meaning                                                              |
+| ----------------------- | -------------------------------------------------------------------- |
+| `queue_timeout`         | The call waited in the dialing queue past its timeout.               |
+| `originate_timeout`     | The request to originate the call timed out.                         |
+| `status_lookup_timeout` | PolyAI could not read the call's outcome in time.                    |
+| `status_lookup_failed`  | PolyAI hit an error reading the call's outcome.                      |
+| `retry_failed`          | A retry of the call attempt failed.                                  |
+| `max_retries_exceeded`  | The call was retried up to its limit without connecting.             |
+
+The rest are mapped from the SIP response the call ended on:
+
+| `failure_code`   | SIP code | Meaning                                                    |
+| ---------------- | -------- | ---------------------------------------------------------- |
+| `invalid_number` | 404      | The destination number does not exist.                     |
+| `unavailable`    | 480      | The destination is temporarily unavailable.                |
+| `busy`           | 486      | The destination is busy.                                   |
+| `no_answer`      | 487      | The call was not answered before it was cancelled.         |
+| `declined`       | 603      | The callee declined the call.                              |
+| `rejected`       | 403      | The trunk refused the call, typically an unauthorized caller ID. |
+| `carrier_error`  | 5xx      | The carrier returned a server error.                       |
+| `unknown`        | other    | Any other SIP code, or a cause this API cannot yet name.    |
+
+<Note>
+Members may be added to `failure_code` without a major version bump. Treat any value you do not recognise as `unknown` rather than failing on it.
+</Note>
+
+`rejected` and `declined` are deliberately separate: a 403 is your trunk refusing the caller ID you presented — a configuration error that will fail identically on every retry — while a 603 is a person hanging up. The lookup timeouts, by contrast, are transient; the same call placed again later may well connect.
+
+## SIP response detail
+
+Failures that ended on a SIP response also carry a `sip` object with the carrier's reply. It is absent for failures that never reached one, such as `status_lookup_timeout`.
+
+```json
+{
+  "status": "failure",
+  "reason": "call failed: SIP 403 Caller ID is unauthorized",
+  "failure_code": "rejected",
+  "sip": {
+    "code": "403",
+    "reason": "Caller ID is unauthorized"
+  }
+}
+```
+
+<Warning>
+`sip.reason` is the carrier's own reason phrase. It is unvalidated and not under PolyAI's control, so escape it before displaying it or writing it anywhere it could be interpreted as markup.
+</Warning>
+
+<Note>
+Call statuses are retained for roughly **2 hours** after the call is placed. After that the `call_sid` is no longer queryable and the endpoint returns `404`.
+</Note>
