@@ -1,8 +1,9 @@
 ---
 title: "Getting started with PolyAI"
+description: "Install the PolyAI ADK and run poly setup to go from an empty machine to a local Agent Studio project you can edit, push, and deploy."
 ---
 
-The fastest way to get up and running is entirely from the command line. Two steps — install the ADK, then sign in — take you from an empty machine to a local project you can edit, push, and deploy. Sign-in uses `poly start` (self-serve) or `poly login` (enterprise), described below.
+The fastest way to get up and running is entirely from the command line. Two steps — install the ADK, then run `poly setup` — take you from an empty machine to a local project you can edit, push, and deploy.
 
 Using an AI coding assistant? See [Set up with an AI coding assistant](/adk/get-started/agentic-setup) to hand it the whole setup with one prompt.
 
@@ -54,54 +55,67 @@ If you plan to work in **VS Code** or **Cursor**, you can also install the [Poly
 
 </Tip>
 
-## Step 2 — Sign in and set up your API key
+## Step 2 — Run `poly setup`
 
-The right setup path depends on the type of Agent Studio account you have:
-
-- **Self-serve accounts** (signed up at [studio.poly.ai](https://studio.poly.ai)) — use [`poly start`](#self-serve-accounts-poly-start) for an end-to-end setup that creates an account, an API key, and an optional first project.
-- **Enterprise accounts** (a workspace provisioned by PolyAI on a regional cluster such as `us-1`, `euw-1`, or `uk-1`) — use [`poly login --region <region>`](#enterprise-accounts-poly-login-or-manual-api-key) to sign in through your browser, or create an API key in the Agent Studio UI and [export it manually](#manual-api-key-export). `poly start` is self-serve only and does not work against enterprise clusters.
-
-If you're not sure which you have, your PolyAI contact can confirm.
-
-### Self-serve accounts — `poly start`
+One command handles the rest of onboarding, for both self-serve and enterprise accounts:
 
 ```bash
-poly start
+poly setup
 ```
 
-`poly start` handles everything you need to authenticate:
+It runs four steps, skipping any that are already done — so it's safe to re-run at any time:
 
-1. **Sign up or sign in** — opens a browser window for authentication. This can be on any device, not just the machine running the CLI.
-2. **API key** — generates a key and saves it to `~/.poly/credentials.json`. Future `poly` commands pick it up automatically — no environment variables to manage.
-3. **Create a project** — optionally creates a new Agent Studio project and pulls it down locally so you can start editing immediately.
+1. **Sign in** — opens a browser window, fetches (or creates) an API key for your user, and saves it to `~/.poly/credentials.json` so future `poly` commands pick it up automatically. This can be on any device, not just the machine running the CLI.
+2. **Shell completion** — installs tab completion for bash, zsh, or fish.
+3. **AI agent skills** — installs the ADK's skills into coding agents detected on your machine (Claude Code, Cursor, Codex, and others), so they know the `poly` workflow.
+4. **Project** — optionally creates a new Agent Studio project or connects an existing one.
+
+You're prompted to pick a region when signing in. Choose based on your account type, or pass it directly to skip the prompt:
+
+| Region | Account type |
+|---|---|
+| `studio` | Self-serve — signed up at [studio.poly.ai](https://studio.poly.ai) |
+| `us-1`, `euw-1`, `uk-1` | Enterprise — a workspace provisioned by PolyAI |
+
+```bash
+poly setup --region studio   # or us-1, euw-1, uk-1
+```
+
+If you're not sure which account type you have, your PolyAI contact can confirm.
 
 <Tip>
 
-**Already have a self-serve account?**
+**Already signed in?**
 
-If `poly start` detects an existing API key (from the credential file or an environment variable), it asks whether to keep using it — accept and you skip straight to the project creation step. Decline and it runs the full sign-in flow again.
+If `poly setup` detects an existing API key (from the credential file or an environment variable), it skips straight past authentication to the remaining steps.
 
 </Tip>
 
-### Enterprise accounts — `poly login` or manual API key
+### Sign in only — `poly login`
 
-Enterprise workspaces have two options. `poly login` is the quickest path for most users; the manual export is the fallback if you can't authenticate through the browser (for example, on a CI runner).
-
-#### Option 1 — `poly login` (recommended)
+To set up credentials without the rest of `poly setup`, `poly login` runs just the sign-in step:
 
 ```bash
-poly login --region us-1   # or euw-1, uk-1
+poly login --region us-1   # or euw-1, uk-1, studio
 ```
 
 `poly login`:
 
-1. Opens a browser window so you can sign in to your enterprise workspace.
+1. Opens a browser window so you can sign in.
 2. Fetches (or creates) an API key for your user.
 3. Saves it to `~/.poly/credentials.json` under the region you specified, so future `poly` commands pick it up automatically.
 
 If you omit `--region`, the CLI prompts you to pick one. To sign in to more than one region from the same machine, re-run `poly login` with each region — the credential file stores them side by side.
 
-#### Option 2 — Manual API key export
+### Need an API key for the PolyAI APIs or Dialog RSN? — `poly apikey`
+
+`poly apikey` is a separate, non-interactive command for getting an account API key into `POLY_API_KEY` for use in your own code (the PolyAI APIs, Dialog RSN) — it's not for setting up the ADK itself, and it's the command behind [Set up with an AI coding assistant](/adk/get-started/agentic-setup).
+
+```bash
+poly apikey --region studio
+```
+
+#### Manual API key export
 
 If you'd rather create the key yourself in the Agent Studio UI:
 
@@ -124,7 +138,7 @@ To make it permanent, add the export line to your shell profile (`~/.zshrc` or `
 
 The ADK checks for credentials in the following order:
 
-1. **Credential file** — `~/.poly/credentials.json` (written by `poly start` or `poly login`)
+1. **Credential file** — `~/.poly/credentials.json` (written by `poly setup` or `poly login`)
 2. **Region-specific env var** — e.g. `POLY_ADK_KEY_US`
 3. **General env var** — `POLY_ADK_KEY`
 
@@ -134,7 +148,7 @@ The first match wins. If nothing is found, the CLI raises an error.
 
 ## Step 3 — Start building
 
-If `poly start` created a project for you, `cd` into the project directory. Otherwise, connect to an existing project:
+If `poly setup` created a project for you, `cd` into the project directory. Otherwise, connect to an existing project:
 
 ```bash
 poly init
@@ -197,12 +211,12 @@ Agent Studio populates **topics** (knowledge base entries) and basic **agent set
 If you have an existing project — built in the browser, by a PolyAI team, or by any other method — connect it to the ADK with `poly init` once your API key is set up:
 
 ```bash
-# Self-serve accounts:
-poly start                       # sign in and save your API key (skip if already done)
+# Any account type:
+poly setup --region studio       # or us-1, euw-1, uk-1 — sign in and save your API key (skip if already done)
 poly init                        # interactive prompts to pick region, account, and project
 
-# Enterprise accounts (poly login — recommended):
-poly login --region us-1         # or euw-1, uk-1
+# Sign-in only (poly login):
+poly login --region us-1         # or euw-1, uk-1, studio
 poly init
 
 # Enterprise accounts (manual key export, fallback):
