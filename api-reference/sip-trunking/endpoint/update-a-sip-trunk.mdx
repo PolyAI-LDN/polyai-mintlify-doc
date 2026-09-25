@@ -7,7 +7,35 @@ Omitted fields are left unchanged.
 
 ## Default route
 
-`inbound.default_route` sets, replaces or clears the agent that receives calls to numbers with no extension on the trunk. See [Default route](/api-reference/sip-trunking/introduction#default-route).
+`inbound.default_route` sets, replaces or clears the agent that receives calls to numbers with no extension on the trunk. See [Default route](/api-reference/sip-trunking/endpoint/create-a-sip-trunk#default-route) for how it interacts with extensions.
+
+<CodeGroup>
+```bash Request
+curl -X PATCH https://api.us.poly.ai/v1/accounts/ACCOUNT_ID/telephony/sip-trunks/TRUNK_ID \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "inbound": {
+      "default_route": { "agent": { "agent_id": "my-agent", "client_env": "live" } }
+    }
+  }'
+```
+
+```json Response
+{
+  "id": "tr-0123456789abcdefghijklmn",
+  "inbound": {
+    "hostname": "tr-0123456789abcdefghijklmn.sbc.sip.us.poly.ai",
+    "sip_auth": { "enabled": false },
+    "sip_token_auth": { "enabled": true },
+    "default_route": {
+      "agent": { "agent_id": "my-agent", "client_env": "live", "variant_id": "" }
+    }
+  },
+  …
+}
+```
+</CodeGroup>
 
 | To      | Send                                                              |
 | ------- | ----------------------------------------------------------------- |
@@ -15,4 +43,4 @@ Omitted fields are left unchanged.
 | Replace | The same, with a different `agent`                                |
 | Clear   | `{"inbound": {"default_route": {"disable": true}}}`               |
 
-Provide exactly one of `agent` or `disable: true`; anything else returns `400`. Omitting `default_route` leaves it unchanged.
+Provide exactly one of `agent` or `disable: true`; anything else returns `400`. Omitting `default_route` leaves it unchanged. Changes can take up to a minute to affect calls.
