@@ -317,7 +317,7 @@
           "Conversations"
         ],
         "summary": "Get a conversation by ID",
-        "description": "Retrieves a single conversation, including turn-by-turn transcript, metrics, and function events.\n\n**Host:** this endpoint is served from `api.{region}.poly.ai` — *not* the `api.{region}-1.platform.polyai.app` host used by the list-conversations and audio endpoints.",
+        "description": "Returns the full details for a single conversation, including the turn-by-turn transcript, custom metrics, and function events.",
         "servers": [
           {
             "url": "https://api.us.poly.ai",
@@ -379,17 +379,33 @@
             }
           },
           "401": {
-            "$ref": "#/components/responses/Unauthorized",
+            "description": "Unauthorized. The API key is missing or not valid.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/GatewayError"
+                },
+                "examples": {
+                  "missingKey": {
+                    "summary": "No API key",
+                    "value": {
+                      "message": "No API key found in request",
+                      "request_id": "00c9c43b8ab2483023a7a76e68d0183b"
+                    }
+                  },
+                  "invalidKey": {
+                    "summary": "API key not valid",
+                    "value": {
+                      "message": "Unauthorized",
+                      "request_id": "c54196616e8bfb78a800dd2753606779"
+                    }
+                  }
                 }
               }
             }
           },
           "403": {
-            "$ref": "#/components/responses/Unauthorized",
+            "description": "Forbidden. The API key does not have read access to conversations for this agent.",
             "content": {
               "application/json": {
                 "schema": {
@@ -405,16 +421,33 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 },
-                "example": {
-                  "success": false,
-                  "error": "Conversation ID does not exist.",
-                  "error_id": "550e8400-e29b-41d4-a716-446655440000",
-                  "error_code": "CONVERSATIONS_NOT_FOUND",
-                  "error_message": "Conversation ID does not exist.",
-                  "data": null
+                "examples": {
+                  "conversationNotFound": {
+                    "summary": "Conversation not found",
+                    "value": {
+                      "success": false,
+                      "error": "Conversation not found: CAabcd1234567abcdef1250065d4fc7389",
+                      "error_id": "550e8400-e29b-41d4-a716-446655440000",
+                      "error_code": "CONVERSATIONS_NOT_FOUND",
+                      "error_message": "Conversation not found: CAabcd1234567abcdef1250065d4fc7389",
+                      "data": null
+                    }
+                  },
+                  "agentNotFound": {
+                    "summary": "Agent not found",
+                    "value": {
+                      "success": false,
+                      "error": "Project not found",
+                      "error_id": "e830dd1a-dd2f-409f-8ace-f01dad09bc28#43209",
+                      "error_code": "PROJECT_NOT_FOUND",
+                      "error_message": "Project not found",
+                      "data": null
+                    }
+                  }
                 }
               }
-            }
+            },
+            "description": "Not Found. The conversation or the agent does not exist, or it belongs to a different account."
           },
           "500": {
             "$ref": "#/components/responses/InternalError",
@@ -1092,7 +1125,7 @@
       },
       "ConversationDetailResponse": {
         "type": "object",
-        "description": "Public-facing conversation detail (includes turns, metrics, and function events).",
+        "description": "Full details for a single conversation, including its turns, custom metrics, and function events.",
         "required": [
           "conversationId",
           "accountId",
@@ -1113,70 +1146,87 @@
             "description": "ID of the project this conversation is under."
           },
           "createdAt": {
+            "nullable": true,
             "type": "string",
             "format": "date-time"
           },
           "startedAt": {
+            "nullable": true,
             "type": "string",
             "format": "date-time"
           },
           "finishedAt": {
+            "nullable": true,
             "type": "string",
             "format": "date-time"
           },
           "channel": {
+            "nullable": true,
             "type": "string",
             "description": "Conversation medium (e.g. `WEBCHAT`, `VOICE-SIP`)."
           },
           "fromNumber": {
+            "nullable": true,
             "type": "string",
             "description": "Caller phone number."
           },
           "toNumber": {
+            "nullable": true,
             "type": "string",
             "description": "Agent phone number."
           },
           "language": {
+            "nullable": true,
             "type": "string",
             "description": "Conversation language code."
           },
           "variantId": {
+            "nullable": true,
             "type": "string",
             "description": "Variant ID the conversation ran in."
           },
           "clientEnv": {
+            "nullable": true,
             "type": "string",
             "description": "Client environment (`sandbox`, `pre-release`, or `live`)."
           },
           "totalDuration": {
+            "nullable": true,
             "type": "integer",
             "description": "Total call duration in seconds."
           },
           "polyaiDuration": {
+            "nullable": true,
             "type": "integer",
             "description": "PolyAI-handled duration in seconds."
           },
           "duration": {
+            "nullable": true,
             "type": "integer",
             "description": "Duration in seconds."
           },
           "inProgress": {
+            "nullable": true,
             "type": "boolean",
             "description": "Whether the conversation is still in progress."
           },
           "handoff": {
+            "nullable": true,
             "type": "boolean",
             "description": "Whether handoff occurred."
           },
           "handoffDestination": {
+            "nullable": true,
             "type": "string",
             "description": "If multiple handoff destinations exist, which one was used."
           },
           "handoffReason": {
+            "nullable": true,
             "type": "string",
             "description": "Brief handoff reason."
           },
           "direction": {
+            "nullable": true,
             "type": "string",
             "description": "Call direction (e.g. `inbound`, `outbound`)."
           },
@@ -1188,39 +1238,68 @@
             }
           },
           "polyScore": {
+            "nullable": true,
             "type": "number",
             "description": "PolyScore quality measure."
           },
+          "polyScoreV2": {
+            "nullable": true,
+            "type": "number",
+            "description": "PolyScore on the 1-5 scale."
+          },
           "shortSummary": {
-            "type": "string",
-            "description": "Short summary of the conversation."
+            "nullable": true,
+            "description": "Short structured summary of the conversation.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ShortSummary"
+              }
+            ]
           },
           "deploymentId": {
+            "nullable": true,
             "type": "string",
             "description": "Deployment ID."
           },
           "note": {
+            "nullable": true,
             "type": "string",
             "description": "Free-text note saved on the conversation."
           },
           "audioUrl": {
+            "nullable": true,
             "type": "string",
-            "description": "URL to the audio recording."
+            "description": "Relative path to the conversation recording, for example `conversations/{conversationId}/audio`."
           },
           "turns": {
+            "nullable": true,
             "type": "array",
             "description": "Ordered list of conversation turns.",
             "items": {
-              "$ref": "#/components/schemas/ConversationTurn"
+              "$ref": "#/components/schemas/ConversationDetailTurn"
             }
           },
           "metrics": {
+            "nullable": true,
             "type": "object",
-            "description": "Custom metrics recorded for the conversation."
+            "description": "Custom metrics recorded for the conversation, keyed by metric name.",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/ConversationMetricValue"
+              }
+            }
           },
           "functionEvents": {
+            "nullable": true,
             "type": "object",
-            "description": "Function execution events that occurred during the conversation."
+            "description": "Function events that occurred during the conversation, keyed by zero-based turn index.",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/FunctionEvent"
+              }
+            }
           }
         }
       },
@@ -1377,6 +1456,387 @@
           "delayedResponse": {
             "type": "boolean",
             "description": "Whether the agent's response was delayed (e.g. awaiting a long-running tool)."
+          }
+        }
+      },
+      "ShortSummary": {
+        "type": "object",
+        "description": "Structured short summary with a heading and content.",
+        "required": [
+          "heading",
+          "content"
+        ],
+        "properties": {
+          "heading": {
+            "type": "string",
+            "description": "Brief heading for the summary."
+          },
+          "content": {
+            "type": "string",
+            "description": "Summary content."
+          }
+        }
+      },
+      "TurnLatency": {
+        "type": "object",
+        "description": "Latency measurements for a single turn.",
+        "properties": {
+          "perceived_latency": {
+            "type": "number",
+            "description": "Perceived latency for this turn, in seconds."
+          },
+          "perceived_latency_percentile_1d": {
+            "type": "number",
+            "nullable": true,
+            "description": "Percentile of this turn's perceived latency against the last 1 day of turns."
+          },
+          "perceived_latency_percentile_7d": {
+            "type": "number",
+            "nullable": true,
+            "description": "Percentile of this turn's perceived latency against the last 7 days of turns."
+          },
+          "perceived_latency_percentile_14d": {
+            "type": "number",
+            "nullable": true,
+            "description": "Percentile of this turn's perceived latency against the last 14 days of turns."
+          },
+          "perceived_latency_percentile_30d": {
+            "type": "number",
+            "nullable": true,
+            "description": "Percentile of this turn's perceived latency against the last 30 days of turns."
+          },
+          "label": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "high",
+              "normal"
+            ],
+            "description": "Latency label, based on the 7-day percentile."
+          }
+        }
+      },
+      "ConversationDetailTurn": {
+        "type": "object",
+        "description": "A single turn in a conversation.",
+        "properties": {
+          "turn_id": {
+            "type": "integer",
+            "description": "Zero-based index of the turn."
+          },
+          "user_input": {
+            "type": "string",
+            "nullable": true,
+            "description": "Transcription of what the user spoke or typed."
+          },
+          "user_input_dtmf": {
+            "type": "string",
+            "nullable": true,
+            "description": "DTMF digits captured for this turn."
+          },
+          "user_input_dtmf_finish_key": {
+            "type": "string",
+            "nullable": true,
+            "description": "DTMF key that ended the DTMF input."
+          },
+          "user_input_datetime": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Time when the agent received the user input."
+          },
+          "user_input_audio_url": {
+            "type": "string",
+            "nullable": true,
+            "description": "Relative path to the user audio for this turn, for example `conversations/{conversationId}/turns/{turn_id}/audio`."
+          },
+          "agent_response": {
+            "type": "string",
+            "nullable": true,
+            "description": "Transcription of the agent response."
+          },
+          "agent_response_datetime": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Time when the agent responded. For speech, this is when the agent started to speak."
+          },
+          "translated_user_input": {
+            "type": "string",
+            "nullable": true,
+            "description": "User input translated into the agent working language when translation is enabled."
+          },
+          "english_agent_response": {
+            "type": "string",
+            "nullable": true,
+            "description": "Agent response in English when translation is enabled."
+          },
+          "intents": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string"
+            },
+            "description": "Intents found in this turn's input."
+          },
+          "entities": {
+            "nullable": true,
+            "description": "Entities found in this turn's input."
+          },
+          "is_ood": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Whether the turn is classified as Out of Domain (OOD)."
+          },
+          "is_silence": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Whether the turn is classified as a silence."
+          },
+          "barge_in": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Whether the user interrupted the agent during this turn."
+          },
+          "asr_lang_code": {
+            "type": "string",
+            "nullable": true,
+            "description": "Language code that speech recognition used for this turn."
+          },
+          "tts_lang_code": {
+            "type": "string",
+            "nullable": true,
+            "description": "Language code that text-to-speech used for this turn."
+          },
+          "latency": {
+            "nullable": true,
+            "description": "Latency measurements for this turn.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TurnLatency"
+              }
+            ]
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true,
+            "description": "Diagnostic metadata for the turn."
+          },
+          "llm_requests": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "object"
+            },
+            "description": "Diagnostic records of the LLM requests made during this turn."
+          },
+          "agent_annotations": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Counts of annotations on the agent side of the turn, keyed by annotation label."
+          },
+          "user_annotations": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Counts of annotations on the user side of the turn, keyed by annotation label."
+          },
+          "reviews": {
+            "type": "array",
+            "description": "Always an empty list.",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "ConversationMetricValue": {
+        "type": "object",
+        "description": "A single reading of a custom metric.",
+        "required": [
+          "timestamp"
+        ],
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time when the metric was recorded."
+          },
+          "value": {
+            "type": "string",
+            "nullable": true,
+            "description": "Recorded value."
+          }
+        }
+      },
+      "FunctionEventTransition": {
+        "type": "object",
+        "description": "Flow transition that a function event triggered.",
+        "required": [
+          "exit_flow"
+        ],
+        "properties": {
+          "exit_flow": {
+            "type": "boolean",
+            "description": "Whether the function exited the current flow."
+          },
+          "goto_flow": {
+            "type": "string",
+            "nullable": true,
+            "description": "Flow that the function moved to."
+          },
+          "goto_step": {
+            "type": "string",
+            "nullable": true,
+            "description": "Step that the function moved to."
+          }
+        }
+      },
+      "FunctionEventLogs": {
+        "type": "object",
+        "description": "Logs that a function produced.",
+        "properties": {
+          "messages": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string"
+            },
+            "description": "Log messages."
+          },
+          "conversation_logs": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "object"
+            },
+            "description": "Structured log entries with `level`, `content`, `is_pii`, `timestamp`, and `logger`."
+          }
+        }
+      },
+      "FunctionEvent": {
+        "type": "object",
+        "description": "A function execution that occurred during a turn.",
+        "required": [
+          "name",
+          "function_id"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Function name."
+          },
+          "function_id": {
+            "type": "string",
+            "description": "Function ID."
+          },
+          "id": {
+            "type": "string",
+            "nullable": true,
+            "description": "Function event ID."
+          },
+          "start_time": {
+            "type": "string",
+            "nullable": true,
+            "description": "Start time in RFC 2822 format, for example `Tue, 01 Sep 2026 10:00:03 GMT`."
+          },
+          "duration": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Execution duration in milliseconds."
+          },
+          "arguments": {
+            "nullable": true,
+            "description": "Arguments passed to the function."
+          },
+          "function_version": {
+            "type": "string",
+            "nullable": true,
+            "description": "Version of the function that ran."
+          },
+          "conversation_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "Conversation ID."
+          },
+          "turn_id": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Zero-based index of the turn in which the function ran."
+          },
+          "error": {
+            "nullable": true,
+            "description": "Error details when the function failed."
+          },
+          "logs": {
+            "nullable": true,
+            "description": "Logs that the function produced.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FunctionEventLogs"
+              }
+            ]
+          },
+          "transition": {
+            "nullable": true,
+            "description": "Flow transition that the function triggered.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FunctionEventTransition"
+              }
+            ]
+          },
+          "content": {
+            "type": "string",
+            "nullable": true,
+            "description": "Content that the function returned."
+          },
+          "utterance": {
+            "type": "string",
+            "nullable": true,
+            "description": "Utterance that the function returned for the agent to say."
+          },
+          "handoff": {
+            "nullable": true,
+            "description": "Handoff details when the function triggered a handoff."
+          },
+          "hangup": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Whether the function ended the call."
+          },
+          "state_changes": {
+            "nullable": true,
+            "description": "State changes that the function made."
+          },
+          "variant_id_change": {
+            "type": "string",
+            "nullable": true,
+            "description": "Variant ID that the function switched to."
+          },
+          "llm_request_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "ID of the LLM request that triggered the function."
+          }
+        }
+      },
+      "GatewayError": {
+        "type": "object",
+        "description": "Error body for a rejected API key.",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Reason for the rejection."
+          },
+          "request_id": {
+            "type": "string",
+            "description": "Request ID."
           }
         }
       }
