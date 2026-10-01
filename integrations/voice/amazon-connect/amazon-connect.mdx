@@ -30,7 +30,7 @@ PolyAI securely retrieves and updates customer data using [AWS STS](https://docs
 2. Routing to PolyAI: Calls are transferred to the PolyAI conversational agent, which retrieves contact attributes from DynamoDB using an AWS IAM role with appropriate permissions.
 3. Guided conversational flows: The PolyAI agent greets the caller and executes customized conversational flows, such as identity verification or information collection.
 4. Handoff or resolution: If the query is resolved, the call is terminated. Unresolved queries are routed back to Amazon Connect for queue-based agent handling.
-5. Data management: Data from the interaction (e.g., transcripts, query status) is sent to Amazon Connect and stored in S3 buckets using the same AWS IAM role.
+5. Data management: Data from the interaction (e.g., transcripts, query status) is sent to Amazon Connect using the same AWS IAM role.
 
 ## Setup guide
 
@@ -38,80 +38,15 @@ PolyAI securely retrieves and updates customer data using [AWS STS](https://docs
 
 - **Amazon Connect instance**: Ensure an active Amazon Connect instance with administrative access.
 - **PolyAI project**: Set up a PolyAI agent aligned with your Amazon Connect workflows.
-- **AWS services**:
-  - DynamoDB: For securely storing call attributes.
-  - Lambda: For processing event data.
-  - STS: For secure role-based data access.
+- **AWS account details**: Your AWS account ID and the region your Amazon Connect instance is in.
 - **Integration credentials**:
-  - IAM role: Create an IAM role with policies for DynamoDB and Lambda access, allowing PolyAI to interact with AWS resources.
+  - IAM role: Create a `polyai-cf-deployer` IAM role, used only to let PolyAI deploy the CloudFormation stack described below.
 
-### 1: Configure Amazon Connect
+### 1: Integrate PolyAI agent
 
-1. Log in to the AWS Management Console and open Amazon Connect.
-2. Use the Flow Designer to:
-   - Create or edit a contact flow.
-   - Add:
-     - A PolyAI handoff node to route calls to the voice agent.
-     - A Lambda function node to retrieve and process call data.
-3. Save and publish the contact flow.
+#### Client-side setup
 
-### 2: Set up DynamoDB for call attributes
-
-1. Create a DynamoDB table:
-   - Define a primary key, such as CallID or CustomerID.
-   - Add attributes like `customer_name` or `reservation_number`.
-2. Link the table to the Lambda function for real-time updates.
-
-<Note>
-  **Correlating Amazon Connect `ContactId` with PolyAI conversation `id`**
-
-  Amazon Connect's `ContactId` (from `event['Details']['ContactData']['ContactId']`) and PolyAI's conversation `id` (returned by the [Conversations API](/api-reference/conversations/introduction)) are **separate identifiers** issued by each platform. They are not automatically mapped.
-
-  To correlate them, write the `ContactId` to a PolyAI variable at call start (for example via a start function or SIP header) so it appears alongside the PolyAI `id` in the Conversations API response. You can then join Amazon Connect CTRs and PolyAI conversation data on this shared field.
-</Note>
-
-### 3: Configure AWS Lambda function
-
-1. Create a Lambda function in the AWS Management Console:
-   - Use a provided or custom script to process call events.
-2. Assign an IAM role with:
-   - Permissions for DynamoDB and STS.
-3. Deploy the function and link it to the Amazon Connect contact flow.
-
-Example Lambda function template:
-
-```python
-import boto3
-
-def lambda_handler(event, context):
-    dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table('YourDynamoDBTable')
-
-    # Extract call attributes
-    call_id = event['Details']['ContactData']['ContactId']
-    caller_number = event['Details']['ContactData']['CustomerEndpoint']['Address']
-
-    # Update or retrieve data
-    response = table.update_item(
-        Key={'CallID': call_id},
-        UpdateExpression="SET caller_number =:val",
-        ExpressionAttributeValues={':val': caller_number}
-    )
-
-    return {
-        'statusCode': 200,
-        'body': 'Call attributes updated successfully'
-    }
-```
-
-### 4: Integrate PolyAI agent
-
-1. Provide PolyAI with:
-   - Your [12-digit AWS Account ID](https://docs.aws.amazon.com/accounts/latest/reference/manage-acct-identifiers.html).
-   - Your [Amazon Connect region](https://aws.amazon.com/about-aws/global-infrastructure/regions_az/).
-2. Set up the integration using [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html):
-   - PolyAI will share an AWS CloudFormation template using [Amazon S3](https://aws.amazon.com/s3/).
-   - Create a service role in your AWS account with the following policy, with `<YOUR_ACCOUNT_ID>` replaced by your actual 12-digit AWS Account ID:
+1. Create a `polyai-cf-deployer` IAM role in your AWS account with the following policy attached, with `<YOUR_ACCOUNT_ID>` replaced by your actual 12-digit AWS Account ID:
 
 ```json
 {
@@ -130,10 +65,10 @@ def lambda_handler(event, context):
            "Effect": "Allow",
            "Action": "s3:*",
            "Resource": [
-		"arn:aws:s3:::polyai-amazon-connect-cloudformation-artifacts-eu-central-1/*",
+                "arn:aws:s3:::polyai-amazon-connect-cloudformation-artifacts-eu-central-1/*",
                 "arn:aws:s3:::polyai-amazon-connect-cloudformation-artifacts-eu-west-2/*",
-                "arn:aws:s3:::polyai-amazon-connect-cloudformation-artifacts-us-east-1/*",
-	]
+                "arn:aws:s3:::polyai-amazon-connect-cloudformation-artifacts-us-east-1/*"
+	        ]
        },
        {
            "Sid": "VisualEditor2",
@@ -160,18 +95,58 @@ def lambda_handler(event, context):
 }
 ```
 
-3. Deploy the PolyAI CloudFormation stack, which will automatically create:
-   - A DynamoDB table.
-   - A Lambda function.
-   - The required IAM roles.
-4. Update your Amazon Connect flow to route calls to PolyAI voice agents.
+2. Ensure the role has the following trust relationship configured, so PolyAI can assume it to remotely set up the CloudFormation stack:
 
-### 5: Test and deploy
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::471112995218:root"
+            },
+            "Action": "sts:AssumeRole",
+            "Condition": {}
+        }
+    ]
+}
+```
+
+#### Deploying the CloudFormation stack
+
+1. Share the following with your PolyAI point of contact:
+   - Your Amazon Connect instance [ARN](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference-arns.html).
+   - The phone number hosted on your Amazon Connect instance that routes calls to PolyAI.
+   - Your AWS account ID.
+   - The AWS region your Amazon Connect instance is in.
+2. PolyAI will assume the `polyai-cf-deployer` role and deploy a CloudFormation stack to your AWS account, which automatically creates:
+   - A DynamoDB table.
+   - A Lambda function (`PolyAIWriteContactAttributesToDDB`).
+   - The required IAM roles.
+3. Your PolyAI point of contact will reach out once setup is complete.
+
+#### Update Connect instance
+
+Once PolyAI confirms the CloudFormation stack has been created, return to your Amazon Connect instance and enable it to invoke the Lambda function `PolyAIWriteContactAttributesToDDB`. Instructions on how to do this can be found [here](https://docs.aws.amazon.com/connect/latest/adminguide/connect-lambda-functions.html#add-lambda-function).
+
+![contact-flow-steps](/images/integrations/amazon/contact-flow-steps.png)
+
+Build a contact flow that:
+
+1. **Invokes the Lambda function**: `PolyAIWriteContactAttributesToDDB` writes contact attributes to the DynamoDB table and picks the phone number to transfer to PolyAI, which is used to identify the call. This number is written back to Amazon Connect as a new contact attribute.
+2. **Transfers the call** to the phone number picked by the Lambda function. Under `Transfer to`, tick `Set dynamically` along with `Namespace: User Defined` and `Attribute: ExternalPolyNumber`. Enable `Resume contact flow after disconnect`.
+3. **Assigns a phone number**: after creating the flow, assign a phone number from the Amazon Connect instance to the flow and provide it to PolyAI.
+
+<Note>
+  Make sure the contact flow handles failure cases gracefully, for example PolyAI being unreachable, or the Lambda function failing to write the transfer attribute. Route these cases to a fallback (such as a queue or an error message) rather than leaving the caller stuck.
+</Note>
+
+### 2: Test and deploy
 
 1. Test integration:
    - Verify everything works, like:
      - Try routing a call to various PolyAI agents.
-     - Make dummy data retrieval and status updates to test DynamoDB.
      - Simulate a live-agent handoff processes to make sure there are no problems.
 2. Monitor analytics:
    - Use the Amazon Connect analytics dashboard to track call volume, routing efficiency, and agent handoffs.
@@ -191,7 +166,7 @@ For webchat and SMS conversations, PolyAI escalates to a live agent through the 
 
 ### When to set `aws_region`
 
-PolyAI's messaging handoff worker uses a default AWS region. If your Amazon Connect instance is in a different region — for example, your worker defaults to `us-east-1` but your Connect instance lives in `eu-west-2` — set `aws_region` on the integration so `StartChatContact` targets the right region. Without this override, the handoff fails with a `ResourceNotFoundException`.
+PolyAI's messaging handoff worker uses a default AWS region. If your Amazon Connect instance is in a different region (for example, your worker defaults to `us-east-1` but your Connect instance lives in `eu-west-2`), set `aws_region` on the integration so `StartChatContact` targets the right region. Without this override, the handoff fails with a `ResourceNotFoundException`.
 
 Use the [region code](https://docs.aws.amazon.com/general/latest/gr/connect_region.html) shown in the Amazon Connect console URL (for example, `eu-west-2`, `us-west-2`, `ap-southeast-2`).
 
