@@ -42,7 +42,7 @@ System Views can't be renamed or deleted. To save your own filter and column com
 
 ### Conversations table
 
-Each row in the table is one conversation. Default visible columns are **Start time** (always shown), **Contact**, **Summary**, **Duration**, and **PolyScore**. Additional columns can be toggled on from the **Column** button.
+Each row in the table is one conversation. Default visible columns are **Start time** (always shown), **Contact**, **Summary**, **Duration**, and **PolyScore**, followed by one column for each active [AI Score](/analytics/ai-scores). Additional columns can be toggled on from the **Column** button.
 
 - **Live calls** appear at the top with a duration indicator and update as new turns arrive. See [Live conversations](#live-conversations) below.
 - **Sort** any sortable column by clicking its header.
@@ -79,7 +79,7 @@ The panel has four tabs:
 | Tab | What you see |
 |---|---|
 | **Transcription** | Turn-by-turn transcript, audio waveform (voice only), matched topics, retrieved sources, and the **Diagnosis** toggle group |
-| **Scores** | [PolyScore](/analytics/polyscore) and [CSAT](/analytics/csat/introduction) badges with per-dimension breakdowns |
+| **Scores** | [PolyScore](/analytics/polyscore), [CSAT](/analytics/csat/introduction), and [AI Score](/analytics/ai-scores) badges with per-dimension and per-criterion breakdowns |
 | **Details** | Call info (status, environment, version), pre-built metrics (handoff target and reason, function calls, SMS events, A/B group, group ID, QA), and links to latency visualization, data logs, and outbound calls |
 | **Metrics** | Searchable, sortable list of any [custom metrics](/analytics/kpis/introduction) written on the conversation |
 
@@ -113,7 +113,7 @@ The full-page view shows everything the side panel exposes via tabs, but laid ou
 
 - **Header** — back arrow to return to the previous page, conversation title, and a reload button to fetch any new turns.
 - **Summary banner** — the AI-generated [Call summary](/analytics/polyscore) at the top, expandable for the full text.
-- **Left column** — stacked cards for **PolyScore**, **CSAT**, **Conversation details**, and **Metrics** (pre-built and custom). Each card collapses independently.
+- **Left column** — stacked cards for **PolyScore** (with any [AI Scores](/analytics/ai-scores) below it), **CSAT**, **Conversation details**, and **Metrics** (pre-built and custom). Each card collapses independently.
 - **Right column** — the full transcript with the **Diagnosis** toggle group (cog icon) controlling which layers overlay each turn.
 
 Use the full-page view when you want to scan PolyScore, CSAT, metrics, and the transcript together without flipping between tabs — for example, during a deep QA pass or when sharing a single conversation with a teammate.
@@ -124,7 +124,7 @@ Click **Column** in the table toolbar to configure which columns are shown and i
 
 ### Visibility
 
-The **Visibility** tab lists all available columns with a toggle for each. **Start time** is always visible and cannot be hidden. All other columns under **Pre-built metrics** can be turned on or off: Contact, PolyScore, Summary, Duration, Language, Call SID, Variant, QA, Handoff To, A/B Group, and Environment.
+The **Visibility** tab lists all available columns with a toggle for each. **Start time** is always visible and cannot be hidden. All other columns under **Pre-built metrics** can be turned on or off: Contact, PolyScore, Summary, Duration, Language, Call SID, Variant, QA, Handoff To, A/B Group, and Environment. Columns for your active [AI Scores](/analytics/ai-scores) are listed under **Custom metrics**.
 
 ![Columns panel showing the Visibility tab with toggles for pre-built metrics](/images/analytics/conv-review-columns-visibility.png)
 
@@ -157,6 +157,7 @@ Available filter types include:
 - **Function calls** — filter by whether any function ran, or by a specific function name (supports *exists*, *equals*, *contains*, *not contains*)
 - **SMS events** — filter by whether any SMS was sent, or by a specific SMS event name (supports *exists*, *equals*, *contains*, *not contains*)
 - **Custom metrics** — filter by any [custom metric](/analytics/kpis/introduction) recorded on the conversation. String metrics support *equals*, *exists*, *contains*, and *not contains*; numeric metrics support *equals*, *less than*, *greater than*, and range comparisons.
+- **AI Scores** — filter by any [AI Score](/analytics/ai-scores), including scores that are turned off, listed under **AI Scores created by you**. Compare the 1–5 score with *equals*, *less than*, *greater than*, *less than or equal to*, or *greater than or equal to*, or use *exists* to find conversations that have (or don't have) a score. Filtering by a single criterion isn't supported.
 
 #### Substring matching with contains and not contains
 
@@ -194,6 +195,8 @@ Choose one of two options from the dropdown:
 - **Export with annotations** — includes any [annotations](/analytics/conversations/annotations) (wrong transcription, missing topic) flagged on the conversations in the current view. Use this when you want reviewer feedback to travel with the data — for example, when sharing low-quality calls with the team responsible for ASR or Knowledge tuning.
 - **Export without annotations** — exports the conversations only. Use this when you just need the raw transcripts and metadata, or when sharing data with stakeholders who don't need the QA layer.
 
+Each [AI Score](/analytics/ai-scores) column in the view adds a column to the export, named **AI Score: &lt;score name&gt;**.
+
 For programmatic export and the underlying API, see [Call data](/call-data/introduction).
 
 ## Caller identity and PII
@@ -217,7 +220,7 @@ Enable both layers from the **Diagnosis** toggle group on the Transcription tab.
 
 ## PolyScore at a glance
 
-Every eligible conversation displays a [PolyScore](/analytics/polyscore) badge in the table and on the **Scores** tab — a 1–5 quality rating generated automatically by AI. The badge is color-coded (green 5, amber 3–4, red 1–2) and expands to show per-dimension breakdowns.
+Every eligible conversation displays a [PolyScore](/analytics/polyscore) badge in the table and on the **Scores** tab — a 1–5 quality rating generated automatically by AI. The badge is color-coded (green 4–5, yellow 3, red 1–2) and expands to show per-dimension breakdowns.
 
 Use PolyScore in Conversation Review to:
 - **Prioritize review** — sort or filter by PolyScore to surface the lowest-quality conversations first.
@@ -227,6 +230,20 @@ Use PolyScore in Conversation Review to:
 <Tip>
 Save a [view](/analytics/conversations/views) filtered to low PolyScore to build a persistent QA queue.
 </Tip>
+
+## AI Scores at a glance
+
+[AI Scores](/analytics/ai-scores) are 1–5 scores that you define, with up to five weighted criteria each. Every active AI Score gets its own column in the table. Hover over a score to see each criterion with its weight and answer.
+
+![Conversations table with two AI Score columns, and the breakdown tooltip open on one score showing each criterion's weight and answer](/images/analytics/ai-scores-table.png)
+
+AI Score badges are color-coded: green for 4.0–5.0, yellow for 3.0–3.9, and red for 1.0–2.9. On the **Scores** tab, each AI Score appears below PolyScore. Expand a score to see each criterion with its weight, its answer, and its description.
+
+<Frame>
+  <img src="/images/analytics/ai-scores-scores-tab.png" alt="The Scores tab of the Conversation Review panel, with PolyScore collapsed, the Task success AI Score expanded to show each criterion's answer, weight, and description, and a collapsed Compliance check score" style={{ maxWidth: '420px', width: '100%', margin: '0 auto', display: 'block' }} />
+</Frame>
+
+A cell shows **N/A** when the conversation wasn't scored. For example, the conversation was too short, matched the score's exclusion criteria, or ended before the score was turned on. Hover over **N/A** to see the reason. See [Scoring states](/analytics/ai-scores#scoring-states).
 
 ## Conversation status
 
@@ -256,5 +273,8 @@ Transcripts are removed once they fall outside your contracted retention period.
   </Card>
   <Card title="PolyScore" icon="star" href="/analytics/polyscore">
     Understand how conversations are scored and what each dimension measures.
+  </Card>
+  <Card title="AI Scores" icon="list-check" href="/analytics/ai-scores">
+    Score conversations against criteria you write yourself.
   </Card>
 </CardGroup>
