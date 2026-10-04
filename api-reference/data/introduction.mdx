@@ -1,0 +1,104 @@
+---
+title: "Data API"
+sidebarTitle: "Overview"
+description: "Read Poly Score, metrics, transcripts and conversation search results from the Data Gateway with one account API key."
+keywords:
+  - Data API
+  - Poly Score API
+  - metrics API
+  - transcript search
+  - conversation search
+  - analytics API
+---
+
+The Data API is the read side of your agents' conversation data. It serves the same five routes that power the [Data MCP](/mcp/data/introduction) and the ADK's `poly metrics`, `poly conversations search` and `poly transcripts` commands, so anything you can ask an MCP client or the CLI you can also call from your own code.
+
+Use it to pull Poly Score and other metrics into your own dashboards, search transcripts for a phrase, or list conversations that match a set of metric values.
+
+## Endpoints
+
+| Endpoint | What it returns |
+| --- | --- |
+| [`GET /api/v1/metrics`](/api-reference/data/endpoint/metrics/list-metrics) | The metric catalog for the account or a project: built-in metrics such as `poly_score` plus custom ones |
+| [`POST /api/v1/metrics/aggregate`](/api-reference/data/endpoint/metrics/aggregate-a-metric) | avg, sum, min, max, p50, p95, p99 and counts of one metric, bucketed by time and grouped by dimension. **Experimental.** |
+| [`GET /api/v1/transcripts/search`](/api-reference/data/endpoint/transcripts/search-transcripts) | Transcript turns matching a phrase, with surrounding context |
+| [`GET /api/v1/transcripts/conversation/{conversation_id}`](/api-reference/data/endpoint/transcripts/get-a-transcript) | One conversation's full transcript, turn by turn |
+| [`POST /api/v1/conversations/search`](/api-reference/data/endpoint/conversations/search-conversations) | Conversations filtered by metric values, channel, environment and time |
+
+## Authentication
+
+Every request carries an API key in the `X-API-KEY` header.
+
+- An **account API key** (created on the API Keys tab of your account page in Agent Studio) can read any project in the account. Scope a request to one project with `project_id`.
+- A **Personal Access Token** works too, but must pass `project_id` on transcript search.
+
+```bash
+export POLY_API_KEY="your_api_key_here"
+curl "https://api.us.poly.ai/api/v1/metrics" -H "X-API-KEY: $POLY_API_KEY"
+```
+
+<Tip>
+Already using the ADK? `poly apikey` prints an account key for the current region. See [Get started with the ADK](/adk/get-started/get-started#need-an-api-key-for-the-polyai-apis-or-dialog-rsn-poly-apikey).
+</Tip>
+
+## Base URLs
+
+Keys are region-specific. Call the region your account lives in.
+
+| Region | Base URL |
+| ------ | --- |
+| US     | `https://api.us.poly.ai` |
+| UK     | `https://api.uk.poly.ai` |
+| EU     | `https://api.eu.poly.ai` |
+| Studio | `https://api.studio.poly.ai` |
+
+<Warning>
+The Data API lives on `api.<region>.poly.ai`, the same host as the [Agents API](/api-reference/agents/introduction). The [Conversations API](/api-reference/conversations/introduction) is a different service on `api.<region>.platform.polyai.app`: it exports full conversation records per project, while the Data API searches and aggregates across the account.
+</Warning>
+
+## Permissions and PII
+
+All routes need **read** permission on conversations. Transcript text, call summaries and the Poly Score reasoning summaries are PII, and the routes treat it differently:
+
+| Route | Without PII read permission |
+| --- | --- |
+| List metrics, Aggregate a metric | Works normally; these return no PII |
+| Search conversations | Succeeds, but `call_summary`, `email_subject` and the four `poly_score_*_summary` fields are left out of `metrics` |
+| Search transcripts, Get a transcript | Returns `403`. Transcript text is PII, so these need the permission outright |
+
+Grant PII read on the key in Agent Studio if your integration needs transcripts.
+
+## Rate limit
+
+**100 requests per minute per API key**, across all five routes. Over the limit the gateway returns `429`. Page with `limit` and `offset` rather than polling; neither the CLI nor the MCP page automatically past what you ask for, and your code should not either.
+
+## Errors
+
+| Status | Meaning |
+| ------ | --- |
+| `400`  | Invalid window, grouping, sort or filter identifier |
+| `401`  | Missing or invalid `X-API-KEY` |
+| `403`  | Authenticated, but the key lacks the required permission (see above) |
+| `404`  | Project not found, conversation has no turns, or the key cannot access the account |
+| `422`  | Request validation error, including unsupported filter operators |
+| `429`  | Rate limit exceeded |
+| `502`  | The data store behind the route is unavailable; retry with backoff |
+
+Error bodies are `{"detail": "<reason>"}`.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Read Poly Score from the CLI and the API" icon="chart-line" href="/api-reference/data/read-poly-score">
+    A worked example in CLI, curl and Python that ends with weekly Poly Score by channel.
+  </Card>
+  <Card title="Data MCP" icon="plug" href="/mcp/data/introduction">
+    The same five routes as tools for Claude Code, Cursor and other MCP clients.
+  </Card>
+  <Card title="PolyScore" icon="star" href="/analytics/polyscore">
+    How the 1 to 5 score is produced and which conversations get one.
+  </Card>
+  <Card title="Custom metrics" icon="list-check" href="/analytics/kpis/introduction">
+    Define the metrics that appear in the catalog alongside the built-in ones.
+  </Card>
+</CardGroup>
