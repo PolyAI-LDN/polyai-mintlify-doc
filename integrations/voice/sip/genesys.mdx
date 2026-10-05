@@ -1,140 +1,150 @@
 ---
 title: 'Genesys'
-description: 'Connect your PolyAI agent to Genesys Cloud using BYOC service.'
+description: 'Connect your PolyAI agent to Genesys Cloud with a guided BYOC SIP trunk setup in Agent Studio.'
 ---
 
-Connect PolyAI to Genesys Cloud's [Bring Your Own Carrier (BYOC) service](https://help.mypurecloud.com/articles/about-byoc-bring-your-own-carrier/) to provide call handling, routing, and handoff capabilities. This guide explains how to integrate your Genesys Cloud instance directly with PolyAI over BYOC.
+Connect PolyAI to Genesys Cloud over a SIP trunk so calls to your Genesys numbers reach your PolyAI agent. Agent Studio guides you through creating the PolyAI side of the trunk, then gives you the details to finish the setup in Genesys Cloud admin.
 
-<Info> BYOC setups use shared SIP Trunks, so PolyAI connects using a preconfigured multi-tenant trunk with shared IPs and settings. </Info>
+## Before you start
 
-## PolyAI configuration
+- **Know your Genesys model.** The guided setup supports [BYOC Cloud](https://help.genesys.cloud/articles/about-byoc-bring-your-own-carrier/), where calls run on Genesys Cloud's own infrastructure. If you run your own Genesys Edge devices (BYOC Premises), you use the generic SIP trunk setup instead.
+- **Know your Genesys Cloud region.** This is the region your Genesys Cloud organization runs in, for example US East (Virginia) or EU (Frankfurt).
+- **Admin access in Genesys Cloud.** You need [permission to manage external trunks](https://help.genesys.cloud/articles/external-trunk-settings/) to finish the setup.
+- **Numbers to route.** Have the phone numbers or extensions ready, written exactly as Genesys will send them to PolyAI.
 
-1. **Get connection tokens**:
-   - PolyAI will provide you with two tokens:
-     - A **UAT Token** to use for testing.
-     - A **Production Token** to use for live deployment.
-   - Use these tokens to authenticate your SIP trunks with PolyAI.
+<Note>
+If the **Genesys** option shows **Coming soon**, contact your PolyAI account manager.
+</Note>
 
-2. **Enable Handoff API**:
-   - If [screen pop](https://all.docs.genesys.com/PEC-GPA/Current/Administrator/GplusScreenPop90) is required, make sure you have configured your project to meet the standards of the [Handoff API](/api-reference/handoff/endpoint/get-handoff).
-   - Request an API key from PolyAI for this functionality.
+## Start the guided setup
 
-3. **Prepare for SIP INVITE data**:
-   - Your Genesys SIP INVITE will include:
-     - `x-inin-cnv`: the Genesys [Conversation ID](https://developer.genesys.cloud/commdigital/digital/openmessaging/gettingConversationId).
-     - `X-User-to-User`: Custom data in the format `X-User-to-User:{data};encoding=ascii`.
+1. In Agent Studio, go to **Integrations** and open the **Telephony** tab.
+2. Click **Add number**. The **Add a number** panel opens.
+3. Under **Integrate with your contact center platform**, select **Genesys**.
 
-4. **Send data during SIP REFER**:
-   - To return data to Genesys, use this format in the SIP REFER message:
+The **Genesys Cloud setup** opens. It has five steps: **Model**, **Trunk details**, **Numbers**, **Review** and **Reference**.
 
-     `Refer-To: <sip:{route}@{ip}?User-to-User={pd}{data}%3Bencoding%3Dhex>`
+<Steps>
+  <Step title="Model">
+    Answer **Which Genesys model do you use?**
 
-     - Replace `{pd}` with the protocol discriminator (two hex digits).
-     - Replace `{data}` with the hex-encoded information.
+    - **BYOC Cloud** (marked **Fastest setup**): you use Genesys Cloud's own infrastructure, with no edge devices or carrier connections of your own. Pick this if you're not sure.
+    - **BYOC Premises**: you've deployed your own Genesys Edge devices.
 
-### Genesys trunk setup
+    Select **BYOC Cloud** and click **Next**.
 
-#### Prerequisites
-- **PolyAI tokens**: You should have both UAT and Production tokens provided by PolyAI.
-- **Admin access**: Ensure your Genesys account has [permissions to manage external SIP trunks](https://help.mypurecloud.com/articles/external-trunk-settings/).
+    If you select **BYOC Premises**, Agent Studio explains that it needs a fully custom trunk. Click **Continue to SIP setup** to switch to the generic SIP trunk setup. See [Custom SIP](/integrations/voice/sip/custom-sip) for that path.
+  </Step>
 
-#### Configure the primary trunk
+  <Step title="Trunk details">
+    1. Choose your **Genesys Cloud region**. The list shows each region with its Genesys domain, for example **US East (Virginia) — mypurecloud.com**. The region decides which Genesys IP ranges reach PolyAI. Agent Studio also uses it to prefill the trunk **Name**, such as `Genesys Cloud — US East (Virginia)`.
+    2. Copy your region's BYOC Cloud signaling and media IP ranges from the Genesys Cloud Resource Center. For signaling, see [BYOC Cloud public SIP IP addresses](https://help.genesys.cloud/articles/byoc-cloud-public-sip-ip-addresses/). PolyAI rejects calls from any address you don't list.
+    3. Fill in the trunk fields:
 
-To configure a SIP trunk with Genesys Cloud, follow these steps.
+    | Field | What to enter |
+    |---|---|
+    | **Name** | A name for the trunk. Prefilled from your region; you can change it. Up to 255 characters. |
+    | **Encrypted** | Always on for Genesys. Calls use SIP over TLS with SRTP media. |
+    | **SIP CIDR blocks** | The Genesys signaling IP ranges for your region. |
+    | **RTP CIDR blocks** | The Genesys media IP ranges for your region. |
+    | **Inbound authentication** | **IP allowlist only**, **SIP digest** (enter a **Username** and **Password**) or **Token** (enter a **Token**). PolyAI always enforces your CIDR allowlist as well. |
 
-<Tabs>
-  <Tab title="US">
-    **Configuration steps for the US region:**
-    1. Go to `Telephony > Trunks > External Trunks` in Genesys Cloud.
-    2. Create a new SIP trunk:
-       - Type: **BYOC Carrier**
-       - Subtype: **Generic BYOC Carrier**
-       - Protocol: **TLS**
-    3. SIP server: `kam.us-1.polyai.app`, Port: `5061`
-    4. Allow IP: `3.221.248.55`
-    5. Media settings: Codec `audio/PCMU`
-    6. UUI passthrough:
-       - Protocol: `X-User-to-User`
-       - Encoding: `Ascii`
-    7. Custom SIP headers:
-       - Header: `X-PolyAi-Auth-Token`
-       - Value: Use the token provided by PolyAI.
-  </Tab>
-  <Tab title="UK">
-    **Configuration steps for the UK region:**
-    1. Go to `Telephony > Trunks > External Trunks` in Genesys Cloud.
-    2. Create a new SIP trunk:
-       - Type: **BYOC Carrier**
-       - Subtype: **Generic BYOC Carrier**
-       - Protocol: **TLS**
-    3. SIP server: `kam1.uk-1.polyai.app`, Port: `5061`
-    4. Allow IP: `3.10.92.139`
-    5. Media settings: Codec `audio/PCMU`
-    6. UUI passthrough:
-       - Protocol: `X-User-to-User`
-       - Encoding: `Ascii`
-    7. Custom SIP headers:
-       - Header: `X-PolyAi-Auth-Token`
-       - Value: Use the token provided by PolyAI.
-  </Tab>
-  <Tab title="EU">
-    **Configuration steps for the EU region:**
-    1. Go to `Telephony > Trunks > External Trunks` in Genesys Cloud.
-    2. Create a new SIP trunk:
-       - Type: **BYOC Carrier**
-       - Subtype: **Generic BYOC Carrier**
-       - Protocol: **TLS**
-    3. SIP server: `kam.euw-1.polyai.app`, Port: `5061`
-    4. Allow IP: `54.77.217.78`
-    5. Media settings: Codec `audio/PCMU`
-    6. UUI passthrough:
-       - Protocol: `X-User-to-User`
-       - Encoding: `Ascii`
-    7. Custom SIP headers:
-       - Header: `X-PolyAi-Auth-Token`
-       - Value: Use the token provided by PolyAI.
-  </Tab>
-  <Tab title="APAC">
-    **Configuration steps for the APAC region:**
-    1. Navigate to `Telephony > Trunks > External Trunks` in Genesys Cloud.
-    2. Create a new SIP trunk:
-       - Type: **BYOC Carrier**
-       - Subtype: **Generic BYOC Carrier**
-       - Protocol: **TLS**
-    3. SIP server: `kam1.sg-1.polyai.app`, Port: `5061`
-    4. Allow IP: `18.140.207.42`
-    5. Media settings: Codec `audio/PCMU`
-    6. UUI passthrough:
-       - Protocol: `X-User-to-User`
-       - Encoding: `Ascii`
-    7. Custom SIP headers:
-       - Header: `X-PolyAi-Auth-Token`
-       - Value: Use the token provided by PolyAI.
-  </Tab>
-</Tabs>
+    <Tip>
+    CIDR fields accept IPv4 ranges separated by commas or spaces. Each field needs at least one range and takes up to 10. Each range must be `/18` or smaller, and written in canonical form (for example `203.0.113.0/24`, not `203.0.113.5/24`). Agent Studio suggests the corrected range if you enter one with host bits set.
+    </Tip>
 
+    Click **Next**.
+  </Step>
 
-#### Create the secondary trunk
+  <Step title="Numbers">
+    Under **Numbers and routing**, add each number that should reach your agent:
 
-Repeat the above steps with the secondary PolyAI server and IP for your region:
+    - **Extension**: the dialed number or extension as it arrives on this trunk, for example `+441234567890`. Enter it exactly as Genesys sends it.
+    - **Environment**: which environment of your agent answers calls to this number.
+    - **Variant** (optional): routes calls to a specific variant of the agent. Leave empty for the default.
 
-<Tabs>
-  <Tab title="US">
-    - US: `kam2.us-1.polyai.app`, `35.170.209.49`.
-  </Tab>
-  <Tab title="UK">
-   - UK: `kam2.uk-1.polyai.app`, `18.168.178.6`.
-  </Tab>
-  <Tab title="EU">
-    - EU: `kam2.euw-1.polyai.app`, `34.255.224.245`.
-  </Tab>
-  <Tab title="APAC">
-    - APAC: `kam2.sg-1.polyai.app`, `13.250.218.51`.
-  </Tab>
-</Tabs>
+    Click **Add** for each number. You must add at least one number to continue.
+  </Step>
 
-#### Set failover routing
+  <Step title="Review">
+    Check the **Basics**, **Network and encryption**, **Authentication** and **Numbers** sections. Click **Edit** next to a section to change it, then click **Create trunk**.
 
-1. Go to **Site > Edit Site > Outbound Routes** in Genesys Cloud.
-2. Set the distribution pattern to **Sequential** to enable failover from the primary trunk to the secondary trunk.
+    Agent Studio creates the trunk and shows **Genesys Cloud connected**. If a number fails to save, Agent Studio tells you which one. Add it again from the trunk's card on the **Telephony** tab.
+  </Step>
 
+  <Step title="Reference">
+    The **Reference** step shows **Finish in Genesys Cloud** and the connection details you need. See [Configure Genesys Cloud](#configure-genesys-cloud).
+
+    Click **Done** to close the setup. The trunk and its numbers then appear on the **Telephony** tab, where you can view the same connection details again.
+  </Step>
+</Steps>
+
+## Connection details
+
+The **Reference** step lists everything Genesys needs. Each value has a copy button.
+
+- **Connection basics**: **Encryption**, **Port** (5061), **Signalling** (SIP over TLS), **Media** (SRTP over UDP), **RTP port range**, your **SIP CIDR** and **RTP CIDR** ranges, and **Authentication**.
+- **TLS certificates**: **TLS version** 1.2, the **PolyAI root certificate** (DigiCert Global Root G2), and the requirement that **Your certificate** is signed by a publicly trusted certificate authority.
+- **How to reach PolyAI**: the **SIP trunk A record** (**Recommended**) and its SIP URI, plus a **Global A record** and an **SRV service and protocol** record with their SIP URIs. If one option doesn't work with your platform, try one of the others.
+- **Identifying this trunk**: the **Trunk ID**, the **Header** and **URI parameter** that carry it, and, depending on your authentication choice, the digest **Username** and **Realm** or the **Token header**.
+
+### Use an AI assistant
+
+The reference includes **Have an AI assistant connect your platform**. Copy the prompt and paste it into an AI assistant that can work in your Genesys Cloud admin console. The prompt contains this trunk's settings. The assistant points a trunk at PolyAI and replies with what it configured.
+
+## Configure Genesys Cloud
+
+Finish the setup in Genesys Cloud admin, using the values from the **Reference** step.
+
+1. In Genesys Cloud admin, go to **Telephony** > **Trunks** and create an external trunk of type **BYOC Cloud**.
+2. Set the trunk SIP server to the PolyAI **SIP trunk A record** on port `5061`, using TLS for signaling and SRTP for media.
+3. If you chose **SIP digest** or **Token** authentication, configure the same credentials on the Genesys trunk. For a token, send it in the header shown as **Token header**.
+4. If your organization restricts SIP traffic by IP address, allow the addresses the PolyAI trunk address resolves to.
+5. Attach the trunk to a route so calls to your numbers reach it.
+
+<Tip>
+Configure the trunk to use the `audio/PCMU` codec.
+</Tip>
+
+## Pass call data between Genesys and PolyAI
+
+### Data on the inbound INVITE
+
+The Genesys SIP INVITE can include:
+
+- `x-inin-cnv`: the Genesys [conversation ID](https://developer.genesys.cloud/commdigital/digital/openmessaging/gettingConversationId).
+- `X-User-to-User`: custom data, in the format `X-User-to-User:{data};encoding=ascii`. To send it, set UUI passthrough on the Genesys trunk with protocol `X-User-to-User` and encoding `Ascii`.
+
+Your agent can read these values from `conv.sip_headers`. See [Custom SIP](/integrations/voice/sip/custom-sip).
+
+### Data on the SIP REFER
+
+To return data to Genesys when your agent transfers a call, use this format in the SIP REFER:
+
+`Refer-To: <sip:{route}@{ip}?User-to-User={pd}{data}%3Bencoding%3Dhex>`
+
+- Replace `{pd}` with the protocol discriminator (two hex digits).
+- Replace `{data}` with the hex-encoded information.
+
+### Screen pop with the Handoff API
+
+If you need a [screen pop](https://all.docs.genesys.com/PEC-GPA/Current/Administrator/GplusScreenPop90) for live agents, Genesys can fetch the handoff data your agent saved through the [Handoff API](/api-reference/handoff/introduction). Create an API key in Agent Studio for this.
+
+## Change or remove the trunk
+
+On the **Telephony** tab, open the Genesys trunk's menu:
+
+- **Add number** adds another number to the trunk.
+- **Edit configuration** changes the name, CIDR ranges or authentication. Secrets are never shown again; leave a secret field blank to keep the stored one.
+- **Remove trunk** deletes the trunk. Every call routing over it stops, including calls to its numbers. This cannot be undone.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Custom SIP" icon="phone" href="/integrations/voice/sip/custom-sip">
+    Read SIP headers in your agent, and set up a generic SIP trunk for BYOC Premises.
+  </Card>
+  <Card title="Handoffs" icon="right-left" href="/voice-channel/handoffs">
+    Configure where and how your agent transfers calls.
+  </Card>
+</CardGroup>

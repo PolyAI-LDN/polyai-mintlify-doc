@@ -1,54 +1,125 @@
 ---
 title: 'Zendesk Talk'
-description: 'Connect to Zendesk Talk to route inbound calls and hand off calls to live agents through SIP.'
+description: 'Forward Zendesk Talk calls to your PolyAI agent and hand them back to Zendesk agents over SIP.'
 ---
 
-Route calls through Zendesk Talk and hand off to Zendesk agents through SIP. This integration handles inbound calls with agent escalation.
+Connect Zendesk Talk so calls to your Zendesk line reach your PolyAI agent, and calls the agent can't resolve go back to a Zendesk agent with the caller's ticket open.
 
-<Note>Zendesk Talk is available from **Integrations** in Agent Studio under **Telephony**. For Zendesk CRM integration, see the CRM section in Agent Studio.</Note>
-
-## Call flow
-
-1. A caller dials a number linked to a [Zendesk account](https://support.zendesk.com/hc/en-us/articles/4408884056346-Introduction-Getting-started-with-Zendesk-Support).
-2. Zendesk uses the [Overflow](https://support.zendesk.com/hc/en-us/articles/4408832017690-Managing-overflow-calls-and-after-hours-routing-with-Talk) feature to redirect the call to PolyAI. This requires a phone number from a [SIP provider](https://www.techtarget.com/searchunifiedcommunications/definition/Session-Initiation-Protocol) such as [Twilio](https://www.twilio.com/sip-trunking) or [Gamma](https://gammagroup.co/products/sip-trunking-call-management/).
-3. Twilio converts the [PSTN](https://www.techtarget.com/searchnetworking/definition/PSTN) call to [SIP](https://www.ietf.org/rfc/rfc3261.txt) and sends it to PolyAI.
-4. PolyAI initiates a [SIP INVITE](https://datatracker.ietf.org/doc/html/rfc3261#section-13) to an outbound integration, routing the call to a SIP URI provided by Zendesk.
-5. Zendesk agents receive the call. If a ticket exists, they see its ID with the `X-Zendesk-Ticket-Id` SIP header.
-
-## Setup
-
-### Configure PSTN forwarding
-
-Zendesk numbers route calls internally by default. To send calls to PolyAI, enable Overflow.
-
-1. Create an empty agent group in Zendesk Talk.
-2. Set the inbound number to route only to this group.
-3. Configure Overflow to forward calls:
-   - If no agents are available (the group is empty, so this is always the case).
-   - Outside business hours.
-4. Disable voicemail for this number.
-
-### Enable SIP in Zendesk
-
-Zendesk requires SIP to send calls to external systems.
-
-1. In Zendesk, go to **Admin Center**.
-2. Select **Channels → Talk → Lines**.
-3. Click **Add Line → Add SIP Line**.
-4. Register a SIP address. Name it to match the client or project.
-5. Add PolyAI's IP address range to your allowlist to permit SIP traffic.
-
-### Create the outbound integration
-
-Once PSTN forwarding and SIP are configured, contact your PolyAI account manager to set up the outbound integration. PolyAI will configure the SIP routing to connect your Zendesk environment.
-
-## Handoff using the outbound integration
-
-Once the SIP address is set up and verified, PolyAI can hand off calls to Zendesk agents.
+You set this up in Agent Studio with a guided setup. It walks you through the Zendesk side, then saves the connection PolyAI uses to hand calls back.
 
 <Note>
-For detailed handoff configuration, see [Call handoffs](/voice-channel/handoffs). Your PolyAI representative can help with Zendesk-specific routing requirements.
+This page covers Zendesk Talk telephony. For the Zendesk CRM integration, see the CRM section in Agent Studio.
 </Note>
+
+## How calls flow
+
+Zendesk Talk can't send calls to PolyAI over SIP, so the two directions use different paths:
+
+1. A caller dials your Zendesk Talk line.
+2. The line routes to an empty agent group. Because no agents are ever available, Zendesk's [overflow](https://support.zendesk.com/hc/en-us/articles/4408832017690-Managing-overflow-calls-and-after-hours-routing-with-Talk) forwards every call to a PolyAI number over the phone network.
+3. Your PolyAI agent answers.
+4. When the agent hands off, PolyAI sends a [SIP INVITE](https://datatracker.ietf.org/doc/html/rfc3261#section-13) to a SIP line you register in Zendesk.
+5. A Zendesk agent answers. If the handoff includes the `X-Zendesk-Ticket-Id` SIP header, Zendesk opens that ticket for them.
+
+## Before you start
+
+- Admin access to Zendesk Admin Center.
+- A PolyAI number in your project for Zendesk to forward calls to. If you don't have one, [buy or forward a number](/integrations/voice/twilio) first.
+- An email address of a Zendesk admin and a Zendesk API token.
+- PolyAI's SIP IP range for your region. Your PolyAI account manager can give you this.
+
+<Note>
+Only one telephony integration can be connected to a project at a time. If the project already has a different one, the setup shows **Another telephony integration is connected** and won't continue.
+</Note>
+
+## Set up Zendesk Talk
+
+In Agent Studio, go to **Integrations**, open the **Telephony** tab and click **Add number**. In the **Add a number** panel, under **Integrate with your contact center platform**, select **Zendesk Talk**.
+
+If the option shows **Coming soon**, contact your PolyAI account manager.
+
+The **Zendesk Talk setup** has four steps: **Number**, **Zendesk**, **Connect** and **Reference**.
+
+<Steps>
+  <Step title="Pick the number Zendesk forwards to">
+    On the **Number** step, choose the **PolyAI number** your Zendesk line should overflow to. Each number in the list shows the environment it routes to.
+
+    If the project has no numbers, the step shows **This project has no numbers yet**. Buy a PolyAI number first, then come back.
+
+    Click **Next**.
+  </Step>
+  <Step title="Set up your Zendesk line">
+    The **Zendesk** step lists what to do in Zendesk Admin Center. The first four steps send calls to PolyAI. The SIP line is where PolyAI hands calls back.
+
+    1. In **People → Team → Groups**, create an empty agent group. Don't add any agents to it.
+    2. In **Channels → Talk → Lines**, open your inbound line's **Routing** settings and route it to that group only.
+    3. Turn on overflow to the PolyAI number you picked, both when no agents are available and outside business hours. The group is empty, so every call overflows to PolyAI.
+    4. Turn off voicemail and outbound calling on the line. Voicemail answers before overflow can forward the call.
+    5. In **Channels → Talk → Lines → Add line → Add SIP line**, add a SIP line and register a SIP address named after your project.
+    6. On the SIP line, allow PolyAI's SIP IP range for your region.
+
+    When you're done, copy the SIP address from the SIP line and click **Next**.
+
+    <Tip>
+    Click **Copy prompt** on the **Have an AI assistant prepare the Zendesk side** card to get instructions for an AI assistant that can work in your Zendesk Admin Center. The prompt already includes your PolyAI number and project ID. The assistant sets up the overflow and the SIP line, asks you for anything it needs, and replies with the SIP address the next step asks for.
+    </Tip>
+  </Step>
+  <Step title="Connect your Zendesk SIP line">
+    On the **Connect** step, enter:
+
+    | Field | What to enter |
+    |-------|---------------|
+    | **SIP address** | The SIP address from your Zendesk SIP line. It must start with `sip:` or `sips:`, for example `sip:support@example.com`. |
+    | **Zendesk admin email** | The email address of a Zendesk admin. |
+    | **Zendesk API token** | A token you create in Zendesk Admin Center under **Apps and integrations**, **Zendesk API**. |
+
+    Click **Connect Zendesk**. PolyAI saves the connection and creates the integration your handoffs use to reach Zendesk.
+
+    If the connection fails, check the SIP address and try again. Contact PolyAI support if it keeps failing.
+  </Step>
+  <Step title="Add a handoff back to Zendesk">
+    The **Reference** step, **Hand calls back to Zendesk**, shows the **Handoff settings** to use:
+
+    | Setting | Value |
+    |---------|-------|
+    | **Method** | `INVITE` |
+    | **Integration name** | The name of the integration PolyAI created. Copy it from the screen. |
+    | **Encryption** | `UDP/RTP` |
+    | **Overflow number** | The PolyAI number Zendesk forwards calls to. |
+
+    Click **Open handoffs** to go to **Voice > Handoffs** and add a handoff with these settings. See [Call handoffs](/voice-channel/handoffs) for how to add one.
+
+    Click **Done** to close the setup.
+  </Step>
+</Steps>
+
+## Show the caller's ticket to the Zendesk agent
+
+Add an `X-Zendesk-Ticket-Id` SIP header to the handoff and set it to the ticket ID. Zendesk opens that ticket for the agent who answers.
+
+To set header values from conversation data, see [Configuring SIP headers](/voice-channel/handoffs#configuring-sip-headers).
+
+## After setup
+
+Once Zendesk Talk is connected, selecting **Zendesk Talk** again opens the **Reference** step with **Zendesk Talk is connected**. Use it to check the handoff settings at any time.
+
+To change the SIP line, contact PolyAI support.
+
+## Testing the integration
+
+1. Call your Zendesk Talk line and confirm your PolyAI agent answers.
+2. Trigger a handoff and confirm the call reaches a Zendesk agent.
+3. If you added `X-Zendesk-Ticket-Id`, confirm the ticket opens for the agent.
+4. Review the call in **Conversations**.
+
+## Troubleshooting
+
+| Issue | Check |
+|-------|-------|
+| Calls ring in Zendesk and never reach PolyAI | The line routes only to the empty group, and overflow is on for both "no agents available" and "outside business hours". |
+| Callers reach voicemail | Voicemail is turned off on the line. |
+| Handoffs to Zendesk fail | The handoff uses the **Integration name**, **Method** and **Encryption** from the **Reference** step, and PolyAI's SIP IP range is allowed on the SIP line. |
+| The ticket doesn't open for the agent | The handoff sends `X-Zendesk-Ticket-Id` with a valid ticket ID. |
 
 ## Related pages
 

@@ -1,28 +1,260 @@
 ---
 title: 'Custom SIP'
-description: 'Access SIP headers for dynamic routing, personalization, and custom handoffs.'
+description: 'Connect any SIP-capable telephony platform to your PolyAI agent with a self-serve SIP trunk, then use SIP data for routing and transfers.'
 ---
 
-Access SIP headers and attributes to extract caller metadata, route calls dynamically, and implement custom SIP-based handoffs.
+Use a custom SIP trunk to send calls from your own telephony platform to a PolyAI agent. This is the general-purpose option: it works with any SIP-capable platform, including carriers, session border controllers (SBCs), PBXs and contact centers that don't have a dedicated guide.
 
-## Key attributes
+You set up the trunk yourself in Agent Studio. PolyAI creates the trunk, gives you the connection details, and routes each number or extension you add to the environment you choose.
 
-The `conv` object provides access to SIP-related attributes that you can use in your agent logic:
+<Note>
+If your platform has a dedicated guide, such as [Genesys](/integrations/voice/sip/genesys), [Five9](/integrations/voice/sip/five9) or [NICE CXone](/integrations/voice/sip/NICECXone), start there. Those setups prefill or skip parts of this flow.
+</Note>
 
-#### **sip_headers**
-- **Description**: A dictionary containing SIP headers and their corresponding values.
-- **Use case**: Extract caller-specific metadata or route calls dynamically.
-- **Example**:
+## Before you start
+
+Have these ready:
+
+- **Admin access to your SIP platform**, so you can create a trunk that points at PolyAI.
+- **The IP ranges your platform sends from**, as IPv4 CIDR blocks: one list for SIP signaling and one for media (RTP). PolyAI rejects traffic from anywhere else.
+- **Whether your platform supports TLS and SRTP.** Encryption is on by default.
+- **How you want to authenticate calls**: by IP address only, with SIP digest, or with a shared token.
+- **The numbers or extensions** your platform will send to PolyAI, written exactly as the platform sends them.
+- **Telephony admin access** on your PolyAI account. Without it, you can't load or change numbers on the **Telephony** tab.
+
+<Note>
+If **Configure SIP trunk** shows **Coming soon**, contact your PolyAI account manager.
+</Note>
+
+## Create a SIP trunk
+
+Open the setup from the **Telephony** tab:
+
+1. In Agent Studio, go to **Integrations** and open the **Telephony** tab.
+2. Click **Add number**. The **Add a number** panel opens.
+3. Under **Transfer or buy a number**, choose **Configure SIP trunk**.
+
+The **New SIP trunk** wizard opens. It has three steps, followed by a reference screen once the trunk exists.
+
+<Steps>
+  <Step title="Trunk details">
+    Describe your trunk and the network it calls from.
+
+    | Field | What to enter |
+    | ----- | ------------- |
+    | **Name** | A name you'll recognize in the number list, for example the platform and its purpose. Up to 255 characters. |
+    | **Encrypted** | On by default: SIP over TLS with SRTP media. Turn it off only if your platform can't do TLS. The trunk then uses SIP over UDP with plain RTP. |
+    | **SIP CIDR blocks** | The IPv4 ranges your SIP servers send signaling from. |
+    | **RTP CIDR blocks** | The IPv4 ranges your media servers send audio from. |
+    | **Inbound authentication** | Choose one of **IP allowlist only**, **SIP digest** or **Token**. |
+
+    **CIDR blocks.** Separate entries with commas (spaces also work), for example `203.0.113.0/24, 198.51.100.0/24`. Each list needs between 1 and 10 entries. Every entry must:
+
+    - Be an IPv4 range. IPv6 isn't supported.
+    - Be no larger than a `/18`.
+    - Be the network address of the range. If you enter an address with host bits set, such as `203.0.113.5/24`, Agent Studio tells you the correct form (`203.0.113.0/24`).
+
+    **Inbound authentication.** PolyAI always enforces your CIDR allowlist, whichever option you choose.
+
+    - **IP allowlist only**: PolyAI accepts calls based on source IP alone.
+    - **SIP digest**: enter a **Username** and **Password**. PolyAI challenges each call's first INVITE, and your platform answers with these credentials.
+    - **Token**: enter a **Token**. Your platform sends it in a SIP header on every INVITE.
+
+    Names, usernames, passwords and tokens can't start or end with spaces or contain invisible characters.
+
+    Click **Next**.
+  </Step>
+  <Step title="Numbers">
+    Under **Numbers and routing**, add the numbers or extensions that should reach this agent. For each one:
+
+    - **Extension**: the dialed number or extension as it arrives on this trunk, for example `+441234567890`. Enter it exactly as your platform sends it. Up to 128 characters.
+    - **Environment**: where calls go: **Sandbox**, **Pre-release** or **Live**. (Some accounts show **Staging** instead of **Pre-release**.)
+    - **Variant** (optional): routes calls to a specific variant of the agent. Leave it empty to use the default. This field is unavailable if the agent has no variants.
+
+    Click **Add** to stage the row. Staged rows appear in a table where you can **Edit** or **Delete** them. Each extension can only be added once per trunk.
+
+    You can skip this step and add numbers later. Calls that arrive on a trunk with no extensions have nowhere to route.
+
+    Click **Next**.
+  </Step>
+  <Step title="Review">
+    Check your settings, grouped into **Basics**, **Network and encryption**, **Authentication** and **Numbers**. Click **Edit** on any section to go back and change it.
+
+    The **Network and encryption** section also shows the signaling and media transport the trunk will use, for example SIP over TLS on port 5061 with SRTP media.
+
+    Click **Create trunk**.
+  </Step>
+  <Step title="Reference">
+    PolyAI creates the trunk and adds your numbers. The panel switches to the trunk's connection details, which you need to configure your platform. See [Connection details](#connection-details) below.
+
+    If any numbers fail to save, a message names them. Add them again from the trunk's card on the **Telephony** tab.
+
+    Click **Done** when you've copied what you need. You can reopen the connection details at any time.
+  </Step>
+</Steps>
+
+## Connect your platform
+
+Point a trunk on your SIP platform at PolyAI using the [connection details](#connection-details). You can do this yourself or with an AI assistant.
+
+### Have an AI assistant connect your platform
+
+At the top of the connection details, the **Have an AI assistant connect your platform** card holds a prompt built from this trunk's settings. Click **Copy prompt** and paste it into an AI assistant that can work in your SIP provider or contact center admin console.
+
+The prompt asks the assistant to:
+
+1. Ask you which phone numbers should reach the agent.
+2. Create (or update) a trunk on your platform named after the PolyAI trunk.
+3. Set the destination to the trunk's SIP URI, or to the host, port and transport separately.
+4. Turn on TLS and SRTP for an encrypted trunk, using PolyAI's root certificate if asked, or use UDP and plain RTP for an unencrypted one.
+5. Configure authentication to match the trunk.
+6. Check that your platform's SIP and media IP addresses fall inside the CIDR ranges you entered, and stop if they don't.
+7. Route your numbers to the trunk, sending each one exactly as it's written in PolyAI.
+8. Save only after you confirm.
+
+The assistant then replies with a short summary: the platform trunk it configured, the destination it used, the numbers it routed and your source IPs.
+
+<Note>
+The prompt never includes your digest password or token. The assistant is told to stop at those fields and let you enter the secret yourself.
+</Note>
+
+### Configure it yourself
+
+In your platform's admin console:
+
+1. Create an external SIP trunk (sometimes called a SIP peer or BYOC trunk) for PolyAI.
+2. Set the destination to the **Trunk A record SIP URI**. If your platform asks for host, port and transport separately, use the **SIP trunk A record**, the **Port** and the **Signalling** values.
+3. For an encrypted trunk, turn on TLS for signaling and SRTP for media. If asked for a CA certificate for PolyAI, use the PolyAI root certificate listed under **TLS certificates**.
+4. Configure authentication to match the trunk: answer the digest challenge with your username and password, or add the token header to every INVITE.
+5. Make sure your platform sends SIP and media only from the CIDR ranges you entered.
+6. Route your numbers to the trunk. Send each number as the user part of the request URI, written exactly as it is in the trunk's extensions.
+
+For the full protocol details, including example INVITEs, see [Connecting to PolyAI Telephony](/api-reference/sip-trunking/connecting).
+
+## Connection details
+
+The connection details appear at the end of the wizard, when you expand a trunk's card on the **Telephony** tab, and in the **Edit SIP trunk** panel. Each value has a copy button. Values such as the hostname and trunk ID are unique to each trunk, so always copy them from Agent Studio.
+
+### Connection basics
+
+A summary of how the trunk carries calls:
+
+- **Encryption**: **Encrypted** or **Unencrypted**.
+- **Port**: 5061 for encrypted trunks, 5060 for unencrypted.
+- **Signalling**: SIP over TLS, or SIP over UDP.
+- **Media**: SRTP over UDP, or RTP over UDP.
+- **RTP port range**: the PolyAI ports media is sent to.
+- **SIP CIDR** and **RTP CIDR**: the ranges you allowed.
+- **Authentication**: the inbound authentication option you chose.
+
+### TLS certificates
+
+Shown for encrypted trunks only:
+
+- **TLS version**: the TLS version PolyAI supports.
+- **PolyAI root certificate**: the certificate authority PolyAI's certificate chains to, with a download link. Add it to your platform if it asks for a CA certificate.
+- **Your certificate**: your platform's certificate must be signed by a publicly trusted certificate authority. PolyAI checks it.
+
+### How to reach PolyAI
+
+Three ways to address PolyAI. Each has a host value and a ready-made SIP URI.
+
+| Option | When to use it | Trunk ID needed on the INVITE? |
+| ------ | -------------- | ------------------------------ |
+| **SIP trunk A record** (**Recommended**) | The default. The hostname is unique to this trunk, so PolyAI knows which trunk the call belongs to. Use the **Trunk A record SIP URI**. | No |
+| **Global A record** | Your platform sends to several PolyAI trunks or accounts through one shared regional host. Use the **Global A record SIP URI**. | Yes |
+| **SRV service and protocol** | Your platform discovers servers through DNS SRV records. Use the **SRV SIP URI**. | Yes |
+
+If one option doesn't work with your platform, try one of the others. The global and SRV SIP URIs already include the trunk ID as a URI parameter.
+
+### Identifying this trunk
+
+The values your platform uses to tell PolyAI which trunk a call belongs to, and to authenticate it:
+
+- **Trunk ID**: this trunk's unique ID.
+- **Header**: the SIP header that can carry the trunk ID.
+- **URI parameter**: the request-URI parameter that can carry the trunk ID instead.
+- **Digest username** and **Realm**: shown for SIP digest trunks. PolyAI challenges the first INVITE with a `401`, and your platform answers using these and your password.
+- **Token header**: shown for token trunks. Send your token in this header on every INVITE.
+
+If you use the **Global A record** or **SRV** options, send the trunk ID in the header or the URI parameter on every INVITE. You don't need either with the trunk A record.
+
+### Extensions on this trunk
+
+When you expand a trunk's card, dialed numbers appear as rows in the card. Other extensions on the trunk, such as short internal extensions, appear in the **Extensions on this trunk** table, with their **Extension**, **Environment** and **Variant**.
+
+## Manage a trunk
+
+Each SIP trunk appears as a card on the **Telephony** tab, listing its numbers. Use the card's actions menu (**⋯**) or expand the card to manage it.
+
+### Add numbers and extensions
+
+1. Open the card's actions menu and click **Add number**, or expand the card and click **Add extension**.
+2. Enter the **Extension**, exactly as your platform sends it.
+3. Choose an **Environment**.
+4. Optionally choose a **Variant**. This field only appears when the agent has variants.
+5. Click **Add extension**.
+
+Then route the new number to the trunk on your platform.
+
+### Change routing
+
+To move a number or extension to another environment or variant, click its **Environment** or **Variant** value in the card and pick a new one. The change saves immediately.
+
+### Delete a number or extension
+
+Open the number's actions menu and click **Delete number**, or click **Delete** next to an extension in **Extensions on this trunk**. Confirm to delete it. Calls to that number on this trunk stop reaching an agent.
+
+### Edit the trunk
+
+Open the card's actions menu and click **Edit configuration**, or expand the card and click **Edit configuration**. The **Edit SIP trunk** panel shows the same fields as the wizard's first step, along with the connection details.
+
+- Passwords and tokens are never shown. Leave the field blank to keep the stored secret.
+- If you change the digest **Username**, you must enter the password again.
+- If you switch authentication type, enter the new password or token.
+
+Click **Save**. If you change encryption or authentication, update your platform to match.
+
+### Remove the trunk
+
+Open the card's actions menu and click **Remove trunk**, then confirm. Deleting a trunk stops every call routing over it, including any numbers mapped to its extensions. This can't be undone.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="A CIDR block is rejected">
+    Check that it's an IPv4 range no larger than a `/18`, and that it's the network address of the range. Agent Studio suggests the corrected block when host bits are set. Each list takes at most 10 blocks.
+  </Accordion>
+  <Accordion title="Calls don't reach the agent">
+    - Check your platform sends SIP and media from inside the CIDR ranges on the trunk.
+    - Check the dialed number in the request URI matches an extension on the trunk exactly, including any `+` and country code.
+    - If you use the global A record or SRV, check every INVITE carries the trunk ID.
+    - If the trunk uses digest or token authentication, check your platform answers the challenge or sends the token header.
+    - For encrypted trunks, check your platform trusts the PolyAI root certificate and uses a publicly trusted certificate of its own.
+  </Accordion>
+  <Accordion title="Calls reach the wrong environment or variant">
+    Expand the trunk's card and check the **Environment** and **Variant** for that number or extension.
+  </Accordion>
+</AccordionGroup>
+
+## Use SIP data in your agent
+
+Once calls arrive over SIP, the `conv` object gives your agent access to SIP-related attributes. Use them to extract caller metadata, route calls dynamically and personalize responses.
+
+### Key attributes
+
+#### `sip_headers`
+
+A dictionary of SIP headers and their values. Use it to extract caller-specific metadata or route calls dynamically.
 
 ```python
 caller_id = conv.sip_headers.get("From", "Unknown Caller")
 print(f"Caller ID: {caller_id}")
 ```
 
-#### **caller_number**
-- **Description**: The phone number of the caller.
-- **Use case**: Personalize responses based on the caller's number.
-- **Example**:
+#### `caller_number`
+
+The phone number of the caller. Use it to personalize responses.
 
 ```python
 if conv.caller_number == "+15551234567":
@@ -31,10 +263,9 @@ else:
     conv.goto_flow("general_support_flow")
 ```
 
-#### **callee_number**
-- **Description**: The phone number the caller dialed.
-- **Use case**: Determine routing based on the number dialed.
-- **Example**:
+#### `callee_number`
+
+The phone number the caller dialed. Use it to route based on the number dialed.
 
 ```python
 dialed_number = conv.callee_number
@@ -44,18 +275,9 @@ else:
     conv.state.branch = "South Branch"
 ```
 
-### How to Use Custom SIP
+### Store SIP data for later in the call
 
-1. **Access SIP headers**:
-   - Use `conv.sip_headers` to retrieve metadata from the SIP protocol.
-   - This is particularly useful for identifying caller attributes or custom routing.
-
-2. **Dynamic routing**:
-   - Use `caller_number` and `callee_number` to configure routing flows based on incoming and dialed numbers.
-
-3. **Store data for contextual responses**:
-   - Save SIP-related information into `conv.state` to persist data across the conversation.
-   - Example:
+Save SIP-related information into `conv.state` to persist it across the conversation:
 
 ```python
 conv.state.metadata = {
@@ -66,77 +288,85 @@ conv.state.metadata = {
 
 ### Use cases
 
-- **VIP routing**: Automatically direct high-priority callers to specific support flows.
-- **Branch-specific handling**: Route calls to the appropriate branch or location based on the number dialed.
-- **Dynamic personalization**: Use SIP headers to provide tailored greetings or responses.
+- **VIP routing**: direct high-priority callers to specific support flows.
+- **Branch-specific handling**: route calls to the right branch or location based on the number dialed.
+- **Dynamic personalization**: use SIP headers to tailor greetings or responses.
 
-For more details on the `Conversation` object, visit the **[`conv` object](/tools/classes/conv-object)** page.
+For more on the `Conversation` object, see the [`conv` object](/tools/classes/conv-object) page.
 
-## Initiating SIP transfers programmatically
+## Initiate SIP transfers programmatically
 
-In addition to configuring call handoffs in the UI, you can initiate SIP transfers directly from a function using `return` values. This is useful when routing logic depends on in-conversation data or SIP header values.
+As well as configuring [handoffs](/voice-channel/handoffs) in Agent Studio, you can start a SIP transfer directly from a function using `return` values. This is useful when routing depends on in-conversation data or SIP header values.
 
-You can use two methods: **INVITE** and **REFER**. These are mutually exclusive with UI-based `Call Handoffs` and require manual setup.
+There are two methods: **INVITE** and **REFER**. Both are mutually exclusive with handoffs configured in Agent Studio and need manual setup.
 
 ### When to use INVITE vs REFER
 
 **Use SIP INVITE when:**
-- You want PolyAI to remain in the call as a bridge between the caller and the target
-- You need to monitor or record the transferred call
-- You want to inject custom SIP headers for the outbound leg
-- You're transferring to a PSTN number or external SIP URI
+- You want PolyAI to stay in the call as a bridge between the caller and the target.
+- You need to monitor or record the transferred call.
+- You want to add custom SIP headers to the outbound leg.
+- You're transferring to a PSTN number or external SIP URI.
 
 **Use SIP REFER when:**
-- You want the Session Border Controller (SBC) to handle the transfer directly
-- You want to remove PolyAI from the call path after transfer (reduces latency and infrastructure load)
-- Your SBC supports REFER and has "Take Back and Transfer" enabled
-- You're performing an attended or blind transfer in the same SIP domain
+- You want your SBC to handle the transfer directly.
+- You want to remove PolyAI from the call path after transfer, which reduces latency and infrastructure load.
+- Your SBC supports REFER and has "Take Back and Transfer" enabled.
+- You're performing an attended or blind transfer in the same SIP domain.
 
 ### SIP INVITE
 
-This creates a new call and bridges the user with the target. Use this when you want PolyAI to act as a bridge.
-
+This creates a new call and bridges the caller with the target. Use it when you want PolyAI to act as a bridge.
 
 ```python
 return {
-  "handoff": {
-    "invite": {
-      "phone_number": "2222222",  // SIP URI or PSTN number
-      "outbound_caller_id": conv.caller_number,
-      "outbound_endpoint": "YOUR_OUTBOUND_ENDPOINT_NAME",  // Provided by PolyAI during setup
-      "sip_headers": {
-        "X-Customer-ID": conv.state.customer_id,
-        "X-Call-Type": "Support"
-      }
+    "handoff": {
+        "invite": {
+            "phone_number": "2222222",  # SIP URI or PSTN number
+            "outbound_caller_id": conv.caller_number,
+            "outbound_endpoint": "YOUR_OUTBOUND_ENDPOINT_NAME",  # Provided by PolyAI
+            "sip_headers": {
+                "X-Customer-ID": conv.state.customer_id,
+                "X-Call-Type": "Support",
+            },
+        }
     }
-  }
 }
 ```
 
 <Info>
-The `outbound_endpoint` value is provided by PolyAI during your SIP integration setup. Contact your PolyAI account manager or representative if you need this value.
+PolyAI provides the `outbound_endpoint` value. Contact your PolyAI account manager if you need it.
 </Info>
 
 ### SIP REFER
 
-This instructs the Session Border Controller to take over and transfer the call.
+This tells your SBC to take over and transfer the call.
 
 ```python
 return {
-  "handoff": {
-    "refer": {
-      "phone_number": conv.caller_number,  // Number PolyAI used
-      "refer_to": "sip:support@example.com",  // SIP URI or number
-      "sip_headers": {
-        "X-Caller-ID": conv.caller_number
-      }
+    "handoff": {
+        "refer": {
+            "phone_number": conv.caller_number,  # Number PolyAI used
+            "refer_to": "sip:support@example.com",  # SIP URI or number
+            "sip_headers": {
+                "X-Caller-ID": conv.caller_number,
+            },
+        }
     }
-  }
 }
 ```
 
 <Note>
-To avoid 405 errors, make sure the "Take Back and Transfer" setting is enabled when using SIP REFER on any platform with that setting.
+To avoid 405 errors, make sure "Take Back and Transfer" is enabled when using SIP REFER on any platform with that setting.
 </Note>
 
-These code patterns are especially useful when dynamic call routing or SIP metadata injection is needed mid-conversation.
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Connecting to PolyAI Telephony" icon="plug" href="/api-reference/sip-trunking/connecting">
+    Protocol details for addressing, identifying and authenticating calls.
+  </Card>
+  <Card title="SIP Trunking API" icon="code" href="/api-reference/sip-trunking/introduction">
+    Create and manage trunks and extensions programmatically.
+  </Card>
+</CardGroup>

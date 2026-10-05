@@ -1,88 +1,201 @@
 ---
 title: 'Five9'
-description: 'Connect your PolyAI agent to Five9 through a SIP trunk for call routing and handoffs.'
+description: 'Connect your PolyAI agent to Five9 over a SIP trunk, with BYE headers and the Handoff API for transfers back to Five9.'
 ---
 
-Connect PolyAI to Five9 through a shared SIP trunk for call routing and live-agent handoff. This guide covers setup, routing methods, and transfer configuration.
+Connect PolyAI to Five9 over a SIP trunk so Five9 calls reach your PolyAI agent and come back to Five9 when the agent hands off. Agent Studio guides you through creating the PolyAI side of the trunk. Five9 then finishes the setup on their side.
 
-## 1: Integrate with the shared Five9 and PolyAI SIP trunk
+<Info>
+PolyAI is an accredited Five9 partner. Five9 usually completes their side in about two weeks. A Five9 demo environment is available for testing; ask your PolyAI contact if you want access.
+</Info>
 
-Five9 uses a multi-tenant SIP trunk to connect with PolyAI. Contact your [Five9 account manager](https://www.five9.com/) to configure your environment to connect to this SIP trunk and route calls to PolyAI.
+## Before you start
 
-## 2: Five9 to PolyAI routing methods
+- **Five9 IP ranges.** Ask your Five9 account manager for the IP ranges your Five9 environment sends SIP and media from.
+- **Numbers to route.** Have the phone numbers ready, written exactly as Five9 will send them as the dialed number.
+- **No other telephony integration on the project.** Only one telephony integration can be connected to a project at a time. Once you finish this setup, Five9 is this project's telephony integration.
 
-<Tabs>
-  <Tab title="Authentication token">
-    PolyAI provides an authentication token included in the SIP INVITE message under the X-header (`X-PolyAi-Auth-Token`). This token identifies and distinguishes traffic for accurate agent routing.
-  </Tab>
-  <Tab title="Dialed extension">
-    Five9 and PolyAI agree on unique extension numbers for routing calls. This method offers flexibility and scalability, especially for clients managing multiple PolyAI agents.
-  </Tab>
-</Tabs>
+<Note>
+If the **Five9** option shows **Coming soon**, contact your PolyAI account manager.
+</Note>
 
-## 3: PolyAI to Five9 transfer methods
+## Start the guided setup
 
-<Tabs>
-  <Tab title="SIP BYE with custom headers">
-    When PolyAI is unable to contain a call, it sends a SIP BYE message with custom headers to indicate the status of the call. This method is simple and suitable for scenarios with limited metadata requirements.
+1. In Agent Studio, go to **Integrations** and open the **Telephony** tab.
+2. Click **Add number**. The **Add a number** panel opens.
+3. Under **Integrate with your contact center platform**, select **Five9**.
 
-    Key headers include:
-    - `X-contained`: Indicates whether the call was contained by PolyAI. (`true` or `false`)
-    - `X-destination`: Specifies where to transfer the call if it was not contained. Values are determined during deployment.
+The **Five9 setup** opens. It has four steps: **Trunk details**, **Numbers**, **Review** and **Reference**.
 
-    <Warning> Five9 supports up to 10 custom headers. Additional requirements should be discussed with PolyAI during deployment. </Warning>
-  </Tab>
-  <Tab title="PolyAI Handoff API">
-    For cases requiring detailed metadata, PolyAI provides a [Handoff API](/api-reference/handoff/introduction) to return larger data payloads. This method involves:
+<Steps>
+  <Step title="Trunk details">
+    Fill in the trunk fields:
 
-    1. PolyAI sends a SIP BYE message to Five9 to indicate the agent call leg is complete.
-    2. Five9 uses scripting to call the PolyAI Handoff API, using the Five9 session ID as the `shared_id` parameter to retrieve data.
-    3. The API response includes:
-       - `contained`: Indicates whether the call was contained. (`true` or `false`)
-       - `destination`: Specifies the transfer destination if the call was not contained.
+    | Field | What to enter |
+    |---|---|
+    | **Name** | A name for the trunk. Prefilled as `Five9 · <your project name>`; you can change it. Up to 255 characters. |
+    | **Encrypted** | Always on for Five9. Calls use SIP over TLS with SRTP media. |
+    | **SIP CIDR blocks** | The IP ranges your Five9 environment sends SIP from. |
+    | **RTP CIDR blocks** | The IP ranges your Five9 environment sends media from. |
+    | **Inbound authentication** | **IP allowlist only**, **SIP digest** (enter a **Username** and **Password**) or **Token** (enter a **Token**). PolyAI always enforces your CIDR allowlist as well. |
 
-    **Benefits**:
-    - No size limit on the API response, enabling detailed metadata transfer.
-    - Flexible for advanced routing decisions.
+    PolyAI rejects calls from any address you don't list.
 
-    **Considerations**:
-    - Ensure error handling in the Five9 scripting to manage API response issues.
+    <Tip>
+    CIDR fields accept IPv4 ranges separated by commas or spaces. Each field needs at least one range and takes up to 10. Each range must be `/18` or smaller, and written in canonical form (for example `203.0.113.0/24`, not `203.0.113.5/24`). Agent Studio suggests the corrected range if you enter one with host bits set.
+    </Tip>
 
-    ### Example API integration
+    Click **Next**.
+  </Step>
 
-    ```python
-    import requests
+  <Step title="Numbers">
+    Under **Numbers and routing**, add each number that should reach your agent:
 
-    def call_handoff_api(api_url, api_key, shared_id):
-        """
-        Calls the PolyAI Handoff API to retrieve call metadata.
+    - **Extension**: the dialed number as it arrives on this trunk, for example `+441234567890`. Enter it exactly as Five9 sends it.
+    - **Environment**: which environment of your agent answers calls to this number.
+    - **Variant** (optional): routes calls to a specific variant of the agent. Leave empty for the default.
 
-        :param api_url: Handoff API URL
-        :param api_key: PolyAI API key
-        :param shared_id: Five9 session ID used for the call
-        """
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        }
-        payload = {"shared_id": shared_id}
+    Click **Add** for each number. You must add at least one number to continue.
+  </Step>
 
-        response = requests.post(api_url, headers=headers, json=payload)
-        response_data = response.json()
+  <Step title="Review">
+    Check the **Basics**, **Network and encryption**, **Authentication** and **Numbers** sections. Click **Edit** next to a section to change it, then click **Create trunk**.
 
-        if response.status_code == 200:
-            return response_data
-        else:
-            raise Exception(f"API Error: {response.status_code} - {response.text}")
+    Agent Studio creates the trunk and connects Five9 to your project. Connecting Five9 sets your project to hand off calls with a SIP BYE. If a number fails to save, Agent Studio tells you which one. Add it again from the trunk's card on the **Telephony** tab.
 
-    # Example usage
-    api_url = "https://api.{region}.platform.polyai.app/handoff"  # Replace {region} with us-1, uk-1, or euw-1
-    api_key = "your_polyai_api_key"
-    shared_id = "five9_session_id"
+    <Warning>
+    If you see **Five9 is not connected to this project yet**, the trunk was created but the Five9 connection didn't save, so handoffs aren't set to BYE. Click **Try again** to finish setup. Agent Studio doesn't create a second trunk.
+    </Warning>
+  </Step>
 
-    data = call_handoff_api(api_url, api_key, shared_id)
-    print("Call metadata:", data)
-    ```
-  </Tab>
-</Tabs>
+  <Step title="Reference">
+    The **Reference** step shows **Finish in Five9**, the connection details, the SIP headers and the Handoff API values. See the sections below.
 
+    Click **Done** to close the setup. The trunk and its numbers then appear on the **Telephony** tab.
+  </Step>
+</Steps>
+
+## Finish in Five9
+
+Five9 configures their side of the trunk. Using the values on the **Reference** step:
+
+1. Send your Five9 account manager the connection details and ask them to route your Five9 domain to this trunk, over TLS with SRTP media.
+2. Ask Five9 to send each number you added as the dialed number, so calls reach the right agent.
+3. Check that the standard INVITE headers are on. Five9 sends them by default. More can be added without Five9 professional services.
+4. [Set the BYE headers](#pass-call-data-back-to-five9) on each handoff in Agent Studio, so Five9 knows where to route the call next.
+5. Give Five9 your account ID, project ID and an API key for the [Handoff API](#handoff-api).
+
+### Use an AI assistant
+
+The **Reference** step includes **Have an AI assistant prepare the Five9 side**. Copy the prompt and paste it into an AI assistant that can work in your Five9 admin console. The prompt contains this trunk's connection details, the standard headers and your Handoff API values. The assistant:
+
+- Asks which Five9 domain and campaigns send calls to PolyAI, which numbers reach the agent, and which skill to fall back to if routing or the Handoff API fails.
+- Checks the trunk, numbers and INVITE headers, and drafts a request to your Five9 account manager if Five9 manages the trunk.
+- Updates the Five9 IVR script to route on the BYE headers and call the Handoff API.
+- Asks before saving anything that affects live calls, and replies with a summary of what it configured.
+
+The prompt never asks you to paste your API key. Enter the key into Five9's secure variable storage yourself.
+
+## Connection details
+
+The **Reference** step lists everything Five9 needs. Each value has a copy button.
+
+- **Connection basics**: **Encryption**, **Port** (5061), **Signalling** (SIP over TLS), **Media** (SRTP over UDP), **RTP port range**, your **SIP CIDR** and **RTP CIDR** ranges, and **Authentication**.
+- **TLS certificates**: **TLS version** 1.2, the **PolyAI root certificate** (DigiCert Global Root G2), and the requirement that **Your certificate** is signed by a publicly trusted certificate authority.
+- **How to reach PolyAI**: the **SIP trunk A record** (**Recommended**) and its SIP URI, plus a **Global A record** and an **SRV service and protocol** record with their SIP URIs. If one option doesn't work for Five9, try one of the others.
+- **Identifying this trunk**: the **Trunk ID**, the **Header** and **URI parameter** that carry it, and, depending on your authentication choice, the digest **Username** and **Realm** or the **Token header**.
+
+## SIP headers
+
+Every Five9 customer gets these headers by default. More can be added, but use these where you can to keep setup simple.
+
+### Five9 sends on INVITE
+
+| Header | Description |
+|---|---|
+| `X-CallANI` | Caller number, in E.164 format |
+| `X-CallDNIS` | Number the caller dialed, in E.164 format |
+| `X-CallID` | Five9 call ID |
+| `X-CallSessionID` | Five9 session ID |
+| `X-CallCampaignID` | Five9 campaign the call came through |
+| `X-CallDomainID` | Five9 domain ID |
+
+Your agent can read these values from `conv.sip_headers`. See [Custom SIP](/integrations/voice/sip/custom-sip).
+
+### Pass call data back to Five9
+
+Five9 projects always hand off with a SIP BYE. PolyAI sends these headers on the BYE that ends its call leg:
+
+| Header | Description |
+|---|---|
+| `X-RouteType` | Where Five9 routes the call next: `skill`, `hangup`, `external` or `agent` |
+| `X-Value` | Target for the route type, such as a skill name or phone number |
+| `X-RouteReason` | Why PolyAI is handing the call to Five9 |
+| `X-CustomMetadata` | Extra call data for Five9, as JSON or other parameters |
+| `X-Summary` | Short summary of the conversation |
+
+Set these as SIP headers on each handoff. Click **Open handoffs** on the **Reference** step, or see [Handoffs](/voice-channel/handoffs#configuring-sip-headers).
+
+In the Five9 IVR script that runs when the PolyAI call leg ends, read `X-RouteType` and `X-Value` and route the call:
+
+- `skill` transfers to the skill named in `X-Value`.
+- `agent` transfers to the agent in `X-Value`.
+- `external` dials the number in `X-Value`.
+- `hangup` ends the call.
+
+<Warning>
+Five9 supports up to 10 custom headers. For call data that doesn't fit in a header, use the Handoff API.
+</Warning>
+
+## Handoff API
+
+Five9 calls the [Handoff API](/api-reference/handoff/introduction) from its script to fetch call data that doesn't fit in a header. The **Reference** step shows the **Account ID**, **Project ID** and **Handoff API URL** to give Five9, with a link to **Manage API keys**.
+
+- Five9 sends a `GET` to the Handoff API URL, with a PolyAI API key in the `x-api-key` header.
+- Five9 passes its session ID as the `shared_id` query parameter. In your project, set the shared ID from the `X-CallSessionID` header so the two match.
+- The response's `data` field holds the handoff details your agent saved.
+- By default, Five9 also calls the Handoff API when PolyAI hangs up.
+- Add error handling to the Five9 script. If the API call fails, route to a fallback skill.
+
+The Handoff API URL depends on your PolyAI region:
+
+```
+https://api.{region}.platform.polyai.app/v1/{account_id}/{project_id}/handoff_state?shared_id={five9_session_id}
+```
+
+If the **Reference** step doesn't show a URL, see the [Handoff API reference](/api-reference/handoff/introduction) for your region's base URL.
+
+### Example request
+
+```python
+import requests
+
+def get_handoff_state(base_url, account_id, project_id, api_key, session_id):
+    """Fetch the handoff data PolyAI saved for a Five9 session."""
+    response = requests.get(
+        f"{base_url}/v1/{account_id}/{project_id}/handoff_state",
+        headers={"x-api-key": api_key},
+        params={"shared_id": session_id},
+    )
+    response.raise_for_status()
+    return response.json()["data"]
+```
+
+## Change or remove the trunk
+
+On the **Telephony** tab, open the Five9 trunk's menu:
+
+- **Add number** adds another number to the trunk.
+- **Edit configuration** changes the name, CIDR ranges or authentication. Secrets are never shown again; leave a secret field blank to keep the stored one.
+- **Remove trunk** deletes the trunk. Every call routing over it stops, including calls to its numbers. This cannot be undone. Removing the trunk also disconnects Five9 from the project.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Handoffs" icon="right-left" href="/voice-channel/handoffs">
+    Configure handoff destinations and SIP headers.
+  </Card>
+  <Card title="Handoff API" icon="code" href="/api-reference/handoff/introduction">
+    Fetch handoff data from your contact center.
+  </Card>
+</CardGroup>
