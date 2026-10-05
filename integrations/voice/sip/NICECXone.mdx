@@ -1,47 +1,170 @@
 ---
 title: 'NICE CXone'
-description: 'Connect your PolyAI agent to NICE CXone using the Signal API.'
+description: 'Connect your PolyAI agent to NICE CXone over the shared DEVone trunk, and hand calls back with the Signal API.'
 ---
 
-The PolyAI and NICE CXone integration uses NICE's [Signal API](https://developer.niceincontact.com/API/AdminAPI#/Contacts/Signal%20a%20Contact) to manage handoff and voice interactions. This guide covers setup, configuration, and usage.
+Connect PolyAI to NICE CXone so calls from your CXone Studio scripts reach a PolyAI agent, and come back to CXone when the agent hands off. You set it up from a guided setup in Agent Studio.
 
-## Overview
+## How the integration works
 
-### Shared NICE integration
-PolyAI integrates with NICE CXone using a shared [connector service](https://help.nice-incontact.com/content/studio/advanced/dbconnector/dbconnector.htm). Each
-client is assigned unique [pseudo numbers](https://en.wikipedia.org/wiki/Pseudorandom_number_generator) by NICE, which are used alongside an [authentication token](https://developer.niceincontact.com/API/AuthenticationAPI#/Token/getToken) to route calls to the correct project.
+PolyAI already holds a shared **DEVone** SIP trunk with NICE, including NICE's IP addresses and certificates. There is no trunk for you to build. Instead:
 
-## Handoff process
+1. NICE sets up a DEVone trunk to PolyAI for your CXone business unit and allocates **pseudo numbers** on it.
+2. You add those pseudo numbers in Agent Studio. PolyAI creates one route per number.
+3. In CXone Studio, a parent inbound script answers the call and spawns a child script. The child script dials a pseudo number to reach PolyAI.
+4. When the PolyAI agent is done, PolyAI calls the CXone [Signal API](https://developer.niceincontact.com/API/AdminAPI#/Contacts/Signal%20a%20Contact) with your handoff data. The child script signals the parent, unlinks the audio and ends.
+5. The parent script reads the signal parameters and routes the call, for example to a queue.
 
-### Signal API
-PolyAI uses the Signal API for call handoffs. This API supports up to **9** additional parameters, making it useful for passing larger
-data sets to clients.
+<Note>
+  Only one telephony integration can be connected to a project at a time. If the project already has another one connected, the NICE setup shows **Another telephony integration is connected** and does not start.
+</Note>
 
-#### Requirements for the Signal API
-- A Client-provided `access_key_id` and access_key_secret.
-- The `Client_id` and `client_secret` from NICE: To obtain these, fill out the [NICE API application form](https://forms.microsoft.com/pages/responsepage.aspx?id=vdojcYcOqU2cubfsggEarfHlkRVlgSlMjqsp52ASGttUMEJaSkQ0Rk5LVkIwOFZNWUtCUkFTWUVHUS4u&route=shorturl). Include:
-  - Your CxOne [business unit](https://help.nice-incontact.com/content/acd/businessunits/businessunit.htm) number.
-  - Your contact details, arbitrary application name, and description.
-  - Answer tenant-related questions: Select **Single** and **Global**.
-  - Select `secret_basic` for the authentication method and `AdminAPI` for the API type.
-  - Select **Back-End** for the application type.
+## Before you start
 
-Processing typically takes several business days. Once complete, you will receive a `client_id` and `client_secret` from NICE.
+<Warning>
+  Start early. NICE usually takes several days to set up the trunk and to issue the Signal API credentials. Calls reach PolyAI once the trunk and pseudo numbers are ready. Handing calls back to CXone also needs the credentials.
+</Warning>
 
-### Using the Signal API
-1. Configure the Signal API in the PolyAI project:
-   - PolyAI configures the Signal API connection for your project.
-   - The `contact_id` is passed in an X-Header in the initial SIP INVITE.
-2. Pass additional data:
-   - The Signal API supports up to 9 additional parameters if more detailed data is needed beyond what the SIP X-Header can accommodate.
+You need:
 
-## Setup steps
+- Access to the PolyAI project in Agent Studio.
+- Admin access to CXone Studio for the business unit that takes the calls.
+- Your NICE account team, to request the trunk and the API credentials.
+- A CXone **access key ID** and **access key secret** from your CXone admin.
+- A **client ID** and **client secret** from NICE. See [Get Signal API credentials from NICE](#get-signal-api-credentials-from-nice).
 
-### 1: Obtain required credentials
-- **From NICE**: Retrieve `client_id` and `client_secret` after form submission.
-- **From the client**: `Access_key_id` and `access_key_secret`, and the CxOne business unit number.
+## Set up NICE CXone in Agent Studio
 
-### 2: Configure the NICE connector in PolyAI
-1. Add a NICE connector to your PolyAI project.
-2. Save the provided authentication token for routing calls.
-3. If applicable, enable the Handoff API in your project and generate an API key for screen-pop or related functionality.
+Go to **Integrations** → **Telephony** and click **Add number**. In the **Add a number** panel, under **Integrate with your contact center platform**, select **NICE**. The **NICE CXone setup** opens.
+
+<Note>
+  If the NICE option shows **Coming soon**, contact your PolyAI account manager.
+</Note>
+
+<Steps>
+  <Step title="DEVone trunk">
+    This step prepares your request to NICE. Nothing is saved yet.
+
+    1. Under **Send this to your NICE account team**, click **Copy request**. The request asks NICE to set up a single DEVone SIP trunk between your CXone instance and PolyAI, carrying both PolyAI's primary and secondary destinations. It also asks NICE to allocate the pseudo numbers and to confirm your business unit number for Signal API access.
+    2. Fill in the two placeholders: your **region**, and the **concurrent calls** you need (the most PolyAI conversations that can run at once).
+    3. Send the request to NICE. Leave the rest as it is. The PolyAI business unit in the request, `BU - POLYAI TECHNOLOGIES B32 DEVONE 4604531`, is what connects you to the shared trunk.
+
+    The step also shows copy buttons for the **PolyAI business unit**, your PolyAI **Account ID** and your **Project ID**, in case NICE or your team asks for them.
+
+    Click **Next**. You can continue before NICE replies, but you need the pseudo numbers for the next step.
+  </Step>
+
+  <Step title="Numbers">
+    Under **Pseudo numbers**, add the pseudo numbers NICE allocated. There is one field per environment (for example **Live**, **Pre-release** and **Sandbox**). Add each number under the environment it should reach.
+
+    - Enter numbers in E.164 format, for example `+14155550100`.
+    - Add at least one pseudo number across all environments.
+    - Each number can only be added once, and only to one environment.
+
+    The number the caller originally dialed arrives at PolyAI in a SIP header, so one pseudo number per environment is usually enough.
+  </Step>
+
+  <Step title="Credentials">
+    Under **Signal API credentials**, enter:
+
+    | Field | Where it comes from |
+    |---|---|
+    | **Access key ID** | Your CXone admin. |
+    | **Access key secret** | Your CXone admin. |
+    | **Client ID** | NICE, through their API access form. |
+    | **Client secret** | NICE, through their API access form. |
+
+    PolyAI uses these to call the CXone Signal API when it hands a call back.
+
+    You can leave all four empty and add them later, since NICE takes several days to issue the client ID and secret. If you enter any of them, enter all four.
+
+    <Note>
+      NICE credentials are saved once per PolyAI account and shared by every project in it. If other projects in the account already hand calls back to NICE, PolyAI only saves credentials that match theirs. Enter the same ones, or ask whoever manages your account's secrets to change them.
+    </Note>
+  </Step>
+
+  <Step title="Review">
+    Check the numbers listed for each environment, and whether the credentials will be saved now or **Added later**. Click **Connect NICE**.
+
+    PolyAI creates the NICE connection, routes your pseudo numbers to the project, and saves the credentials if you entered them. You see **NICE CXone connected**, and the pseudo numbers appear in the Telephony number table.
+
+    If something fails, the step tells you what was saved and you can click **Try again**:
+
+    - **NICE did not connect**: nothing was saved.
+    - **The numbers did not save**: the connection exists, but calls won't reach the project until the routes save.
+    - **The credentials did not save**: the numbers are routed, but handoffs back to CXone won't work until the credentials save. You can also add them later.
+    - **Other projects use different credentials**: the account already has different NICE credentials, and PolyAI did not replace them. Click **Finish without credentials** to keep your numbers, then add matching credentials later.
+  </Step>
+
+  <Step title="Reference">
+    The last step is your reference for finishing the setup in CXone. If you skipped the credentials, it reminds you that you can add them later. The rest of this page covers what it shows.
+  </Step>
+</Steps>
+
+### Add credentials later
+
+When NICE sends the client ID and secret, open the NICE setup again from **Add number** in the **Telephony** tab. Because the project is already connected, it opens as **Add NICE credentials**, with only the **Credentials** and **Reference** steps. Enter all four credentials and click **Save credentials**.
+
+If other projects in the account already use NICE credentials, an **Other projects use these credentials** warning tells you to enter the same ones.
+
+## Finish in CXone
+
+Do these in CXone Studio after you connect NICE in Agent Studio.
+
+1. **Build the parent inbound voice script** that answers the call, then add a **Spawn** action that starts a child script. The child script dials one of your pseudo numbers.
+   <Warning>Calls must arrive at the parent script. A call sent straight to the child script does not work.</Warning>
+2. **Pass the dialed number to the child call** in the Spawn action. Without it, the child call does not know the parent's DNIS.
+3. **Wait for the Signal API.** When PolyAI finishes, it calls the Signal API with your handoff data. The child script signals the parent, unlinks and ends.
+4. **Route on the signal parameters** in the parent script, to a queue or to hangup.
+
+Your PolyAI contact can send you a working parent and child script to start from, along with the SIP interoperability document.
+
+### Use an AI assistant for the CXone side
+
+Once pseudo numbers are saved, the **Reference** step shows **Have an AI assistant prepare the CXone side**. Click **Copy prompt** and paste it into an AI assistant that can work in your CXone admin console.
+
+The prompt already includes your pseudo numbers, PolyAI account ID, project ID and the contact ID headers. The assistant asks you which inbound script and point of contact to use, which pseudo number belongs to which environment, and which queue or skill to route each handoff destination to. It then sets up the parent and child scripts, asks before saving anything that affects live calls, and replies with a summary of what it configured.
+
+## Contact ID
+
+The Signal API needs the CXone contact ID. It arrives as a SIP header on the INVITE. Read it in your agent's start function and save it on the conversation.
+
+| Header | Description |
+|---|---|
+| `X-InContact-ContactId` | The child script contact. The sample scripts use this one. |
+| `X-inc-master-id` | The parent contact. Use it if your parent script ends the child. |
+
+## Signal API
+
+PolyAI hands the call back by calling the CXone Signal API. The Signal API takes up to nine parameters, `p1` to `p9`. Send one JSON object in `p1`, so the parent script reads a single value:
+
+```json
+{
+  "PolyHandoffReason": "billing",
+  "PolySummary": "Caller wants to pay an invoice",
+  "PolyHandoffDestination": "billing_queue"
+}
+```
+
+`p2` to `p9` are unused unless you set them up. Configure the data PolyAI sends on your [handoffs](/voice-channel/handoffs). The **Reference** step has an **Open handoffs** link, plus copy buttons for your account ID and project ID.
+
+### Get Signal API credentials from NICE
+
+NICE issues the **client ID** and **client secret** through its [API application form](https://forms.microsoft.com/pages/responsepage.aspx?id=vdojcYcOqU2cubfsggEarfHlkRVlgSlMjqsp52ASGttUMEJaSkQ0Rk5LVkIwOFZNWUtCUkFTWUVHUS4u&route=shorturl). When you fill it in:
+
+- Include your CXone [business unit](https://help.nice-incontact.com/content/acd/businessunits/businessunit.htm) number.
+- Add your contact details, plus any application name and description.
+- For the tenant questions, select **Single** and **Global**.
+- Select `secret_basic` for the authentication method and `AdminAPI` for the API type.
+- Select **Back-End** for the application type.
+
+Processing usually takes several business days.
+
+## Troubleshooting
+
+| Symptom | What to check |
+|---|---|
+| Calls don't reach PolyAI | The DEVone trunk is live on your business unit, the pseudo numbers are assigned to it, and the same numbers are saved in Agent Studio under the right environment. Calls must enter through the parent script. |
+| The agent doesn't know which number the caller dialed | The Spawn action passes the dialed number to the child call. |
+| Calls don't come back to CXone | All four Signal API credentials are saved, and your agent saves the contact ID from the INVITE header. |
+| The parent script doesn't route | The parent reads `p1` as a JSON object and branches on its fields. |

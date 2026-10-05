@@ -7,7 +7,9 @@ description: 'Connect your PolyAI agent to Zoom Phone and Zoom Contact Center as
 This integration is in beta. Contact your PolyAI account manager to check availability for your org.
 </Note>
 
-Connect PolyAI to **Zoom Phone** or **Zoom Contact Center (ZCC)** as a native third-party Voice Agent through the **PolyAI App** in the Zoom App Marketplace. The app is built on Zoom's Voice Framework, so there's no shared SIP trunk to negotiate.
+Connect PolyAI to **Zoom Phone** or **Zoom Contact Center (ZCC)** as a native third-party Voice Agent through the **PolyAI App** in the Zoom App Marketplace. The app is built on Zoom's Voice Framework, so there's no SIP trunk to negotiate.
+
+You set this up in Agent Studio with a guided setup. You install the PolyAI app in Zoom, route calls to it, then add the number Zoom gives you in Agent Studio.
 
 ## Prerequisites
 
@@ -15,62 +17,150 @@ Connect PolyAI to **Zoom Phone** or **Zoom Contact Center (ZCC)** as a native th
 - Admin access to Zoom Phone System Management or Zoom Contact Center Management, depending on which product you're connecting
 - Confirmation from your PolyAI account manager that the integration is enabled for your org
 
-## Quick setup
+## Set up Zoom
 
-Installing the app is shared across both Zoom Phone and Zoom Contact Center.
+In Agent Studio, go to **Integrations**, open the **Telephony** tab and click **Add number**. In the **Add a number** panel, under **Integrate with your contact center platform**, select **Zoom**.
+
+If the option shows **Coming soon**, contact your PolyAI account manager.
+
+The **Zoom setup** has three steps: **Product**, **Install** and **Number**.
 
 <Steps>
-  <Step title="Install the PolyAI App">
-    Go to **Advanced > App Marketplace** and install the **PolyAI App**.
-  </Step>
-  <Step title="Create connections">
-    Under the installed app, click the number shown under **Connections** (defaults to 1). You typically want **2 connections**, one for **Live** and one for **Staging**, named so it's obvious which is which.
+  <Step title="Choose your Zoom product">
+    On the **Product** step, answer **Which Zoom product are you connecting?**
 
-    A single connection can serve both Zoom Phone and Zoom Contact Center; each gets its own "To Number".
+    - **Zoom Contact Center**: you route calls through Contact Center flows. You add a Bot widget to a flow.
+    - **Zoom Phone**: you route calls through an Auto Receptionist. You add a third-party Virtual Agent under a key press.
+
+    Both use the PolyAI app, so installing it is the same for both. The Zoom-side steps differ.
+
+    Click **Next**.
+  </Step>
+  <Step title="Install the PolyAI app in Zoom">
+    The **Install** step lists what to do in the Zoom admin console. Follow the tab for the product you chose. The first three steps are the same for both.
+
+    <Tip>
+    Click **Copy prompt** on the **Have an AI assistant do these steps** card to get instructions for an AI assistant that can work in your Zoom admin console. It asks you which environment you're setting up, installs the app, routes calls to it, and replies with the number the next step asks for.
+    </Tip>
+  </Step>
+  <Step title="Add the number Zoom gave you">
+    On the **Number** step, enter:
+
+    | Field | What to enter |
+    |-------|---------------|
+    | **Phone number** (Zoom Contact Center) or **Integration number** (Zoom Phone) | The number Zoom issues for the agent. Copy it exactly as Zoom shows it: digits only, between 6 and 20 digits, with no `+` or country code. |
+    | **Environment** | The environment calls on this number reach, such as Sandbox or Live. Required. Use the environment whose connection you selected in Zoom. |
+    | **Variant** | Optional. Routes calls to a specific variant of the agent. Leave it empty to use the default. |
+
+    Where to find the number:
+
+    - **Zoom Contact Center**: it's the **Phone Number** shown on the Bot widget, under the bot you selected. It's usually 15 digits.
+    - **Zoom Phone**: on the **Phone System Management > Agents** screen, open the agent's row menu and choose **Copy integration number**. It's usually 10 digits.
+
+    Click **Done**. PolyAI routes calls arriving from Zoom on this number to your agent in the environment you picked, and the number appears in your number list on the **Telephony** tab.
+
+    These numbers aren't dialable phone numbers. They're identifiers Zoom uses to route the call to PolyAI.
   </Step>
 </Steps>
 
 <Tip>
-Recommendation: **one connection per AI Agent, per environment**. You don't need one connection per phone number, and you'll rarely need more than 2 connections total.
+Repeat the setup for each environment you route to, for example once for Sandbox and once for Live. Each environment has its own connection in Zoom and its own number in Agent Studio.
 </Tip>
 
-<Frame>
-  <img src="/images/integrations/zoom/app-marketplace-install.png" alt="Installing the PolyAI App from the Zoom App Marketplace" />
-</Frame>
+## Install the PolyAI app
 
-## Setup
+These steps are the same for Zoom Phone and Zoom Contact Center. Open the [Zoom App Marketplace](https://marketplace.zoom.us) to start.
+
+1. In Zoom, go to **Advanced > App Marketplace** and install the **PolyAI App** for your org.
+
+    <Frame>
+      <img src="/images/integrations/zoom/app-marketplace-install.png" alt="The PolyAI app under Added apps in the Zoom App Marketplace, with the Connections count highlighted" />
+    </Frame>
+
+2. Under the installed app, click the number shown under **Connections**. It defaults to 1.
+3. Create a **connection** for each environment you'll route to, and name each one after its environment: sandbox, pre-release or live.
+
+One connection serves both Zoom Phone and Zoom Contact Center, and each gets its own number. You need one connection per agent, per environment, not one per phone number.
+
+## Route calls to PolyAI
 
 <Tabs>
-  <Tab title="Zoom Phone">
-    ### Virtual Agent setup
+  <Tab title="Zoom Contact Center">
+    ### Add the Bot widget to a flow
 
-    1. Go to **Phone System Management > Agents**.
-    2. Open the agent to view the number that will be passed to PolyAI.
-    3. Provide the numbers to PolyAI and specify which is **Live** and which is **Staging**.
+    1. In **Contact Center Management**, go to **Flows** and open the flow that answers your number.
+    2. From the **Widgets** menu, open **Advanced** and drag a **Bot** widget onto the canvas.
 
-    <Note>
-    The **Callback URL** field is only needed if PolyAI passes data directly back to Zoom Phone. You can skip it if you're using the PolyAI Screen Pop app.
-    </Note>
+        <Frame>
+          <img src="/images/integrations/zoom/zcc-flow-bot-widget.png" alt="A Bot widget placed on a Zoom Contact Center flow canvas" />
+        </Frame>
+
+    3. On the widget, pick the connection for this environment and note the **Phone Number** shown under it. You enter it on the **Number** step in Agent Studio.
+    4. Point the **Timeout** branch at a fallback destination in case the call can't reach PolyAI.
+    5. Save and publish the flow.
+
+    ### Connectors
+
+    To let PolyAI pass a rich data payload back to ZCC:
+
+    1. Go to **Contact Center Management > Integrations > Connectors**.
+    2. Click **(...)** next to the connector and select **View connector settings**.
+    3. Select the correct region for your connector.
+    4. Copy the **Static URL** and share it with PolyAI.
 
     <Frame>
-      <img src="/images/integrations/zoom/virtual-agent-setup.png" alt="Zoom Phone Virtual Agent configuration screen showing the number passed to PolyAI" />
+      <img src="/images/integrations/zoom/zcc-connectors.png" alt="Zoom Contact Center connector settings showing region and Static URL" />
     </Frame>
 
+    ### Passing data to and from PolyAI
+
+    Within the Bot configuration, data can be passed via **SIP header mapping** and/or the bot's **Outbound to Bot** / **Inbound from Bot** options.
+
+    **Outbound to Bot** (Zoom → PolyAI)
+
+    - ZCC already passes `X-ZOOM-Call-Sid` and `From` by default.
+    - Use SIP header mapping to pass through anything else you need, such as the originally dialed number.
+
+    **Inbound from Bot** (PolyAI → Zoom)
+
+    - Recommended: use the provided **Webhook** to pass data via API. Passing values back via SIP header mapping is also possible.
+
+    ### Handoff from PolyAI to ZCC
+
+    Pass metadata back via custom SIP headers or the **Webhook** (recommended, paired with **Inbound from Bot** above).
+
+    The ZCC refer target format is always `HumanAgent@<SBC IP>:5061`.
+
+    When the call lands with the receiving agent, the handoff data passed via the Webhook appears as a screen pop in the ZCC agent console:
+
+    <Frame>
+      <img src="/images/integrations/zoom/zcc-screen-pop.png" alt="Sample screen pop showing PolyAI handoff data in the Zoom Contact Center agent console" />
+    </Frame>
+  </Tab>
+  <Tab title="Zoom Phone">
     ### Add the Virtual Agent to an Auto Receptionist
 
-    Under the appropriate key press:
+    1. In **Phone System Management**, open the **Auto Receptionist** that answers your number.
+    2. Under the key press the agent should handle, choose **Virtual Agent**, then **Third-party Agent**, and pick the agent named after your connection.
 
-    1. Select **Virtual Agent**.
-    2. Select **Third-party Agent**.
-    3. Choose the agent named after the connection you created above.
+        <Frame>
+          <img src="/images/integrations/zoom/auto-receptionist.png" alt="A third-party Virtual Agent selected under a Zoom Auto Receptionist key press" />
+        </Frame>
 
-    <Frame>
-      <img src="/images/integrations/zoom/auto-receptionist.png" alt="Adding a third-party Virtual Agent to a Zoom Auto Receptionist key press" />
-    </Frame>
+    3. Save the Auto Receptionist.
+    4. In **Phone System Management > Agents**, open that agent to see the number Zoom passes to PolyAI. To copy it, open the agent's row menu and choose **Copy integration number**. You enter it on the **Number** step in Agent Studio.
+
+        <Frame>
+          <img src="/images/integrations/zoom/virtual-agent-setup.png" alt="The Zoom Phone agent screen showing the number passed to PolyAI" />
+        </Frame>
+
+    <Note>
+    The **Callback URL** field on the agent is only needed if PolyAI passes data directly back to Zoom Phone. You can skip it if you're using the PolyAI Screen Pop app.
+    </Note>
 
     ### Data Zoom Phone passes to PolyAI
 
-    Zoom Phone sends an `X-ZOOM-Call-SID` header (also sent by ZCC, so you can use it to distinguish the two call sources).
+    Zoom Phone sends an `X-ZOOM-Call-SID` header. ZCC sends this header too.
 
     <Warning>
     On Zoom Phone, the `From` number does not carry the original ANI. The original calling number arrives in the `X-ZOOM-ORIGINAL-CALLING-NUMBER` header instead.
@@ -92,60 +182,8 @@ Recommendation: **one connection per AI Agent, per environment**. You don't need
 
     Two options for presenting handoff data to the receiving Zoom Phone user:
 
-    - **PolyAI Zoom Handoff App** — a Zoom app that acts as a screen-pop facility, securely surfacing PolyAI handoff data to the agent.
-    - **Zoom Webhook** — Zoom Phone can pass data back via webhook. Viewing this data may require a **Power Pack license**, and the payload format is pre defined.
-  </Tab>
-  <Tab title="Zoom Contact Center">
-    ### Connectors
-
-    1. Go to **Contact Center Management > Integrations > Connectors**.
-    2. Click **(...)** next to the connector and select **View connector settings**.
-    3. Select the correct region for your connector.
-    4. Copy the **Static URL** — this lets PolyAI pass a rich data payload back to ZCC.
-
-    <Frame>
-      <img src="/images/integrations/zoom/zcc-connectors.png" alt="Zoom Contact Center connector settings showing region and Static URL" />
-    </Frame>
-
-    ### Add the AI Agent to a Flow
-
-    1. Go to **Contact Center Management > Flows**.
-    2. Open the flow you want the AI Agent to serve.
-    3. From the **Widgets** menu, under **Advanced**, drag a **Bot** widget onto the canvas.
-    4. Set the **Phone Number** on the widget, and tell PolyAI whether it's the **Live** or **Staging** environment.
-
-    <Tip>
-    Wire the **Timeout** branch to a fallback destination in case the call can't reach PolyAI.
-    </Tip>
-
-    <Frame>
-      <img src="/images/integrations/zoom/zcc-flow-bot-widget.png" alt="Adding the Bot widget to a Zoom Contact Center flow" />
-    </Frame>
-
-    ### Passing data to and from PolyAI
-
-    Within the Bot configuration, data can be passed via **SIP header mapping** and/or the bot's **Outbound to Bot** / **Inbound from Bot** options.
-
-    **Outbound to Bot** (Zoom → PolyAI)
-
-    - ZCC already passes `X-ZOOM-Call-Sid` and `From` by default.
-    - Use SIP header mapping to pass through anything else you need (e.g. the originally dialed number).
-
-    **Inbound from Bot** (PolyAI → Zoom)
-
-    - Recommended: use the provided **Webhook** to pass data via API. Passing values back via SIP header mapping is also possible.
-
-    ### Handoff from PolyAI to ZCC
-
-    Pass metadata back via custom SIP headers or the **Webhook** (recommended, paired with **Inbound from Bot** above).
-
-    The ZCC refer target format is always `HumanAgent@<SBC IP>:5061`.
-
-    When the call lands with the receiving agent, the handoff data passed via the Webhook appears as a screen pop in the ZCC agent console:
-
-    <Frame>
-      <img src="/images/integrations/zoom/zcc-screen-pop.png" alt="Sample screen pop showing PolyAI handoff data in the Zoom Contact Center agent console" />
-    </Frame>
+    - **PolyAI Zoom Handoff App**: a Zoom app that acts as a screen-pop facility, securely surfacing PolyAI handoff data to the agent.
+    - **Zoom Webhook**: Zoom Phone can pass data back via webhook. Viewing this data may require a **Power Pack license**, and the payload format is predefined.
   </Tab>
 </Tabs>
 
@@ -160,7 +198,8 @@ Recommendation: **one connection per AI Agent, per environment**. You don't need
 
 | Issue | Solution |
 |-------|----------|
-| Calls not reaching PolyAI | Verify the connection's number and environment (Live/Staging) mapping in the Zoom App |
+| Calls not reaching PolyAI | Check that the number in Agent Studio matches the one Zoom shows, digit for digit, and that its **Environment** matches the connection selected in Zoom |
+| **Number** step won't save | Enter digits only, with no `+`, spaces or country code |
 | Missing original caller ANI (Zoom Phone) | Read `X-ZOOM-ORIGINAL-CALLING-NUMBER` instead of `From` |
 | Handoff data not appearing | Confirm Screen Pop app install (Zoom Phone) or Webhook + Inbound from Bot mapping (ZCC) |
 | Handoff data not visible in Zoom Phone webhook | Check whether a Power Pack license is required for your org |

@@ -1,67 +1,159 @@
 ---
 title: 'Twilio'
-description: 'Connect your PolyAI agent to Twilio for voice automation and handoffs.'
+description: 'Buy a Twilio number through PolyAI, or connect your own Twilio account and route its numbers to your agent.'
 ---
 
 <Note>
 For basic Twilio number and SMS setup, see [Voice > Numbers > Twilio](/voice-channel/numbers/twilio/introduction).
 </Note>
 
-Connect Twilio to your PolyAI project from Agent Studio. PolyAI uses your Twilio API credentials to automatically provision the SIP trunk(s) needed to route calls to your agent — you just bring your API keys and your own phone numbers.
+Agent Studio gives you two ways to use Twilio. Both start in the same place:
 
-## Quick setup
+1. Open your project in Agent Studio and go to **Integrations**.
+2. Open the **Telephony** tab and click **Add number**.
+3. In the **Add a number** panel, under **Transfer or buy a number**, choose a Twilio option.
+
+| Option | Who owns the number | Use it when |
+| --- | --- | --- |
+| **Buy Twilio number** | PolyAI buys and manages the number for you. | You need a new number and don't want to manage a Twilio account. |
+| **Connect Twilio account** | The number stays in your own Twilio account. | You already own Twilio numbers that callers know. |
+
+<Note>
+If an option shows **Coming soon**, contact your PolyAI account manager.
+</Note>
+
+<Tabs>
+  <Tab title="Buy Twilio number">
+
+PolyAI buys the number, manages it, and routes it to your agent. Calls reach the agent as soon as the number is bought. Usage is billed through PolyAI at 1.5¢ per minute.
+
+## Buy a number
 
 <Steps>
-  <Step title="Open Integrations">
-    In Agent Studio, go to **Integrations** and click **Connect** on the Twilio card.
-
-    <Frame>
-      <img src="/images/integrations/twilio/integrations-page.png" alt="The Integrations page in Agent Studio showing available telephony providers including Twilio." />
-    </Frame>
+  <Step title="Open the buy panel">
+    In the **Add a number** panel, click **Buy Twilio number**.
   </Step>
-  <Step title="Enter your Twilio account credentials">
-    In the **Step 1: Twilio account credentials** panel, paste:
+  <Step title="Choose a country">
+    Pick a **Country**: **United Kingdom**, **United States**, **Canada**, **Australia** or **Ireland**.
 
-    - **API Key**
-    - **API Secret**
-    - **Account SID**
-
-    <Frame>
-      <img src="/images/integrations/twilio/twilio-credentials-modal.png" alt="The Twilio account credentials panel showing fields for API Key, API Secret, and Account SID." />
-    </Frame>
-
-    PolyAI uses these to provision the SIP trunk(s) on your Twilio account. Click **Continue**.
+    Some countries need regulatory approval before you can buy. See [Regulatory approval](#regulatory-approval) below.
   </Step>
-  <Step title="Add your phone numbers">
-    Add the Twilio numbers you want to route to PolyAI for **Staging** and **Live**. [Sandbox](/environments-and-versions/environments#sandbox) has no channel connections, so you test there over an in-app call instead. The form still shows a **Sandbox** field; leave it empty. Numbers must be in E.164 format with a country code (e.g. `+441234567890`).
+  <Step title="(Optional) Enter an area code">
+    For **United States** and **Canada**, an **Area code** field appears. Enter three digits, such as `415`.
+
+    PolyAI only searches the area code you enter. It does not fall back to a nearby one. If that area code is sold out, the purchase fails. Leave the field blank to take any available number in the country.
   </Step>
-  <Step title="Submit">
-    PolyAI provisions the SIP trunk on your Twilio account and wires up routing per environment. You're then taken to **Voice > Handoffs** to configure transfers back to a human agent.
+  <Step title="Choose an environment">
+    Pick the **Environment** that should answer calls on this number. This field is required.
+  </Step>
+  <Step title="(Optional) Choose a variant">
+    If your agent has variants, a **Variant** field appears. Pick one to send calls on this number to that variant. Leave it as **Default (no variant)** to use the default agent.
+  </Step>
+  <Step title="Buy the number">
+    Click **Buy number**. When the purchase finishes, the panel closes and the number appears in the **Telephony** table with its environment and variant. Calls to it go straight to your agent.
+
+    If the purchase fails, Agent Studio shows **Couldn't buy the number** with the reason. Try again, or try without an area code.
   </Step>
 </Steps>
 
-That's it — no manual TwiML, no PolyAI ticket, no shared SIP trunk to negotiate.
+<Tip>
+Use separate numbers for each environment so test calls never reach Live.
+</Tip>
 
-## Where to find your Twilio credentials
+## Regulatory approval
 
-In the [Twilio Console](https://console.twilio.com/):
+On some accounts, local regulations require an approved regulatory bundle before you can buy a number in the **United Kingdom**, **Australia** or **Ireland**. If this applies to you, a warning appears after you choose the country, and **Buy number** stays disabled.
 
-- **Account SID** — top of the **Account Info** panel on the dashboard.
-- **API Key + API Secret** — **Account > API keys & tokens > Create API key**. The secret is shown once at creation; copy it before closing the dialog.
+| Message | What it means | What to do |
+| --- | --- | --- |
+| **[Country] needs regulatory approval** | No approved bundle exists for this country yet. | Click **Go to Numbers**, submit your bundle on the **Voice > Numbers** page, then come back. |
+| **[Country] approval is under review** | Your bundle is submitted and waiting for approval. | Wait. Review usually takes 1 to 7 business days. You can buy once it's approved. |
+| **Couldn't check regulatory approval for [Country]** | Agent Studio couldn't check your bundle status. | Click **Try again**. Buying stays blocked until the check succeeds. |
 
-Use a Standard API key with permissions to manage SIP trunks on the account.
+A bundle covers every project in your account, so you only submit it once per country.
 
-## Editing or removing the integration
+<Note>
+If your account is on a trial that can't go live yet, the panel shows an upgrade prompt instead of the form.
+</Note>
 
-- **Update routing** — re-open the Twilio card in **Integrations** to add or remove numbers per environment.
-- **Disconnect** — use the **Disconnect** action on the integration. PolyAI removes the routing on its side and tears down the SIP trunk it provisioned.
+## Delete a bought number
 
-## Configuring handoffs
+1. In the **Telephony** table, open the actions menu on the number.
+2. Click **Delete number** and confirm.
 
-After the integration is connected, configure how calls transfer back to human agents in **Voice > Handoffs**. See [Call handoffs](/voice-channel/handoffs) for the full reference.
+Calls to the number stop reaching your agent and the number is released. You can't undo this.
+
+  </Tab>
+  <Tab title="Connect Twilio account">
+
+Use phone numbers you already own. They stay in your Twilio account. You bring your Twilio API credentials and your numbers. PolyAI uses the credentials to create the SIP trunks your Twilio account needs to send calls to your agent. You don't write TwiML, raise a PolyAI ticket, or negotiate a shared SIP trunk.
+
+<Warning>
+Only one telephony integration can be connected to a project at a time. If the project already has one, the **Connect Twilio account** option is disabled, and the card shows why:
+
+- **Twilio is already connected to this project.**
+- **Only one telephony integration can be connected to a project at a time, and this project already has one.**
+</Warning>
+
+## Before you start
+
+In the [Twilio Console](https://console.twilio.com/), collect:
+
+- **Account SID**: shown in the **Account Info** panel on the console dashboard.
+- **API key and API secret**: go to **Account > API keys & tokens** and click **Create API key**. Use a Standard key. Twilio shows the secret only once, so copy it before you close the dialog.
+
+Also make a list of the Twilio numbers you want to route to PolyAI, and decide which environment each one should serve.
+
+## Connect your account
+
+<Steps>
+  <Step title="Open the Twilio setup">
+    In the **Add a number** panel, click **Connect Twilio account**.
+  </Step>
+  <Step title="Enter your Twilio credentials">
+    On **Step 1: Twilio account credentials**, fill in all three fields:
+
+    - **Api Key**
+    - **API Secret**
+    - **Account SID**
+
+    Click **Continue**.
+  </Step>
+  <Step title="Add your numbers to each environment">
+    On **Step 2: Inbound routing**, add the Twilio numbers that should reach your agent in each environment. You can add more than one number per environment.
+
+    - **Live**: numbers that reach your published agent.
+    - **Pre-release** (shown as **Staging** in some projects): numbers for testing before you go live.
+    - **Sandbox**: leave this empty. [Sandbox](/environments-and-versions/environments#sandbox) has no channel connections, so test there with an in-app call instead.
+
+    Enter each number in E.164 format: a `+`, the country code, then the number, with no spaces (for example, `+441234567890`).
+  </Step>
+  <Step title="Connect">
+    Click **Connect**. PolyAI creates the SIP trunk on your Twilio account and routes each number to the environment you chose.
+  </Step>
+  <Step title="Set up handoffs">
+    After you connect, Agent Studio asks you to **Update handoff configuration**. Click **Take me there** to set up transfers to your human agents now, or **Dismiss** to do it later.
+  </Step>
+</Steps>
+
+## Configure handoffs
+
+Twilio hands calls back to your agents with a SIP REFER. You don't choose the handoff method for Twilio. Set up transfer destinations in **Handoffs**. See [Call handoffs](/voice-channel/handoffs) for the full reference.
+
+## Remove a number
+
+1. In the **Telephony** table, open the actions menu on the number.
+2. Click **Delete number** and confirm.
+
+Calls to the number stop reaching your agent. You can't undo this.
+
+  </Tab>
+</Tabs>
 
 ## Related pages
 
-- [Voice > Numbers > Twilio](/voice-channel/numbers/twilio/introduction) — basic Twilio number and SMS setup
-- [Call handoffs](/voice-channel/handoffs) — configure transfer destinations
-- [Voice integrations](/integrations/voice/introduction) — other voice platforms
+- [Voice > Numbers > Twilio](/voice-channel/numbers/twilio/introduction): basic Twilio number and SMS setup
+- [Buy a number from PolyAI](/voice-channel/numbers/how-to-buy-number): buying numbers from the Numbers page
+- [Call handoffs](/voice-channel/handoffs): configure transfer destinations
+- [Environments](/environments-and-versions/environments): how Sandbox, Pre-release and Live receive calls
+- [Voice integrations](/integrations/voice/introduction): other voice platforms
