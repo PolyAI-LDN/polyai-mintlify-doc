@@ -10,8 +10,72 @@ Automatically sync call transcripts and audio recordings to your own [AWS S3](ht
 
 | Data type | Format | Description |
 |-----------|--------|-------------|
-| Transcripts | JSON | Full conversation transcripts with turn-level detail |
-| Audio recordings | WAV/MP3 | Complete call recordings |
+| Transcripts | JSON | Full conversation transcripts with one entry for each utterance |
+| Audio recordings | WAV | Complete call recordings |
+
+PolyAI syncs transcripts for voice calls only. Calls from the Agent Studio test panel have no recording, so PolyAI does not sync a transcript for them.
+
+## File structure
+
+Each call has two files in the same folder:
+
+- `<conversation_id>.wav`: the call recording.
+- `transcript-<conversation_id>.json`: the call transcript.
+
+The `<conversation_id>` value is the same in both file names. Use it to match a transcript to its recording.
+
+The folder path depends on the bucket structure of your account:
+
+<Tabs>
+  <Tab title="Date and hour folders">
+    ```text
+    <account_id>/<project_id>/call/<YYYYMMDD>/<HH>/<conversation_id>.wav
+    <account_id>/<project_id>/call/<YYYYMMDD>/<HH>/transcript-<conversation_id>.json
+    ```
+
+    `<YYYYMMDD>` and `<HH>` are the date and hour when the call started, in UTC.
+  </Tab>
+  <Tab title="Flat folder">
+    ```text
+    <account_id>/<project_id>/call/<conversation_id>.wav
+    <account_id>/<project_id>/call/transcript-<conversation_id>.json
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+Your PolyAI representative confirms the bucket structure and the destination prefix in your bucket during setup.
+</Note>
+
+## Transcript schema
+
+A transcript file is a UTF-8 JSON array. Each object in the array is one utterance. The array is in chronological order.
+
+```json transcript-<conversation_id>.json
+[
+  {
+    "message_id": "0199a1b2-7c3d-7e4f-8a9b-0c1d2e3f4a5b",
+    "participant": "agent",
+    "created_at": "2026-09-17T11:00:00.123000+00:00",
+    "transcript": "Hello, how can I help you today?"
+  },
+  {
+    "message_id": "0199a1b2-8d4e-7f5a-9b0c-1d2e3f4a5b6c",
+    "participant": "user",
+    "created_at": "2026-09-17T11:00:04.456000+00:00",
+    "transcript": "I want to book a table for two."
+  }
+]
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `message_id` | string | The unique ID of the utterance, in UUID format. |
+| `participant` | string | The speaker. The value is `user`, `agent`, or `live_agent`. |
+| `created_at` | string | The time of the utterance, in ISO 8601 format and UTC. |
+| `transcript` | string | The text of the utterance. The value is an empty string when the caller says nothing, for example after a no-input timeout. |
+
+The transcript does not include internal system messages.
 
 ## When to use S3 sync
 
