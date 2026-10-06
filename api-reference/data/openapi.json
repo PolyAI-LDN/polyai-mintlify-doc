@@ -1,0 +1,1705 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "PolyAI Data API",
+    "description": "Read conversation data served by the Data Gateway: the metric catalog, metric aggregation, transcript search and conversation search.",
+    "version": "1.0.0",
+    "x-commit-sha": "35cedc7d0db193d6b714a12e457ed6ed3450923e"
+  },
+  "servers": [
+    {
+      "url": "https://api.us.poly.ai",
+      "description": "US region"
+    },
+    {
+      "url": "https://api.eu.poly.ai",
+      "description": "EU region"
+    },
+    {
+      "url": "https://api.uk.poly.ai",
+      "description": "UK region"
+    },
+    {
+      "url": "https://api.studio.poly.ai",
+      "description": "Studio region"
+    }
+  ],
+  "security": [
+    {
+      "polyApiKey": []
+    }
+  ],
+  "paths": {
+    "/api/v1/conversations/search": {
+      "post": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Search conversations",
+        "description": "Search conversations with metric filters, sorting, and pagination. Use `fields` to return only the metric keys you need per conversation (recommended for large searches); omit it to return all metric values. conversation_id is also accepted as a filter (eq/in) to fetch one or many conversations' metrics.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchConversationsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchConversationsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid filter, sort or window.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid `X-API-KEY`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks read permission on conversations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found, or the key cannot access the account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded: 100 requests per minute per API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The conversation store is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metrics": {
+      "get": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "List metrics",
+        "description": "List the metric catalog for the account, optionally scoped to a project: each metric's name, type, and expected values. Call this first to discover valid metric names before filtering in the conversation search endpoint or aggregating in the analytics endpoint.",
+        "parameters": [
+          {
+            "description": "Project ID",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Project Id",
+              "description": "Project ID"
+            },
+            "name": "project_id",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetMetricsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid `X-API-KEY`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks read permission on conversations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found, or the key cannot access the account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded: 100 requests per minute per API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The metrics store is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metrics/aggregate": {
+      "post": {
+        "tags": [
+          "metrics",
+          "analytics",
+          "experimental"
+        ],
+        "summary": "Aggregate a metric",
+        "description": "[Experimental] Aggregate a single metric across conversations, optionally bucketed by time interval and grouped by dimensions. Metric and filter names must come from the metrics endpoint. Results are tabular: each row's values are ordered by the columns field.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AggregateMetricRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AggregateMetricResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid grouping, sort field, having field or value identifier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid `X-API-KEY`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks read permission on conversations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found, or the key cannot access the account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded: 100 requests per minute per API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The analytics store is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transcripts/conversation/{conversation_id}": {
+      "get": {
+        "tags": [
+          "transcripts"
+        ],
+        "summary": "Get a transcript",
+        "description": "Fetch the complete transcript — every turn in order — for one conversation by ID.",
+        "parameters": [
+          {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            },
+            "name": "conversation_id",
+            "in": "path"
+          },
+          {
+            "description": "Project ID",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Project Id",
+              "description": "Project ID"
+            },
+            "name": "project_id",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetConversationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid `X-API-KEY`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks PII read permission. Transcript text is PII, so this route needs it outright.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The conversation has no turns, or the key cannot access the account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded: 100 requests per minute per API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The transcript store is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transcripts/search": {
+      "get": {
+        "tags": [
+          "transcripts"
+        ],
+        "summary": "Search transcripts",
+        "description": "Full-text search over transcript turns, returning each matching turn with its surrounding context turns. Use this to find conversations by what was said.",
+        "parameters": [
+          {
+            "description": "Text to search for.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 300,
+              "minLength": 3,
+              "title": "Q",
+              "description": "Text to search for."
+            },
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "description": "Inclusive lower bound on conversation start time.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "title": "From",
+              "description": "Inclusive lower bound on conversation start time."
+            },
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "description": "Exclusive upper bound on conversation start time.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "title": "To",
+              "description": "Exclusive upper bound on conversation start time."
+            },
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "description": "Turns of context to return around each match.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 3.0,
+              "minimum": 0.0,
+              "title": "Context Turns",
+              "description": "Turns of context to return around each match.",
+              "default": 1
+            },
+            "name": "context_turns",
+            "in": "query"
+          },
+          {
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100.0,
+              "minimum": 1.0,
+              "title": "Limit",
+              "default": 20
+            },
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000.0,
+              "minimum": 0.0,
+              "title": "Offset",
+              "default": 0
+            },
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "description": "Project ID to scope the search; required for PAT and bearer token auth",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Project Id",
+              "description": "Project ID to scope the search; required for PAT and bearer token auth"
+            },
+            "name": "project_id",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchTranscriptsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`from` is not before `to`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid `X-API-KEY`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks PII read permission. Transcript text is PII, so this route needs it outright.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found, or the key cannot access the account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded: 100 requests per minute per API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The transcript store is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "polyApiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-KEY"
+      }
+    },
+    "schemas": {
+      "Agg": {
+        "type": "string",
+        "enum": [
+          "sum",
+          "avg",
+          "min",
+          "max",
+          "p50",
+          "p95",
+          "p99",
+          "conversation_count",
+          "distinct_count"
+        ],
+        "title": "Agg",
+        "description": "Supported aggregate functions over a single metric."
+      },
+      "AggregateFilterCombinator": {
+        "type": "string",
+        "enum": [
+          "and",
+          "or"
+        ],
+        "title": "FilterCombinator",
+        "description": "How analytics cohort filters are combined."
+      },
+      "AggregateFilterOperator": {
+        "type": "string",
+        "enum": [
+          "eq",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "in",
+          "ex",
+          "exists"
+        ],
+        "title": "FilterOperator",
+        "description": "Operators a cohort filter on the analytics endpoint may use.\n\neq/gt/gte/lt/lte compare against a scalar value; in matches any value in\na list; ex excludes every value in a list; exists checks the metric is\npresent (value true) or absent (value false)."
+      },
+      "AggregateMetricRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id",
+            "description": "Optional project to scope the aggregation to."
+          },
+          "metric": {
+            "type": "string",
+            "title": "Metric",
+            "description": "Metric name to aggregate (case insensitive)."
+          },
+          "interval": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Interval"
+              }
+            ],
+            "description": "Time bucket interval; omit or null for no bucketing."
+          },
+          "aggs": {
+            "items": {
+              "$ref": "#/components/schemas/Agg"
+            },
+            "type": "array",
+            "description": "Aggregations to compute."
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "title": "From",
+            "description": "Inclusive window start"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "title": "To",
+            "description": "Exclusive window end"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone",
+            "description": "IANA timezone (e.g. 'Europe/London') applied to hourly and daily bucketing; naive from/to are interpreted in it. Ignored for other intervals."
+          },
+          "channel": {
+            "items": {
+              "$ref": "#/components/schemas/Channel"
+            },
+            "type": "array",
+            "description": "Restrict to these channels."
+          },
+          "deployment_id": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Deployment Id",
+            "description": "Restrict to these deployment IDs."
+          },
+          "experiment_id": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Experiment Id",
+            "description": "Restrict to these experiment IDs. Routes the query to the dedicated experiment rollup; cannot be combined with deployment_id."
+          },
+          "experiment_version_id": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Experiment Version Id",
+            "description": "Restrict to these experiment version (branch) IDs. Requires experiment_id."
+          },
+          "variant_id": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Variant Id",
+            "description": "Restrict to these variant IDs."
+          },
+          "client_env": {
+            "items": {
+              "$ref": "#/components/schemas/ClientEnvironmentEnum"
+            },
+            "type": "array",
+            "description": "Restrict to these client environments."
+          },
+          "group_by": {
+            "items": {
+              "$ref": "#/components/schemas/GroupByColumn"
+            },
+            "type": "array",
+            "description": "Columns to group the metric by, either a dimension or for a string metric, its own value. "
+          },
+          "filters": {
+            "items": {
+              "$ref": "#/components/schemas/MetricFilter"
+            },
+            "type": "array",
+            "title": "Filters",
+            "description": "Cohort filters on metric values, combined by the filter operator"
+          },
+          "filter_operator": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AggregateFilterCombinator"
+              }
+            ],
+            "description": "Logical combinator across filters.",
+            "default": "and"
+          },
+          "sort": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AggregateSort"
+              }
+            ],
+            "title": "Sort",
+            "description": "Sort applied after the ascending bucket sort."
+          },
+          "having": {
+            "items": {
+              "$ref": "#/components/schemas/HavingCondition"
+            },
+            "type": "array",
+            "title": "Having",
+            "description": "Post-aggregation thresholds on aggregates"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Page size.",
+            "default": 20
+          },
+          "offset": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Offset",
+            "description": "Pagination offset.",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "metric",
+          "aggs"
+        ],
+        "title": "AggregateMetricRequest",
+        "description": "Request body for the POST /v1/metrics/aggregate endpoint."
+      },
+      "AggregateMetricResponse": {
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Columns"
+          },
+          "rows": {
+            "items": {
+              "items": {},
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "limit",
+          "offset"
+        ],
+        "title": "AggregateMetricResponse",
+        "description": "Tabular aggregation result."
+      },
+      "AggregateSort": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field",
+            "description": "Field to sort by; must be one of the group_by or aggs values."
+          },
+          "order": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SortOrder"
+              }
+            ],
+            "description": "Sort direction.",
+            "default": "asc"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field"
+        ],
+        "title": "SortRequest",
+        "description": "Sort instruction applied after the (ascending) bucket sort."
+      },
+      "Channel": {
+        "type": "string",
+        "enum": [
+          "VOICE-SIP",
+          "CHAT",
+          "WEBCHAT",
+          "SMS",
+          "RCS"
+        ],
+        "title": "Channel",
+        "description": "Conversation channel, mapped to the value(s) stored in ClickHouse."
+      },
+      "ClientEnvironmentEnum": {
+        "type": "string",
+        "enum": [
+          "test",
+          "sandbox",
+          "pre-release",
+          "live",
+          "scenarios"
+        ],
+        "title": "ClientEnvironmentEnum",
+        "description": "Client env enum"
+      },
+      "ConversationFilterCombinator": {
+        "type": "string",
+        "enum": [
+          "and",
+          "or"
+        ],
+        "title": "FilterCombinator",
+        "description": "How filter clauses should be combined."
+      },
+      "ConversationFilterOperator": {
+        "type": "string",
+        "enum": [
+          "eq",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "in",
+          "ex",
+          "contains",
+          "not_contains",
+          "exists"
+        ],
+        "title": "FilterOperator",
+        "description": "Operators supported by the conversation review query.\n\neq/gt/gte/lt/lte compare against a scalar value; in matches any value in\na list; ex excludes every value in a list; contains/not_contains do\nsubstring matching on string metrics; exists checks the metric is\npresent (value true) or absent (value false)."
+      },
+      "ConversationReviewItem": {
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "title": "Conversation Id",
+            "description": "Unique conversation identifier."
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id",
+            "description": "Project the conversation belongs to."
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At",
+            "description": "Conversation start time."
+          },
+          "duration_seconds": {
+            "type": "integer",
+            "title": "Duration Seconds",
+            "description": "Conversation duration in seconds."
+          },
+          "metrics": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Metrics",
+            "description": "Flat map of metric name to value."
+          }
+        },
+        "type": "object",
+        "required": [
+          "conversation_id",
+          "project_id",
+          "metrics"
+        ],
+        "title": "ConversationReviewItem",
+        "description": "Single conversation in a search response."
+      },
+      "ConversationSort": {
+        "properties": {
+          "field": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SortField"
+              }
+            ],
+            "description": "Field to sort by."
+          },
+          "order": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SortDirection"
+              }
+            ],
+            "description": "Sort direction."
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "order"
+        ],
+        "title": "SortRequest",
+        "description": "Sort instruction for a conversation search."
+      },
+      "CustomMetricType": {
+        "enum": [
+          "string",
+          "int",
+          "bool",
+          "float"
+        ],
+        "title": "CustomMetricType",
+        "description": "Custom metric type"
+      },
+      "ErrorResponse": {
+        "title": "ErrorResponse",
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "description": "Human-readable reason for the error."
+          }
+        }
+      },
+      "FilterRequest": {
+        "properties": {
+          "metric": {
+            "type": "string",
+            "title": "Metric",
+            "description": "Metric to filter on. The list of available metrics are available in the /v1/metrics endpoint. conversation_id is also accepted to fetch one or many conversation(s) by ID. An AI Score is CUSTOM_SCORE_<ID> and filters on its 1-5 score."
+          },
+          "op": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConversationFilterOperator"
+              }
+            ],
+            "description": "Comparison operator to apply."
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  ]
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Value",
+            "description": "Value to compare against."
+          }
+        },
+        "type": "object",
+        "required": [
+          "metric",
+          "op",
+          "value"
+        ],
+        "title": "FilterRequest",
+        "description": "Single filter to apply to a conversation search."
+      },
+      "GetConversationResponse": {
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "title": "Conversation Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptTurn"
+            },
+            "type": "array",
+            "title": "Turns"
+          },
+          "total_turns": {
+            "type": "integer",
+            "title": "Total Turns"
+          }
+        },
+        "type": "object",
+        "required": [
+          "conversation_id",
+          "project_id",
+          "total_turns"
+        ],
+        "title": "GetConversationResponse",
+        "description": "Response body for fetching a full conversation transcript."
+      },
+      "GetMetricsResponse": {
+        "properties": {
+          "metrics": {
+            "items": {
+              "$ref": "#/components/schemas/Metric"
+            },
+            "type": "array",
+            "title": "Metrics"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metrics",
+          "total"
+        ],
+        "title": "GetMetricsResponse",
+        "description": "Response for GET /metrics."
+      },
+      "GroupByColumn": {
+        "type": "string",
+        "enum": [
+          "project_id",
+          "channel",
+          "deployment_id",
+          "variant_id",
+          "client_env",
+          "experiment_id",
+          "experiment_version_id",
+          "value_string"
+        ],
+        "title": "GroupByColumn",
+        "description": "Columns a metric aggregation may be grouped by."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HavingCondition": {
+        "properties": {
+          "field": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Agg"
+              }
+            ],
+            "description": "Aggregate to threshold"
+          },
+          "op": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HavingOperator"
+              }
+            ],
+            "description": "Comparison operator: eq, gt, gte, lt, lte."
+          },
+          "value": {
+            "type": "number",
+            "title": "Value",
+            "description": "Threshold value."
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "op",
+          "value"
+        ],
+        "title": "HavingCondition",
+        "description": "Post-aggregation threshold on an aggregate."
+      },
+      "HavingOperator": {
+        "type": "string",
+        "enum": [
+          "eq",
+          "gt",
+          "gte",
+          "lt",
+          "lte"
+        ],
+        "title": "HavingOperator",
+        "description": "Scalar comparisons allowed in a HAVING threshold."
+      },
+      "Interval": {
+        "type": "string",
+        "enum": [
+          "hourly",
+          "daily",
+          "weekly",
+          "monthly"
+        ],
+        "title": "Interval",
+        "description": "Time bucket interval"
+      },
+      "MatchedConversations": {
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "title": "Conversation Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "matched_turns": {
+            "items": {
+              "$ref": "#/components/schemas/MatchedTurn"
+            },
+            "type": "array",
+            "title": "Matched Turns"
+          }
+        },
+        "type": "object",
+        "required": [
+          "conversation_id",
+          "project_id"
+        ],
+        "title": "MatchedConversations",
+        "description": "Matched conversation details to return in transcript search response."
+      },
+      "MatchedTurn": {
+        "properties": {
+          "turn_index": {
+            "type": "integer",
+            "title": "Turn Index"
+          },
+          "user_input": {
+            "type": "string",
+            "title": "User Input"
+          },
+          "user_input_datetime": {
+            "type": "string",
+            "format": "date-time",
+            "title": "User Input Datetime"
+          },
+          "english_user_input": {
+            "type": "string",
+            "title": "English User Input"
+          },
+          "agent_response": {
+            "type": "string",
+            "title": "Agent Response"
+          },
+          "agent_response_datetime": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Agent Response Datetime"
+          },
+          "english_agent_response": {
+            "type": "string",
+            "title": "English Agent Response"
+          },
+          "context": {
+            "$ref": "#/components/schemas/TurnContext"
+          }
+        },
+        "type": "object",
+        "required": [
+          "turn_index"
+        ],
+        "title": "MatchedTurn",
+        "description": "Details of a matched turn to return in transcript search response."
+      },
+      "Metric": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "type": {
+            "$ref": "#/components/schemas/CustomMetricType"
+          },
+          "values": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Values"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "type"
+        ],
+        "title": "Metric",
+        "description": "A single metric."
+      },
+      "MetricFilter": {
+        "properties": {
+          "metric": {
+            "type": "string",
+            "title": "Metric",
+            "description": "Metric name to filter on (case insensitive)"
+          },
+          "op": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AggregateFilterOperator"
+              }
+            ],
+            "description": "Operator to filter on"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Value",
+            "description": "Value to filter on; must be a list for in/ex and a scalar for the others."
+          }
+        },
+        "type": "object",
+        "required": [
+          "metric",
+          "op",
+          "value"
+        ],
+        "title": "MetricFilter",
+        "description": "A single cohort filter"
+      },
+      "SearchConversationsRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id",
+            "description": "Optional project filter"
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "title": "From",
+            "description": "Inclusive lower bound on conversation start time."
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "title": "To",
+            "description": "Exclusive upper bound on conversation start time."
+          },
+          "filter_operator": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConversationFilterCombinator"
+              }
+            ],
+            "description": "Logical combinator applied across all filters. AND requires all to match; OR requires any.",
+            "default": "and"
+          },
+          "filters": {
+            "items": {
+              "$ref": "#/components/schemas/FilterRequest"
+            },
+            "type": "array",
+            "title": "Filters",
+            "description": "Filters to apply."
+          },
+          "client_env": {
+            "items": {
+              "$ref": "#/components/schemas/ClientEnvironmentEnum"
+            },
+            "type": "array",
+            "description": "Restrict results to these client environments (e.g. live)."
+          },
+          "channel": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Channel",
+            "description": "Restrict results to these channels."
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fields",
+            "description": "Metric keys to include in each conversation's `metrics` map, case-insensitive. Omit to return all metrics. Prefer passing only the metrics you need — especially on large searches — to keep responses slim and fast."
+          },
+          "sort": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConversationSort"
+              }
+            ],
+            "title": "Sort",
+            "description": "Sort order for results. Defaults to descending started_at if omitted."
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Maximum number of conversations to return.",
+            "default": 20
+          },
+          "offset": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Offset",
+            "description": "Number of conversations to skip for pagination.",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "SearchConversationsRequest",
+        "description": "Request body for the POST /v1/conversations/search endpoint."
+      },
+      "SearchConversationsResponse": {
+        "properties": {
+          "conversations": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationReviewItem"
+            },
+            "type": "array",
+            "title": "Conversations",
+            "description": "Matching conversations for this page."
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total number of matching conversations across all pages."
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "Page size used for this response."
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "description": "Offset used for this response."
+          }
+        },
+        "type": "object",
+        "required": [
+          "conversations",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "SearchConversationsResponse",
+        "description": "Response body for the POST /v1/conversations/search endpoint."
+      },
+      "SearchTranscriptsResponse": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/MatchedConversations"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total number of matching conversations"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "Number of conversations returned in this page"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "description": "Offset of this page in the overall results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "SearchTranscriptsResponse",
+        "description": "Response body for transcript search."
+      },
+      "SortDirection": {
+        "type": "string",
+        "enum": [
+          "asc",
+          "desc"
+        ],
+        "title": "SortDirection",
+        "description": "Supported sort directions."
+      },
+      "SortField": {
+        "type": "string",
+        "enum": [
+          "started_at",
+          "duration",
+          "conversation_id"
+        ],
+        "title": "SortField",
+        "description": "Fields that conversations can be sorted by."
+      },
+      "SortOrder": {
+        "type": "string",
+        "enum": [
+          "asc",
+          "desc"
+        ],
+        "title": "SortOrder",
+        "description": "Sort direction for the optional secondary sort field."
+      },
+      "TranscriptTurn": {
+        "properties": {
+          "turn_index": {
+            "type": "integer",
+            "title": "Turn Index"
+          },
+          "user_input": {
+            "type": "string",
+            "title": "User Input"
+          },
+          "user_input_datetime": {
+            "type": "string",
+            "format": "date-time",
+            "title": "User Input Datetime"
+          },
+          "english_user_input": {
+            "type": "string",
+            "title": "English User Input"
+          },
+          "agent_response": {
+            "type": "string",
+            "title": "Agent Response"
+          },
+          "agent_response_datetime": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Agent Response Datetime"
+          },
+          "english_agent_response": {
+            "type": "string",
+            "title": "English Agent Response"
+          }
+        },
+        "type": "object",
+        "required": [
+          "turn_index"
+        ],
+        "title": "TranscriptTurn",
+        "description": "Details of a single turn to return in transcript search response."
+      },
+      "TurnContext": {
+        "properties": {
+          "before": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptTurn"
+            },
+            "type": "array",
+            "title": "Before"
+          },
+          "after": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptTurn"
+            },
+            "type": "array",
+            "title": "After"
+          }
+        },
+        "type": "object",
+        "title": "TurnContext",
+        "description": "Context turns for a matched turn."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
