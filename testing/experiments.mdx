@@ -1,0 +1,190 @@
+---
+title: 'Experiments'
+sidebarTitle: 'Experiments'
+description: 'Run a Branch against Live on real customer calls, compare how the two perform, and keep the winner.'
+keywords:
+  - experiments
+  - a/b testing
+  - ab test
+  - split traffic
+  - control
+  - variant
+  - branch
+  - live
+  - dashboards
+  - wren
+---
+
+<Note>
+Experiments are in early access. Ask your PolyAI representative to turn them on for your project.
+</Note>
+
+An **experiment** runs one of your Branches alongside your Live version and splits real customer calls between them. You compare how the two perform, then keep the one that did better.
+
+Use one for any change where you want evidence before every customer gets it, such as a new prompt, a reworked flow, a different routing rule or a model swap.
+
+<img className="block dark:hidden" src="/images/deployment/experiment-model-light.svg" alt="Customer calls split between the control (your current Live version) and the variant (the Branch you are testing). Ending the experiment picks a winner that takes every call." style={{ maxWidth: '920px', width: '100%', margin: '0 auto' }} />
+<img className="hidden dark:block" src="/images/deployment/experiment-model-dark.svg" alt="Customer calls split between the control (your current Live version) and the variant (the Branch you are testing). Ending the experiment picks a winner that takes every call." style={{ maxWidth: '920px', width: '100%', margin: '0 auto' }} />
+
+## How it works
+
+An experiment always compares two versions.
+
+| | **What it is** |
+|---|---|
+| **Control** | Your current Live version. |
+| **Variant** | The Branch you are testing. |
+
+Variant here only means the Branch under test. It has nothing to do with [variants](/knowledge/variants/introduction), which set per-site behaviour.
+
+You choose what share of calls the variant gets, anywhere from 1% to 99%, and the control gets the rest. The default is an even split. Each call is assigned to one version when it starts and stays on that version until it ends.
+
+Every call during the experiment is tagged with the experiment and with the version that handled it. That is what lets you filter your dashboards by experiment and compare the two versions side by side.
+
+You can keep updating both versions while the experiment runs. When you have enough data, you end the experiment and pick a winner, which then takes every call.
+
+## Before you start
+
+You need:
+
+- Something published to Live. This becomes the control.
+- A Branch with the change you want to test, synced with Live. See [Making a change](/environments-and-versions/branches#making-a-change). A Sub-branch can't be tested on its own, so merge it into its Branch first.
+- No other experiment running on the project.
+- The **Deployment** permission. See [Access control](/user-management/access-control-scope).
+
+Run [simulation tests](/testing/simulation-tests) on the Branch first to check the change works. The experiment then shows how it performs with real customers.
+
+<Tip>
+Decide what winning means before you start, for example more calls contained without longer call times. If you pick the metric after seeing the results, it is easy to keep a change that made things worse.
+</Tip>
+
+## Start an experiment
+
+<Steps>
+  <Step title="Open the New experiment page">
+    On the **Deployments** page, choose **Create**, then **Experiment**. You can also choose **Start Experiment** from a Branch's menu on the Deployments page, or from the **Publish** menu while you are working in the Branch.
+  </Step>
+  <Step title="Name it">
+    The name defaults to the date and time. Change it to something you will recognize later, such as `Refund flow rewrite`.
+  </Step>
+  <Step title="Choose the Branch to test">
+    Under **Versions**, **Version A** is the control, which is always your Live version. For **Version B**, select the Branch you want to test as the variant and enter its share of traffic. The control gets the rest.
+  </Step>
+  <Step title="Create">
+    Both versions start taking real customer calls straight away.
+  </Step>
+</Steps>
+
+<Warning>
+Both versions are live. Every caller reaches one or the other and has a real conversation. Only test a Branch you would be comfortable giving to every customer.
+</Warning>
+
+## While an experiment is running
+
+The experiment appears on the **Experiments** tab of the Deployments page, marked **Running**, with its traffic split. If you talk to your Live agent from the chat or call panel in Agent Studio, either version may answer.
+
+You can keep improving both versions without stopping the experiment.
+
+| **To update** | **What to do** |
+|---|---|
+| **The control** | Publish another Branch to Live as normal. You are asked to confirm, because the change affects what the experiment compares against. Afterwards you can sync the same change into the variant, so both versions have it. |
+| **The variant** | Edits to the Branch under test go into a Sub-branch, which Agent Studio creates when you start editing. Merge that Sub-branch into the Branch and the variant updates straight away. Syncing the Branch with Live updates it in the same way. |
+
+To rename the experiment or change the split, open its menu on the **Experiments** tab and choose **Update**. Changing the split part way through makes the two versions harder to compare, so only do it when you need to.
+
+A few things wait until the experiment ends:
+
+- Publishing or archiving the Branch under test.
+- Starting another experiment.
+- Rolling back Live.
+
+## Track performance
+
+Because every call is tagged with the experiment and its version, you can compare the two in your dashboards or by asking Wren.
+
+### Dashboards
+
+Once experiments are turned on for your project, every dashboard on the **Analytics** page has an **Experiment** filter and an **Experiment version** filter. See [Self-serve dashboards](/analytics/dashboards/introduction).
+
+<Steps>
+  <Step title="Choose the experiment">
+    Open a dashboard and select the experiment under **Experiment**. Most charts split by version, showing **Control** next to your Branch's name. A chart that already has its own grouping may show both versions combined.
+  </Step>
+  <Step title="Set the dates">
+    Set the time range to cover the period the experiment ran.
+  </Step>
+  <Step title="Look at one version on its own (optional)">
+    Choose it under **Experiment version**.
+  </Step>
+</Steps>
+
+Past experiments stay in the **Experiment** list after they end, so you can go back to their results at any time.
+
+### Wren
+
+Wren knows about your experiments, running and finished. Ask it how the versions compare and it works out each metric for both, side by side.
+
+- *"How is the refund flow experiment doing on containment this week?"*
+- *"Compare call length between the two versions of last month's experiment."*
+
+Wren gives you the figures for each version but leaves the decision to you, because a small difference can be down to chance. You can also ask Wren to build a dashboard for an experiment, which opens with that experiment already selected. See [Analyze conversations](/wren/analyze#experiments).
+
+Wren can start, re-split or end an experiment for you too. It always shows you exactly what it will do and waits for your approval first.
+
+## End an experiment
+
+<Steps>
+  <Step title="Open the Experiments tab">
+    It is on the **Deployments** page.
+  </Step>
+  <Step title="Choose End">
+    Open the running experiment's menu and choose **End**.
+  </Step>
+  <Step title="Pick a winner">
+    Select the version to keep, then choose **End experiment**. If the version you picked is out of sync with Live, the button reads **Sync and end experiment**, and it syncs the Branch first.
+  </Step>
+</Steps>
+
+The winner takes every call from then on.
+
+| **Winner** | **What happens** |
+|---|---|
+| **Variant** | Its Branch is merged onto Live, just as if you had published it. It becomes the newest version in Live's history, so you can [roll back](/environments-and-versions/introduction#rolling-back-a-change) if you need to. |
+| **Control** | Live stays as it is. The variant stops taking calls and stays available as a Branch. |
+
+If the winning Branch can't merge because of conflicts, the experiment keeps running. Sync the Branch with Live, resolve the conflicts, then end the experiment again.
+
+## Past experiments
+
+The **Experiments** tab lists every experiment with its traffic split. Finished experiments also show whether **Control won** or **Variant won**. Their data stays in your dashboards, and Wren can still answer questions about them. A/B tests from before experiments were turned on are listed too, but without a result.
+
+## Limits
+
+- One experiment per project at a time.
+- Two versions per experiment, your Live version and one Branch.
+- Sub-branches can't be tested. Merge them into their Branch first.
+- Agent Studio doesn't tell you whether a difference between the versions is big enough to trust. Your dashboards and Wren give you the figures, and you decide when there is enough data to call a winner.
+- Charts grouped by deployment, and tables with a row grouping, don't show while you compare versions. For a grouped table, remove the grouping or pick one version under **Experiment version**.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Branches" icon="code-branch" href="/environments-and-versions/branches">
+    Make the change you want to test.
+  </Card>
+  <Card title="Deployments" icon="rocket" href="/environments-and-versions/introduction">
+    How changes move from a Branch to Live.
+  </Card>
+  <Card title="Self-serve dashboards" icon="chart-line" href="/analytics/dashboards/introduction">
+    Filter any dashboard by experiment and version.
+  </Card>
+  <Card title="Analyze conversations" icon="magnifying-glass-chart" href="/wren/analyze">
+    Ask Wren how your two versions compare.
+  </Card>
+  <Card title="Simulation tests" icon="flask-vial" href="/testing/simulation-tests">
+    Check a Branch works before real customers reach it.
+  </Card>
+  <Card title="Compare changes" icon="code-compare" href="/environments-and-versions/diffs">
+    See exactly what your Branch changes before you test it.
+  </Card>
+</CardGroup>
