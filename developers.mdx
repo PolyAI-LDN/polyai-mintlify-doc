@@ -1,0 +1,356 @@
+---
+title: "PolyAI developers"
+sidebarTitle: "Developers"
+description: "Build voice and chat agents with the PolyAI ADK, APIs, MCP servers and the Dialog-RSN-1 model."
+mode: "wide"
+keywords:
+  - "PolyAI developers"
+  - "ADK"
+  - "API"
+  - "MCP"
+  - "Dialog-RSN-1"
+  - "realtime API"
+---
+
+import { RegionSwitch, RegionCode } from '/snippets/dev-hub.jsx'
+
+{/* ─────────────────────────  HERO  ───────────────────────── */}
+
+<div className="home-hero devhub-hero">
+  <span className="home-eyebrow">PolyAI developers</span>
+  <h2 className="home-hero-title">What do you want to <span className="devhub-lime">build</span>?</h2>
+
+  <p className="home-hero-sub">
+    Voice and chat agents that resolve the conversation. Write them as code with the ADK, wire them
+    in over REST and WebSocket APIs, or put Dialog-RSN-1 behind your own voice stack.
+  </p>
+
+  <div className="home-cta-row">
+    <a href="/adk/get-started/get-started" className="home-btn home-btn-primary">
+      <Icon icon="terminal" iconType="solid" size={15} color="#1f3a04" /> Install the ADK
+    </a>
+
+    <a href="/api-reference/quickstart" className="home-btn home-btn-ghost">
+      API quickstart →
+    </a>
+  </div>
+
+  <div className="home-term devhub-term">
+    <div className="term-head">
+      <span className="term-dot" />
+
+      <span className="term-dot" />
+
+      <span className="term-dot" />
+
+      <span className="term-title">~/quickstart</span>
+    </div>
+
+    <div className="term-body">
+      <div className="term-line"><span className="term-c"># needs uv, which installs the right Python for you</span></div>
+      <div className="term-line"><span className="term-cmd"><span className="term-p">{'$'}</span>uv tool install polyai-adk</span></div>
+      <div className="term-line"><span className="term-cmd"><span className="term-p">{'$'}</span>poly login</span></div>
+      <div className="term-line"><span className="term-cmd"><span className="term-p">{'$'}</span>poly project create</span></div>
+      <div className="term-line"><span className="term-c"># edit locally, then ship it</span></div>
+      <div className="term-line"><span className="term-cmd"><span className="term-p">{'$'}</span>poly diff</span></div>
+      <div className="term-line"><span className="term-cmd"><span className="term-p">{'$'}</span>poly push</span></div>
+      <div className="term-line"><span className="term-cmd"><span className="term-p">{'$'}</span>poly chat</span></div>
+    </div>
+  </div>
+</div>
+
+<div className="devhub-chips not-prose">
+  <a href="/adk/tutorials/build-an-agent">Build an agent with the ADK</a>
+  <a href="/adk/get-started/agentic-setup">Set up the ADK with a coding assistant</a>
+  <a href="/mcp/quickstart">Connect Builder MCP</a>
+  <a href="https://dialog-rsn-1-eap-docs.pages.dev/dialog-rsn-1/quickstart">Stream a call to Dialog-RSN-1</a>
+  <a href="/api-reference/outbound/introduction">Trigger an outbound call</a>
+  <a href="/api-reference/messaging/introduction">Stream chat over WebSocket</a>
+</div>
+
+Prefer your own assistant? Point it at [llms.txt](https://docs.poly.ai/llms.txt), every page of these docs indexed for agents.
+
+{/* ─────────────────────────  01 ADK  ───────────────────────── */}
+
+<span className="devhub-num">01 · Agent Development Kit</span>
+
+## Agents as code, in your repo
+
+Every agent resource is a versioned file: YAML for settings, Python for functions. Pull a project, edit it in any IDE or with a coding assistant, validate, push. Branch, diff, review and roll back with the Git workflow you already run.
+
+| Step | Command | What it does |
+| --- | --- | --- |
+| 01 | `poly init` | Load an existing project into a local folder, or start one with `poly project create`. |
+| 02 | `poly pull` | Bring down the latest resources before you edit. |
+| 03 | `poly validate` | Check your YAML and Python before anything leaves your machine. |
+| 04 | `poly diff` · `poly push` | See exactly what changed, then push it. Safe to run from CI. |
+| 05 | `poly chat` · `poly call` | Talk to the agent you just pushed, by text or on a real voice call. |
+
+<CodeGroup>
+```text Project layout
+<account_id>/<project_id>/
+├── agent_settings/
+│   ├── personality.yaml
+│   ├── role.yaml
+│   └── rules.txt
+├── config/
+│   ├── sms_templates.yaml
+│   └── variant_attributes.yaml
+├── flows/
+├── functions/
+│   └── start_function.py
+└── topics/
+```
+
+```bash Install with voice calls
+uv tool install "polyai-adk[call]"
+```
+
+```bash From a coding assistant
+poly apikey --region studio
+poly project list --region studio
+```
+
+```bash In CI
+poly validate
+poly test
+poly push
+```
+</CodeGroup>
+
+<CardGroup cols={3}>
+  <Card title="Get started" icon="rocket" href="/adk/get-started/get-started">
+    Install the ADK and run your first commands.
+  </Card>
+
+  <Card title="Build an agent" icon="graduation-cap" href="/adk/tutorials/build-an-agent">
+    A full tutorial, from an empty project to a pushed agent.
+  </Card>
+
+  <Card title="CLI reference" icon="terminal" href="/adk/reference/cli">
+    Every `poly` command and flag.
+  </Card>
+</CardGroup>
+
+{/* ─────────────────────────  02 APIs  ───────────────────────── */}
+
+<span className="devhub-num">02 · APIs</span>
+
+## Specs for humans and agents
+
+Every API ships an OpenAPI or AsyncAPI spec, so your coding agent reads the same contract you do. Every call takes an account API key in the `x-api-key` header. Pick the region your account lives in, and the snippets on this page follow it.
+
+<RegionSwitch />
+
+<RegionCode
+  title="Create an agent"
+  code={"curl -X POST {{host}}/v1/accounts/$POLYAI_ACCOUNT_ID/agents \\\n  -H \"x-api-key: $POLYAI_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"name\": \"Support Agent\",\n    \"description\": \"Handles Tier 1 support for the US market\"\n  }'"}
+/>
+
+Get a key from the API Keys tab in Agent Studio or with `poly apikey`. See [API keys](/secrets/api-keys) and [error codes](/api-reference/error-codes).
+
+<CardGroup cols={4}>
+  <Card title="Agents API" icon="robot" href="/api-reference/agents/introduction">
+    Agents, branches, knowledge, deployments, phone numbers and voices.
+  </Card>
+
+  <Card title="Conversations API" icon="list" href="/api-reference/conversations/introduction">
+    List conversations, fetch one by ID and download its recording.
+  </Card>
+
+  <Card title="Messaging API" icon="comments" href="/api-reference/messaging/introduction">
+    WebSocket sessions with streaming, events and live-agent handoff.
+  </Card>
+
+  <Card title="Chat API" icon="message" href="/api-reference/chat/introduction">
+    Create a chat, respond to it, close it.
+  </Card>
+
+  <Card title="SIP Trunking API" icon="phone-volume" href="/api-reference/sip-trunking/introduction">
+    Trunks, extensions and outbound calls over SIP.
+  </Card>
+
+  <Card title="Outbound Calling API" icon="phone-arrow-up-right" href="/api-reference/outbound/introduction">
+    Trigger a call and check its status.
+  </Card>
+
+  <Card title="Webhooks API" icon="bell" href="/api-reference/webhooks/introduction">
+    Webhook endpoints and signing-secret rotation.
+  </Card>
+
+  <Card title="WebRTC Gateway" icon="browser" href="/api-reference/webrtc-gateway/introduction">
+    WebSocket signaling for calls from the browser.
+  </Card>
+</CardGroup>
+
+[Every API in the reference →](/api-reference/introduction)
+
+{/* ─────────────────────────  03 MCP  ───────────────────────── */}
+
+<span className="devhub-num">03 · MCP</span>
+
+## Let your coding agent do the building
+
+Two MCP servers, one account API key. **Builder MCP** lets Claude Code, Cursor or Codex build, test and publish agents in your project. **Data MCP** answers questions about your conversations, metrics and call outcomes. Both use streamable HTTP, and their endpoints follow the region you picked above.
+
+<RegionCode
+  title="Builder MCP in Claude Code"
+  code={"claude mcp add --transport http polyai \\\n  {{host}}/builder-mcp \\\n  --header \"X-API-KEY: $POLYAI_API_KEY\" \\\n  --header \"Accept: application/json, text/event-stream\""}
+/>
+
+<RegionCode
+  title="Builder MCP in Cursor (~/.cursor/mcp.json)"
+  code={"{\n  \"mcpServers\": {\n    \"polyai\": {\n      \"url\": \"{{host}}/builder-mcp\",\n      \"headers\": { \"X-API-KEY\": \"your_api_key_here\" }\n    }\n  }\n}"}
+/>
+
+<RegionCode title="Data MCP endpoint" code={"{{host}}/data-mcp"} />
+
+<CardGroup cols={3}>
+  <Card title="MCP quickstart" icon="bolt" href="/mcp/quickstart">
+    Setup for Cursor, Claude Code, Claude Desktop and Codex.
+  </Card>
+
+  <Card title="Build, test and publish" icon="wrench" href="/mcp/builder/walkthrough">
+    A full Builder MCP session, step by step.
+  </Card>
+
+  <Card title="Query your data" icon="chart-line" href="/mcp/data/walkthrough">
+    From discovering metrics to reading a single transcript.
+  </Card>
+</CardGroup>
+
+{/* ─────────────────────────  04 DIALOG-RSN-1  ───────────────────────── */}
+
+<span className="devhub-num">04 · Models</span>
+
+## Dialog-RSN-1
+
+Audio in, text out. Dialog-RSN-1 speaks the OpenAI Realtime event protocol over WebSocket, with `poly_*` extensions for knowledge, spoken tool fillers and playback reporting. Turn detection, recognition and the reply come from one model; speech synthesis is yours.
+
+| | |
+| --- | --- |
+| **Modality** | Audio and text in, text out. A request for audio output is refused. |
+| **Protocol** | OpenAI Realtime events over WebSocket, plus `poly_*` fields and `poly.output_audio.*` playback reports. |
+| **Endpoint** | `wss://api.us.poly.ai/v1/realtime`, with `X-API-KEY` or `Authorization: Bearer`. Browsers can't set either header, so put a relay in front. |
+| **Context** | 32,000 tokens across instructions, tools, knowledge, history and audio. Keep the static session setup under about 20k. |
+| **Session** | One conversation per connection. No resumption, and nothing compacts history. |
+| **Tools** | JSON Schema function tools, same shape as Realtime. MCP tool entries are dropped. |
+| **Languages** | English for voice. |
+
+```json session.update
+{
+  "type": "session.update",
+  "session": {
+    "type": "realtime",
+    "output_modalities": ["text"],
+    "instructions": "Collect the six-digit booking reference. Wait until the caller has said all six digits.",
+    "audio": {
+      "input": {
+        "format": { "type": "audio/pcm", "rate": 16000 },
+        "turn_detection": { "type": "server_vad" }
+      }
+    },
+    "tools": [{
+      "type": "function",
+      "name": "lookup_booking",
+      "parameters": {
+        "type": "object",
+        "properties": { "reference": { "type": "string" } },
+        "required": ["reference"]
+      }
+    }]
+  }
+}
+```
+
+<Warning>
+**Constraints worth knowing.** A refused `session.update` applies nothing, instructions included: `turn_detection: null`, turn timing fields, `semantic_vad`, `audio.output` and `reasoning` all get it refused. Always declare the PCM `rate`; 16 kHz audio sent without one is read as 24 kHz. Once a session has had audio, keep streaming it, silence included.
+</Warning>
+
+<CardGroup cols={3}>
+  <Card title="Quickstart" icon="rocket" href="https://dialog-rsn-1-eap-docs.pages.dev/dialog-rsn-1/quickstart">
+    The connection, the session and the shape of a turn, ending in a runnable example.
+  </Card>
+
+  <Card title="Protocol reference" icon="book" href="https://dialog-rsn-1-eap-docs.pages.dev/dialog-rsn-1/reference">
+    The session object, every client and server event, function calling and errors.
+  </Card>
+
+  <Card title="Guides" icon="map" href="https://dialog-rsn-1-eap-docs.pages.dev/dialog-rsn-1/guides/introduction">
+    Python, browser, LiveKit, Cartesia, streaming TTS and OpenAI migration.
+  </Card>
+</CardGroup>
+
+[Request a Dialog-RSN-1 API key →](https://poly.ai/request-dialog-rsn-1-api-key) · [Run it on SageMaker →](https://aws.amazon.com/marketplace/pp/prodview-l4qyhvfxnkq7e)
+
+{/* ─────────────────────────  05 SAMPLES  ───────────────────────── */}
+
+<span className="devhub-num">05 · Samples</span>
+
+## Start from working code
+
+Public repos that pair with a guide. Clone one, add your key, run it.
+
+<CardGroup cols={3}>
+  <Card title="Python from scratch" icon="github" href="https://github.com/polyai/dialog-rsn-1-python-from-scratch">
+    One text turn over a plain socket, grown into tool calling and a live microphone. No SDK.
+  </Card>
+
+  <Card title="Browser with JavaScript" icon="github" href="https://github.com/polyai/dialog-rsn-1-javascript-browser">
+    Microphone audio from the browser, the reply rendered as it streams, and a relay that holds your key.
+  </Card>
+
+  <Card title="Voice agent with Cartesia" icon="github" href="https://github.com/PolyAI-LDN/dialog-rsn-1-voice-agent">
+    The model takes the turn and writes the reply, Cartesia speaks it. Includes a latency probe.
+  </Card>
+
+  <Card title="LiveKit voice agent" icon="github" href="https://github.com/PolyAI-LDN/dialog-rsn-1-livekit">
+    Dialog-RSN-1 as the model in a LiveKit Agents session, with any LiveKit TTS.
+  </Card>
+
+  <Card title="Realtime agents" icon="github" href="https://github.com/polyai/dialog-rsn-1-realtime-agents">
+    Multi-agent demos ported from openai-realtime-agents: handoffs, a supervisor and cited knowledge.
+  </Card>
+
+  <Card title="SageMaker notebook" icon="github" href="https://github.com/polyai/dialog-rsn-1-sagemaker">
+    Run Dialog-RSN-1 as a SageMaker endpoint in your own AWS account.
+  </Card>
+</CardGroup>
+
+{/* ─────────────────────────  06 WHAT'S NEW  ───────────────────────── */}
+
+<span className="devhub-num">06 · What’s new</span>
+
+## Shipped recently
+
+- **Dialog-RSN-1 on SageMaker** (Oct 2026). Subscribe on [AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-l4qyhvfxnkq7e) and run the model in your own AWS environment.
+- **Dialog-RSN-1** (Jul 2026). PolyAI’s audio-native dialog model: turn-taking, recognition and response in one model.
+- **PolyAI ADK** (Jul 2026). A [local, Git-like workflow](/adk/get-started/what-is-the-adk) for pulling, editing, validating and pushing agent projects.
+- **Builder MCP** (Jul 2026). [Build, test and deploy agents](/mcp/builder/introduction) from Claude Code, Cursor or any MCP client.
+- **Platform guardrails** (Jun 2026). Five pre-built safety protections on every conversation, each toggleable per project. See the [June release notes](/releases/notes/26.06).
+
+[All release notes →](/releases/overview)
+
+{/* ─────────────────────────  07 LEARN AND CONNECT  ───────────────────────── */}
+
+<span className="devhub-num">07 · Learn and connect</span>
+
+## Build it with other builders
+
+<CardGroup cols={4}>
+  <Card title="ADK Discord" icon="discord" href="/adk/community/discord">
+    Ask questions and share what you’re building.
+  </Card>
+
+  <Card title="ADK on GitHub" icon="github" href="https://github.com/polyai/adk">
+    Source, issues and releases for the ADK and the poly CLI.
+  </Card>
+
+  <Card title="Recipes" icon="book-open" href="/learn/recipes/introduction">
+    Copyable patterns for common agent jobs.
+  </Card>
+
+  <Card title="Troubleshooting" icon="life-ring" href="/troubleshoot/faq">
+    Answers to the questions builders ask most.
+  </Card>
+</CardGroup>
