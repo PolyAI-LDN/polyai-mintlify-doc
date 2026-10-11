@@ -1,0 +1,58 @@
+---
+title: "Dialog-RSN-1 limits and pricing"
+sidebarTitle: "Limits"
+description: "Concurrency, rate limits, session duration, context window, audio formats, languages and the connected-minute price for the Dialog-RSN-1 API."
+keywords:
+  - Dialog-RSN-1
+  - limits
+  - concurrency
+  - rate limit
+  - pricing
+  - context window
+---
+
+{/* Source of truth: poly_core src/dialog_rsn_1/dialogue_api/README.md and config.py, poly_gitops_apps apps/dialogue-api and apps/vllm-server-omni-1 values. Checked against poly_core master 49908520f8 on 11 Oct 2026. Rows marked "From 15 October 2026" land with general availability. */}
+
+Every limit below applies per account and is the same on every host. Where a limit is reached you get a named error or close code, listed on the [API reference](/api-reference/dialog-rsn-1/reference#errors).
+
+| Limit | Value | When you hit it |
+| --- | --- | --- |
+| Concurrent sessions | **2** before a card is on file, **10** after, up to **50** on request | The next handshake is refused with `429` and `"code": "session_limit_reached"`. It succeeds once one of your sessions ends. From 15 October 2026. |
+| New connections per minute | Limited per key at the gateway | `429` with `Retry-After` and `RateLimit-*` headers. A normal client never meets this; a reconnect loop does. |
+| Session duration | **60 minutes** | `session.created.expires_at` says when. At the deadline, `error` `session_expired` then close `4410`. Reconnect and carry on. From 15 October 2026. |
+| Idle timeout | **5 minutes** without a client event | Close `4408`. Measured on frames, not speech: a silent caller mid-call is not idle as long as you keep streaming audio. |
+| Frame size | **256 KiB** per WebSocket frame | Close `1009`. About four seconds of 24 kHz audio; send 20 ms frames. |
+| Turn length | **300 seconds** of audio in one turn | Audio past that is dropped |
+| Context window | **32,768 tokens**, audio included | From the tenth caller turn, older turns keep their transcript and release their audio, so most calls never reach it. If a conversation still outgrows the window, that response fails with `context_length_exceeded` and the connection stays open. |
+| Reply length | `max_output_tokens` up to **1,024** per response, reasoning included | A cap smaller than the model's reasoning leaves a short or empty reply |
+| Output | Text | Bring your own text-to-speech |
+| Audio in | PCM16 mono at 24 kHz (default), 16 kHz, or any rate; G.711 mu-law and A-law at 8 kHz | Other encodings are refused on `session.update` |
+| Languages | Any ISO 639 tag via `poly_response_language`, or in words | English, Spanish, French and Portuguese are covered by our tests. Unset, the model follows your instructions. |
+
+Not limited: messages per second within a session, sessions per day, tokens per minute.
+
+## Concurrency
+
+A session is one open WebSocket. The cap counts sessions open at the same time across all your keys, however long each one lasts, and is what bounds how much of the model one account can hold.
+
+- **2** concurrent sessions on the free credit.
+- **10** once a payment card is on the account.
+- **Up to 50** on request. One account at 50 takes most of a GPU, so this is agreed rather than self-serve. Contact us from Agent Studio.
+
+Enterprise deployments run on reserved capacity and are not subject to the self-serve cap.
+
+## Capacity
+
+At peak a handshake can be refused with `503` and `"code": "capacity_exceeded"`, with `Retry-After: 1`. Retry; the next attempt usually lands on a host with room. Inside a session the same code on `response.done` means the model had no room for that reply; retry after a short backoff.
+
+## Pricing
+
+| | Rate |
+| --- | --- |
+| Connected time | **$0.02 per minute**, billed per second from WebSocket open to close |
+| Text tokens | $2.00 per million input, $0.20 per million cached input, $5.00 per million output |
+| Typical all-in | About **$0.03 per minute** of conversation |
+
+Connected time is metered once when the session closes, however it closes. Turn detection runs on the model and its tokens are included in the connected-minute rate; `response.done.response.poly_probe_usage` reports them.
+
+New accounts receive a launch credit at sign-up that does not expire while the account is active. Adding a card raises your concurrency cap and does not add credit. When the balance is spent, new connections are refused with `402` until you top up; a session already open is not cut off.
