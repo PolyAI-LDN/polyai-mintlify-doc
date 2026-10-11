@@ -231,11 +231,11 @@ Audio in, text out. Dialog-RSN-1 speaks the OpenAI Realtime event protocol over 
 | --- | --- |
 | **Modality** | Audio and text in, text out. A request for audio output is refused. |
 | **Protocol** | OpenAI Realtime events over WebSocket, plus `poly_*` fields and `poly.output_audio.*` playback reports. |
-| **Endpoint** | `wss://api.us.poly.ai/v1/realtime`, with `X-API-KEY` or `Authorization: Bearer`. Browsers can't set either header, so put a relay in front. |
-| **Context** | 32,000 tokens across instructions, tools, knowledge, history and audio. Keep the static session setup under about 20k. |
-| **Session** | One conversation per connection. No resumption, and nothing compacts history. |
-| **Tools** | JSON Schema function tools, same shape as Realtime. MCP tool entries are dropped. |
-| **Languages** | English for voice. |
+| **Endpoint** | `wss://api.studio.poly.ai/v1/realtime` for self-serve keys, with `X-API-KEY` or `Authorization: Bearer`. Keys from a regional Studio use that region's host; see the [host table](/api-reference/dialog-rsn-1/reference#connect). Browsers can't set either header, so put a relay in front. |
+| **Context** | 32,768 tokens across instructions, tools, knowledge, history and audio. Keep the static session setup under about 20k. |
+| **Session** | One conversation per connection, up to 60 minutes. No resumption. From the tenth caller turn, older turns keep their transcript and release their audio. |
+| **Tools** | JSON Schema function tools, same shape as Realtime. MCP tool entries are refused. |
+| **Languages** | Any ISO 639 tag via `poly_response_language`; English, Spanish, French and Portuguese are in our tests. |
 
 ```json session.update
 {
@@ -264,20 +264,20 @@ Audio in, text out. Dialog-RSN-1 speaks the OpenAI Realtime event protocol over 
 ```
 
 <Warning>
-**Constraints worth knowing.** A refused `session.update` applies nothing, instructions included: `turn_detection: null`, turn timing fields, `semantic_vad`, `audio.output` and `reasoning` all get it refused. Always declare the PCM `rate`; 16 kHz audio sent without one is read as 24 kHz. Once a session has had audio, keep streaming it, silence included.
+**Constraints worth knowing.** A refused `session.update` applies nothing, instructions included: `turn_detection: null`, `interrupt_response: false`, `idle_timeout_ms`, `reasoning` and `prompt` are refused. Turn timing fields, `semantic_vad` and `audio.output` on a text session are accepted and ignored. Always declare the PCM `rate`; 16 kHz audio sent without one is read as 24 kHz. Once a session has had audio, keep streaming it, silence included.
 </Warning>
 
 <CardGroup cols={3}>
-  <Card title="Quickstart" icon="rocket" href="https://dialog-rsn-1-eap-docs.pages.dev/dialog-rsn-1/quickstart">
-    The connection, the session and the shape of a turn, ending in a runnable example.
+  <Card title="API reference" icon="book" href="/api-reference/dialog-rsn-1/reference">
+    Connect, authenticate, the session contract, every event, the `poly_*` extensions and errors, with a runnable turn.
   </Card>
 
-  <Card title="Protocol reference" icon="book" href="https://dialog-rsn-1-eap-docs.pages.dev/dialog-rsn-1/reference">
-    The session object, every client and server event, function calling and errors.
+  <Card title="Limits and pricing" icon="gauge-high" href="/api-reference/dialog-rsn-1/limits">
+    Concurrency, session duration, context window, audio formats and the connected-minute rate.
   </Card>
 
-  <Card title="Guides" icon="map" href="https://dialog-rsn-1-eap-docs.pages.dev/dialog-rsn-1/guides/introduction">
-    Python, browser, LiveKit, Cartesia, streaming TTS and OpenAI migration.
+  <Card title="Examples" icon="map" href="https://github.com/PolyAI-LDN/realtime-dev-kit/tree/main/examples">
+    Pipecat and LiveKit integrations, and the conformance harness we run against OpenAI.
   </Card>
 </CardGroup>
 
