@@ -1,0 +1,478 @@
+---
+title: "Dialog-RSN-1 API"
+sidebarTitle: "API reference"
+description: "Connect to the Dialog-RSN-1 real-time voice model over WebSocket: endpoints, authentication, the session contract, events, PolyAI extensions and error codes."
+keywords:
+  - Dialog-RSN-1
+  - realtime API
+  - WebSocket
+  - voice model
+  - OpenAI Realtime compatible
+  - session.update
+---
+
+{/* Source of truth: poly_core src/dialog_rsn_1/dialogue_api/README.md and realtime-dev-kit traces/local/divergences.json. Checked against poly_core master 49908520f8 and the live self-serve host on 11 Oct 2026. A protocol change updates all three. */}
+
+Dialog-RSN-1 is a real-time voice model. You stream the caller's audio over one WebSocket and get the reply back as text, with the model deciding when the caller has finished speaking. You bring your own text-to-speech.
+
+The wire format is the OpenAI Realtime API (GA schema). A stock OpenAI Realtime client works by changing the base URL and the key. The model name on the wire is `dialog-rsn-1`.
+
+<CardGroup cols={2}>
+  <Card title="Limits and pricing" icon="gauge-high" href="/api-reference/dialog-rsn-1/limits">
+    Concurrency, session duration, context window, audio formats and the connected-minute rate.
+  </Card>
+  <Card title="OpenAI Realtime reference" icon="arrow-up-right-from-square" href="https://platform.openai.com/docs/api-reference/realtime">
+    Field-level documentation for every event. This page lists what we accept and where we differ.
+  </Card>
+</CardGroup>
+
+## Connect
+
+| Deployment | WebSocket URL | Keys issued by |
+| --- | --- | --- |
+| Self-serve | `wss://api.studio.poly.ai/v1/realtime` | `https://studio.poly.ai` |
+| US | `wss://api.us.poly.ai/v1/realtime` | `https://studio.us.poly.ai` |
+| EU | `wss://api.eu.poly.ai/v1/realtime` | `https://studio.eu.poly.ai` |
+| UK | `wss://api.uk.poly.ai/v1/realtime` | `https://studio.uk.poly.ai` |
+
+<Warning>
+**The Agent Studio instance and API host must match.** A key generated from `studio.poly.ai` only works against `api.studio.poly.ai`. To call `api.us.poly.ai`, generate the key from `studio.us.poly.ai` (and likewise for `eu` and `uk`). A mismatch returns `401 Unauthorized`.
+</Warning>
+
+Check the service is up with the health route, which takes the same key:
+
+```bash
+curl -s -H "X-API-KEY: $POLYAI_API_KEY" https://api.studio.poly.ai/v1/realtime/health
+```
+
+Open a connection and read the first event. The OpenAI SDK appends `/realtime` to the base URL and sends your key as a bearer token.
+
+<CodeGroup>
+```python Python
+import asyncio
+import os
+from openai import AsyncOpenAI
+
+client = AsyncOpenAI(
+    api_key=os.environ["POLYAI_API_KEY"],
+    websocket_base_url="wss://api.studio.poly.ai/v1",
+)
+
+async def main():
+    async with client.realtime.connect(model="dialog-rsn-1") as conn:
+        async for event in conn:
+            print(event.type)  # session.created
+            break
+
+asyncio.run(main())
+```
+
+```typescript TypeScript
+import WebSocket from "ws";
+
+const ws = new WebSocket("wss://api.studio.poly.ai/v1/realtime", {
+  headers: { "X-API-KEY": process.env.POLYAI_API_KEY },
+});
+
+ws.on("message", (data) => {
+  const event = JSON.parse(data.toString());
+  console.log(event.type); // session.created
+});
+
+ws.on("unexpected-response", (_req, res) => {
+  let body = "";
+  res.on("data", (chunk) => (body += chunk));
+  res.on("end", () => console.error(`refused: ${res.statusCode} ${body}`));
+});
+```
+</CodeGroup>
+
+The optional query parameter `session_id` (`[A-Za-z0-9_.-]`, up to 128 characters) names the session for your own logs. It comes back as `session.poly_session_id`. The `model` query parameter that OpenAI clients send is accepted and ignored.
+
+The server pings every 20 seconds. A connection that sends nothing for 60 seconds is closed by the gateway; a client that is streaming audio never meets this.
+
+## Authenticate
+
+Send a workspace API key from Agent Studio in either header. They are equivalent.
+
+```text
+X-API-KEY: <key>
+Authorization: Bearer <key>
+```
+
+There is no query-string key and no WebSocket subprotocol credential. Browsers cannot set either header on a WebSocket, so put a relay in front of browser clients.
+
+A refused handshake answers with an HTTP status and a JSON body. A WebSocket library that cannot surface the HTTP response sees the matching close code instead.
+
+| HTTP | Close code | Meaning | What to do |
+| --- | --- | --- | --- |
+| `401` | `4401` | Missing, unknown or inactive key | Check the key, and that it was issued by the Studio that matches the host |
+| `402` | `4402` | The account is not enrolled for billing, or has no balance left | Add funds in Agent Studio, then reconnect. A session already open is not cut off when the balance reaches zero. |
+| `403` | `4403` | A personal access token | Use a workspace API key |
+| `429` | `4429` | Too many new connections this minute, or the account is at its concurrent-session cap (body `"code": "session_limit_reached"`) | Honour `Retry-After`. For the session cap, close a session before opening another. See [Limits](/api-reference/dialog-rsn-1/limits). |
+| `503` | `4503` | Authentication service unavailable, or no capacity for a new session (body `"code": "capacity_exceeded"`) | Retry with backoff. The key is fine. |
+
+## Configure the session
+
+Send `session.update` after `session.created`. Updates are merged into the session, not replaced. A rejected update applies nothing and sends no `session.updated`, so what comes back in `session.updated` is exactly what is in effect.
+
+```json session.update
+{
+  "type": "session.update",
+  "session": {
+    "type": "realtime",
+    "instructions": "You work the front desk of a hotel. Keep replies to one sentence.",
+    "output_modalities": ["text"],
+    "audio": {
+      "input": {
+        "format": { "type": "audio/pcm", "rate": 24000 },
+        "turn_detection": { "type": "server_vad", "create_response": true }
+      }
+    },
+    "tools": []
+  }
+}
+```
+
+### Honoured
+
+| Field | Notes |
+| --- | --- |
+| `instructions` | The system prompt |
+| `tools` | Function tools only. Mark at most one string parameter per tool with `"poly_spoken": true` and the model speaks that argument aloud while the tool runs. |
+| `tool_choice` | `"auto"` only |
+| `max_output_tokens` | An integer or `"inf"`. The deployment's own cap is the ceiling. The model reasons before it answers and reasoning tokens come out of the same budget, so a small cap can leave a truncated or empty reply. |
+| `audio.input.format` | See [Audio in](#audio-in) |
+| `audio.input.turn_detection.create_response` | `true` (default): the server generates a reply at the end of each turn. `false`: you send `response.create`. |
+| `output_modalities` | `["text"]` |
+| `poly_knowledge`, `poly_response_language`, `poly_input_rate` | See [PolyAI extensions](#polyai-extensions) |
+
+### Accepted and ignored
+
+Fields that stock clients send by default and that would change nothing a caller notices are accepted and left out of `session.updated`:
+
+- `model` (the session stays `dialog-rsn-1`), `tracing`, `truncation`, `include`
+- `audio.input.noise_reduction`; `audio.input.transcription` (transcripts are always sent)
+- Turn-detection timing: `threshold`, `silence_duration_ms`, `prefix_padding_ms`, `eagerness`. `type: "semantic_vad"` is reported back as `server_vad`. The server finds the end of the turn: a voice-activity detector proposes a boundary and the model confirms it.
+- `audio.output.*` on a text session; `parallel_tool_calls` (the model makes one call per turn)
+
+### Refused
+
+Fields that would change what you get if silently ignored are refused with an `error` naming the field in `param`. The whole update is dropped.
+
+| Field | `error.code` | `param` |
+| --- | --- | --- |
+| Any key not in the OpenAI schema and not prefixed `poly_`, at any depth | `unknown_parameter` | the path, e.g. `session.audio.input.transcrption` |
+| `prompt`, `reasoning` | `unsupported_parameter` | `prompt` or `reasoning` |
+| `tool_choice` other than `"auto"` | `unsupported_parameter` | `tool_choice` |
+| `tools[i].type` other than `"function"` (no MCP) | `unsupported_parameter` | `tools[i].type` |
+| `audio.input.turn_detection: null` (push-to-talk) | `unsupported_parameter` | `audio.input.turn_detection` |
+| `turn_detection.interrupt_response: false` | `unsupported_parameter` | `audio.input.turn_detection.interrupt_response` |
+| `turn_detection.idle_timeout_ms` | `unsupported_parameter` | `audio.input.turn_detection.idle_timeout_ms` |
+| `output_modalities` other than `["text"]` | `invalid_request_error` | |
+| `max_output_tokens` below 1 | `invalid_request_error` | `max_output_tokens` |
+| `poly_session_id`, `expires_at` (set by the server) | `invalid_request_error` | the field |
+
+## Audio in
+
+Audio travels as base64 inside `input_audio_buffer.append`. Binary WebSocket frames are refused.
+
+| `audio.input.format.type` | Rate | Notes |
+| --- | --- | --- |
+| `audio/pcm` | `24000` (default), `16000` (native, no resampling), or any other rate | PCM16, little-endian, mono |
+| `audio/pcmu` | 8 kHz, fixed | G.711 mu-law, as a telephony trunk or Twilio media stream sends it |
+| `audio/pcma` | 8 kHz, fixed | G.711 A-law |
+
+- Send about 20 ms per frame (640 bytes at 16 kHz, 960 at 24 kHz). One frame may not exceed 256 KiB; a larger frame closes the connection with code `1009`.
+- Keep streaming during silence. The server decides where the turn ends from the audio; a client that stops sending looks idle, not quiet.
+- One turn may hold up to 300 seconds of audio; anything longer is dropped.
+- Audio in `conversation.item.create` is refused with `unsupported_item_type`. Stream caller audio; use `conversation.item.create` for text, tool results and history.
+
+## Run a turn
+
+With `create_response: true` the sequence for one caller turn is:
+
+1. You stream `input_audio_buffer.append` frames.
+2. `input_audio_buffer.speech_started` (with `poly_confirmed: false` on the first guess), then `input_audio_buffer.speech_stopped` and `input_audio_buffer.committed` when the model confirms the turn is over.
+3. `conversation.item.added` and `conversation.item.done` for the caller's turn, with `conversation.item.input_audio_transcription.delta` and `.completed` carrying what the model heard.
+4. `response.created`, `response.output_item.added`, `response.content_part.added`, then `response.output_text.delta` frames until `response.output_text.done`, `response.content_part.done`, `response.output_item.done` and `response.done`.
+
+With `create_response: false`, step 4 starts when you send `response.create`.
+
+<CodeGroup>
+```python Python
+"""Stream a WAV file to Dialog-RSN-1 and print the reply."""
+import asyncio
+import base64
+import json
+import os
+import wave
+
+import websockets
+
+URL = "wss://api.studio.poly.ai/v1/realtime"
+KEY = os.environ["POLYAI_API_KEY"]
+
+
+async def main(path: str) -> None:
+    with wave.open(path) as w:
+        rate, pcm = w.getframerate(), w.readframes(w.getnframes())
+
+    async with websockets.connect(URL, additional_headers={"X-API-KEY": KEY}) as ws:
+        print((await recv(ws))["type"])  # session.created
+
+        await ws.send(json.dumps({"type": "session.update", "session": {
+            "instructions": "You work the front desk of a hotel. Keep replies to one sentence.",
+            "audio": {"input": {"format": {"type": "audio/pcm", "rate": rate}}},
+        }}))
+        print((await recv(ws))["type"])  # session.updated
+
+        # 20 ms of PCM16 mono per frame, as a microphone would deliver it.
+        step = rate * 2 // 50
+        for i in range(0, len(pcm), step):
+            await ws.send(json.dumps({"type": "input_audio_buffer.append",
+                                      "audio": base64.b64encode(pcm[i:i + step]).decode()}))
+            await asyncio.sleep(0.02)
+        # Keep sending silence: the server finds the end of the turn itself.
+        silence = base64.b64encode(bytes(step)).decode()
+
+        reply = ""
+        while True:
+            try:
+                event = await asyncio.wait_for(recv(ws), 0.02)
+            except asyncio.TimeoutError:
+                await ws.send(json.dumps({"type": "input_audio_buffer.append", "audio": silence}))
+                continue
+            t = event["type"]
+            if t == "response.output_text.delta":
+                reply += event["delta"]
+            elif t == "conversation.item.input_audio_transcription.completed":
+                print("heard:", event["transcript"])
+            elif t == "response.done":
+                print("reply:", reply)
+                break
+            elif t == "error":
+                print("error:", event["error"]["code"], event["error"]["message"])
+                break
+
+
+async def recv(ws):
+    return json.loads(await ws.recv())
+
+
+asyncio.run(main("booking_request.wav"))
+```
+
+```typescript TypeScript
+// Stream a 16 kHz PCM16 mono WAV file to Dialog-RSN-1 and print the reply.
+import { readFileSync } from "node:fs";
+import WebSocket from "ws";
+
+const RATE = 16000;
+const pcm = readFileSync("booking_request.wav").subarray(44); // skip the WAV header
+const step = (RATE * 2) / 50; // 20 ms per frame
+const silence = Buffer.alloc(step).toString("base64");
+
+const ws = new WebSocket("wss://api.studio.poly.ai/v1/realtime", {
+  headers: { "X-API-KEY": process.env.POLYAI_API_KEY },
+});
+const send = (event: object) => ws.send(JSON.stringify(event));
+
+let reply = "";
+let keepAlive: NodeJS.Timeout | undefined;
+
+ws.on("message", (data) => {
+  const event = JSON.parse(data.toString());
+  switch (event.type) {
+    case "session.created":
+      send({ type: "session.update", session: {
+        instructions: "You work the front desk of a hotel. Keep replies to one sentence.",
+        audio: { input: { format: { type: "audio/pcm", rate: RATE } } },
+      }});
+      break;
+    case "session.updated":
+      for (let i = 0; i < pcm.length; i += step) {
+        send({ type: "input_audio_buffer.append", audio: pcm.subarray(i, i + step).toString("base64") });
+      }
+      // Keep sending silence: the server finds the end of the turn itself.
+      keepAlive = setInterval(() => send({ type: "input_audio_buffer.append", audio: silence }), 20);
+      break;
+    case "response.output_text.delta":
+      reply += event.delta;
+      break;
+    case "conversation.item.input_audio_transcription.completed":
+      console.log("heard:", event.transcript);
+      break;
+    case "response.done":
+      console.log("reply:", reply);
+      clearInterval(keepAlive);
+      ws.close();
+      break;
+    case "error":
+      console.error("error:", event.error.code, event.error.message);
+      clearInterval(keepAlive);
+      ws.close();
+  }
+});
+```
+</CodeGroup>
+
+Rules that catch people out:
+
+- **One response at a time.** A `response.create` while a response is open is refused with `conversation_already_has_active_response`. Send `response.cancel` first. A `response.create` sent while the caller is still speaking is held and answered by the response to their turn.
+- **`response.create` may set `instructions`, `max_output_tokens` and `metadata`.** `conversation`, `output_modalities`, `tool_choice` and `tools` must match the session or are refused with `unsupported_parameter`.
+- **A confirmed barge-in always cancels the reply.** `interrupt_response` cannot be turned off. The cancelled response ends with status `cancelled`.
+- **Tell the server what the caller heard.** If you speak the text through your own TTS, send the `poly.output_audio.*` events below so that an interrupted reply is kept in history as the words that were actually played.
+
+## Events
+
+Every event is a JSON text frame with a `type` and an `event_id`. Fields follow the [OpenAI Realtime reference](https://platform.openai.com/docs/api-reference/realtime); only the differences are listed here.
+
+**Client to server**
+
+| Event | Notes |
+| --- | --- |
+| `session.update` | See [Configure the session](#configure-the-session) |
+| `input_audio_buffer.append` | Base64 audio in the session's format |
+| `input_audio_buffer.commit` | An empty buffer gets `input_audio_buffer_commit_empty` |
+| `input_audio_buffer.clear` | |
+| `conversation.item.create` | Messages, `function_call` and `function_call_output` items. Answered with `conversation.item.added` then `.done`. |
+| `conversation.item.retrieve` | Returns the audio you sent, with its transcript |
+| `conversation.item.delete` | |
+| `conversation.item.truncate` | Cuts history only for a reply spoken by the server; otherwise validates the item and changes nothing |
+| `response.create` | |
+| `response.cancel` | With nothing active, `response_cancel_not_active` |
+| `output_audio_buffer.clear` | Always refused: WebRTC only. Send `response.cancel`. |
+| `poly.output_audio.started`, `.delta`, `.stopped` | Playback reports, see below |
+
+**Server to client**
+
+`session.created`, `session.updated`, `conversation.item.added`, `.done`, `.deleted`, `.retrieved`, `.truncated`, `conversation.item.input_audio_transcription.delta`, `.completed`, `input_audio_buffer.speech_started`, `.speech_stopped`, `.committed`, `.cleared`, `response.created`, `response.done`, `response.output_item.added`, `.done`, `response.content_part.added`, `.done`, `response.output_text.delta`, `.done`, `response.function_call_arguments.delta`, `.done`, `error`.
+
+Not sent: `rate_limits.updated`, `conversation.created`, `response.output_audio.*`, MCP events, `response.usage`.
+
+**Differences a stock client notices**
+
+- Text and function-argument deltas arrive per model chunk, not per token. The concatenation is the same.
+- Transcription deltas are true increments.
+- `previous_item_id` is set on `conversation.item.*` events, not on `response.output_item.*`.
+- `speech_started.audio_start_ms` counts audio actually received, not wall-clock time.
+- `session.created` and `response.created` omit optional fields that are not in effect (`usage`, `max_output_tokens`, `metadata` and others).
+
+## PolyAI extensions
+
+Extensions are additive fields on existing events, all prefixed `poly_`. Nothing is sent as a new server event type.
+
+| Where | Field | What it does |
+| --- | --- | --- |
+| `session` | `poly_knowledge` | A list of `{ "name", "content", "actions"? }` the model may cite in replies |
+| `session` | `poly_response_language` | An ISO 639 tag (`es`, `pt-BR`) or words (`"Singlish"`). The model answers in that language and no other. `null` clears it. |
+| `session` | `poly_input_rate` | Set for you when `audio.input.format.rate` is not 24000 |
+| `session` | `poly_session_id` | Read-only echo of the `session_id` query parameter |
+| `tools[].parameters.properties.<name>` | `poly_spoken: true` | The model speaks this string argument while the tool runs. One per tool, string parameters only. |
+| `conversation.item.create` with `function_call_output` | `poly_knowledge` | Knowledge attached to one tool result |
+| `input_audio_buffer.speech_started` | `poly_confirmed` | `false` when the voice-activity detector first hears speech; a second event with `true` once the model confirms a barge-in |
+| `input_audio_buffer.cleared` | `poly_resume_playback` | `true` means the barge-in was not confirmed; resume playing the reply |
+| `response.done.response` | `poly_cited_topics` | Knowledge entries the reply cited; absent when none |
+| `response.done.response` | `poly_out_of_domain` | `true` when the model judged the request outside its instructions |
+| `response.done.response` | `poly_compacted_item_ids`, `poly_probe_usage` | History items whose audio was released, and the token cost of turn detection |
+
+**Playback reports.** When you voice the reply yourself, send these so the server knows what the caller heard:
+
+```json
+{"type": "poly.output_audio.started", "response_id": "resp_123"}
+{"type": "poly.output_audio.delta",   "response_id": "resp_123", "audio_ms": 1250}
+{"type": "poly.output_audio.stopped", "response_id": "resp_123", "audio_ms": 2100, "dropped_ms": 900, "spoken_text": "Sure, what's your"}
+```
+
+Send a `delta` every 250 ms or so with the cumulative milliseconds played. On a barge-in, `stopped` carries what was dropped and the words that were actually spoken, and the reply is kept in history as those words.
+
+## Errors
+
+```json
+{
+  "type": "error",
+  "event_id": "event_9b71...",
+  "error": {
+    "type": "invalid_request_error",
+    "code": "unknown_parameter",
+    "param": "session.bogus_field",
+    "event_id": "evt_2",
+    "message": "Unknown parameter: 'session.bogus_field'. Extensions to this protocol must be namespaced 'poly_*'; anything else is rejected rather than silently dropped."
+  }
+}
+```
+
+Branch on `code`, never on `message`. `error.event_id` names the client frame the error is about, where there is one. `type` is `invalid_request_error` for something you sent and `server_error` for something that failed on our side; a `server_error` that ends a response also arrives on `response.done` with status `failed` and the same code.
+
+| `code` | `type` | Retry? |
+| --- | --- | --- |
+| `unsupported_event_type` | `invalid_request_error` | No. This event is not implemented. |
+| `invalid_request_error` | `invalid_request_error` | No. A malformed frame, undecodable audio, a binary frame, or a bad `session_id`. |
+| `unknown_parameter` | `invalid_request_error` | No. The path is in `param`. |
+| `unsupported_parameter` | `invalid_request_error` | No. The field is real and this service does not honour it; path in `param`. |
+| `item_not_found` | `invalid_request_error` | No |
+| `unsupported_item_type` | `invalid_request_error` | No. An MCP item or audio in `conversation.item.create`. |
+| `input_audio_buffer_commit_empty` | `invalid_request_error` | No. Nothing was lost. |
+| `conversation_already_has_active_response` | `invalid_request_error` | Yes, after `response.done`, or send `response.cancel` first |
+| `response_cancel_not_active` | `invalid_request_error` | No |
+| `session_expired` | `invalid_request_error` | Reconnect now. The session reached its maximum duration; the socket closes with `4410` straight after. |
+| `context_length_exceeded` | `server_error` | Not as sent. The conversation is too long for the context window; shorten instructions, tools or knowledge, or start a new session. The connection stays open. |
+| `capacity_exceeded` | `server_error` | Yes, after a short backoff. No inference capacity for this conversation. |
+| `policy_violation` | `server_error` | No |
+| `generation_failed` | `server_error` | Yes |
+| `server_error` | `server_error` | Yes |
+
+**Close codes**
+
+| Code | Why | What to do |
+| --- | --- | --- |
+| `1008` | Invalid `session_id` query parameter, after an `error` | Fix the id |
+| `1009` | A frame over 256 KiB | Send smaller frames |
+| `1011` | The session could not be started, after `server_error` | Retry |
+| `4408` | No client event for 5 minutes, or the client stopped reading for 5 seconds | Reconnect when you next have audio to send |
+| `4410` | The session reached its maximum duration, after `session_expired`. `session.created.expires_at` tells you when. | Reconnect now and carry on |
+| `4401`, `4402`, `4403`, `4429`, `4503` | A refused handshake on a client that cannot read the HTTP response | See [Authenticate](#authenticate) |
+
+Handling a refused handshake and a timed-out session:
+
+<CodeGroup>
+```python Python
+import json
+import websockets
+from websockets.exceptions import ConnectionClosed, InvalidStatus
+
+try:
+    async with websockets.connect(URL, additional_headers={"X-API-KEY": KEY}) as ws:
+        async for frame in ws:
+            event = json.loads(frame)
+            if event["type"] == "error" and event["error"]["code"] == "session_expired":
+                break  # 4410 follows; open a new connection and continue the call
+except InvalidStatus as e:
+    if e.response.status_code == 402:
+        print("No balance: add funds in Agent Studio")  # body: {"detail": "..."}
+    elif e.response.status_code == 429:
+        print("At the session cap or rate limit; retry after", e.response.headers.get("Retry-After"))
+    else:
+        raise
+except ConnectionClosed as e:
+    if e.rcvd and e.rcvd.code == 4408:
+        pass  # idle; reconnect when there is audio to send
+```
+
+```typescript TypeScript
+ws.on("unexpected-response", (_req, res) => {
+  if (res.statusCode === 402) console.error("No balance: add funds in Agent Studio");
+  else if (res.statusCode === 429) console.error("Retry after", res.headers["retry-after"]);
+});
+
+ws.on("close", (code) => {
+  if (code === 4410) reconnect(); // session reached its maximum duration; carry on in a new one
+  if (code === 4408) {} // idle; reconnect when there is audio to send
+});
+```
+</CodeGroup>
+
+## Examples
+
+There is no PolyAI SDK for this API; any OpenAI Realtime client works. Working integrations with [Pipecat and LiveKit](https://github.com/PolyAI-LDN/realtime-dev-kit/tree/main/examples) are in the realtime-dev-kit repository, which is the conformance harness we run against OpenAI's own traces.
