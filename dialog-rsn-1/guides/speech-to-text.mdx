@@ -1,0 +1,297 @@
+---
+title: "Transcribe speech with the OpenAI Realtime SDK"
+sidebarTitle: "Speech to text"
+description: "Stream a microphone to Dialog-RSN-1 with the stock openai SDK in Python or Node and print a line of text per turn, then grow it into a voice-in, text-out support agent."
+keywords:
+  - realtime
+  - speech to text
+  - transcription
+  - openai sdk
+  - node
+  - guide
+tag: "Preview"
+---
+
+<Warning>
+This is a preview API. Both behavior and schema may change.
+</Warning>
+
+Stream your microphone to Dialog-RSN-1 through the official `openai` SDK, and print each thing you say as a line of text. Then change the instructions and the same program becomes a support agent that hears the caller and answers in text. The SDK needs a new base URL and key, nothing else.
+
+<Card title="Full code on GitHub" icon="github" href="https://github.com/PolyAI-LDN/dialog-rsn-1-speech-to-text">
+  A terminal transcriber in Python, and a voice-in, text-out support agent in Python and Node.
+</Card>
+
+## What you'll build
+
+1. A transcriber. Speak, and each finished sentence prints with a timestamp, optionally appended to a file.
+2. A support agent. Speak, and Sam from a fictional outdoor store answers in text about three orders held in the prompt.
+3. The same support agent in Node, on the npm `openai` package.
+
+## How transcription works on Dialog-RSN-1
+
+Dialog-RSN-1 has no separate speech-to-text model. It transcribes the caller as part of writing its reply, so every transcript belongs to a turn. That shapes the whole program:
+
+- **You need a reply to get a transcript.** Set `create_response: true` so each turn starts a reply on its own. With `create_response: false`, no transcript arrives until you send `response.create`.
+- **The transcriber asks for a one-word reply.** Its instructions say to answer "ok", which keeps each turn short.
+- **The transcript arrives when the turn ends.** You get no partial text while the caller is still talking. The whole line lands in a few events just after `input_audio_buffer.speech_stopped`.
+- **The reply starts before the transcript.** The first `response.output_text.delta` comes a few milliseconds after `speech_stopped`, and the transcript follows. The support agent holds the reply back so the terminal reads in order.
+- **`audio.input.transcription` changes nothing.** The service accepts the field and ignores it.
+
+## Prerequisites
+
+1. A Dialog-RSN-1 workspace API key from Agent Studio. The service refuses personal access tokens.
+2. For Python: Python 3.12 and [uv](https://docs.astral.sh/uv/).
+3. For Node: Node 22. `npm install` compiles the `naudiodon2` audio package, so you need a C++ toolchain.
+4. A microphone, or a 24 kHz mono WAV file to stream instead.
+
+## Run it
+
+```bash
+git clone https://github.com/PolyAI-LDN/dialog-rsn-1-speech-to-text
+cd dialog-rsn-1-speech-to-text
+cp .env.example .env      # add DIALOGUE_API_KEY
+cd python
+uv sync
+uv run transcribe.py
+```
+
+Speak, and each line prints when you finish the sentence. Add `--reply` to see the model's "ok" under each line, and `--out notes.txt` to append each line to a file:
+
+```text
+connecting to https://api.us.poly.ai/v1/realtime …
+[connected to dialog-rsn-1]  speak when ready, Ctrl-C to quit
+
+23:10:43  Hi, I'm calling about order N W one zero four eight two. It's under Maria Alvarez.
+          ↳ ok
+23:10:49  Can I still cancel it?
+          ↳ ok
+```
+
+To test without a microphone, record a clip with the macOS `say` command and stream it at real time:
+
+```bash
+say -v Samantha -o clip.aiff "Table for two on Friday, please."
+afconvert -f WAVE -d LEI16@24000 -c 1 clip.aiff clip.wav
+uv run transcribe.py --file clip.wav
+```
+
+## Step 1: Connect with the SDK
+
+Pass the Dialog-RSN-1 base URL and key to the client. The SDK builds `wss://api.us.poly.ai/v1/realtime?model=dialog-rsn-1`, sends the key as `Authorization: Bearer`, and parses every event into its typed models.
+
+<CodeGroup>
+
+```python Python
+client = AsyncOpenAI(api_key=key, base_url=url)
+stop = asyncio.Event()
+print(f"connecting to {url}/realtime …")
+async with client.realtime.connect(model=MODEL) as conn:
+    await conn.session.update(session=SESSION)
+```
+
+```javascript Node
+// The SDK builds wss://<host>/v1/realtime?model=... from the client's base URL and sends the
+// key as Authorization: Bearer. Nothing else about the connection is ours.
+const client = new OpenAI({ apiKey, baseURL });
+const rt = new OpenAIRealtimeWS({ model: MODEL }, client);
+```
+
+</CodeGroup>
+
+`url` defaults to `https://api.us.poly.ai/v1`. Set `DIALOGUE_API_URL` in `.env`, or pass `--url`, to use another region.
+
+## Step 2: Configure the session
+
+```python
+SESSION = {
+    "type": "realtime",
+    "output_modalities": ["text"],
+    "instructions": INSTRUCTIONS,
+    "audio": {
+        "input": {
+            "format": {"type": "audio/pcm", "rate": SAMPLE_RATE},
+            "turn_detection": {"type": "server_vad", "create_response": True},
+        }
+    },
+}
+```
+
+- `output_modalities: ["text"]`. Dialog-RSN-1 answers in text only.
+- `rate: 24000`. The program opens the microphone at 24 kHz, so nothing resamples.
+- `create_response: true`. Dialog-RSN-1 decides when you've finished and starts the turn itself. That turn carries the transcript.
+
+The instructions ask for the shortest possible reply:
+
+```python
+INSTRUCTIONS = (
+    "You are a silent transcription service. Whatever the caller says, reply with exactly "
+    "one word: ok."
+)
+```
+
+## Step 3: Stream the microphone
+
+`sounddevice` calls back with 100 ms of PCM16 at a time. The program base64-encodes each chunk and appends it to the input buffer:
+
+```python
+def on_audio(indata, frames, time_info, status):
+    if status:
+        print(f"[audio] {status}", file=sys.stderr)
+    loop.call_soon_threadsafe(queue.put_nowait, bytes(indata))
+
+stream = sd.RawInputStream(
+    samplerate=SAMPLE_RATE,
+    channels=1,
+    dtype="int16",
+    blocksize=CHUNK_FRAMES,
+    device=device,
+    callback=on_audio,
+)
+with stream:
+    while not stop.is_set():
+        chunk = await queue.get()
+        await conn.input_audio_buffer.append(audio=b64(chunk))
+```
+
+The program never commits the buffer or asks for a reply. Dialog-RSN-1 does both when it hears the end of the turn.
+
+## Step 4: Print the transcript
+
+Two events carry the transcript. `conversation.item.input_audio_transcription.delta` streams it in pieces, and `conversation.item.input_audio_transcription.completed` carries the whole line:
+
+```python
+elif kind == "conversation.item.input_audio_transcription.delta":
+    if not partial:
+        print("\r\033[K", end="")
+    partial += event.delta
+    print(event.delta, end="", flush=True)
+elif kind == "conversation.item.input_audio_transcription.completed":
+    text = (event.transcript or partial).strip()
+    stamp = datetime.now().strftime("%H:%M:%S")
+    print(f"\r\033[K{stamp}  {text}")
+```
+
+Stop on `invalid_request_error`. It usually means the session was refused, and nothing after it will work:
+
+```python
+elif kind == "error":
+    print(f"[error] {event.error.message}", file=sys.stderr)
+    if event.error.type == "invalid_request_error":
+        stop.set()
+        break
+```
+
+## Turn it into a support agent
+
+`support_agent.py` keeps the connection, the session shape and the audio path. It changes three things.
+
+**The instructions.** `prompt.py` holds everything Sam knows: three orders in different states, the return and cancellation policy, and a rule to confirm the order before giving details. There are no tools. The data sits in the prompt.
+
+**A seeded greeting.** The program prints the greeting itself and adds it to the conversation as an assistant message, so the model's history starts with it:
+
+<CodeGroup>
+
+```python Python
+await conn.conversation.item.create(
+    item={
+        "type": "message",
+        "role": "assistant",
+        "content": [{"type": "output_text", "text": GREETING}],
+    }
+)
+```
+
+```javascript Node
+rt.send({
+  type: "conversation.item.create",
+  item: {
+    type: "message",
+    role: "assistant",
+    content: [{ type: "output_text", text: GREETING }],
+  },
+});
+```
+
+</CodeGroup>
+
+**The reply waits for the transcript.** Sam's reply starts before the transcript of your line arrives. Printed in arrival order, the answer would sit above the question. The program buffers the reply until your line has printed:
+
+```python
+elif kind == "conversation.item.input_audio_transcription.completed":
+    print(f"\r\033[K{stamp()}  You:  {(event.transcript or heard).strip()}")
+    heard = ""
+    if reply:
+        print(f"{stamp()}  Sam:  {reply}", end="", flush=True)
+        reply_shown = True
+elif kind == "response.output_text.delta":
+    reply += event.delta
+    if reply_shown:
+        print(event.delta, end="", flush=True)
+```
+
+Run it, in either language:
+
+<CodeGroup>
+
+```bash Python
+cd python
+uv run support_agent.py
+```
+
+```bash Node
+cd node
+npm install
+npm start
+```
+
+</CodeGroup>
+
+Say "I'm calling about order N W one zero four eight two, it's under Maria Alvarez", then "Can I still cancel it?". That order has shipped, so Sam refuses and points you to a return:
+
+```text
+23:02:35  Sam:  Thanks for calling Northwind Outfitters, this is Sam. How can I help?
+
+23:02:42  You:  Hi, I'm calling about order N, W, one zero four eight two. It's under Maria Alvarez.
+23:02:42  Sam:  Got it, Maria. Your order shipped on September 15th via UPS and should arrive by September 19th. Is there anything specific you wanted to know about it?
+
+23:02:47  You:  Can I still cancel it?
+23:02:47  Sam:  I'm afraid not, Maria. Your order has already shipped on September 15th, so it can't be cancelled. You'll need to return it once it arrives. Would you like me to explain the return policy?
+```
+
+Both programs take `--file call.wav` to stream a recording instead of the microphone, and `--list-devices` and `--device` to pick a microphone.
+
+## What the timing looks like
+
+We streamed recorded clips at real time to us-1 production over fifteen turns:
+
+| Measure | Time |
+|---|---|
+| Caller's last word to `speech_stopped` | about 450 to 500 ms |
+| `speech_stopped` to the first reply text | 2 to 23 ms |
+| `speech_stopped` to the finished transcript line | 60 to 310 ms |
+| Caller's last word to the finished transcript line | 510 to 840 ms |
+
+`speech_stopped` reports `audio_end_ms`, the point in your audio where Dialog-RSN-1 places the end of speech. That mark sits about 500 ms after the last word, so time your own measurements from the audio, not from `audio_end_ms`.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `DIALOGUE_API_KEY is not set` | No `.env`, or it's in the wrong folder | Copy `.env.example` to `.env` at the repo root, not in `python/` or `node/` |
+| HTTP 401 when connecting | A personal access token, or a wrong key | Use a workspace API key from Agent Studio |
+| No transcript ever arrives | `create_response` is `false`, so no turn runs | Set it to `true`, or send `response.create` after each `input_audio_buffer.committed` |
+| `unsupported_parameter` after `session.update` | A field the service rejects, such as `model`, `noise_reduction` or a turn-timing field | Remove it. Pass the model to `connect()` only. A rejected update applies none of its fields |
+| `must be mono, 16-bit, 24000 Hz` | The WAV isn't in the session's format | Convert it with `afconvert -f WAVE -d LEI16@24000 -c 1 in.wav out.wav` |
+| Sam's answer prints above your question | Replies printed in arrival order | Hold the reply until `input_audio_transcription.completed`, as `support_agent.py` does |
+| `npm install` fails building `naudiodon2` | No C++ toolchain | On a Mac, run `xcode-select --install`, then `npm install` again |
+
+## What this isn't
+
+The transcriber shows that a stock OpenAI Realtime client works unchanged against Dialog-RSN-1. It isn't a full speech-to-text service. It has no speaker labels, no punctuation settings, and no partial results while the caller speaks.
+
+## Where to go next
+
+- The [OpenAI Realtime migration guide](/dialog-rsn-1/guides/openai-realtime-migration) lists every field Dialog-RSN-1 accepts and rejects.
+- The [streaming text-to-speech guide](/dialog-rsn-1/guides/streaming-text-to-speech) gives the support agent a voice.
+- The [API reference](/dialog-rsn-1/reference) lists every client and server event.

@@ -1,0 +1,266 @@
+---
+title: "Prompting Dialog-RSN-1"
+sidebarTitle: "Prompt guide"
+description: "What the `instructions` parameter can and can't control: one output per turn, turn-taking, what the model hears from raw audio, tool calling, and response style."
+keywords:
+  - realtime
+  - prompting
+  - instructions
+  - voice agents
+  - turn-taking
+  - tool calling
+  - function calling
+  - agentic loop
+  - acoustic understanding
+  - response style
+  - concepts
+tag: "Preview"
+---
+
+<Warning>
+This is a preview API. Both behavior and schema may change.
+</Warning>
+
+The `instructions` parameter is the only lever you have over what Dialog-RSN-1 says and how it behaves: a system prompt, sent as-is, with no rewriting or templating step in between. This guide covers what that lever can and can't do. It starts with the one structural rule that catches most people out, then works through turn-taking, what the model hears, tool calling, and response style.
+
+For something to paste rather than read about, start with the [prompt cookbook](/dialog-rsn-1/prompt-cookbook/introduction) instead.
+
+## What it's tuned for
+
+Dialog-RSN-1 is specialized for voice customer service, not general-purpose assistant work. It's good at taking a call, collecting details, calling your tools, and answering from your knowledge base. Push it toward an unconstrained task well outside that, and expect it to struggle in ways a general-purpose model wouldn't.
+
+It answers in **English only** in this preview. More languages are coming.
+
+<Note>
+**You don't need to tell it what it is.** The default text style is already tuned for speech over a phone line, so an opening line like "you are a voice assistant talking to a caller on the phone" tells it something it already knows. Use that space for your business logic instead, and see [Response style](#response-style) for the parts worth overriding.
+</Note>
+
+## One output per turn
+
+**Every model output is either text or a single tool call, never both.** Most prompts trip over this rule, because it changes what a two-part instruction like "say X and call Y" actually produces.
+
+The loop Dialog-RSN-1 expects is **tool → tool → … → text**. Emitting text is how it hands the floor back to the caller, so a turn ends when text comes out. Everything before that is tool calls, one at a time.
+
+**There is no parallel tool calling.** To act on several tools, loop: call one, feed the result back with a `function_call_output` and a fresh `response.create`, and it calls the next. The [wire mechanics](/dialog-rsn-1/reference#function-calling) are the same on every pass.
+
+### What "say X and call Y" actually does
+
+Prompting for a spoken line *and* a tool call in the same response doesn't produce both. Dialog-RSN-1 resolves it in order: **it calls Y in its next response, then says X after.** That's deliberate rather than a failure to follow the instruction: a prompt like this is ambiguous about ordering, and picking one resolution consistently removes a class of bugs that would otherwise show up as the agent sometimes speaking first and sometimes not.
+
+Write your instructions knowing the tool call goes first. If the caller needs to hear something before the tool runs, that's the next pattern.
+
+### Speaking while a tool runs
+
+**Since the model won't emit text and a tool call together, hold-music phrasing has to come from the tool itself.** Return the utterance as part of the tool's result and speak that while the real work happens behind it.
+
+You can go one step further and let the model write the line: expose an `utterance` argument in the tool's own parameters, and it gets filled in as part of the call, in context, before the tool runs.
+
+```json a tool schema with a hold-line argument
+{
+  "type": "function",
+  "name": "look_up_booking",
+  "description": "Look up a booking by reference number.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "reference": { "type": "string" },
+      "utterance": {
+        "type": "string",
+        "description": "A short line to say to the caller while this runs, for example 'let me pull that up for you'."
+      }
+    },
+    "required": ["reference", "utterance"]
+  }
+}
+```
+
+Your harness reads `utterance` off the streamed arguments, sends it to text-to-speech, and runs the lookup underneath.
+
+### Getting at what the caller said, mid-loop
+
+**The user transcript arrives after the text or tool call, not before it.** The reply is on the critical path and the transcript isn't, so it may simply not exist yet at the point in the loop where your harness wants it. See the [timing note](/dialog-rsn-1/reference#voice-input-and-transcription) in the reference.
+
+So don't build harness logic that reads a number, a name, or a spelling out of the transcript mid-turn. **Pull it out as a function parameter instead:** declare the field on the tool and let the model fill it from what it heard. That's available the moment the arguments stream, it's already normalized to the shape your schema asked for, and it doesn't race the transcript.
+
+## Turn-taking
+
+Turn-taking is decided by the model, not a silence timer. The first token Dialog-RSN-1 emits is a verdict on the turn: **empty, ongoing, or complete**, judged against the full conversational context rather than the acoustics alone. Voice activity detection proposes the boundary; the verdict confirms or overrules it before anything reaches you.
+
+That means there's no silence window to tune, and no threshold tuning to do for interruptions, hesitation, background noise, or an automated voice on the line. It also means the verdict is **promptable**, in plain language, the same as everything else.
+
+<Warning>
+**The realtime schema's turn-timing fields are rejected.** `silence_duration_ms`, `prefix_padding_ms`, `threshold`, `idle_timeout_ms`, `interrupt_response` and `"type": "semantic_vad"` each fail with `unsupported_parameter`, because the detector's thresholds are fixed. `create_response` is the only field of `turn_detection` this service reads. Tune turn-taking in `instructions` instead. See the [reference](/dialog-rsn-1/reference#turn-taking-and-audio).
+</Warning>
+
+### What prompting can't do
+
+Prompting can't make Dialog-RSN-1 cut in while the caller is still talking. Barge-in runs one way only: a caller starting up again cancels an in-flight response, covered in [the overview](/dialog-rsn-1/overview#turn-taking). Nor does prompting change the loop shape above: text still ends the turn.
+
+### Patterns
+
+#### Treating a short turn as incomplete
+
+**A pause mid-answer looks like the end of a turn unless you say otherwise.** Callers with more than one thing to say, several items in an order, more than one date, seldom get through it in one breath.
+
+Say what "complete" looks like and the verdict follows it: *"wait until the caller says they're done before responding."* Keeping track of what's been collected so far gives the model something concrete to check against.
+
+Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/turn-taking#waiting-for-a-complete-sequence).
+
+#### Breaking from the default path when a caller is stuck
+
+**Repeating the same request after a caller has struggled with it twice reads as the agent not listening.** `instructions` can name the fallback: after a set number of failed attempts at collecting a postcode, offer to look the account up another way.
+
+Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/turn-taking#offering-a-fallback).
+
+## What the model hears
+
+Dialog-RSN-1 hears the call, not a transcript handed to it after the fact. Two things follow from that, and both are easy to get wrong from the outside.
+
+### Send raw audio
+
+**Dialog-RSN-1 always sees the raw audio, and feeding it enhanced audio degrades performance.** Noise suppression, aggressive gain control, and similar pre-cleaning strip exactly the cues the model is trained to use. Don't clean the signal up on the way in.
+
+### Ground hard nouns
+
+A name or a drug the model has no reason to expect gets transcribed as whatever it sounds closest to, not as itself. **Put the list it needs in `instructions`, spelled the way you want it recognized, and the model only has to get close rather than exact.** This is fusion working in your favor: because transcription and generation are one pass, a garbled acoustic signal resolves toward whatever `instructions` already told it was plausible.
+
+```text instructions: ground names against a known list
+The caller may ask for one of these doctors: Dr. Nikola Mrksic, Dr. Amara
+Okafor, Dr. Liu Wei. The caller may name one of these medications:
+Metoprolol, Lisinopril, Atorvastatin. If what you hear is close to one of
+these names, resolve it to that name and say it back the way it's spelled
+here, regardless of how it sounded.
+```
+
+"Mrksic" heard down a phone line resolves to "Nikola Mrksic" once it's a known option instead of a name from nowhere, and "me-tap-ro-LOL" resolves to "Metoprolol" the same way. This works best on a list that's realistically confusable and doesn't change every call, a roster or a formulary rather than one caller's personal contacts. Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/grounding#grounding-hard-nouns).
+
+### Prompt for the behavior, not the classification
+
+The model perceives a lot more than words: gender, language, accent, emotion and tone, background noise, telephony artefacts, and whether the voice on the line is a person or a machine. On outbound calls it's trained on the conditions that matter there too, a human answering versus an IVR, voicemail and its beep, hold, silence, transfer cues, and spoken menu options.
+
+**Prefer to prompt for the behavior you want directly, rather than asking for a label and branching on it in your harness.** For example:
+
+```text instructions: react to a noisy line
+Do your best to answer the caller's questions even if the line is noisy.
+If you can't make out what they're saying, tell them what you're hearing
+and ask them to move somewhere quieter or repeat themselves, then carry on.
+```
+
+If you'd rather track a condition as explicit state, the alternative is to **have the model call a function to classify it**: declare a tool like `report_line_condition(condition, confidence)` and branch on the arguments in your harness. That costs a round trip in the loop, so reach for it when your side genuinely needs the state, not just the behavior.
+
+#### Reacting to what a transcript would miss
+
+**A sneeze, or a "hang on" muttered mid-sentence, is something a text-only pipeline drops entirely.** `instructions` can ask Dialog-RSN-1 to acknowledge these in passing, a "bless you" or a short pause, and carry on with the sentence it was in the middle of.
+
+Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/turn-taking#acknowledging-whats-not-a-word).
+
+## Tool calling
+
+A tool's `description` and `parameters` tell Dialog-RSN-1 what the tool does and what it needs. They don't tell it when calling is worth the round trip, or how to talk about a result once it has one. That judgment lives in `instructions`, alongside everything else in this guide.
+
+The mechanics are fixed and not promptable: arguments stream in, you run the tool, you add a `function_call_output`, you send a fresh `response.create`. That's [wiring, not judgment](/dialog-rsn-1/reference#function-calling), and it works the same regardless of what `instructions` says. What `instructions` controls is everything upstream and downstream of it, on top of the [loop rules above](#one-output-per-turn).
+
+### Patterns
+
+#### Confirming before anything that can't be undone
+
+**A tool that cancels a booking or charges a card shouldn't fire on the first thing that sounds like a yes.** Nothing in the protocol distinguishes a read-only tool from a destructive one, since `tools` only carries a name, a description, and a parameter schema, not a risk level.
+
+That distinction has to live in `instructions`: name the tools that need a spoken confirmation first, and say so explicitly, rather than trusting the model to infer which ones are risky from their names alone. Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/tool-calling#confirming-before-anything-that-cant-be-undone).
+
+#### Speaking naturally about a result, not the tool that produced it
+
+**"Calling get_weather now" is a debugging log line, not something a caller on a phone call wants to hear.** Left unguided, a model narrating its own tool use tends to describe the mechanism instead of the outcome.
+
+Redirect that in `instructions`: talk about what was found, not what was called. Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/tool-calling#speaking-about-results-not-tools).
+
+#### Handling a tool that came back with an error
+
+**A `function_call_output` is just a JSON string you wrote. Nothing about the protocol flags it as an error for you.** A stale or mismatched `call_id` gets rejected at the protocol level, but a business-logic failure inside a successfully matched result, an account not found, a payment declined, looks identical to a success from the wire's point of view.
+
+Whatever error shape your tools return, `instructions` has to describe it, or Dialog-RSN-1 has no way to tell "done" from "failed" apart. Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/tool-calling#handling-a-tool-error).
+
+#### Searching, and getting citations back
+
+**Search is a tool like any other; the passages it finds come back in a field of their own.** Dialog-RSN-1 does no retrieval itself. Declare a search tool the same way you'd declare any other function:
+
+```json declaring a search tool
+{
+  "type": "function",
+  "name": "search_knowledge_base",
+  "description": "Search the knowledge base for passages relevant to the caller's question.",
+  "parameters": {
+    "type": "object",
+    "properties": { "query": { "type": "string" } },
+    "required": ["query"]
+  }
+}
+```
+
+When the model calls it, your harness runs the actual search and attaches what it found as [`poly_knowledge`](/dialog-rsn-1/reference#the-session-object) on the `function_call_output`, a list of `{name, content, actions}` topics, alongside whatever `output` you'd normally return:
+
+```json answering the search with retrieved topics
+{
+  "type": "conversation.item.create",
+  "item": {
+    "type": "function_call_output",
+    "call_id": "call_abc123",
+    "output": "{\"found\": 2}",
+    "poly_knowledge": [
+      { "name": "refund_policy", "content": "Refunds are issued within 5 business days of approval.", "actions": [] },
+      { "name": "return_window", "content": "Items can be returned within 30 days of delivery.", "actions": [] }
+    ]
+  }
+}
+```
+
+Send a fresh `response.create` after that, same as any other tool result. Dialog-RSN-1 renders those topics into one numbered list to cite into, and the reply's `response.done` carries `poly_cited_topics`: the names of the topics it actually answered from, absent rather than empty when it cited none. `instructions` is where you say when to search rather than answer from memory, and what to do when the search comes back with nothing relevant. Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/tool-calling#searching-and-getting-citations-back).
+
+## Response style
+
+Dialog-RSN-1 answers in text, and [that's deliberate](/dialog-rsn-1/overview#the-core-split): it gives you a place to log, test, and guardrail a reply before your own text-to-speech says it out loud.
+
+**The default style already accounts for that.** Out of the box it writes plain spoken sentences, not screen-native prose with headings and bullets, so you don't need to spend a paragraph of `instructions` ruling markdown out. Style is fully overridable when you need something specific, and these are the overrides worth making.
+
+### Patterns
+
+#### Saying numbers, dates, and times the way a person would
+
+**"14.99" is unambiguous on a screen. Read literally, it can come out as "fourteen point nine nine" instead of "fourteen dollars and ninety nine cents."** Both are valid readings of the same characters, so the convention you want is worth stating.
+
+Spell it out in `instructions` for the kinds of numbers your agent actually says: prices, dates, phone numbers, confirmation codes. Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/response-style#saying-numbers-the-way-a-caller-expects).
+
+#### Keeping replies short enough to say in one breath
+
+**Voice has no skim button, so length that would be fine in chat is not automatically fine here.** `output_text.delta` streams incrementally and most setups start speaking before generation finishes, so a long front-loaded sentence also delays the moment a caller hears anything at all.
+
+Set an explicit ceiling, a sentence count or a rough word budget, rather than leaving brevity to a judgment call. Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/response-style#keeping-replies-short).
+
+#### Tagging a reply with an emotion for your TTS
+
+**If your text-to-speech takes a style or emotion input, the model can pick one per reply.** Offer a set of tags in `instructions` and ask for the answer prefixed with one in square brackets; strip the tag off in your harness before the text reaches the synthesizer, not after. Skip that step and the caller hears the bracket and the tag word read aloud, right before the reply itself.
+
+```text instructions: prefix each reply with an emotion tag
+Choose ONE emotion tag for your response from: [friendly], [apologetic],
+[reassuring]. Return your answer prefixed with the tag in square brackets.
+```
+
+```text a reply
+[reassuring] Don't worry, I can get that sorted for you.
+```
+
+The tags aren't a fixed enum, and the model generalizes to ones you invent. Common choices are `[friendly]`, `[energized]`, `[reassuring]`, `[empathetic]`, `[apologetic]`, `[patient]`, `[confident]`, `[assertive]`, `[diplomatic]`, and `[informative]`. A response that's only a tool call carries no tag, since it emits no text to prefix, so parse the prefix as optional. Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/response-style#tagging-a-reply-with-an-emotion).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Prompt cookbook" icon="utensils" href="/dialog-rsn-1/prompt-cookbook/introduction">
+    Copy-paste `instructions` text for each pattern above.
+  </Card>
+  <Card title="Reference" icon="file-lines" href="/dialog-rsn-1/reference#function-calling">
+    The full function-calling wire format, `call_id` semantics, and the round trip example.
+  </Card>
+  <Card title="Overview" icon="lightbulb" href="/dialog-rsn-1/overview">
+    Where turn-taking and generation split, and why Dialog-RSN-1 answers in text.
+  </Card>
+</CardGroup>

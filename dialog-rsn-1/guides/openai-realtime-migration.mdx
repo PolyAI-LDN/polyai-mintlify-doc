@@ -1,0 +1,90 @@
+---
+title: "Build a voice agent using the OpenAI Realtime API"
+sidebarTitle: "Migrating from OpenAI Realtime"
+description: "Point an existing OpenAI Realtime integration at Dialog-RSN-1 instead: what stays the same, what changes, and what to strip out."
+keywords:
+  - realtime
+  - openai
+  - migration
+  - voice agents
+  - guide
+tag: "Preview"
+---
+
+<Warning>
+This is a preview API. Both behavior and schema may change.
+</Warning>
+
+## What this guide is
+
+You have an existing OpenAI Realtime API integration and want to point it at Dialog-RSN-1 instead. Since this API is wire-compatible with OpenAI's Realtime protocol, most of an existing client survives the move untouched. The work is in the differences, not a rewrite.
+
+## What stays the same
+
+- The JSON event shape and names: `session.update`, `conversation.item.create`, `response.create`, `response.output_text.delta`, `response.done`, and the rest of the vocabulary your client already parses.
+- The add-then-respond turn shape: add an item to the conversation, then ask for a response to it, exactly as before.
+- The function-calling shape: `response.function_call_arguments.delta`/`.done`, answered with a `function_call_output` item and a fresh `response.create`.
+
+## What to change
+
+| What | OpenAI Realtime | Dialog-RSN-1 |
+|---|---|---|
+| SDK base URL | `https://api.openai.com/v1` | `https://api.us.poly.ai/v1` |
+| Connection URL | `wss://api.openai.com/v1/realtime?model=...` | `wss://api.us.poly.ai/v1/realtime` |
+| Key | Your OpenAI API key | Your Dialog-RSN-1 key, sent as `Authorization: Bearer <key>` or `X-API-KEY: <key>` |
+| `model` | e.g. `gpt-realtime` | Anything. The service runs Dialog-RSN-1 whatever you pass |
+| `output_modalities` | `["audio"]` or `["text", "audio"]` | must be exactly `["text"]` |
+
+If you use the official `openai` SDK, the first and third rows are the whole connection change: pass the new `base_url` and key to the client, and it builds the URL and sends the key as a bearer token, which this API accepts.
+
+<Card title="Full code on GitHub" icon="github" href="https://github.com/PolyAI-LDN/dialog-rsn-1-openai-migration">
+  A voice agent on the `openai` SDK, before and after the move. `diff before.py after.py` is every change on this page.
+</Card>
+
+## What to strip out
+
+An OpenAI Realtime client usually carries settings and code this API has no use for. Leftover settings now return errors, and leftover code waits for events that never arrive.
+
+**Session settings this API rejects.** Each of these returns an `unsupported_parameter` error naming the field:
+
+- `audio.output`, including `voice` and the output format.
+- Every `turn_detection` field except `create_response`: `threshold`, `prefix_padding_ms`, `silence_duration_ms`, `idle_timeout_ms` and `interrupt_response`. `"type": "semantic_vad"` is rejected too.
+- `audio.input.noise_reduction` and `reasoning`.
+
+`output_modalities` other than `["text"]` fails with `invalid_request_error`.
+
+A rejected `session.update` applies none of its fields, so one leftover setting also throws away the `instructions` and `tools` sent alongside it. If your client logs errors and carries on, it ends up running with no prompt and no tools, so remove the fields rather than silencing the error. This is what this API acts on:
+
+```json what this service acts on
+{
+  "type": "session.update",
+  "session": {
+    "output_modalities": ["text"],
+    "audio": { "input": { "turn_detection": { "type": "server_vad", "create_response": true } } }
+  }
+}
+```
+
+`audio.input.transcription` is accepted, but there's no transcription model to pick: Dialog-RSN-1 transcribes the caller as part of its own turn, and the transcript arrives as the usual `conversation.item.input_audio_transcription.*` events.
+
+Turn timing isn't tunable because the turn boundary here is a model judgment, not a silence timer. Dialog-RSN-1 confirms or overrules what the detector proposes, based on the conversation. What you'd have expressed as `silence_duration_ms` you express in `instructions`, in plain language, as the [prompt guide](/dialog-rsn-1/prompt-guide#turn-taking) explains. The fixed thresholds behind the detector are in the [reference](/dialog-rsn-1/reference#turn-taking-and-audio).
+
+**The audio playback path.** A real OpenAI Realtime client typically listens for `response.output_audio.delta` and feeds it to a jitter-buffered player. This API emits no `response.output_audio.*` events at all. Delete that code, and read the reply from `response.output_text.delta` instead.
+
+**Echo avoidance.** If your client mutes the microphone while the assistant's audio plays, to stop the assistant hearing itself through the speakers, remove that too. This API produces no audio to leak. When you add your own text-to-speech, report playback instead, as the [streaming to TTS guide](/dialog-rsn-1/guides/streaming-text-to-speech) covers.
+
+## Known limitations to account for
+
+If your client was built against OpenAI's fuller feature set, you're more likely to notice the gaps than if you'd built fresh against this API. Two worth knowing before you migrate: `conversation.item.truncate` is acknowledged but doesn't actually shorten history, and MCP-server tool declarations are dropped rather than half-supported. The full list is in [Known limitations](/dialog-rsn-1/reference#known-limitations).
+
+<CardGroup cols={2}>
+  <Card title="Overview" icon="lightbulb" href="/dialog-rsn-1/overview">
+    What realtime streaming is, and how turn-taking, generation, and prompting fit together.
+  </Card>
+  <Card title="Reference" icon="file-lines" href="/dialog-rsn-1/reference">
+    Every event, the session object, function calling, and error codes.
+  </Card>
+  <Card title="Python from scratch" icon="python" href="/dialog-rsn-1/guides/python-from-scratch">
+    Building a client against this API directly, without carrying over an existing OpenAI integration.
+  </Card>
+</CardGroup>

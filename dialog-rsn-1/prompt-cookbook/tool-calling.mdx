@@ -1,0 +1,77 @@
+---
+title: "Tool calling recipes"
+sidebarTitle: "Tool calling"
+description: "instructions text for tool use: confirming before a destructive call, describing results instead of the tool, and handling a tool that came back with an error."
+keywords:
+  - realtime
+  - prompting
+  - instructions
+  - tool calling
+  - cookbook
+  - recipes
+tag: "Preview"
+---
+
+<Warning>
+This is a preview API. Both behavior and schema may change.
+</Warning>
+
+Each of these is `instructions` text, not a new field or event. The reasoning behind them is in [Prompting tool use](/dialog-rsn-1/prompt-guide#tool-calling).
+
+## Confirming before anything that can't be undone
+
+**Name the tools that need a spoken yes first, don't leave it to inference.** A tool's own description doesn't carry a risk level, so `instructions` has to.
+
+```text instructions: confirm before a destructive tool call
+Before calling cancel_booking or issue_refund, read back what you are about
+to do in plain terms and wait for the caller to confirm, for example "just
+to confirm, I'll cancel your booking for Tuesday, is that right?" Don't call
+either tool until they say yes. Tools that only look something up, like
+get_booking or get_account_balance, don't need confirmation first.
+```
+
+## Speaking about results, not tools
+
+**Talk about what was found, not what was called.** Left unguided, a model narrating its own tool use describes the mechanism instead of the outcome.
+
+```text instructions: narrate results, not tool names
+Never mention a tool's name, its arguments, or the fact that you called a
+function. Speak only about what the result means for the caller. For
+example, after calling get_weather, say "it's 68 degrees and partly cloudy
+in Tokyo," not "I called get_weather and got a result."
+```
+
+## Handling a tool error
+
+**A `function_call_output` is just a string you wrote. Say what an error inside it looks like, or Dialog-RSN-1 can't tell it apart from success.** Match this to whatever shape your own tools actually return.
+
+```text instructions: recognize and recover from a tool error
+Tool results are JSON. If a result includes an "error" field, the call
+failed, don't treat the rest of the object as real data. Tell the caller
+what went wrong in plain language and offer a next step, for example "I'm
+not able to look up that account right now, would you like me to transfer
+you to someone who can?" Don't retry the same tool call more than once with
+the same arguments.
+```
+
+## Searching, and getting citations back
+
+**Tell Dialog-RSN-1 when to search instead of answering from memory, and what to do when nothing relevant comes back.** The search tool itself and the `poly_knowledge` wiring are covered in the [prompt guide](/dialog-rsn-1/prompt-guide#searching-and-getting-citations-back); this is the `instructions` text on top of it.
+
+```text instructions: when to search, and what to do with nothing
+Before answering a question about policy, pricing, or account rules, call
+search_knowledge_base rather than answering from memory. If the search
+returns nothing relevant, say you're not sure and offer to connect the
+caller with someone who can help, rather than guessing.
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Prompt guide" icon="wand-magic-sparkles" href="/dialog-rsn-1/prompt-guide#tool-calling">
+    Why each of these works, and what the protocol already handles for you.
+  </Card>
+  <Card title="Reference" icon="file-lines" href="/dialog-rsn-1/reference#function-calling">
+    The function-calling wire format and the round trip example.
+  </Card>
+</CardGroup>

@@ -1,0 +1,478 @@
+---
+title: "Build a voice agent from scratch with Python"
+sidebarTitle: "Python from scratch"
+description: "Open a socket, hold one text turn, then grow it into tool calling, concurrent tasks and a live microphone. Plain websockets, no SDK."
+keywords:
+  - realtime
+  - python
+  - websockets
+  - tool calling
+  - audio streaming
+  - voice agents
+tag: "Preview"
+---
+
+<Warning>
+This is a preview API. Both behavior and schema may change.
+</Warning>
+
+## What you'll build
+
+A voice agent you can talk to from your terminal, built on the standard `websockets` package and about a hundred lines of Python. No SDK, no framework.
+
+It comes together in stages: a socket and a single text turn first, then tool calling, then the concurrency that audio needs, and last the microphone itself, where the server decides when you've stopped speaking. Each stage runs on its own, so you can stop at any of them and still have something working.
+
+Nothing here assumes you've read anything else first. If you'd rather see the whole protocol laid out at once, that's the [reference](/dialog-rsn-1/reference).
+
+## Before you start
+
+You need four things before any of that:
+
+- **An API key.** Same place as your other PolyAI API credentials: your account dashboard, or your PolyAI contact if you don't have dashboard access yet. Keep it in `DIALOGUE_API_KEY` in your shell rather than in source control.
+- **Python 3.10 or later.**
+- **`pip install 'websockets>=14' sounddevice numpy`.** That version floor matters: `connect()` took `extra_headers` before websockets 14 and `additional_headers` from 14 on, so on an older install the code below raises `TypeError` rather than failing to authenticate. `numpy` matters too: `sounddevice` only declares a dependency on `CFFI`, so nothing pulls `numpy` in for you, and the microphone callback later in this guide needs it to convert samples.
+- **A microphone**, for the last section. The rest runs without one.
+
+## Connecting
+
+One connection carries one conversation. You open a WebSocket and keep it open, and every turn after that travels over the same socket as JSON text frames, in both directions. Authentication happens once, when you connect.
+
+```python connect.py
+import asyncio, json, os, websockets
+
+URL = "wss://api.us.poly.ai/v1/realtime"
+API_KEY = os.environ["DIALOGUE_API_KEY"]
+
+async def main():
+    async with websockets.connect(URL, additional_headers={"X-API-KEY": API_KEY}) as ws:
+        print(json.loads(await ws.recv())["type"])  # session.created
+
+asyncio.run(main())
+```
+
+Run that and it prints `session.created`. The session starts on the server's default settings, and the next section covers changing them.
+
+## Configuring the session
+
+Because the session already exists, configuring it is a message rather than a set of connection parameters. Send `session.update` and the server answers with `session.updated`, echoing back the full configuration now in effect. Updates merge into what's already there, so setting `instructions` later won't wipe your `tools`.
+
+```json you send: session.update
+{
+  "type": "session.update",
+  "session": {
+    "instructions": "You are a helpful voice assistant. Keep responses brief.",
+    "output_modalities": ["text"],
+    "audio": {
+      "input": {
+        "format": { "type": "audio/pcm" },
+        "turn_detection": { "type": "server_vad", "create_response": true }
+      }
+    }
+  }
+}
+```
+
+Three of those fields are worth a note.
+
+`output_modalities` has to be `["text"]`. Dialog-RSN-1 answers in text and doesn't speak audio back, so set the field rather than trusting a default that could move later. For a spoken reply, pipe the streamed text into the text-to-speech provider of your choice; that part is yours to build.
+
+`audio.input.format` is PCM16. Leave `rate` out and you get Dialog-RSN-1's native 16 kHz, the same rate the microphone code below captures at.
+
+`turn_detection.create_response` is the only field in that object the service reads. The schema's other timing knobs (`silence_duration_ms`, `threshold` and the rest) are rejected with `unsupported_parameter`, so don't reach for them to tune turn-taking. Tune it in [`instructions`](/dialog-rsn-1/prompt-guide#turn-taking) instead.
+
+## The shape of a turn
+
+With the session configured, you can take a turn. Turns share the same two-part shape: **adding** something to the conversation and **asking for a response** to it are separate events.
+
+```json you send: conversation.item.create
+{
+  "type": "conversation.item.create",
+  "item": {
+    "type": "message",
+    "role": "user",
+    "content": [{ "type": "input_text", "text": "What's the capital of France?" }]
+  }
+}
+```
+
+```json you send: response.create
+{ "type": "response.create" }
+```
+
+The split is useful in two places later on. You can seed a conversation with prior history without firing a reply at every item, and once tools are in play you add the tool's result first and ask for the follow-up second, since a tool result on its own doesn't end a turn.
+
+The reply comes back as a stream of events rather than one lump of JSON. Append every `response.output_text.delta` and you get the text as it types out. `response.done` closes the turn, with the outcome in `response.status`.
+
+Connection, session and turn together make a first script:
+
+```python first_turn.py
+# pip install 'websockets>=14'
+import asyncio, json, os, websockets
+
+URL = "wss://api.us.poly.ai/v1/realtime"
+API_KEY = os.environ["DIALOGUE_API_KEY"]
+
+async def main():
+    async with websockets.connect(URL, additional_headers={"X-API-KEY": API_KEY}) as ws:
+        await ws.recv()  # session.created
+
+        await ws.send(json.dumps({
+            "type": "session.update",
+            "session": {"instructions": "Be concise.", "output_modalities": ["text"]},
+        }))
+        await ws.recv()  # session.updated
+
+        await ws.send(json.dumps({
+            "type": "conversation.item.create",
+            "item": {
+                "type": "message", "role": "user",
+                "content": [{"type": "input_text", "text": "What's the capital of France?"}],
+            },
+        }))
+        await ws.send(json.dumps({"type": "response.create"}))
+
+        reply = ""
+        async for raw in ws:
+            event = json.loads(raw)
+            if event["type"] == "response.output_text.delta":
+                reply += event["delta"]
+            elif event["type"] == "error":
+                # The connection stays open after an error, so a turn can fail without the
+                # socket closing. Without this branch the script prints an empty reply.
+                raise RuntimeError(event["error"]["message"])
+            elif event["type"] == "response.done":
+                status = event["response"]["status"]
+                if status != "completed":
+                    raise RuntimeError(f"response {status}")
+                print(reply)
+                break
+
+asyncio.run(main())
+```
+
+The `error` branch is worth keeping. Failures on this API arrive as an `error` event and **leave the connection open**, so a turn can fail without the socket closing. Without the branch, a failed generation prints an empty string and exits zero.
+
+## Adding tool calling
+
+So far the agent only answers questions. Tools let it look things up and act on them.
+
+Declare them on the session, then dispatch with a dict rather than a chain of `if`/`elif`, which stays flat as the list grows:
+
+```python
+TOOLS = {
+    "get_time": lambda args: {"time": "11:04 AM", "timezone": "CDT"},
+    "get_weather": lambda args: {
+        "location": args["location"],
+        "temperature_f": 68,
+        "condition": "partly cloudy",
+    },
+}
+
+SESSION_TOOLS = [
+    {"type": "function", "name": "get_time", "description": "Get the current time",
+     "parameters": {"type": "object", "properties": {}}},
+    {"type": "function", "name": "get_weather", "description": "Get the current weather for a location",
+     "parameters": {"type": "object", "properties": {"location": {"type": "string"}},
+                    "required": ["location"]}},
+]
+
+async def handle_tool_call(ws, name, arguments_json, call_id):
+    arguments = json.loads(arguments_json) if arguments_json else {}
+    tool = TOOLS.get(name)
+    result = tool(arguments) if tool else {"error": f"unknown tool {name!r}"}
+    await ws.send(json.dumps({
+        "type": "conversation.item.create",
+        "item": {"type": "function_call_output", "call_id": call_id, "output": json.dumps(result)},
+    }))
+    await ws.send(json.dumps({"type": "response.create"}))
+```
+
+Send `SESSION_TOOLS` as `session.tools` in your `session.update` and you're wired up. A call then arrives as `response.function_call_arguments.done`, carrying the `name`, the full `arguments` as a JSON string, and a server-minted `call_id` your reply has to echo back.
+
+`handle_tool_call` is your half of the exchange, and it's the two-part move again with a tool result standing in for a user message: look the function up, run it, add the result as a `function_call_output` item, then ask for the follow-up turn with a fresh `response.create`. The second `response.create` is easy to leave out, and nothing else triggers the follow-up, since a tool result carries no audio and ends no turn by itself. Look it up with `.get` rather than indexing `TOOLS[name]` directly, too: a model can invent a name that isn't in the dict, and an unhandled `KeyError` there takes down the whole event loop instead of just failing that one call. The [reference's function calling section](/dialog-rsn-1/reference#function-calling) has the full wire shape.
+
+## Structuring concurrent tasks
+
+Handling one turn at a time is fine while you're typing. With audio, the agent needs to push frames up, watch for a turn to start, and handle what comes back at the same time, so it's easier to restructure around concurrent tasks before adding the microphone.
+
+```python
+async def send_audio_task(ws, mic_queue):
+    while True:
+        frame = await mic_queue.get()
+        await ws.send(json.dumps({
+            "type": "input_audio_buffer.append",
+            "audio": base64.b64encode(frame).decode(),
+        }))
+
+async def event_handler_task(ws):
+    reply = ""
+    async for raw in ws:
+        event = json.loads(raw)
+        event_type = event["type"]
+        if event_type == "response.output_text.delta":
+            reply += event["delta"]
+        elif event_type == "response.output_text.done":
+            print(reply)
+            reply = ""
+        elif event_type == "response.function_call_arguments.done":
+            await handle_tool_call(ws, event["name"], event["arguments"], event["call_id"])
+        elif event_type == "input_audio_buffer.speech_started":
+            print("(listening...)")
+        elif event_type == "error":
+            print(f"error: {event['error']['message']}")
+        elif event_type == "response.done" and event["response"]["status"] == "failed":
+            print(f"response failed: {event['response']}")
+
+async def run(ws, mic_queue):
+    tasks = [
+        asyncio.create_task(send_audio_task(ws, mic_queue)),
+        asyncio.create_task(event_handler_task(ws)),
+    ]
+    try:
+        await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for task in tasks:              # re-raise whichever task actually ended the race
+            if task.done() and not task.cancelled():
+                task.result()
+    finally:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+```
+
+`asyncio.wait(..., return_when=asyncio.FIRST_COMPLETED)` returns as soon as one task ends, and the `finally` cancels the rest rather than leaving them running. Without that, a Ctrl-C can leave tasks behind. `asyncio.wait` doesn't re-raise the way `asyncio.gather` does, though, so if a task ends because of a genuine bug rather than a handled protocol error, calling `.result()` on it afterward is what surfaces that exception instead of `run` returning as if nothing happened.
+
+The `error` branch prints and carries on here, where the one-shot script earlier raised. A long-running agent shouldn't fall over because one turn failed, and the connection survives an error, so the next turn can still succeed. The full example at the end of this guide adds a `stop_after_turn` flag for its one-shot `--say` mode, and that path does need to raise: a script with no microphone feeding it more audio would otherwise hang forever waiting for a turn that's never coming.
+
+## Adding real audio input and server VAD
+
+Streaming audio in means feeding frames into the queue `send_audio_task` already drains, base64-encoded PCM16, appended continuously. Set `blocksize` explicitly rather than leaving it at whatever `sounddevice` picks by default: the [reference's turn-taking section](/dialog-rsn-1/reference#turn-taking-and-audio) frames voice activity detection in five 32ms chunks, and an unset default can be a small fraction of a millisecond, which turns every audio callback into its own WebSocket message. 512 samples at 16kHz is 32ms, matching the detector:
+
+```python
+import sounddevice as sd
+
+SAMPLE_RATE = 16000  # matches Dialog-RSN-1's native rate; omit `audio.input.format.rate` in session.update
+BLOCKSIZE = 512  # 512 samples @ 16kHz = 32ms, matching the detector's frame size
+
+def start_microphone(mic_queue, loop):
+    def callback(indata, frames, time_info, status):
+        pcm16 = (indata * 32767).astype("int16").tobytes()
+        loop.call_soon_threadsafe(mic_queue.put_nowait, pcm16)
+
+    return sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32",
+                          blocksize=BLOCKSIZE, callback=callback)
+```
+
+`sounddevice` runs that callback on its own thread, so frames reach the event loop through `loop.call_soon_threadsafe` rather than by touching the queue from that thread.
+
+`SAMPLE_RATE = 16000` asks the device for Dialog-RSN-1's native rate, which most microphones support. If yours doesn't, `sd.InputStream` fails with `PortAudioError: Invalid sample rate` rather than choosing a nearby rate. In that case, capture at the device's own rate and declare it with the `poly_input_rate` extension field, and the server resamples on the way in:
+
+```python
+SAMPLE_RATE = int(sd.query_devices(kind="input")["default_samplerate"])  # 44100, 48000, whatever it reports
+```
+
+```json you send: session.update
+{
+  "type": "session.update",
+  "session": {
+    "output_modalities": ["text"],
+    "audio": { "input": { "format": { "type": "audio/pcm" } } },
+    "poly_input_rate": 48000
+  }
+}
+```
+
+`poly_input_rate` sits beside `audio` on the session rather than inside `format`, and it carries the rate you're sending, so use the number your stream opened at. The rest of the code stays the same either way.
+
+Once frames are flowing, the server takes care of turn-taking. There's no silence threshold to pick and no timer to tune on the client side; it appends frames and waits to be told what happened.
+
+The server owns voice activity detection, and Dialog-RSN-1 confirms what the detector proposes before any of it reaches you. It sends `input_audio_buffer.speech_started` once it hears and confirms someone started and `input_audio_buffer.speech_stopped` once it hears and confirms they stopped, then commits the turn and, with `create_response: true`, answers it. Pause mid-sentence and the detector may read it as silence, but if Dialog-RSN-1 judges the caller isn't finished, you don't see a turn boundary.
+
+Start talking again while a reply is still streaming and Dialog-RSN-1 cancels that reply, once confirmed. It arrives as a `response.done` with status `cancelled` that you didn't ask for, so the event handler needs to expect one. The [reference's turn-taking section](/dialog-rsn-1/reference#turn-taking-and-audio) covers the mechanics.
+
+## Full example
+
+Everything above, in one file, plus one thing not shown yet: a `--say` flag that sends a single text turn, the exact add-then-respond shape from the quickstart, instead of opening the mic. Without it, tool calling, the one part of this guide that doesn't need working audio hardware, is also the one part a reader can't reach without a microphone to talk into.
+
+<Card title="Full code on GitHub" icon="github" href="https://github.com/polyai/dialog-rsn-1-python-from-scratch">
+  This file with its requirements, ready to clone and run.
+</Card>
+
+```python voice_agent.py
+# pip install 'websockets>=14' sounddevice numpy
+import argparse
+import asyncio
+import base64
+import json
+import os
+
+import sounddevice as sd
+import websockets
+
+URL = "wss://api.us.poly.ai/v1/realtime"
+API_KEY = os.environ["DIALOGUE_API_KEY"]
+SAMPLE_RATE = 16000
+BLOCKSIZE = 512  # 512 samples @ 16kHz = 32ms, matching the detector's frame size
+
+TOOLS = {
+    "get_time": lambda args: {"time": "11:04 AM", "timezone": "CDT"},
+    "get_weather": lambda args: {
+        "location": args["location"],
+        "temperature_f": 68,
+        "condition": "partly cloudy",
+    },
+}
+
+SESSION_TOOLS = [
+    {"type": "function", "name": "get_time", "description": "Get the current time",
+     "parameters": {"type": "object", "properties": {}}},
+    {"type": "function", "name": "get_weather", "description": "Get the current weather for a location",
+     "parameters": {"type": "object", "properties": {"location": {"type": "string"}},
+                    "required": ["location"]}},
+]
+
+
+async def handle_tool_call(ws, name, arguments_json, call_id):
+    arguments = json.loads(arguments_json) if arguments_json else {}
+    tool = TOOLS.get(name)
+    result = tool(arguments) if tool else {"error": f"unknown tool {name!r}"}
+    await ws.send(json.dumps({
+        "type": "conversation.item.create",
+        "item": {"type": "function_call_output", "call_id": call_id, "output": json.dumps(result)},
+    }))
+    await ws.send(json.dumps({"type": "response.create"}))
+
+
+async def send_audio_task(ws, mic_queue):
+    while True:
+        frame = await mic_queue.get()
+        await ws.send(json.dumps({
+            "type": "input_audio_buffer.append",
+            "audio": base64.b64encode(frame).decode(),
+        }))
+
+
+async def event_handler_task(ws, stop_after_turn=False):
+    reply = ""
+    pending_tool = False
+    async for raw in ws:
+        event = json.loads(raw)
+        event_type = event["type"]
+        if event_type == "response.output_text.delta":
+            reply += event["delta"]
+        elif event_type == "response.output_text.done":
+            print(reply)
+            reply = ""
+            pending_tool = False
+        elif event_type == "response.function_call_arguments.done":
+            pending_tool = True
+            await handle_tool_call(ws, event["name"], event["arguments"], event["call_id"])
+        elif event_type == "input_audio_buffer.speech_started":
+            print("(listening...)")
+        elif event_type == "error":
+            print(f"error: {event['error']['message']}")
+            if stop_after_turn:
+                raise RuntimeError(event["error"]["message"])
+        elif event_type == "response.done":
+            status = event["response"]["status"]
+            if status == "failed":
+                print(f"response failed: {event['response']}")
+                if stop_after_turn:
+                    raise RuntimeError(f"response failed: {event['response']}")
+            # a tool call means another response follows, so this isn't the final turn yet
+            if stop_after_turn and status == "completed" and not pending_tool:
+                return
+
+
+def start_microphone(mic_queue, loop):
+    def callback(indata, frames, time_info, status):
+        pcm16 = (indata * 32767).astype("int16").tobytes()
+        loop.call_soon_threadsafe(mic_queue.put_nowait, pcm16)
+
+    return sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32",
+                          blocksize=BLOCKSIZE, callback=callback)
+
+
+async def send_text_turn(ws, text):
+    await ws.send(json.dumps({
+        "type": "conversation.item.create",
+        "item": {"type": "message", "role": "user",
+                 "content": [{"type": "input_text", "text": text}]},
+    }))
+    await ws.send(json.dumps({"type": "response.create"}))
+
+
+async def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--say", help="send one text turn instead of opening the mic")
+    args = parser.parse_args()
+
+    headers = {"X-API-KEY": API_KEY}
+    async with websockets.connect(URL, additional_headers=headers) as ws:
+        await ws.recv()  # session.created
+
+        await ws.send(json.dumps({
+            "type": "session.update",
+            "session": {
+                "instructions": "You are a helpful voice assistant. Keep responses brief.",
+                "output_modalities": ["text"],
+                "tools": SESSION_TOOLS,
+                "audio": {
+                    "input": {
+                        "format": {"type": "audio/pcm"},
+                        "turn_detection": {"type": "server_vad", "create_response": True},
+                    },
+                },
+            },
+        }))
+        await ws.recv()  # session.updated
+
+        if args.say:
+            await send_text_turn(ws, args.say)
+            await event_handler_task(ws, stop_after_turn=True)
+            return
+
+        mic_queue = asyncio.Queue()
+        loop = asyncio.get_running_loop()
+        mic = start_microphone(mic_queue, loop)
+        mic.start()
+
+        print("Talk to it. Ctrl-C to quit.")
+        tasks = [
+            asyncio.create_task(send_audio_task(ws, mic_queue)),
+            asyncio.create_task(event_handler_task(ws)),
+        ]
+        try:
+            await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            for task in tasks:              # re-raise whichever task actually ended the race
+                if task.done() and not task.cancelled():
+                    task.result()
+        finally:
+            mic.stop()
+            mic.close()
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+Run it and say something. Asking for the time, or the weather somewhere, exercises the tool round trip. Most of what you'd add from here goes in `TOOLS` and `instructions`; the protocol layer stays as it is.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Overview" icon="lightbulb" href="/dialog-rsn-1/overview">
+    What realtime streaming is, and how turn-taking, generation, and prompting fit together.
+  </Card>
+  <Card title="Reference" icon="file-lines" href="/dialog-rsn-1/reference">
+    Every event, the session object, function calling, and error codes.
+  </Card>
+  <Card title="Browser (JavaScript)" icon="js" href="/dialog-rsn-1/guides/javascript-browser">
+    The same protocol, from a browser tab, with microphone capture in the client.
+  </Card>
+  <Card title="Streaming to TTS" icon="waveform" href="/dialog-rsn-1/guides/streaming-text-to-speech">
+    Where that "pipe the streamed text into TTS" line above actually goes: barge-in, unspeakable text, and playback reports.
+  </Card>
+</CardGroup>

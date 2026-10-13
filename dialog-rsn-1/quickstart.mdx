@@ -1,0 +1,183 @@
+---
+title: "Dialog-RSN-1 quickstart"
+sidebarTitle: "Quickstart"
+description: "A walkthrough of how a Dialog-RSN-1 realtime conversation works: the connection, the session, and the shape of a turn, ending in one complete runnable example."
+keywords:
+  - realtime
+  - quickstart
+  - getting started
+  - websocket
+  - dialog-rsn-1
+tag: "Preview"
+---
+
+<Warning>
+This is a preview API. Both behavior and schema may change.
+</Warning>
+
+**Prerequisites:** an API key and a WebSocket client in any language.
+
+## Getting an API key
+
+Your Dialog-RSN-1 key comes from the same place as your other PolyAI API credentials: your account dashboard, or your PolyAI contact if you don't have dashboard access yet. It's a single bearer token that works on your first connection.
+
+Store it in an environment variable or secret manager rather than in source control.
+
+## A connection is a conversation
+
+You open one WebSocket and keep it open. One connection carries the whole conversation: you authenticate once, and every turn travels over the same socket as JSON text frames.
+
+To open it, connect and send your API key in the `X-API-KEY` header:
+
+```text connect
+URL:     wss://api.us.poly.ai/v1/realtime
+Header:  X-API-KEY: YOUR_API_KEY
+```
+
+`Authorization: Bearer YOUR_API_KEY` works too, so an existing realtime client, including the official `openai` SDK, keeps its auth and only needs a new URL and key.
+
+<Warning>
+**Keep your key server-side.** Treat it like any API credential: call it from a server or trusted backend, not from code that ships to a browser or a device you don't control. A browser's native `WebSocket` can't set headers at all, so connecting from a page means putting a relay in front, as the [browser guide](/dialog-rsn-1/guides/javascript-browser#connecting-from-the-browser) covers.
+</Warning>
+
+The moment the connection is accepted, before you've sent anything, the server sends you a `session.created` event. You're already in a session, running default settings you'll want to change.
+
+## Telling it how to behave
+
+Connecting gives you a working session before you configure anything, so configuration is a separate step rather than a set of required connection parameters. Send `session.update` with your `instructions`, `tools`, and anything else; the server replies with `session.updated`, echoing back the full configuration in effect.
+
+```json you send: session.update
+{
+  "type": "session.update",
+  "session": {
+    "instructions": "You are a helpful, concise assistant.",
+    "output_modalities": ["text"]
+  }
+}
+```
+
+`output_modalities` has to be `["text"]`. Dialog-RSN-1 answers in text and doesn't speak audio back, so set the field rather than leaning on a default that could change. Session updates are cheap; send another one later if your needs change mid-conversation.
+
+## The shape of a turn
+
+Every turn is the same two-part move. **Adding** something to the conversation and **asking for a response** to it are separate events:
+
+```json you send: conversation.item.create
+{
+  "type": "conversation.item.create",
+  "item": {
+    "type": "message",
+    "role": "user",
+    "content": [{ "type": "input_text", "text": "What's the capital of France?" }]
+  }
+}
+```
+
+```json you send: response.create
+{ "type": "response.create" }
+```
+
+That separation pays off twice later. You can seed a conversation with prior history without firing a reply at each item. Once you're using tools, you add the tool's result, then ask for the follow-up in a second step, because a tool result on its own doesn't end a turn.
+
+For now, the two travel together: add the message, then ask for a response to it.
+
+## Watching the answer arrive
+
+The reply comes back as a short burst of events rather than one block of JSON. Two of them matter at first. You append each `response.output_text.delta` to build the reply as it types out, and `response.done` tells you the turn is over and how it ended. Ignore the rest for now.
+
+```text server sends: the response
+response.created
+response.output_item.added
+response.content_part.added
+response.output_text.delta   delta: "The"
+response.output_text.delta   delta: " capital"
+response.output_text.delta   delta: " of France is Paris."
+response.output_text.done
+response.content_part.done
+response.output_item.done
+response.done                response.status: "completed"
+```
+
+> **dialog-rsn-1:** "The capital of France is Paris."
+
+The events between `response.created` and `response.done` track which output item the server is writing and where its content part begins and ends. A fuller integration will use them. For a first pass, the deltas and the final status are enough to hold a conversation.
+
+That's the loop: add an item, ask for a response, collect the deltas until `response.done`. Repeat it for a longer conversation. Each new message builds on the conversation so far, so you have no separate history to maintain.
+
+## All of it, together
+
+The same sequence as one script, running on the standard `websockets` package. You need Python 3.10 or later, `pip install 'websockets>=14'`, and `DIALOGUE_API_KEY` set in your shell.
+
+The version floor matters: `connect()` took `extra_headers` before websockets 14 and `additional_headers` from 14 on, so the script below raises `TypeError` on an older install rather than failing to authenticate.
+
+```python python
+# pip install 'websockets>=14'
+import asyncio, json, os, websockets
+
+URL = "wss://api.us.poly.ai/v1/realtime"
+API_KEY = os.environ["DIALOGUE_API_KEY"]
+
+async def main():
+    headers = {"X-API-KEY": API_KEY}
+    async with websockets.connect(URL, additional_headers=headers) as ws:
+        await ws.recv()  # session.created
+
+        await ws.send(json.dumps({
+            "type": "session.update",
+            "session": {"instructions": "Be concise.", "output_modalities": ["text"]},
+        }))
+        await ws.recv()  # session.updated
+
+        await ws.send(json.dumps({
+            "type": "conversation.item.create",
+            "item": {
+                "type": "message", "role": "user",
+                "content": [{"type": "input_text", "text": "What's the capital of France?"}],
+            },
+        }))
+        await ws.send(json.dumps({"type": "response.create"}))
+
+        reply = ""
+        async for raw in ws:
+            event = json.loads(raw)
+            if event["type"] == "response.output_text.delta":
+                reply += event["delta"]
+            elif event["type"] == "error":
+                # The connection stays open after an error, so a turn can fail without the
+                # socket closing. Without this branch the script prints an empty reply.
+                raise RuntimeError(event["error"]["message"])
+            elif event["type"] == "response.done":
+                status = event["response"]["status"]
+                if status != "completed":
+                    raise RuntimeError(f"response {status}")
+                print(reply)
+                break
+
+asyncio.run(main())
+```
+
+The `error` branch is not optional padding. Every failure mode on this API answers with an `error` event and **leaves the connection open**, so a turn that fails arrives as an event rather than a dropped socket. Skip the branch and a failed generation prints an empty string and exits zero.
+
+## Beyond a single turn
+
+The same add-then-respond shape extends in two directions:
+
+- **Function calling**: declare tools in `session.tools`; a call arrives as `response.function_call_arguments.done`, and you answer it with a `function_call_output` item, followed by another `response.create`, the same two-part pattern from earlier, with a tool result in place of a user message.
+- **Voice in**: append PCM16 audio via `input_audio_buffer.append` instead of creating a text item; Dialog-RSN-1 transcribes speech as part of the same response, streaming the transcript alongside the reply.
+
+For the full event list, field reference, and error codes, see the [Dialog-RSN-1 reference](/dialog-rsn-1/reference).
+
+<CardGroup cols={2}>
+  <Card title="Overview" icon="lightbulb" href="/dialog-rsn-1/overview">
+    What realtime streaming is, and how turn-taking, generation, and prompting fit together.
+  </Card>
+  <Card title="Dialog-RSN-1 reference" icon="file-lines" href="/dialog-rsn-1/reference">
+    Every event, the session object, function calling, and error codes.
+  </Card>
+  <Card title="Guides" icon="compass" href="/dialog-rsn-1/guides/introduction">
+    Build a voice agent from scratch, or on top of a framework you already use.
+  </Card>
+  <Card title="Error codes" icon="circle-exclamation" href="/api-reference/error-codes">
+    The platform-wide error reference.
+  </Card>
+</CardGroup>

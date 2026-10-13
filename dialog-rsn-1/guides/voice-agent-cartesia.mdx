@@ -1,0 +1,271 @@
+---
+title: "Build a browser voice agent with Cartesia"
+sidebarTitle: "Voice agent with Cartesia"
+description: "A Python server and a browser page where Dialog-RSN-1 hears the caller, decides when they've finished, and writes the reply, and Cartesia speaks it from the first words. Barge-in, playback reports and plain-language turn-taking included."
+keywords:
+  - realtime
+  - voice agents
+  - cartesia
+  - text to speech
+  - barge-in
+  - latency
+  - guide
+tag: "Preview"
+---
+
+<Warning>
+This is a preview API. Both behavior and schema may change.
+</Warning>
+
+Build a voice agent you can talk to in the browser, where one model listens, decides when you've finished, and writes the reply. It takes about ten minutes to run and about 450 lines of Python to read.
+
+<Card title="Full code on GitHub" icon="github" href="https://github.com/PolyAI-LDN/dialog-rsn-1-voice-agent">
+  A FastAPI server, a browser page with a live transcript and event log, and a terminal probe that streams a sample caller through it.
+</Card>
+
+## What you'll build
+
+1. A Python server that holds one Dialog-RSN-1 connection per browser tab and forwards the caller's audio to it.
+2. Streaming speech: Cartesia speaks each reply from its first few words, while Dialog-RSN-1 is still writing it.
+3. Barge-in: talk over the agent and it stops as soon as Dialog-RSN-1 confirms it's you, and the model learns which words you heard.
+4. A browser page with a microphone picker, voice and turn-taking settings, a live transcript with per-turn latency, and a raw event log.
+
+## Why this shape
+
+A typical browser voice agent chains three services on its server:
+
+1. A speech-to-text service transcribes the caller and sends an end-of-turn event when it thinks they've finished.
+2. The server appends the transcript to its own `messages` list and calls an LLM.
+3. It sends the reply to a TTS service and forwards the audio to the page.
+
+That's three hops before the caller hears anything, and a conversation history you manage yourself.
+
+Dialog-RSN-1 folds the first two steps into one. It takes the caller's audio directly, decides when the turn is over, and streams the reply as text. It keeps the conversation history in the session. Your server does two things: pass audio in, and pass text to a speech engine.
+
+| | Chained pipeline | This demo |
+|---|---|---|
+| End of turn | An end-of-turn event from speech-to-text, tuned with a confidence threshold and a timeout | Dialog-RSN-1 `speech_stopped`, confirmed by the model, tuned in plain language |
+| Reply | An LLM, called with the transcript | Written by the same model that heard the audio |
+| History | A `messages` list on your server | Held in the Dialog-RSN-1 session |
+| Speech | A separate TTS service | Cartesia, streaming from the first words |
+| Interruptions | Your server stops playback and trims its own history | Barge-in, with playback reports back to the model |
+
+## Prerequisites
+
+1. Python 3.12 and [uv](https://docs.astral.sh/uv/).
+2. A Dialog-RSN-1 workspace API key from Agent Studio.
+3. A [Cartesia](https://cartesia.ai) API key. The free tier works.
+4. Chrome, Edge or Safari, and headphones if you'll use the microphone.
+
+## Run it
+
+```bash
+git clone https://github.com/PolyAI-LDN/dialog-rsn-1-voice-agent
+cd dialog-rsn-1-voice-agent
+cp .env.example .env    # add DIALOGUE_API_KEY and CARTESIA_API_KEY
+uv sync
+uv run app.py
+```
+
+Open `http://127.0.0.1:3000`. Click **Start conversation** and talk. Or click **Play the sample caller**: a recorded caller asks about a trip to Lisbon, then talks over the answer, so you see a barge-in without a microphone.
+
+To check the whole pipeline from a terminal, leave the server running and stream the same sample through it. The probe counts from `audio_end_ms`, where Dialog-RSN-1 marks the end of speech, about half a second after the caller's last word:
+
+```bash
+uv run probe.py
+```
+
+```text
+(caller speaking)
+  turn confirmed 83 ms after audio_end_ms
+  first text  389 ms after audio_end_ms
+  first audio 718 ms after audio_end_ms
+Caller: Hi, I'm going to Lisbon for a long weekend next month. What should I make sure I see?
+Agent:  In Lisbon, you should definitely see the Belém Tower and the Jerónimos Monastery. Don't miss the historic Alfama district either. What kind of activities are you looking for?
+(caller speaking)
+(interrupted after 5534 ms, 3826 ms dropped)
+  heard: "In Lisbon, you should definitely see the Belém Tower and the Jerónimos Monastery. Don't miss the"
+  turn confirmed 108 ms after audio_end_ms
+  first text  390 ms after audio_end_ms
+  first audio 678 ms after audio_end_ms
+Caller: Sorry, quick question - is it easy to get around on foot?
+Agent:  Yes, the city center is very walkable, especially the historic areas like Alfama and Baixa. What other spots are you hoping to visit?
+```
+
+## Step 1: Open one socket and configure the session
+
+Each browser tab gets its own `Call`, which opens a Dialog-RSN-1 WebSocket with the key in a header. The browser never sees the key.
+
+```python
+self.rsn = await websockets.connect(
+    config.DIALOGUE_URL, max_size=None,
+    additional_headers={"X-API-KEY": config.DIALOGUE_API_KEY})
+```
+
+Then it sends one `session.update`:
+
+```python
+def session_update(instructions: str) -> dict:
+    return {"type": "session.update", "session": {
+        "type": "realtime",
+        "instructions": instructions,
+        "output_modalities": ["text"],
+        "audio": {"input": {
+            "format": {"type": "audio/pcm", "rate": config.SAMPLE_RATE},
+            # Dialog-RSN-1 decides when the caller has finished, then answers on its own.
+            "turn_detection": {"type": "server_vad", "create_response": True},
+        }},
+    }}
+```
+
+Three fields do the work:
+
+- `output_modalities: ["text"]`. Dialog-RSN-1 answers in text. You pick the voice.
+- `rate: 24000`. The page records at 24 kHz, and Cartesia returns 24 kHz, so the page never resamples.
+- `create_response: true`. When Dialog-RSN-1 confirms the caller has finished, it starts the reply itself. You don't send `response.create`.
+
+The page waits for `session.updated` before it sends any audio, so Dialog-RSN-1 reads every frame at the right rate.
+
+## Step 2: Forward the caller's audio
+
+The page sends the microphone as binary PCM16, 100 ms per frame. The server wraps each frame in `input_audio_buffer.append` and passes it on:
+
+```python
+if msg.get("bytes"):
+    # The caller's audio, 100 ms at a time, forwarded as it arrives.
+    await self.rsn.send(json.dumps({"type": "input_audio_buffer.append",
+                                    "audio": base64.b64encode(msg["bytes"]).decode()}))
+```
+
+There's no buffering, transcript handling or turn logic on the server. Compare a chained pipeline, where the server watches for the end-of-turn event, reads the transcript, appends it to `messages` and starts an LLM call. Here, the next thing your server hears about is the reply.
+
+## Step 3: Stream the reply into speech
+
+Dialog-RSN-1 sends the reply as `response.output_text.delta` events. Each delta goes straight to Cartesia:
+
+```python
+if kind == "response.created":
+    # One Cartesia context per response, so a cancelled one can't leak into the next.
+    self.tts.start(event["response"]["id"])
+
+elif kind == "response.output_text.delta":
+    # Stream each delta straight on. Don't wait for the whole reply.
+    await self.tts.push(event["delta"])
+
+elif kind == "response.output_text.done":
+    await self.tts.finish()
+```
+
+`cartesia_tts.py` keeps one Cartesia WebSocket open for the whole call. Each response gets its own Cartesia context, named after the `response_id`. Text goes in with `continue: true`, so Cartesia keeps the rhythm of one sentence across many small pieces. Two details matter:
+
+- **Send whole words.** A delta can end mid-word. `push()` holds the text after the last space until the word is complete.
+- **Lower `max_buffer_delay_ms`.** Cartesia waits up to this long for more text before it speaks. Its default, 3 seconds, favours prosody. The demo sets 250 ms. Dialog-RSN-1 streams text faster than that in our runs, so the limit costs little.
+
+Audio comes back as base64 PCM chunks, and the server sends each one to the page as a binary frame. The page's player worklet plays them as they arrive.
+
+## Step 4: Stop talking when the caller does
+
+When the caller starts speaking, Dialog-RSN-1 sends `input_audio_buffer.speech_started`. It has already checked that the sound is the caller and not noise, so the server acts on it at once:
+
+```python
+elif kind == "input_audio_buffer.speech_started":
+    # The caller is talking. Dialog-RSN-1 has already confirmed it's really them,
+    # so stop the agent's voice now.
+    await self.interrupt()
+```
+
+Stopping takes two steps, because audio lives in two places:
+
+```python
+async def interrupt(self) -> None:
+    """Barge-in, in two steps: stop synthesizing, then stop playing."""
+    rid = self.tts.context
+    if rid is None or self.reports.get(rid, {}).get("stopped"):
+        return   # nothing to stop: that reply already played to the end
+    await self.tts.cancel(rid)
+    if rid == self.audio_for:
+        # The browser empties its queue and answers `flushed` with what it played.
+        await self.to_browser({"type": "agent.flush", "response_id": rid})
+```
+
+Cancelling the Cartesia context stops new audio. Flushing the page's queue stops audio that's already been synthesized but not yet played. Skip the second step and the agent keeps talking for seconds after you've cut in.
+
+## Step 5: Tell Dialog-RSN-1 what the caller heard
+
+Only the page knows what reached the speakers. Its player worklet counts the samples it has played and reports every 250 ms. The server turns those counts into Dialog-RSN-1 playback reports:
+
+```python
+spoken = self.tts.spoken_text(rid, played_ms)
+if stopped:
+    sent["stopped"] = True
+    await self.to_rsn({"type": "poly.output_audio.stopped", "response_id": rid,
+                       "audio_ms": played_ms, "dropped_ms": dropped_ms, "spoken_text": spoken})
+elif len(spoken) > sent["text"]:
+    await self.to_rsn({"type": "poly.output_audio.delta", "response_id": rid,
+                       "audio_ms": played_ms, "delta": spoken[sent["text"]:]})
+    sent["text"] = len(spoken)
+```
+
+`spoken_text` comes from Cartesia's word timestamps: every word whose audio had started by `played_ms`.
+
+These reports do two things:
+
+- **They extend the barge-in check to the whole spoken reply.** Dialog-RSN-1 checks that an interruption comes from the caller for as long as it thinks the reply is audible. Without reports, that window ends when the text finishes generating, a few hundred milliseconds in. With them, a cough or an "mm-hm" three seconds into a spoken reply gets the same check.
+- **They record where the caller cut in.** In the sample, the agent had written its whole reply, but the caller heard only up to "Don't miss the". The page strikes through the words the caller never heard.
+
+They're optional. Leave them out and Dialog-RSN-1 assumes every reply was heard in full, the moment it was sent.
+
+## Tune turn-taking in plain language
+
+A chained pipeline tunes the end of the turn with numbers, such as a confidence threshold and a timeout. Dialog-RSN-1 has no timing knobs. The model reads each pause in context and gives a verdict: still going, or finished. The realtime schema's `silence_duration_ms`, `threshold` and `idle_timeout_ms` are rejected with `unsupported_parameter`.
+
+You can tell it about your callers instead. The page's **Turn-taking** menu picks one extra line for the instructions:
+
+```python
+TURN_TAKING = {
+    "balanced": {
+        "label": "Balanced",
+        "prompt": "",
+    },
+    "patient": {
+        "label": "Patient: callers read out numbers and think aloud",
+        "prompt": "Callers often pause while they read out account numbers, dates or "
+                  "addresses, or while they think. Treat those pauses as part of the turn "
+                  "and wait until they have clearly finished.",
+    },
+    "brisk": {
+        "label": "Brisk: short answers, quick back-and-forth",
+        "prompt": "Callers here give short answers like yes, no, or a single word. As soon "
+                  "as a short answer is complete, treat the turn as finished.",
+    },
+}
+```
+
+## What the latency looks like
+
+The page and the probe time every turn from `audio_end_ms` on `speech_stopped`, the point in the caller's audio where Dialog-RSN-1 places the end of speech. Over sixteen turns against us-1 production, on two days:
+
+| Measure | After `audio_end_ms` |
+|---|---|
+| Turn confirmed (`speech_stopped` arrives) | 80 to 240 ms |
+| First reply text | 250 to 870 ms |
+| First reply audio | 450 ms to 1.4 s |
+
+The `audio_end_ms` mark sits about 500 ms after the caller's last word, so the caller waits about half a second longer than the table shows. First audio reaches them about 1 to 1.9 s after they stop talking. It's first text plus Cartesia's own time to first audio, which ran about 130 to 430 ms.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| "Dialog-RSN-1 refused the connection (HTTP 401)" | The key is missing, or it's a personal access token | Use a workspace API key from Agent Studio |
+| `unsupported_parameter` after `session.update` | A turn-timing field such as `silence_duration_ms` crept in | Remove it. None of the update was applied, so fix it and resend |
+| The agent keeps interrupting itself | The microphone hears the speakers | Wear headphones. Echo cancellation helps but isn't perfect |
+| The agent talks on for seconds after you interrupt | The page's audio queue wasn't flushed | Flush on `speech_started` as well as cancelling the TTS context (Step 4) |
+| Replies sound choppy | Words split across Cartesia messages | Send whole words only (Step 3) |
+| First audio is slow, first text is fast | Cartesia is waiting for more text | Lower `max_buffer_delay_ms` |
+
+## Where to go next
+
+- The [streaming text-to-speech guide](/dialog-rsn-1/guides/streaming-text-to-speech) covers the same streaming and barge-in pattern with ElevenLabs, in a terminal.
+- The [prompt guide](/dialog-rsn-1/prompt-guide) covers turn-taking instructions in depth.
+- The [API reference](/dialog-rsn-1/reference) lists every event this demo uses, including the `poly.output_audio.*` playback reports.

@@ -1,0 +1,255 @@
+---
+title: "Build a voice agent for the browser with JavaScript"
+sidebarTitle: "Browser (JavaScript)"
+description: "Capture microphone audio in the browser, stream it to Dialog-RSN-1, and render the reply as it arrives, using plain browser APIs."
+tag: "Preview"
+---
+
+<Warning>
+This is a preview API. Both behavior and schema may change.
+</Warning>
+
+## What you'll build
+
+A browser page that captures microphone audio, streams it to Dialog-RSN-1 over a WebSocket, and renders the reply as text while it's still arriving. You'll use `getUserMedia` for the microphone, `AudioWorklet` to reach the raw samples, and a WebSocket for the wire protocol. There's no SDK to install and no build step.
+
+<Note>
+**No voice output.** Dialog-RSN-1 answers in text, and `output_modalities` is locked to `["text"]`. The model is text-out by design; there is no speech-to-speech path to enable. This guide stops there. For a spoken reply, feed the accumulated text to a text-to-speech provider. That integration is yours to build, and this API has no part in it.
+</Note>
+
+## Connecting from the browser
+
+Your API key is a bearer credential, and a browser tab is a poor place to keep one: a visitor can open dev tools and read it out of your JavaScript. Don't connect from the browser to `wss://api.us.poly.ai/v1/realtime` with the key embedded in client code.
+
+Put a small relay in front of it: a same-origin WebSocket endpoint on your own server that holds the real key, opens the upstream connection to Dialog-RSN-1, and pipes frames through in both directions. The browser talks to your relay and nothing else.
+
+```text connect
+Browser  →  wss://your-app.example.com/realtime-relay   (no key, same-origin)
+Relay    →  wss://api.us.poly.ai/v1/realtime            (holds the real key)
+```
+
+The [companion repo](https://github.com/polyai/dialog-rsn-1-javascript-browser) includes a Node relay, `relay.js`, that also serves the page. If you write your own, set a `User-Agent` on the upstream connection. The API refuses a handshake without one with a bare 403, and Node's `ws` package sends none by default.
+
+The code below assumes that relay exists and connects to it:
+
+```js connect.js
+const ws = new WebSocket("wss://your-app.example.com/realtime-relay");
+```
+
+## Capturing microphone audio
+
+The browser gives you microphone audio as floating-point samples; Dialog-RSN-1 wants base64-encoded 16-bit PCM. Do that conversion in an `AudioWorkletProcessor`, which runs off the main thread, so encoding audio doesn't compete with rendering the page.
+
+```js pcm-worklet.js
+// Registered once, runs in the audio rendering thread
+class PCMWorklet extends AudioWorkletProcessor {
+  process(inputs) {
+    const channel = inputs[0][0];
+    if (!channel) return true;
+
+    // Float32 [-1, 1] → Int16 PCM
+    const pcm16 = new Int16Array(channel.length);
+    for (let i = 0; i < channel.length; i++) {
+      const s = Math.max(-1, Math.min(1, channel[i]));
+      pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+    }
+    this.port.postMessage(pcm16.buffer, [pcm16.buffer]);
+    return true;
+  }
+}
+registerProcessor("pcm-worklet", PCMWorklet);
+```
+
+```js capture.js
+function bufferToBase64(buffer) {
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+async function startCapture(ws) {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const audioContext = new AudioContext();
+  await audioContext.audioWorklet.addModule("pcm-worklet.js");
+
+  const source = audioContext.createMediaStreamSource(stream);
+  const worklet = new AudioWorkletNode(audioContext, "pcm-worklet");
+
+  worklet.port.onmessage = (event) => {
+    if (ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({
+      type: "input_audio_buffer.append",
+      audio: bufferToBase64(event.data),
+    }));
+  };
+
+  source.connect(worklet);
+  return { audioContext, stream };
+}
+```
+
+The browser takes the `AudioContext` sample rate from the hardware, 48kHz on most machines, where Dialog-RSN-1's native rate is 16kHz. Rather than resample in the client, declare your true rate with the `poly_input_rate` extension field on `session.update` and let the server resample on the way in:
+
+```json session.update
+{
+  "type": "session.update",
+  "session": {
+    "output_modalities": ["text"],
+    "audio": { "input": { "format": { "type": "audio/pcm" } } },
+    "poly_input_rate": 48000
+  }
+}
+```
+
+Send the rate your `AudioContext` reports in `audioContext.sampleRate`. Hardcoding 48000 breaks on hardware that runs at 44.1kHz, because the server then resamples from a rate your audio was never at. You can read the rate before the user clicks anything. A context created on page load starts suspended, but its `sampleRate` is already set. Call `audioContext.resume()` first thing in the click handler, before you wait on the microphone: Safari only lets a context start during the click itself. The full example below does this.
+
+## Streaming audio and handling server VAD
+
+Once you've wired up capture, `input_audio_buffer.append` frames flow without a break. The server decides when a turn starts and ends: voice activity detection proposes a boundary, Dialog-RSN-1 confirms it, and the server tells you with these events:
+
+```js vad.js
+ws.addEventListener("message", (event) => {
+  const msg = JSON.parse(event.data);
+  switch (msg.type) {
+    case "input_audio_buffer.speech_started":
+      console.log("caller started talking, item:", msg.item_id);
+      break;
+    case "input_audio_buffer.speech_stopped":
+      console.log("caller stopped, turn committed");
+      break;
+  }
+});
+```
+
+There's no client-side VAD to configure or tune. If the caller starts talking while a response is still streaming, Dialog-RSN-1 confirms the audio came from the caller and then cancels the response for you, the same as if you'd sent `response.cancel` yourself.
+
+## Reconstructing the streamed reply
+
+The reply arrives as a burst of small events instead of one block of text. Accumulate `response.output_text.delta` by the `item_id` it belongs to, and treat `response.done` as the signal the turn is over:
+
+```js reply.js
+const replies = new Map(); // item_id -> accumulated text
+
+ws.addEventListener("message", (event) => {
+  const msg = JSON.parse(event.data);
+
+  if (msg.type === "response.output_text.delta") {
+    const current = replies.get(msg.item_id) ?? "";
+    replies.set(msg.item_id, current + msg.delta);
+    renderPartial(msg.item_id, replies.get(msg.item_id));
+  }
+
+  if (msg.type === "response.output_text.done") {
+    renderFinal(msg.item_id, replies.get(msg.item_id));
+  }
+
+  if (msg.type === "response.done") {
+    console.log("turn finished:", msg.response.status);
+  }
+
+  if (msg.type === "error") {
+    console.error(`${msg.error.code}: ${msg.error.message}`);
+  }
+});
+
+function renderPartial(itemId, text) {
+  document.getElementById("reply").textContent = text;
+}
+function renderFinal(itemId, text) {
+  renderPartial(itemId, text);
+}
+```
+
+Keying by `item_id` matters as soon as a turn can hold more than one output item. Without it, concurrent deltas interleave into garbled text.
+
+Keep the `error` branch. Every failure on this API arrives as an `error` event and leaves the connection open, as the [quickstart](/dialog-rsn-1/quickstart#all-of-it-together) explains. Without the branch, a rejected `session.update` looks like a page that connects and never answers.
+
+<Note>
+**Voice output is out of scope here.** There's no audio-out event to listen for. For a spoken reply, hand the accumulated text from `renderFinal` to a text-to-speech provider. You build that alongside the page, and the protocol stays as it is.
+</Note>
+
+## Full example
+
+Three files: the page, its script, and the `pcm-worklet.js` from [Capturing microphone audio](#capturing-microphone-audio) saved next to them.
+
+<Card title="Full code on GitHub" icon="github" href="https://github.com/polyai/dialog-rsn-1-javascript-browser">
+  These files plus the relay, ready to clone and run with `npm start`.
+</Card>
+
+```html index.html
+<!doctype html>
+<html>
+<body>
+  <button id="start">Start talking</button>
+  <p id="reply"></p>
+  <script src="app.js"></script>
+</body>
+</html>
+```
+
+```js app.js
+const replies = new Map();
+const audioContext = new AudioContext(); // suspended until the click below, but sampleRate is known now
+const ws = new WebSocket("wss://your-app.example.com/realtime-relay");
+
+ws.addEventListener("open", () => {
+  ws.send(JSON.stringify({
+    type: "session.update",
+    session: {
+      instructions: "You are a helpful, concise assistant.",
+      output_modalities: ["text"],
+      audio: { input: { format: { type: "audio/pcm" } } },
+      poly_input_rate: audioContext.sampleRate,
+    },
+  }));
+});
+
+ws.addEventListener("message", (event) => {
+  const msg = JSON.parse(event.data);
+  if (msg.type === "response.output_text.delta") {
+    const current = replies.get(msg.item_id) ?? "";
+    replies.set(msg.item_id, current + msg.delta);
+    document.getElementById("reply").textContent = replies.get(msg.item_id);
+  }
+  if (msg.type === "error") {
+    console.error(`${msg.error.code}: ${msg.error.message}`);
+  }
+});
+
+document.getElementById("start").addEventListener("click", async () => {
+  await audioContext.resume(); // first, while the click still counts as a user gesture
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  await audioContext.audioWorklet.addModule("pcm-worklet.js");
+
+  const source = audioContext.createMediaStreamSource(stream);
+  const worklet = new AudioWorkletNode(audioContext, "pcm-worklet");
+
+  worklet.port.onmessage = (e) => {
+    if (ws.readyState !== WebSocket.OPEN) return;
+    const bytes = new Uint8Array(e.data);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: btoa(binary) }));
+  };
+
+  source.connect(worklet);
+});
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Overview" icon="lightbulb" href="/dialog-rsn-1/overview">
+    Realtime streaming explained, plus how turn-taking, generation, and prompting fit together.
+  </Card>
+  <Card title="Dialog-RSN-1 reference" icon="file-lines" href="/dialog-rsn-1/reference">
+    Every event, the session object, function calling, and error codes.
+  </Card>
+  <Card title="Python from scratch" icon="python" href="/dialog-rsn-1/guides/python-from-scratch">
+    The same protocol, built server-side with plain `websockets`.
+  </Card>
+  <Card title="Streaming to TTS" icon="waveform" href="/dialog-rsn-1/guides/streaming-text-to-speech">
+    Where the accumulated text from `renderFinal` actually goes: barge-in, unspeakable text, and playback reports.
+  </Card>
+</CardGroup>

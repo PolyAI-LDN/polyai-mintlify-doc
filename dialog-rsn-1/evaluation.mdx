@@ -1,0 +1,349 @@
+---
+title: "Evaluating a Dialog-RSN-1 agent"
+sidebarTitle: "Evaluation Guide"
+description: "How to measure a voice agent built on Dialog-RSN-1: what to grade at each seam, which metrics the wire supports, and three harnesses that add one variable at a time."
+keywords:
+  - realtime
+  - evaluation
+  - testing
+  - voice agents
+  - turn-taking
+  - latency
+  - transcription
+  - tool calling
+  - regression testing
+tag: "Preview"
+---
+
+<Warning>
+This is a preview API. Both behavior and schema may change.
+</Warning>
+
+A voice agent has to sound like a conversation and finish the caller's task. Either can fail while the other looks fine: a reply that reads perfectly can confirm a booking that was never written, and a correct booking can arrive three seconds late to a caller who has already hung up.
+
+So follow one request the whole way through: the audio you send, the turn boundary the server confirmed, the text Dialog-RSN-1 returned, the tools your client ran, the state your application ended up in, and the words your text-to-speech said out loud. Grade the final transcript alone and you miss most of the ways that chain breaks.
+
+## Where the system splits
+
+Dialog-RSN-1 [answers in text](/dialog-rsn-1/overview#the-core-split), which puts the seam in an unusual place:
+
+| Layer | Who owns it | How you grade it |
+|---|---|---|
+| Caller audio in | Your harness | Byte-exact fixtures: the same WAV, the same pacing, every run |
+| Turn-taking and generation | Dialog-RSN-1 | Deterministically, off the event stream, before anything is spoken |
+| Tools and application state | Your client | Deterministically, against your own database or fixture |
+| Speech out | Your text-to-speech | Your own audio evaluation, held fixed while you test everything else |
+
+The middle two layers are text and JSON. You can assert on a reply's exact characters before a caller hears it, with no transcription step in the way and no audio quality to confound the result. Checking whether a bulleted list snuck into something meant to be spoken is a regex here, not a judge.
+
+The cost is that no metric on this API describes what a caller heard. Latency measured to the first `response.output_text.delta` isn't the caller's experience, because your text-to-speech hasn't started yet. Add your own time-to-first-audio before comparing that number against anything.
+
+<Note>
+**Hold your text-to-speech fixed.** It sits in the middle of both the latency your caller feels and the turn boundaries the server sees. Changing voice, provider, or buffering between runs moves numbers that have nothing to do with the model.
+</Note>
+
+## What the wire gives you
+
+Most metrics come off the [event stream](/dialog-rsn-1/reference#server-→-client-events). Record every frame you send with a monotonic timestamp and every event you receive with another, and you have the evidence for all of the below.
+
+| You want to know | Watch for |
+|---|---|
+| Where the server put the turn boundary | `input_audio_buffer.speech_started`, `speech_stopped`, `committed` |
+| What it heard | `conversation.item.input_audio_transcription.completed` |
+| When the reply started and finished | `response.created`, the first `response.output_text.delta`, `response.output_text.done` |
+| Exactly what it said | The concatenated deltas, or `response.output_text.done` |
+| Which tools it called, with what | `response.function_call_arguments.done` (`name`, `arguments`, `call_id`) |
+| Whether the turn ended cleanly | `response.done`, with `response.status` of `completed`, `cancelled`, or `failed` |
+| That a barge-in happened | A `speech_started` you didn't expect, followed by `response.done` with status `cancelled` |
+| Whether it judged the request in scope | `poly_out_of_domain` on the response in `response.done` |
+
+Two properties of that stream shape the collector.
+
+**The events report a judgment, not a threshold.** `speech_started` and `speech_stopped` are sent once Dialog-RSN-1 has confirmed the boundary voice activity detection proposed, so [exactly one pair arrives per turn](/dialog-rsn-1/reference#turn-taking-and-audio). A caller pausing mid-sentence produces no events at all. That makes turn segmentation directly checkable: count the triples, compare against the turns your fixture contains.
+
+**The transcript is a by-product of the reply, not a stage before it.** It streams from the same generation, so it can arrive after the response text has already started. A collector that waits for the transcript before recording the reply will deadlock on some turns and pass on others. Record both, join them by item id afterwards.
+
+## Telling the server what the caller heard
+
+Dialog-RSN-1 owns hearing and you own speaking, so nothing in the standard protocol tells the server whether a reply reached the caller or how much of it they got through. Three client events carry that back:
+
+```json you send: playback reports
+{ "type": "poly.output_audio.started", "response_id": "resp_..." }
+
+{ "type": "poly.output_audio.delta", "response_id": "resp_...",
+  "audio_ms": 1200, "delta": " for two at 7pm" }
+
+{ "type": "poly.output_audio.stopped", "response_id": "resp_...",
+  "audio_ms": 2400, "dropped_ms": 1800,
+  "spoken_text": "I've got you a table for two at 7pm" }
+```
+
+**They change behavior.** Barge-in confirmation runs for as long as a reply is audible. With no reports, "audible" can only mean "still generating", and generation finishes long before your text-to-speech does; every sound after that point is forwarded as an unconfirmed interruption. Reporting playback extends the window across the spoken reply, so a "mm-hmm" two seconds in gets checked rather than acted on. A client that reports nothing keeps the behavior it had before.
+
+**They are evidence.** `spoken_text` on `poly.output_audio.stopped` is the client's own account of what the caller actually heard, and `dropped_ms` is what your synthesizer threw away on a barge-in. That pair is the ground truth [conversation history can't hold](/dialog-rsn-1/reference#known-limitations), because history records what Dialog-RSN-1 sent.
+
+Three details to get right:
+
+- `audio_ms` is cumulative, not incremental, so a dropped report leaves a gap rather than desyncing the count.
+- A report naming a response that is no longer the one playing is ignored rather than applied to whatever is playing now. Reports and responses race, so carry the `response_id` from `response.created` through every report about it.
+- Always send `stopped`. A generation clears the open report, so a `started` with no `stopped` won't wedge the session, but it does leave a window where the server believes a finished reply is still playing.
+
+<Warning>
+**Report playback in your harness exactly as your production client does.** These reports move the turn boundaries the server confirms, so a harness that reports nothing while your product reports everything is measuring a different agent. If you don't know which regime you're in, run the turn-taking scenarios both ways and compare.
+</Warning>
+
+## Metrics
+
+Grouped by which failure they catch. All of them come from the event log plus your own fixtures, and none needs an LLM judge except where noted.
+
+### Task and correctness
+
+| Metric | What it is |
+|---|---|
+| Task completion | Pass or fail. The intended outcome happened, the application reached the expected state, and nothing forbidden occurred. This is the headline; nothing below overrides it. |
+| Tool accuracy | Executed tool names and arguments against expected, read from `response.function_call_arguments.done`. Missing, extra, and wrong-argument calls all count against it. |
+| Tool call count | Actual against expected. Catches the duplicate booking that a pass/fail on final state can miss. |
+| Grounded confirmation | Whether the reply claiming success came from a response created *after* the matching `function_call_output` was added. A confirmation in the same response as the tool call is a guess. |
+| Refusal held | For scenarios that must be refused: the reply declines, and the forbidden call never appears in the event log or the application state. |
+| Scope accuracy | `poly_out_of_domain` on `response.done` against your scenario's own in-scope or out-of-scope label. The model reports its verdict on every turn it judges, tool calls included, and both `true` and `false` are answers rather than one being an absence. Catches an agent drifting outside what it was deployed for, and the opposite failure of refusing work it should be doing. |
+| Semantic quality | LLM-judged, for what a string comparison can't reach: did it understand the request, keep context, ask a useful clarifying question. Diagnostic and partial credit only. |
+
+### Turn-taking
+
+| Metric | What it is |
+|---|---|
+| Turn segmentation accuracy | One `speech_started` / `speech_stopped` / `committed` triple per caller turn in the fixture. Extra triples mean the caller was cut in half; missing ones mean two turns were merged. |
+| Premature commit rate | Turns committed while the fixture's caller was still mid-utterance. The failure a caller experiences as being interrupted. |
+| Dead-air rate | Turns where nothing committed within your latency budget of the caller finishing. The failure a caller experiences as a dropped call. |
+| Unprompted interruption rate | `speech_started` events arriving during your own playback that cancelled a response the caller was still listening to. Report it separately for runs that send playback reports and runs that don't. |
+| Yield latency | Caller speech onset to `response.done` with status `cancelled`, on deliberate barge-in scenarios. |
+
+### Latency
+
+Define a start and an end event for every timer, and never mix populations.
+
+| Metric | Measured from, to |
+|---|---|
+| Turn confirmation | The last frame you appended containing caller speech, to `input_audio_buffer.committed`. Usually the largest single segment of a turn, and the one [the model is deciding on](/dialog-rsn-1/overview#turn-taking). |
+| Time to first token | `response.created` to the first `response.output_text.delta`. |
+| Reply completion | `response.created` to `response.output_text.done`. Matters because most clients start speaking before this lands. |
+| Caller-perceived latency | Caller stops speaking, to your text-to-speech emitting its first audio. The only latency a caller can feel, and the only one this API can't see. Measure it in your harness. |
+
+### Transcription and text quality
+
+| Metric | What it is |
+|---|---|
+| Word error rate | The final transcript against your reference, normalized the same way every run. |
+| Transcript completion rate | Fraction of turns that produced a `.completed` transcription event at all. Track it, but don't gate the reply on it. |
+| Spoken-form compliance | Deterministic checks on the reply text: no markdown, no bare numeric forms your prompt said to expand, no stage directions. Markdown-free output is the default rather than something you prompted for, so a failure here is a regression, not a missing instruction. See the [response style recipes](/dialog-rsn-1/prompt-cookbook/response-style) for the conventions you did ask for. |
+| Reply length | Words per reply, and the longest single reply. A proxy for how long a caller waits with nothing to do. |
+
+### Usage
+
+Transcription usage is reported as audio duration rather than a token count, so report seconds of audio and keep it separate from your own text-to-speech, judge, and simulated-caller costs. Those are your bill, not the agent's behavior, and folding them together makes a prompt change look like a cost regression.
+
+<Note>
+**Run every scenario more than once.** Generation isn't deterministic, and neither is a boundary decision made on live audio. Report P50 and P90 for every latency and duration metric alongside the completion rate and the sample count. A single run tells you almost nothing about the tail.
+</Note>
+
+## Crawl, walk, run
+
+Three harnesses, each adding one variable. Same scenarios, same expected outcomes, same graders throughout; only the caller input and the interaction complexity change.
+
+| Stage | Caller input | Interaction | Isolates |
+|---|---|---|---|
+| Crawl | Synthesized from a written request | One turn | Task correctness, tool use, reply text |
+| Walk | Real recordings, real conditions | One turn | Robustness to voices, accents, noise, telephony |
+| Run | A simulated caller, live | Multi-turn | Turn-taking, corrections, barge-in, recovery |
+
+### Crawl: one synthesized request
+
+Write the caller's request as text, synthesize it once, and reuse that WAV forever. The audio is now a fixture: identical bytes, identical pacing, every run. What changes between runs is your prompt, your tools, or your application, which is what you want when you're chasing a regression.
+
+For each scenario the harness:
+
+1. Loads the written request, the context and tools the agent gets, and the expected outcome, which the agent never sees.
+2. Streams the synthesized audio in paced PCM frames, at roughly the rate a real caller's audio would arrive.
+3. Lets the agent answer, ask, refuse, or call a tool, running the tool against a fixture application.
+4. Records the event timeline, the reply text, the tool calls, and the final application state.
+5. Grades all of it against the expected outcome and saves the artifacts.
+
+Pace those frames. Dumping a ten-second WAV in one `input_audio_buffer.append` hands voice activity detection ten seconds at once, and the turn boundary you measure afterwards is a property of your harness rather than the model.
+
+You don't have to start from an empty conversation. To test a specific point mid-call, seed the earlier turns as text with `conversation.item.create` and stream only the turn under test as audio. That gives you real conversational context without the variance of replaying an entire call.
+
+```json seeding history, then testing one turn
+{ "type": "conversation.item.create",
+  "item": { "type": "message", "role": "user",
+             "content": [{ "type": "input_text", "text": "I'd like a table for four under Maya." }] } }
+
+{ "type": "conversation.item.create",
+  "item": { "type": "message", "role": "assistant",
+             "content": [{ "type": "output_text", "text": "Which date would you like?" }] } }
+```
+
+Representative failure modes, using a restaurant booking line as the running example:
+
+| Failure mode | Scenario | Expected behavior | Evidence |
+|---|---|---|---|
+| Books the pre-correction value | "Book a table for Maya on August 7, sorry, August 6, at 7pm for two." | One reservation, on August 6 | Tool arguments, tool call count, final state, the confirmation text |
+| Acts on a question | "Do you have a table for two on August 7 at 7pm?" | Check availability, book nothing | Completed tool calls, absence of a booking, reply text |
+| Guesses a missing detail | "Book a table for two on August 7 at 7pm." | Ask who the booking is for, write nothing | Reply text, absence of booking calls, unchanged state |
+| Loses seeded context | "Make it 7pm." after a name, party size, and date are already in history | Recover the rest from history and book | Seeded history, tool arguments, final state |
+| Confirms before the tool returned | Any booking request | The confirmation appears only in the response created after the `function_call_output` | Response ids, ordering of the event log |
+| Takes on work it was never deployed for | A caller asking something outside the agent's remit | Decline and redirect, and report the turn as out of scope | `poly_out_of_domain`, reply text, absence of tool calls |
+
+### Walk: the same task, on real audio
+
+Walk keeps everything constant except the recording. Recordings of real callers, cleared for use, are worth far more here than synthetic ones: real voices, accents, microphones, and rooms are what you're trying to survive. Where you can't collect them, applying controlled effects to clean recordings is a usable fallback, as long as the effects are seeded and reproducible.
+
+Cover the conditions that reach a phone line: background noise across a range of signal-to-noise ratios, telephony band-limiting and codec artifacts, room reverberation, packet loss with concealment, and speakerphone echo where the caller's channel carries your own reply back.
+
+Echo is the one to test first. Dialog-RSN-1 checks that sound arriving during generation is really the caller before treating it as a barge-in, and a speakerphone scenario, where your reply bleeds back into the caller's microphone, is the direct test of that check.
+
+| Failure mode | Condition | Expected result | Evidence |
+|---|---|---|---|
+| A correction lost under noise | "August 7, sorry, August 6," with background noise added | Book August 6 | Transcript, tool arguments, final state |
+| Background speech treated as the caller | A second voice in the room during the request | Act only on the primary caller | Event log, tool activity, absence of unrelated calls |
+| A name or time mangled by the codec | Telephony-filtered request naming "Maya" and "7pm" | Both preserved | Transcript, tool arguments, confirmation |
+| A detail dropped by packet loss | Brief gaps replacing part of the request | Ask, don't guess | Reply text, tool arguments, state |
+| Echo read as an interruption | The caller's channel carries your reply back | No cancelled response, exactly one reservation | `response.done` statuses, tool call count |
+
+Walk can't test clarification, recovery, or anything else that needs a second turn. That's Run.
+
+### Run: a full conversation
+
+Run connects your agent to an independent simulated caller and lets both sides talk until the task is done or clearly failed. Multi-turn memory, mid-conversation corrections, barge-in, and recovery from an unavailable option are only observable here.
+
+**The reply has to be spoken on a real clock.** Dialog-RSN-1 returns text far faster than your text-to-speech can say it, and during those seconds the caller is listening. Anything they do lands in that window. Feed the reply to the simulated caller as text and the window doesn't exist, so you'll never reproduce the barge-in, the backchannel, or the impatient interruption a real caller produces. Synthesize the reply, play it into the caller's input on the conversation's own timeline, and let the caller decide when to speak against audio that takes as long to hear as it really would.
+
+That timeline is where [playback reporting](#telling-the-server-what-the-caller-heard) earns its place, and Run is how you size what it buys you. Two things to grade:
+
+- **Whether a sound during playback gets confirmed.** Without reports it doesn't, and how often that bites depends on your prompts and reply lengths, because both set the size of the window.
+- **What the caller heard, which comes from your side rather than from history.** `poly.output_audio.stopped` is where you say so. Grade the confirmation the caller actually got against `spoken_text`, and keep the full reply text for grading the model.
+
+For each scenario the harness:
+
+1. Loads the caller's goal, persona, and opening line, plus the agent's own context and the expected outcome it never sees.
+2. Runs both sides on one advancing timeline: caller audio into the socket, reply text out, reply audio back into the caller, and playback reports back into the socket as that audio plays.
+3. Lets the agent answer, clarify, refuse, or call tools while the caller reacts.
+4. Detects that the conversation has resolved, then drains remaining playback and any in-flight tool work.
+5. Grades the conversation, the tool calls, and the final application state, and saves the recording, the transcript, and the event log.
+
+| Failure mode | Scenario | Expected behavior | Evidence |
+|---|---|---|---|
+| Never collects a required detail | Caller books without giving a name | Ask for it before writing anything | Transcript, tool arguments, final state |
+| Ignores a later correction | Caller moves the date two turns after giving it | One reservation, on the corrected date | Tool arguments, tool call count, final state |
+| Loses context while recovering | Requested slot unavailable, caller proposes another | Keep the rest of the booking, book only after the caller agrees | Availability results, tool ordering, final state |
+| Talks through an interruption | Caller cuts in during an explanation | Yield promptly, act on the new request | Overlap in the recording, yield latency, tool arguments |
+| Relents under pressure | Caller repeatedly asks to cancel someone else's booking | Refusal holds every time | Transcript, absence of the call, unchanged state |
+| Cut off mid-sequence | Caller reads a six-digit reference with a pause after the third digit | One turn, one commit, the full number | Count of `committed` events, tool arguments |
+| Backchannel treated as an interruption | Caller says "mm-hmm" partway through a long reply | The reply runs to completion, nothing is cancelled | `response.done` status, playback reports, the recording |
+
+Give the cut-off row its own scenario if your agent collects digits at all. It's the failure the [turn-taking recipes](/dialog-rsn-1/prompt-cookbook/turn-taking#waiting-for-a-complete-sequence) exist to prevent, and the event log makes it unambiguous: two `committed` events for one spoken number means the caller was cut off.
+
+<Warning>
+**Manual turns test generation, not turn-taking.** Driving turns yourself with `create_response: false` and an explicit `input_audio_buffer.commit` puts the boundary wherever your harness decides. That's useful for determinism in Crawl, but it means any turn-taking metric from that run describes your code rather than the model. Anything measuring boundaries needs server-driven turns.
+</Warning>
+
+## Collecting the evidence
+
+One collector serves all three stages. What matters is a single monotonic timeline with both directions on it.
+
+```python timeline collector
+import json, time
+
+async def collect(ws, timeline):
+    """Append every server event with a monotonic timestamp. Join by item id later."""
+    async for raw in ws:
+        event = json.loads(raw)
+        timeline.append({"t": time.monotonic(), "dir": "in", "event": event})
+
+        if event["type"] == "response.done":
+            # Terminal, whatever the outcome. status is completed, cancelled, or failed.
+            return event["response"]["status"]
+
+
+def turn_boundaries(timeline):
+    """One triple per turn, in order. A short or long count is the finding."""
+    wanted = {
+        "input_audio_buffer.speech_started",
+        "input_audio_buffer.speech_stopped",
+        "input_audio_buffer.committed",
+    }
+    return [(row["t"], row["event"]["type"]) for row in timeline
+            if row["event"]["type"] in wanted]
+
+
+def first_token_latency(timeline):
+    created = next(r["t"] for r in timeline if r["event"]["type"] == "response.created")
+    first = next(r["t"] for r in timeline if r["event"]["type"] == "response.output_text.delta")
+    return first - created
+
+
+def scope_verdict(response):
+    """The model's own judgment on the turn. Absent only if it never judged one."""
+    return response.get("poly_out_of_domain")
+```
+
+If your harness plays replies aloud, report that back on the same socket and record what you sent alongside what you received:
+
+```python reporting playback
+async def report_playback(ws, timeline, response_id, player):
+    """Mirror what the caller is hearing. Send `stopped` even when playback is cut short."""
+    async def emit(event):
+        timeline.append({"t": time.monotonic(), "dir": "out", "event": event})
+        await ws.send(json.dumps(event))
+
+    await emit({"type": "poly.output_audio.started", "response_id": response_id})
+    async for played_ms, spoken in player:  # your text-to-speech, on a real clock
+        await emit({"type": "poly.output_audio.delta", "response_id": response_id,
+                    "audio_ms": played_ms, "delta": spoken})
+    await emit({"type": "poly.output_audio.stopped", "response_id": response_id,
+                "audio_ms": player.played_ms, "dropped_ms": player.dropped_ms,
+                "spoken_text": player.spoken_text})
+```
+
+Record the rest of the outbound side too: every `input_audio_buffer.append` with the timestamp you sent it and the number of samples it carried. Without it you can't compute turn confirmation time, and you can't tell a slow model from a harness that stalled for 400 milliseconds between frames.
+
+Keep, per run: the scenario id and version, the session configuration, the exact audio sent, the full event log in both directions, the reply text, the scope verdict, the tool calls and their results, the application state before and after, what your text-to-speech actually played, and the grader's input and verdict. Anything you didn't record, you can't diagnose later.
+
+## Diagnosing a failure
+
+Trace the request forwards and stop at the first seam where it went wrong. Each seam has a different fix.
+
+- **The audio never arrived as intended.** Frames sent too fast, at the wrong rate, or with a gap your harness introduced. Fix the sender, and invalidate the run rather than scoring it.
+- **The transcript is wrong.** An audio or acoustic problem, not a reasoning one. Reproduce it in Walk with the same recording.
+- **The transcript is right and the tool arguments are wrong.** A prompt or tool-description problem. Reproduce it in Crawl with the transcript seeded as text, which removes audio from the picture entirely.
+- **The tool ran and the state is wrong.** Your application, not the agent. The event log will show the correct call.
+- **Everything is right and the reply is wrong.** Response style or grounding. The reply text is right there; assert on it directly.
+- **Everything is right and the caller heard it late.** Your text-to-speech, your buffering, or your playback loop. Compare caller-perceived latency against time to first token to see which side of the seam the time went.
+
+Before treating any of these as an agent failure, decide whether the run was valid at all. A run that sent the wrong file, stalled mid-stream, lost the socket, or lost its grader isn't a failure; it's a missing measurement. Report attempted runs, valid runs, infrastructure failures, passes, and failures as separate counts, and compute latency percentiles only over the valid population. Mixing broken sessions into a latency distribution invents regressions that aren't there and hides the ones that are.
+
+## Making it yours
+
+**Start small.** A handful of scenarios covering the behaviors your product depends on beats a hundred generated ones. Useful shapes: a question answerable from context that must not call a tool; an action that must reach the application exactly once with exact arguments; a correction mid-request; a missing detail that must be asked for rather than guessed; a forbidden action that must be refused; and a caller who talks over you.
+
+**Change one variable at a time.** Prompt, model, tool schema, audio condition, text-to-speech. Two at once and you can't attribute the delta.
+
+**Give every scenario a contract.** A stable id and version, the fixture and its initial state, the caller behavior, the required outcome, the forbidden outcomes, the evidence that proves each, and the run policy. The same contract holds across all three stages: change how the caller's audio is delivered, not what a pass means.
+
+**Feed production back in.** Review real calls, find the failure modes you didn't imagine, reduce each to the smallest fixture that reproduces it, and add it to the suite.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Reference" icon="file-lines" href="/dialog-rsn-1/reference#server-→-client-events">
+    Every event your collector can record, and the known limitations worth writing scenarios against.
+  </Card>
+  <Card title="Prompt cookbook" icon="utensils" href="/dialog-rsn-1/prompt-cookbook/introduction">
+    The `instructions` text behind the behaviors these scenarios test.
+  </Card>
+  <Card title="Overview" icon="lightbulb" href="/dialog-rsn-1/overview#turn-taking">
+    Where turn-taking latency comes from, and why it dominates a turn.
+  </Card>
+  <Card title="Python from scratch" icon="compass" href="/dialog-rsn-1/guides/python-from-scratch">
+    A working audio client to build a harness on top of.
+  </Card>
+</CardGroup>

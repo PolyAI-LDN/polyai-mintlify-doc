@@ -1,0 +1,259 @@
+---
+title: "Build a LiveKit voice agent"
+sidebarTitle: "LiveKit Agents"
+description: "Use Dialog-RSN-1 as the model in a LiveKit Agents session: it replaces the speech-to-text plugin, the turn detector and the LLM, and any LiveKit TTS plugin speaks the reply."
+keywords:
+  - realtime
+  - livekit
+  - voice agents
+  - plugin
+  - barge-in
+  - guide
+tag: "Preview"
+---
+
+<Warning>
+This is a preview API. Both behavior and schema may change.
+</Warning>
+
+Build a voice agent on [LiveKit Agents](https://docs.livekit.io/agents/) where one model hears the caller, decides when they've finished, and writes the reply. LiveKit carries the audio and a text-to-speech plugin speaks the reply. In about ten minutes you'll be talking to it, in your terminal or in a LiveKit room.
+
+<Card title="Full code on GitHub" icon="github" href="https://github.com/PolyAI-LDN/dialog-rsn-1-livekit">
+  A hotel front desk agent with two tools, ElevenLabs speech, and a scripted caller that runs a whole call, barge-in included.
+</Card>
+
+## What you'll build
+
+1. A front desk agent for a fictional hotel with two tools: one looks up a booking, the other changes its checkout time.
+2. An `AgentSession` that uses Dialog-RSN-1 as the model and ElevenLabs as the voice. Dialog-RSN-1 replaces the speech-to-text plugin, the turn detector and the LLM.
+3. Barge-in. Talk over the agent and it stops, and the model's history keeps only the words the caller heard.
+4. A scripted caller that joins the room and runs a whole call, barge-in included, so you can test without a microphone.
+
+## What changes from a standard LiveKit pipeline
+
+A standard LiveKit pipeline chains speech-to-text, an LLM and text-to-speech, with a turn detector deciding when the caller has finished. Dialog-RSN-1 takes the caller's audio and handles every job except the voice:
+
+| Job | Standard LiveKit pipeline | With Dialog-RSN-1 |
+|---|---|---|
+| Speech-to-text | An STT plugin, such as Deepgram or AssemblyAI | None. Dialog-RSN-1 hears the audio and sends the transcript |
+| End of turn | VAD plus LiveKit's turn detector model | Dialog-RSN-1 decides. You tune it through the instructions |
+| Reply | An LLM, called with the transcript | Dialog-RSN-1 writes it from the audio it heard |
+| Voice | A TTS plugin | Any TTS plugin LiveKit supports |
+
+Dialog-RSN-1 plugs into LiveKit through its own plugin, [`livekit-plugins-polyai`](https://github.com/PolyAI-LDN/livekit-plugins-polyai). Dialog-RSN-1 speaks the OpenAI Realtime protocol, but LiveKit's OpenAI plugin doesn't work with it unchanged. [Why not the OpenAI plugin](#why-not-the-openai-plugin) explains why.
+
+## Before you begin
+
+1. A Dialog-RSN-1 workspace API key from Agent Studio.
+2. An [ElevenLabs](https://elevenlabs.io) API key. The free tier works.
+3. Python 3.10 or later, and [uv](https://docs.astral.sh/uv/).
+4. The [LiveKit CLI](https://docs.livekit.io/intro/basics/cli/): `brew install livekit-cli`.
+5. For Step 6: a [LiveKit Cloud](https://cloud.livekit.io) project, or a local server (`brew install livekit`).
+
+## Step 1: Get the code
+
+```bash
+git clone https://github.com/PolyAI-LDN/dialog-rsn-1-livekit
+cd dialog-rsn-1-livekit
+uv sync
+```
+
+The repo has three files you'll work with:
+
+| File | What it is |
+|---|---|
+| `agent.py` | The agent: instructions, two tools, and the `AgentSession` |
+| `hotel.py` | The instructions and in-memory demo bookings |
+| `caller.py` | A scripted caller for Step 6 |
+
+## Step 2: Configure your environment
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and set two keys:
+
+```bash
+DIALOGUE_API_KEY=YOUR_DIALOG_RSN_1_KEY
+ELEVEN_API_KEY=YOUR_ELEVENLABS_KEY
+```
+
+The ElevenLabs plugin reads `ELEVEN_API_KEY`, not `ELEVENLABS_API_KEY`. Leave the `LIVEKIT_*` values alone until Step 6.
+
+## Step 3: Point the session at Dialog-RSN-1
+
+`agent.py` builds the whole session in a few lines:
+
+```python
+session = AgentSession(
+    # Dialog-RSN-1 hears the caller, decides when they've finished, and streams the reply
+    # as text. It replaces the STT, the LLM and the turn detector.
+    llm=polyai.realtime.RealtimeModel(),
+    # Dialog-RSN-1 doesn't speak, so a TTS voices each reply as it streams.
+    tts=elevenlabs.TTS(voice_id="EXAVITQu4vr4xnSDxMaL", model="eleven_flash_v2_5"),
+)
+
+await session.start(agent=FrontDesk(), room=ctx.room)
+# Dialog-RSN-1 ignores per-reply instructions, so the greeting comes from INSTRUCTIONS.
+await session.generate_reply()
+```
+
+Compared with the LiveKit starter template, the session leaves out three things:
+
+- **No `stt`.** Dialog-RSN-1 takes the room's audio as it arrives. You still see the caller's transcript in LiveKit, because Dialog-RSN-1 sends it with each turn.
+- **No `turn_handling`.** You have no turn detector to configure. Dialog-RSN-1 judges each pause in the context of the conversation. To make it more or less patient, say so in the instructions. The [prompt guide](/dialog-rsn-1/prompt-guide) shows how.
+- **No instructions on `generate_reply()`.** Dialog-RSN-1 ignores per-reply instructions, so the greeting lives in the agent's main instructions.
+
+`polyai.realtime.RealtimeModel()` reads `DIALOGUE_API_KEY` and connects to `https://api.us.poly.ai/v1`. It asks Dialog-RSN-1 for text, and the TTS plugin speaks each reply as the text streams in.
+
+The two tools are ordinary LiveKit function tools:
+
+```python
+@function_tool
+async def look_up_reservation(
+    self, context: RunContext, confirmation_code: str = "", last_name: str = ""
+) -> str:
+    """Find a reservation by confirmation code or by the guest's last name.
+
+    Args:
+        confirmation_code: Confirmation code, for example GM40912.
+        last_name: The guest's last name.
+    """
+    return json.dumps(look_up_reservation(confirmation_code, last_name))
+```
+
+Each tool returns its result as a JSON string, which gives the model structured data to read. Dialog-RSN-1 accepts function tools only and ignores MCP server tools.
+
+## Step 4: Run the agent
+
+```bash
+lk agent console agent.py
+```
+
+The console runs the agent on your machine and connects it to your microphone and speakers. You don't need a LiveKit server for this step. Wear headphones so the agent doesn't hear itself.
+
+To type instead of talk, add `--text`. Text mode skips TTS and runs only Dialog-RSN-1 and the tools:
+
+```bash
+lk agent console agent.py --text
+```
+
+## Step 5: Test the conversation
+
+The agent greets you with "Hello, Grand Meridian Hotel. How can I help you today?" Then try four things:
+
+1. Say "Can you look up booking GM40912?" The agent calls `look_up_reservation` and reads back the booking.
+2. Say "Could I check out at two instead?" The agent tells you whether there's a fee and asks you to confirm before it calls `change_checkout_time`.
+3. Ask something with a long answer, then talk over the reply. The agent stops and answers your new question.
+4. Pause mid-sentence, for example while you read out the booking code. The agent should wait for you to finish.
+
+If the agent doesn't start, see [Troubleshooting](#troubleshooting).
+
+## Step 6: Run it in a LiveKit room
+
+To use LiveKit Cloud, put your project's URL, API key and secret in `.env`. To stay on your machine, start a local server and keep the defaults from `.env.example`:
+
+```bash
+livekit-server --dev
+```
+
+Start the agent. It joins every new room on the server:
+
+```bash
+uv run agent.py dev
+```
+
+On LiveKit Cloud, you can talk to the agent from your project's Agent Console. On a local server, or without a microphone, run the scripted caller in a second terminal:
+
+```bash
+uv run caller.py
+```
+
+The caller joins a new room and plays five recorded lines, each one after the agent finishes its reply. The third line, "Sorry, stop, stop", plays 1.5 seconds into a reply instead. The first three exchanges look like this:
+
+```text
+[  7.4s] agent : Hello, Grand Meridian Hotel. How can I help you today?
+[ 14.8s] caller: Hi, can you look up booking G M four zero nine one two please?
+[ 22.0s] agent : I've found your booking, Amara. You're currently scheduled to check out at 11:00 on September 30th. What would you like to change?
+[ 31.6s] caller: Can you tell me everything about my booking and describe the hotel for me in detail?
+[ 34.3s] agent : I can tell you about your booking - you have a Deluxe King room, checking out
+[ 39.4s] caller: Sorry, stop, stop. Actually, what time is checkout?
+[ 44.0s] agent : Your current checkout time is 11:00 AM on September 30th. Would you like to change that?
+```
+
+The agent stops at "checking out", where the caller cut in, and Dialog-RSN-1's history stops there too. When the caller interrupts, LiveKit deletes the full reply from the server and adds back only the words the caller heard. The model builds its next reply on that shorter version.
+
+When the call ends, the caller saves the agent's side to `call.wav` so you can listen back.
+
+## Add Dialog-RSN-1 to an existing LiveKit agent
+
+1. Install the plugin from GitHub. It isn't on PyPI yet:
+
+   ```bash
+   uv add "livekit-plugins-polyai @ git+https://github.com/PolyAI-LDN/livekit-plugins-polyai"
+   ```
+
+2. Import it: `from livekit.plugins import polyai`.
+3. Add `DIALOGUE_API_KEY` to your environment.
+4. In your `AgentSession`, set `llm=polyai.realtime.RealtimeModel()`. Remove `stt` and `turn_handling`, and keep your `tts`.
+5. Move any instructions you pass to `generate_reply()` into the agent's main instructions.
+
+## Why not the OpenAI plugin
+
+If you point LiveKit's `openai.realtime.RealtimeModel` at Dialog-RSN-1 by changing only `base_url` and the key, it fails in three ways. `livekit-plugins-polyai` is built for Dialog-RSN-1, so none of them apply:
+
+| What you see | Cause | What `livekit-plugins-polyai` does |
+|---|---|---|
+| `'audio.output' is not supported by this service`, and the agent ignores its instructions | The plugin sends a voice and OpenAI's turn-detection settings in every `session.update`. Dialog-RSN-1 rejects the whole update, so none of its fields apply, instructions included | Sends only the fields Dialog-RSN-1 accepts |
+| `generate_reply timed out` | The plugin matches each reply to its request through `response.metadata`. Dialog-RSN-1 doesn't send the metadata back | Matches replies to requests in order |
+| `function_call_output.call_id=... does not match the pending tool call`, then `generation_failed` on every later turn | OpenAI limits call ids to 32 characters, so the plugin shortens longer ones. Dialog-RSN-1's call ids are 37 characters | Passes the service's call ids through unchanged |
+
+The plugin implements LiveKit's realtime model interface directly instead of patching another plugin, so a LiveKit upgrade is less likely to break it. Found a bug, or want a feature? [Open an issue](https://github.com/PolyAI-LDN/livekit-plugins-polyai/issues) or send a pull request.
+
+## Choose a different voice
+
+To change the ElevenLabs voice, pass a different `voice_id`. The repo uses Sarah, which works on the free tier. Some library voices, such as Rachel, don't.
+
+To switch provider, swap the plugin. For [Cartesia](https://cartesia.ai), install its plugin:
+
+```bash
+uv add "livekit-agents[cartesia]~=1.8.3"
+```
+
+Add `CARTESIA_API_KEY` to `.env`, then change the `tts` line:
+
+```python
+from livekit.plugins import cartesia
+
+tts=cartesia.TTS(),
+```
+
+Nothing else in `agent.py` changes. LiveKit's [TTS models](https://docs.livekit.io/agents/models/tts/) page lists every provider it supports.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `Set DIALOGUE_API_KEY, or pass api_key` | The Dialog-RSN-1 key is missing | Copy `.env.example` to `.env` and set `DIALOGUE_API_KEY` |
+| `WSServerHandshakeError: 401` | The Dialog-RSN-1 key is wrong | Set `DIALOGUE_API_KEY` in `.env` to a workspace API key from Agent Studio |
+| `'audio.output' is not supported by this service`, `generate_reply timed out`, or `does not match the pending tool call` followed by `generation_failed` | The session uses LiveKit's `openai.realtime.RealtimeModel` | Use `polyai.realtime.RealtimeModel()` |
+| `ElevenLabs API key is required` | The key is under the wrong name | Rename it to `ELEVEN_API_KEY` |
+| `ws_url is required, or set LIVEKIT_URL` | `agent.py dev` has no LiveKit server to join | Set the `LIVEKIT_*` values in `.env`, or use `lk agent console` |
+| `caller.py` prints "no agent spoke within 30 seconds" | The agent isn't running, or it's on a different server | Start `uv run agent.py dev` with the same `LIVEKIT_URL` as the caller |
+| The agent keeps interrupting itself | The microphone picks up the agent's voice | Wear headphones |
+
+## What doesn't carry over
+
+- **Turn-handling options.** LiveKit's turn detector, endpointing delays and preemptive generation don't apply, because Dialog-RSN-1 decides when the turn ends.
+- **Per-reply instructions.** `generate_reply(instructions=...)` has no effect. Put the behavior in the agent's instructions.
+- **STT features.** With no STT plugin, options such as keyterm prompting have nothing to configure. Dialog-RSN-1 transcribes the caller as part of each turn.
+- **Playback reports.** The plugin doesn't send Dialog-RSN-1's `poly.output_audio.*` events yet. The [streaming text-to-speech guide](/dialog-rsn-1/guides/streaming-text-to-speech) explains what they add.
+
+## Where to go next
+
+- The [OpenAI Realtime migration guide](/dialog-rsn-1/guides/openai-realtime-migration) lists every field Dialog-RSN-1 accepts and rejects.
+- The [prompt guide](/dialog-rsn-1/prompt-guide) covers turn-taking instructions in depth.
+- The [API reference](/dialog-rsn-1/reference) lists every client and server event.
+- The [`livekit-plugins-polyai` README](https://github.com/PolyAI-LDN/livekit-plugins-polyai) lists every option and how each LiveKit feature maps to Dialog-RSN-1.
+- LiveKit's [Agents docs](https://docs.livekit.io/agents/) cover deployment, telephony and the rest of the framework.
