@@ -15,7 +15,7 @@ keywords:
 
 A voice agent you can talk to from your terminal, built on the standard `websockets` package and about a hundred lines of Python. No SDK, no framework.
 
-It comes together in stages: a socket and a single text turn first, then tool calling, then the concurrency that audio needs, and last the microphone itself, where the server decides when you've stopped speaking. Each stage runs on its own, so you can stop at any of them and still have something working.
+It comes together in stages: a socket and a single text turn first, then tool calling, then the concurrency that audio needs, and last the microphone itself, where the server decides when you've stopped speaking. The first script runs on its own, and each stage after it adds to that code until the full example at the end puts it all in one file.
 
 Nothing here assumes you've read anything else first. If you'd rather see the whole protocol laid out at once, that's the [reference](/dialog-rsn-1/reference).
 
@@ -25,7 +25,7 @@ You need four things before any of that:
 
 - **An API key.** A workspace API key from [Agent Studio](https://studio.poly.ai). Keep it in `DIALOG_API_KEY` in your shell rather than in source control.
 - **Python 3.10 or later.**
-- **`pip install 'websockets>=14' sounddevice numpy`.** That version floor matters: `connect()` took `extra_headers` before websockets 14 and `additional_headers` from 14 on, so on an older install the code below raises `TypeError` rather than failing to authenticate. `numpy` matters too: `sounddevice` only declares a dependency on `CFFI`, so nothing pulls `numpy` in for you, and the microphone callback later in this guide needs it to convert samples.
+- **`pip install 'websockets>=14' sounddevice numpy`.** That version floor matters: `connect()` took `extra_headers` before websockets 14 and `additional_headers` from 14 on, so on an older install the code below raises `TypeError` rather than failing to authenticate. `numpy` matters too: `sounddevice` only declares a dependency on `CFFI`, so nothing pulls `numpy` in for you, and the microphone callback later in this guide needs it to convert samples. On Linux, `sounddevice` also needs the PortAudio library from your package manager (`libportaudio2` on Debian and Ubuntu); the macOS and Windows wheels include it.
 - **A microphone**, for the last section. The rest runs without one.
 
 ## Connecting
@@ -59,7 +59,7 @@ Because the session already exists, configuring it is a message rather than a se
     "output_modalities": ["text"],
     "audio": {
       "input": {
-        "format": { "type": "audio/pcm" },
+        "format": { "type": "audio/pcm", "rate": 16000 },
         "turn_detection": { "type": "server_vad", "create_response": true }
       }
     }
@@ -69,11 +69,11 @@ Because the session already exists, configuring it is a message rather than a se
 
 Three of those fields are worth a note.
 
-`output_modalities` has to be `["text"]`. Dialog-RSN-1 answers in text and doesn't speak audio back, so set the field rather than trusting a default that could move later. For a spoken reply, pipe the streamed text into the text-to-speech provider of your choice; that part is yours to build.
+`output_modalities` is `["text"]`, because this agent reads the reply as text. Set it rather than trusting the default: a session can start in `["audio"]`, and then the reply arrives as `response.output_audio_transcript.delta` instead of the `response.output_text.delta` events this guide reads. For a spoken reply, pipe the streamed text into the text-to-speech provider of your choice; that part is yours to build.
 
-`audio.input.format` is PCM16. Leave `rate` out and you get Dialog-RSN-1's native 16 kHz, the same rate the microphone code below captures at.
+`audio.input.format` is PCM16 at the `rate` you send. 16000 is Dialog-RSN-1's native rate and the rate the microphone code below captures at. Don't leave `rate` out: the server then assumes the standard realtime rate, 24 kHz, and plays 16 kHz audio to the detector and the model 1.5 times too fast. `session.updated` keeps echoing `rate: 24000` either way, and reports the rate you declared as `poly_input_rate`.
 
-`turn_detection.create_response` is the only field in that object the service reads. The schema's other timing knobs (`silence_duration_ms`, `threshold` and the rest) are rejected with `unsupported_parameter`, so don't reach for them to tune turn-taking. Tune it in [`instructions`](/dialog-rsn-1/prompt-guide#turn-taking) instead.
+`turn_detection.create_response` is the only field in that object the service reads. The schema's other timing knobs (`silence_duration_ms`, `threshold` and the rest) change nothing, so don't reach for them to tune turn-taking. Tune it in [`instructions`](/dialog-rsn-1/prompt-guide#turn-taking) instead.
 
 ## The shape of a turn
 
@@ -240,12 +240,12 @@ The `error` branch prints and carries on here, where the one-shot script earlier
 
 ## Adding real audio input and server VAD
 
-Streaming audio in means feeding frames into the queue `send_audio_task` already drains, base64-encoded PCM16, appended continuously. Set `blocksize` explicitly rather than leaving it at whatever `sounddevice` picks by default: the [reference's turn-taking section](/dialog-rsn-1/reference#turn-taking-and-audio) frames voice activity detection in five 32ms chunks, and an unset default can be a small fraction of a millisecond, which turns every audio callback into its own WebSocket message. 512 samples at 16kHz is 32ms, matching the detector:
+Streaming audio in means feeding frames into the queue `send_audio_task` already drains, base64-encoded PCM16, appended continuously. Set `blocksize` explicitly rather than leaving it at whatever `sounddevice` picks by default. Every callback becomes its own WebSocket message, and an unset default lets the host choose the block size, which can be very small. The server's voice activity detector reads 32 ms frames and rebuffers whatever you send, so the block doesn't have to match, but 512 samples at 16kHz is exactly one frame:
 
 ```python
 import sounddevice as sd
 
-SAMPLE_RATE = 16000  # matches Dialog-RSN-1's native rate; omit `audio.input.format.rate` in session.update
+SAMPLE_RATE = 16000  # Dialog-RSN-1's native rate; send it as `audio.input.format.rate` in session.update
 BLOCKSIZE = 512  # 512 samples @ 16kHz = 32ms, matching the detector's frame size
 
 def start_microphone(mic_queue, loop):
@@ -259,24 +259,13 @@ def start_microphone(mic_queue, loop):
 
 `sounddevice` runs that callback on its own thread, so frames reach the event loop through `loop.call_soon_threadsafe` rather than by touching the queue from that thread.
 
-`SAMPLE_RATE = 16000` asks the device for Dialog-RSN-1's native rate, which most microphones support. If yours doesn't, `sd.InputStream` fails with `PortAudioError: Invalid sample rate` rather than choosing a nearby rate. In that case, capture at the device's own rate and declare it with the `poly_input_rate` extension field, and the server resamples on the way in:
+`SAMPLE_RATE = 16000` asks the device for Dialog-RSN-1's native rate, which most microphones support. If yours doesn't, `sd.InputStream` fails with `PortAudioError: Invalid sample rate` rather than choosing a nearby rate. In that case, capture at the device's own rate. The full example sends `SAMPLE_RATE` as `audio.input.format.rate`, so the server knows the rate and resamples on the way in:
 
 ```python
 SAMPLE_RATE = int(sd.query_devices(kind="input")["default_samplerate"])  # 44100, 48000, whatever it reports
 ```
 
-```json you send: session.update
-{
-  "type": "session.update",
-  "session": {
-    "output_modalities": ["text"],
-    "audio": { "input": { "format": { "type": "audio/pcm" } } },
-    "poly_input_rate": 48000
-  }
-}
-```
-
-`poly_input_rate` sits beside `audio` on the session rather than inside `format`, and it carries the rate you're sending, so use the number your stream opened at. The rest of the code stays the same either way.
+The rest of the code stays the same either way.
 
 Once frames are flowing, the server takes care of turn-taking. There's no silence threshold to pick and no timer to tune on the client side; it appends frames and waits to be told what happened.
 
@@ -413,7 +402,7 @@ async def main():
                 "tools": SESSION_TOOLS,
                 "audio": {
                     "input": {
-                        "format": {"type": "audio/pcm"},
+                        "format": {"type": "audio/pcm", "rate": SAMPLE_RATE},
                         "turn_detection": {"type": "server_vad", "create_response": True},
                     },
                 },
