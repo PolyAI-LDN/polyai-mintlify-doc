@@ -60,14 +60,19 @@ Sent inside `session.update`, echoed back on `session.created` / `session.update
 | `type` | Always `"realtime"`. Omit it and the server fills it in for you. |
 | `model` | Informational: setting it, on update or in the connection URL's `?model=`, selects nothing. The service runs Dialog-RSN-1 whatever you pass, and currently echoes `dialog-rsn-1` on `session.created` / `session.updated`. Don't assert on it. |
 | `instructions` | System prompt, forwarded as-is. |
+| `max_output_tokens` | An integer or `"inf"`, with the deployment's own cap as the ceiling. Reasoning comes out of the same budget, so a small cap can leave an empty reply. Below 1 is refused with `invalid_request_error`. |
+| `tool_choice` | `"auto"` only. Anything else is rejected with `unsupported_parameter`. |
 | `tools` | Function tools only: `{type, name, description, parameters}`. An MCP entry (any `type` but `"function"`) is rejected with `unsupported_parameter`. A function entry with no `name` is dropped before generation but still echoed back in `session.updated`, so the echo is not confirmation that a tool reached the model. |
 | `output_modalities` | `["text"]` for text replies you speak with your own text-to-speech, or `["audio"]`, the default, for replies the server speaks. Never both. See [Text or spoken replies](#text-or-spoken-replies). |
 | `audio.input.format` | `{"type": "audio/pcm", "rate": 24000}` by default. Omit `rate` and the server reads 24 kHz. Set `"rate": 16000` to send Dialog-RSN-1's native rate with no resampling. `audio/pcmu` and `audio/pcma` take G.711 at 8 kHz. |
 | `audio.input.turn_detection` | `{"type": "server_vad", "create_response": bool}`. **`create_response` is the only field read.** The timing fields and `"type": "semantic_vad"` are accepted and ignored; `turn_detection: null`, `interrupt_response: false` and `idle_timeout_ms` are rejected with `unsupported_parameter`. See [Turn-taking & audio](#turn-taking-and-audio). |
 | `reasoning` | Rejected with `unsupported_parameter`. Reasoning on this service is automatic and per-turn, with no client-side knob. |
 | `audio.input.noise_reduction` | Accepted and ignored. No noise reduction runs here. |
-| `audio.output` | Read only when the server speaks the reply. See the [API reference](/api-reference/dialog-rsn-1/reference#configure-the-session). |
+| `audio.output` | Used when the server speaks the reply. `voice` takes a Cartesia voice id; unset, the deployment's default voice speaks. OpenAI voice names and `speed` are accepted and ignored, and a `format.type` other than `audio/pcm` is rejected with `unsupported_parameter`. See the [API reference](/api-reference/dialog-rsn-1/reference#configure-the-session). |
 | `poly_knowledge` | *Extension.* Retrieved topics (`[{name, content, actions}]`, where `actions` is an optional string; an array is refused and drops the whole item), the one input Dialog-RSN-1 has with no realtime equivalent. On the session it's a fixed brief, present from the first turn; the same field also rides on a `function_call_output` item, which is what a knowledge base search looks like in practice. Both render into one numbered list the model cites into. |
+| `poly_response_language` | *Extension.* The language to answer in, as an ISO 639 tag (`es`, `pt-BR`) or in words, up to 64 characters. `null` clears it. |
+| `poly_spoken` | *Extension.* Set `"poly_spoken": true` on one string property of a tool, and the model says that argument to the caller while the tool runs. See the [API reference](/api-reference/dialog-rsn-1/reference#polyai-extensions). |
+| `poly_session_id`, `expires_at` | Read-only. The `session_id` query parameter echoed back, and when the session reaches its maximum duration. Setting either is refused with `invalid_request_error`. |
 | `poly_input_rate` | *Extension.* Set for you when `audio.input.format.rate` is anything but 24000. `session.updated` still echoes `rate: 24000` and carries the real rate here. The server resamples on the way in rather than rejecting the rate. |
 
 ```json session.update
@@ -95,10 +100,10 @@ The server recognizes all eleven GA client event types, plus the three [playback
 | Event | Behavior |
 |---|---|
 | `session.update` | Deep-merges onto the session. Replies `session.updated`. |
-| `input_audio_buffer.append` | Base64 PCM16 audio. Fed to voice-activity detection frame-by-frame; may trigger `speech_started`/`speech_stopped`. |
+| `input_audio_buffer.append` | Base64 audio in the session's format: PCM16, or G.711 mu-law or A-law. Fed to voice-activity detection frame-by-frame; may trigger `speech_started`/`speech_stopped`. |
 | `input_audio_buffer.commit` | Ends the current turn manually, same path detection uses on `speech_stopped`. For a client driving its own turn-taking. |
 | `input_audio_buffer.clear` | Drops buffered, uncommitted audio. Replies `input_audio_buffer.cleared`. |
-| `conversation.item.create` | Adds an item to history: a real user/assistant/system message, or a `function_call_output`. Replies `conversation.item.added` then `.done`. |
+| `conversation.item.create` | Adds an item to history: a real user/assistant/system message, a `function_call`, or a `function_call_output`. Replies `conversation.item.added` then `.done`. |
 | `conversation.item.retrieve` | Replies `conversation.item.retrieved`, or `item_not_found`. |
 | `conversation.item.delete` | Removes an item. Replies `conversation.item.deleted`. |
 | `conversation.item.truncate` | Acknowledged with `conversation.item.truncated`. Cuts a reply the server spoke at `audio_end_ms`; on a text reply, history is **not shortened**, see [Known limitations](#known-limitations). |
@@ -174,7 +179,7 @@ Every event this service can send.
 | `response.function_call_arguments.done` | Final `name` + `arguments`, plus the `call_id` a reply must echo. |
 | `response.content_part.done` | Closes the item's one content part. |
 | `response.output_item.done` | Closes the output item. |
-| `response.done` | Always terminal, whatever the outcome. Status lives at `response.status` (`completed` / `cancelled` / `failed`). `response.usage` carries `input_tokens`, `output_tokens` and `total_tokens`, and is **absent rather than zeroed** when nothing was counted, so a client reading it must handle its absence. The response also carries two extensions: `poly_cited_topics`, the names of the `poly_knowledge` topics the model answered from, absent rather than empty when it cited nothing; and `poly_out_of_domain`, whether Dialog-RSN-1 judged the request outside what it's deployed to handle, reported on every turn it judges, tool calls included, where `false` is an answer rather than an absence. |
+| `response.done` | Always terminal, whatever the outcome. Status lives at `response.status` (`completed` / `cancelled` / `failed`). `response.usage` is always present on a finished response, zeros included when nothing was counted. It carries `input_tokens`, `output_tokens` and `total_tokens`, plus `input_token_details` (`text_tokens`, `audio_tokens`, `cached_tokens`) and `output_token_details`. The response also carries two extensions: `poly_cited_topics`, the names of the `poly_knowledge` topics the model answered from, absent rather than empty when it cited nothing; and `poly_out_of_domain`, whether Dialog-RSN-1 judged the request outside what it's deployed to handle, reported on every turn it judges, tool calls included, where `false` is an answer rather than an absence. |
 
 **Errors**
 
@@ -184,15 +189,15 @@ Every event this service can send.
 
 ## Turn-taking and audio
 
-Voice activity detection proposes a boundary; Dialog-RSN-1 confirms it before either event reaches you.
+Voice activity detection proposes a boundary, and Dialog-RSN-1 confirms the end of every turn before `speech_stopped` reaches you.
 
 Detection runs in-process over every appended frame. Crossing into speech opens a turn and mints its item id up front, since `speech_started` has to name an item before the audio finishes arriving.
 
 Crossing back out of speech doesn't commit the turn by itself: it triggers a turn-status check, folded into the same generation that becomes the reply if Dialog-RSN-1 confirms the caller is done. If Dialog-RSN-1 says the turn is still ongoing, the buffer keeps growing and the check re-runs on a timer, capped after a few seconds, rather than sending anything to you.
 
-`speech_started` and `speech_stopped` report that confirmed judgment, never the detector's raw signal, so a mid-sentence pause that the detector reads as silence doesn't surface as a turn boundary if Dialog-RSN-1 says the caller isn't finished.
+`speech_stopped` reports that confirmed judgment, never the detector's raw signal, so a mid-sentence pause that the detector reads as silence doesn't surface as a turn boundary if Dialog-RSN-1 says the caller isn't finished. `speech_started` is the detector's own signal while nothing is playing, and is confirmed by the model first only while a reply is audible. A turn the model then judges to be noise is dropped, so a `speech_started` can arrive with no `speech_stopped` after it.
 
-Setting `turn_detection.create_response: false` doesn't change any of that: the audio still joins history once confirmed, but nothing answers it until an explicit `response.create`.
+Setting `turn_detection.create_response: false` skips the confirmation. Turns are taken at face value: the turn commits at the first pause the detector hears, or when you send `input_audio_buffer.commit`, and nothing answers it until an explicit `response.create`. A pause long enough for the detector splits the caller's speech into two items in history.
 
 <Warning>
 **Turn timing is not tunable.** `create_response` is the only part of `turn_detection` this service reads. `silence_duration_ms`, `prefix_padding_ms`, `threshold`, `eagerness` and `"type": "semantic_vad"` are accepted and ignored, and `session.updated` reports `server_vad`. `turn_detection: null`, `interrupt_response: false` and `idle_timeout_ms` are rejected with `unsupported_parameter`, and the rest of that `session.update` is discarded with them.
@@ -267,6 +272,8 @@ Almost every failure answers with an `error` event and keeps the connection open
 | `response_cancel_not_active` | `response.cancel` with nothing running. |
 | `server_error` | The session itself failed to start (no model, no voice-detection weights): the socket accepts, gets one `error`, and closes with code 1011. |
 | `generation_failed` | A backend failure mid-generation. Terminates the response with `response.done(status: "failed")` right behind it. The real failure detail stays in server logs, never on the wire. |
+| `audio_synthesis_failed` | A spoken reply's audio could not be synthesised, for example because `audio.output.voice` names a voice that doesn't exist. The response fails the same way. |
+| `conversation_item_limit_exceeded` | A `conversation.item.create` that would take the conversation past the client-created items, or bytes, the deployment allows. Delete items first. |
 
 ## Known limitations
 
@@ -275,9 +282,9 @@ These are deliberate scope cuts.
 - **Truncation of a text reply is acknowledged, not applied.** On a reply you voice yourself, `conversation.item.truncate` validates the item and replies, but leaves history untouched: mapping a millisecond offset onto a character offset needs TTS timing the protocol has nowhere to carry. Send [playback reports](#playback-reports) instead, which set history to the words heard.
 - **Without playback reports, barge-in timing is an estimate.** Dialog-RSN-1's barge-in check runs while a reply is audible, and without reports the server estimates that from a typical speaking rate. If your text-to-speech runs behind that estimate, sound arriving after it ends is forwarded as an interruption without confirmation. [Playback reports](#playback-reports) close the gap.
 - **No MCP tools.** Only function tool entries are honored; an MCP tool declaration is rejected with `unsupported_parameter`.
-- **Turn timing isn't configurable.** The detector's thresholds are fixed. `silence_duration_ms`, `prefix_padding_ms`, `threshold` and `"type": "semantic_vad"` are accepted and ignored; `idle_timeout_ms` and `interrupt_response: false` are rejected with `unsupported_parameter`. Only `create_response` is read. See [Turn-taking & audio](#turn-taking-and-audio).
+- **Turn timing isn't configurable.** The detector's thresholds are fixed. `silence_duration_ms`, `prefix_padding_ms`, `threshold`, `eagerness` and `"type": "semantic_vad"` are accepted and ignored; `idle_timeout_ms` and `interrupt_response: false` are rejected with `unsupported_parameter`. Only `create_response` is read. See [Turn-taking & audio](#turn-taking-and-audio).
 - **Transcription usage is a duration, not a token count.** `conversation.item.input_audio_transcription.completed` reports audio duration. Response token counts are separate, and do arrive on `response.usage`.
-- **History is bounded, not summarized.** From the tenth caller audio turn, older turns release their audio and keep their transcript. A conversation that still outgrows the context window fails that response with `context_length_exceeded`; the connection stays open.
+- **History is bounded.** From the tenth caller audio turn, older turns release their audio and keep their transcript. Where older history is summarised or dropped to fit the context window, the first `response.done` after that lists the items the prompt now leaves out in `poly_compacted_item_ids`; the items stay in history. A conversation that still outgrows the window fails that response with `context_length_exceeded`; the connection stays open.
 - **One response in flight per connection.** A `response.create` while a response is open is refused with `conversation_already_has_active_response`. A confirmed barge-in cancels the open response.
 - **Without playback reports, history holds an estimate of what was heard.** After a barge-in the server keeps the words it estimates the caller heard. Send `poly.output_audio.stopped` with `spoken_text` to replace the estimate with your synthesizer's account.
 - **No session resumption.** A dropped connection has no resumption handle to pick back up with, unlike OpenAI's or Gemini's resumption tokens. Reconnect and resend whatever context the new session needs.
