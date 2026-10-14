@@ -13,7 +13,7 @@ keywords:
 
 {/* Source of truth: poly_core src/dialog_rsn_1/dialogue_api/README.md and realtime-dev-kit traces/local/divergences.json. Checked against poly_core master 49908520f8 and the live self-serve host on 11 Oct 2026, and against 49958e275a (prod image 202610140837Z) on api.us.poly.ai on 14 Oct 2026. A protocol change updates all three. */}
 
-Dialog-RSN-1 is a real-time voice model. You stream the caller's audio over one WebSocket and get the reply back as text, with the model deciding when the caller has finished speaking. You speak the text with your own text-to-speech, or let the API speak it for you.
+Dialog-RSN-1 is a real-time voice model. You stream the caller's audio over one WebSocket and the model decides when the caller has finished speaking. The API speaks the reply and streams its transcript, or sends the reply as text for your own text-to-speech.
 
 The wire format is the OpenAI Realtime API (GA schema). A stock OpenAI Realtime client works by changing the base URL and the key. The model name on the wire is `dialog-rsn-1`.
 
@@ -144,7 +144,7 @@ Send `session.update` after `session.created`. Updates are merged into the sessi
 | `max_output_tokens` | An integer or `"inf"`. The deployment's own cap is the ceiling. The model reasons before it answers and reasoning tokens come out of the same budget, so a small cap can leave a truncated or empty reply. |
 | `audio.input.format` | See [Audio in](#audio-in) |
 | `audio.input.turn_detection.create_response` | `true` (default): the model confirms the end of each turn and the server generates a reply. `false`: you send `response.create`, and turns are taken at face value with no model confirmation. The voice-activity detector still commits the turn at each pause it hears, and `input_audio_buffer.commit` commits at once. |
-| `output_modalities` | `["text"]` for text replies you voice yourself. `["audio"]`, the default for a new session, has the API speak the reply: the text then arrives as `response.output_audio_transcript.delta`, not `response.output_text.delta`. |
+| `output_modalities` | `["audio"]`, the default for a new session, has the API speak the reply: audio arrives as `response.output_audio.delta` and the text as `response.output_audio_transcript.delta`. `["text"]` sends text replies you voice yourself, as `response.output_text.delta`. |
 | `audio.output.voice` | The voice for spoken replies: a Cartesia voice id, as a string or `{"id": "..."}`. Unset, the deployment's default voice speaks. An id Cartesia doesn't know is accepted here, and each response then fails with `audio_synthesis_failed`. Kept on a text session, and used if the session switches to `["audio"]`. |
 | `poly_knowledge`, `poly_response_language`, `poly_input_rate` | See [PolyAI extensions](#polyai-extensions) |
 
@@ -205,6 +205,8 @@ With `create_response: true` the sequence for one caller turn is:
 4. `response.created`, `response.output_item.added`, `response.content_part.added`, then `response.output_text.delta` frames until `response.output_text.done`, `response.content_part.done`, `response.output_item.done` and `response.done`. `conversation.item.input_audio_transcription.delta` and `.completed`, carrying what the model heard, arrive during the reply, usually after its first text delta.
 
 With `create_response: false`, the model doesn't confirm the turn: step 2 follows the first pause the detector hears, or your `input_audio_buffer.commit`. Step 4 starts when you send `response.create`.
+
+The samples below set `["text"]` so they can print the reply. Leave it out and the API speaks the reply instead: read `response.output_audio_transcript.delta` for the text and `response.output_audio.delta` for the audio.
 
 <CodeGroup>
 ```python Python
