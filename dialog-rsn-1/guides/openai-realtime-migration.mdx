@@ -49,6 +49,11 @@ An OpenAI Realtime client usually carries settings and code this API has no use 
 
 `output_modalities: ["text", "audio"]` fails with `invalid_request_error`.
 
+**Response and item settings this API rejects.** These also return `unsupported_parameter` or `unsupported_item_type`, and they're common in OpenAI clients:
+
+- In `response.create`, anything except `instructions`, `max_output_tokens` and `metadata` that differs from the session. That covers out-of-band responses (`conversation: "none"`), a per-response `output_modalities`, `tools` or `tool_choice`, and `input`. Change the session with `session.update` instead.
+- Audio content (`input_audio`) in `conversation.item.create`. Stream the caller's audio with `input_audio_buffer.append`.
+
 A rejected `session.update` applies none of its fields, so one leftover setting also throws away the `instructions` and `tools` sent alongside it. If your client logs errors and carries on, it ends up running with no prompt and no tools, so remove the fields rather than silencing the error.
 
 **Session settings this API ignores.** These are accepted and dropped, so `session.updated` shows only what's in effect. Remove them anyway, since they do nothing here:
@@ -70,7 +75,7 @@ This is what this API acts on, for text replies:
 }
 ```
 
-`audio.input.transcription` is accepted, but there's no transcription model to pick: Dialog-RSN-1 transcribes the caller as part of its own turn, and the transcript arrives as the usual `conversation.item.input_audio_transcription.*` events.
+`audio.input.transcription` is accepted, but there's no transcription model to pick: Dialog-RSN-1 transcribes the caller as part of its own turn, and the transcript arrives as the usual `conversation.item.input_audio_transcription.*` events. Because it comes from the model's turn, `.completed` arrives only when that response completes. A reply cancelled by a barge-in or `response.cancel`, or one that fails, gets at most some `.delta` events and no `.completed`. With the managed voice, `.completed` lands once the spoken reply has finished playing.
 
 Turn timing isn't tunable because the turn boundary here is a model judgment, not a silence timer. Dialog-RSN-1 confirms or overrules what the detector proposes, based on the conversation. What you'd have expressed as `silence_duration_ms` you express in `instructions`, in plain language, as the [prompt guide](/dialog-rsn-1/prompt-guide#turn-taking) explains. The fixed thresholds behind the detector are in the [reference](/dialog-rsn-1/reference#turn-taking-and-audio).
 

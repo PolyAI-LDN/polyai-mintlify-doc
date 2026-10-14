@@ -90,15 +90,15 @@ session = AgentSession(
 )
 
 await session.start(agent=FrontDesk(), room=ctx.room)
-# Dialog-RSN-1 ignores per-reply instructions, so the greeting comes from INSTRUCTIONS.
+# The plugin drops per-reply instructions, so the greeting comes from INSTRUCTIONS.
 await session.generate_reply()
 ```
 
 Compared with the LiveKit starter template, the session leaves out three things:
 
-- **No `stt`.** Dialog-RSN-1 takes the room's audio as it arrives. You still see the caller's transcript in LiveKit, because Dialog-RSN-1 sends it with each turn.
+- **No `stt`.** Dialog-RSN-1 takes the room's audio as it arrives. You still see the caller's transcript in LiveKit, because Dialog-RSN-1 sends it with each reply. It comes at the end of a completed reply, so a turn whose reply is cancelled before it finishes generating has no transcript.
 - **No `turn_handling`.** You have no turn detector to configure. Dialog-RSN-1 judges each pause in the context of the conversation. To make it more or less patient, say so in the instructions. The [prompt guide](/dialog-rsn-1/prompt-guide) shows how.
-- **No instructions on `generate_reply()`.** Dialog-RSN-1 ignores per-reply instructions, so the greeting lives in the agent's main instructions.
+- **No instructions on `generate_reply()`.** The plugin drops per-reply instructions with a warning, so the greeting lives in the agent's main instructions.
 
 `polyai.realtime.RealtimeModel()` reads `POLY_API_KEY` and connects to `wss://api.studio.poly.ai/v1/realtime`. To use a different endpoint, set `DIALOG_REALTIME_URL`. It asks Dialog-RSN-1 for text, and the TTS plugin speaks each reply as the text streams in.
 
@@ -118,7 +118,7 @@ async def look_up_reservation(
     return json.dumps(look_up_reservation(confirmation_code, last_name))
 ```
 
-Each tool returns its result as a JSON string, which gives the model structured data to read. Dialog-RSN-1 accepts function tools only and ignores MCP server tools.
+Each tool returns its result as a JSON string, which gives the model structured data to read. Dialog-RSN-1 accepts function tools only and refuses any other kind, so the plugin sends function tools and skips the rest with a warning.
 
 ## Step 4: Run the agent
 
@@ -241,7 +241,7 @@ Nothing else in `agent.py` changes. LiveKit's [TTS models](https://docs.livekit.
 ## What doesn't carry over
 
 - **Turn-handling options.** LiveKit's turn detector, endpointing delays and preemptive generation don't apply, because Dialog-RSN-1 decides when the turn ends.
-- **Per-reply instructions.** `generate_reply(instructions=...)` has no effect. Put the behavior in the agent's instructions.
+- **Per-reply instructions.** `generate_reply(instructions=...)` has no effect, because the plugin doesn't send them. Put the behavior in the agent's instructions.
 - **STT features.** With no STT plugin, options such as keyterm prompting have nothing to configure. Dialog-RSN-1 transcribes the caller as part of each turn.
 - **Playback reports.** The plugin doesn't send Dialog-RSN-1's `poly.output_audio.*` events yet. The [streaming text-to-speech guide](/dialog-rsn-1/guides/streaming-text-to-speech) explains what they add.
 

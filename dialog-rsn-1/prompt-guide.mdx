@@ -16,7 +16,7 @@ keywords:
   - concepts
 ---
 
-The `instructions` parameter is the only lever you have over what Dialog-RSN-1 says and how it behaves: a system prompt, sent as-is, with no rewriting or templating step in between. This guide covers what that lever can and can't do. It starts with the one structural rule that catches most people out, then works through turn-taking, what the model hears, tool calling, and response style.
+The `instructions` parameter is your main lever over what Dialog-RSN-1 says and how it behaves: a system prompt, placed word for word into the model's prompt alongside your tools, your knowledge topics and the conversation so far. Nothing rewrites it. A `response.create` can add instructions for a single reply, and a platform content policy applies whatever your instructions say. This guide covers what that lever can and can't do. It starts with the one structural rule that catches most people out, then works through turn-taking, what the model hears, tool calling, and response style.
 
 For something to paste rather than read about, start with the [prompt cookbook](/dialog-rsn-1/prompt-cookbook/introduction) instead.
 
@@ -32,7 +32,7 @@ It answers in **English only** for now. More languages are coming.
 
 ## One output per turn
 
-**Every model output is either text or a single tool call, never both.** Most prompts trip over this rule, because it changes what a two-part instruction like "say X and call Y" actually produces.
+**Every model output is either text or a single tool call, never both.** Most prompts trip over this rule, because it changes what a two-part instruction like "say X and call Y" actually produces. The one thing that looks like an exception is a tool's [spoken argument](#speaking-while-a-tool-runs): Dialog-RSN-1 streams it as a message next to the call, but the model still wrote only the call.
 
 The loop Dialog-RSN-1 expects is **tool → tool → … → text**. Emitting text is how it hands the floor back to the caller, so a turn ends when text comes out. Everything before that is tool calls, one at a time.
 
@@ -46,9 +46,7 @@ Write your instructions knowing the tool call goes first. If the caller needs to
 
 ### Speaking while a tool runs
 
-**Since the model won't emit text and a tool call together, hold-music phrasing has to come from the tool itself.** Return the utterance as part of the tool's result and speak that while the real work happens behind it.
-
-You can go one step further and let the model write the line: expose an `utterance` argument in the tool's own parameters, and it gets filled in as part of the call, in context, before the tool runs.
+**Since the model won't emit text and a tool call together, the hold line has to come from the call itself.** Give the tool an argument for it and mark that argument with `"poly_spoken": true`. The model fills it in as part of the call, in context, and Dialog-RSN-1 sends it to the caller as the call is written, before your tool runs.
 
 ```json a tool schema with a hold-line argument
 {
@@ -61,7 +59,8 @@ You can go one step further and let the model write the line: expose an `utteran
       "reference": { "type": "string" },
       "utterance": {
         "type": "string",
-        "description": "A short line to say to the caller while this runs, for example 'let me pull that up for you'."
+        "description": "A short line to say to the caller while this runs, for example 'let me pull that up for you'.",
+        "poly_spoken": true
       }
     },
     "required": ["reference", "utterance"]
@@ -69,7 +68,9 @@ You can go one step further and let the model write the line: expose an `utteran
 }
 ```
 
-Your harness reads `utterance` off the streamed arguments, sends it to text-to-speech, and runs the lookup underneath.
+The line arrives as the response's message, next to the `function_call` item. On a text session it streams as `response.output_text.delta` like any reply, so your text-to-speech speaks it with no extra code. When Dialog-RSN-1 speaks its own replies, it speaks the line. Either way, run the tool when `response.function_call_arguments.done` arrives, and the lookup happens while the caller hears the line.
+
+The keyword must be `true`, on a `string` property, and on one property per tool at most, or the `session.update` is refused. The model never sees it: Dialog-RSN-1 removes it and adds "Spoken aloud to the caller while the tool runs." to the property's description. If the caller talks over the line, the model's copy of the call keeps only what they heard.
 
 ### Getting at what the caller said, mid-loop
 
@@ -145,7 +146,7 @@ If you'd rather track a condition as explicit state, the alternative is to **hav
 
 #### Reacting to what a transcript would miss
 
-**A sneeze, or a "hang on" muttered mid-sentence, is something a text-only pipeline drops entirely.** `instructions` can ask Dialog-RSN-1 to acknowledge these in passing, a "bless you" or a short pause, and carry on with the sentence it was in the middle of.
+**A sneeze, or a "hang on" muttered mid-sentence, is something a text-only pipeline drops entirely.** When it happens during the caller's turn, `instructions` can ask Dialog-RSN-1 to acknowledge it in passing, a "bless you" before it answers. While a reply is playing, the words can't change: a sound the model judges to be no speech is ignored and the reply plays on, and anything else interrupts it. There, `instructions` shape that judgment rather than the reply.
 
 Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/turn-taking#acknowledging-what’s-not-a-word).
 
@@ -171,7 +172,7 @@ Redirect that in `instructions`: talk about what was found, not what was called.
 
 #### Handling a tool that came back with an error
 
-**A `function_call_output` is just a JSON string you wrote. Nothing about the protocol flags it as an error for you.** A stale or mismatched `call_id` gets rejected at the protocol level, but a business-logic failure inside a successfully matched result, an account not found, a payment declined, looks identical to a success from the wire's point of view.
+**A `function_call_output` is just a JSON string you wrote. Nothing about the protocol flags it as an error for you.** Even a stale or mismatched `call_id` raises no error: the result is kept as an item but left out of the model's input. A business-logic failure inside a successfully matched result, an account not found, a payment declined, looks identical to a success from the wire's point of view.
 
 Whatever error shape your tools return, `instructions` has to describe it, or Dialog-RSN-1 has no way to tell "done" from "failed" apart. Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/tool-calling#handling-a-tool-error).
 
@@ -209,7 +210,7 @@ When the model calls it, your harness runs the actual search and attaches what i
 }
 ```
 
-A topic can also carry `actions`, an optional string. Send it as a string, not a list: a list fails validation with `invalid_request_error` and the whole item is refused.
+A topic can also carry `actions`, an optional string. Send it as a string, not a list: a list fails validation with `invalid_request_error` and the whole item is refused. Validate the shape in your harness before you send it, because a refused result still uses up the call. A corrected resend with the same `call_id` is accepted but left out of the model's input, with no error.
 
 Send a fresh `response.create` after that, same as any other tool result. Dialog-RSN-1 renders those topics into one numbered list to cite into, and the reply's `response.done` carries `poly_cited_topics`: the names of the topics it actually answered from, absent rather than empty when it cited none. `instructions` is where you say when to search rather than answer from memory, and what to do when the search comes back with nothing relevant. Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/tool-calling#searching-and-getting-citations-back).
 

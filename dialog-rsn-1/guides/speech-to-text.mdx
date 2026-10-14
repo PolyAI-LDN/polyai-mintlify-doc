@@ -30,6 +30,7 @@ Dialog-RSN-1 has no separate speech-to-text model. It transcribes the caller as 
 - **You need a reply to get a transcript.** Set `create_response: true` so each turn starts a reply on its own. With `create_response: false`, no transcript arrives until you send `response.create`.
 - **The transcriber asks for a one-word reply.** Its instructions say to answer "ok", which keeps each turn short.
 - **The transcript arrives when the turn ends.** You get no partial text while the caller is still talking. The whole line lands in a few events just after `input_audio_buffer.speech_stopped`.
+- **Only a completed reply sends `.completed`.** If the caller cuts in while the reply is still generating, or the reply fails, the turn gets at most some `.delta` events and no `.completed`. The transcript is the last thing the model writes, so a turn interrupted early may get no transcript at all.
 - **The reply starts before the transcript.** The first `response.output_text.delta` comes within about 100 ms of `speech_stopped`, and the transcript follows. The support agent holds the reply back so the terminal reads in order.
 - **`audio.input.transcription` changes nothing.** The service accepts the field and echoes it in `session.updated`, but transcripts arrive the same with or without it.
 
@@ -116,7 +117,7 @@ SESSION = {
 ```
 
 - `output_modalities: ["text"]`. A new session defaults to `["audio"]`, which adds server-side speech and sends the reply as `response.output_audio_transcript.*`. Text only keeps the reply on `response.output_text.*`, which the program reads.
-- `rate: 24000`. The program opens the microphone at 24 kHz, so nothing resamples.
+- `rate: 24000`. The program opens the microphone at 24 kHz, so nothing resamples on the client. The service resamples to the model's own rate.
 - `create_response: true`. Dialog-RSN-1 decides when you've finished and starts the turn itself. That turn carries the transcript.
 
 The instructions ask for the shortest possible reply:
@@ -165,10 +166,15 @@ elif kind == "conversation.item.input_audio_transcription.delta":
     partial += event.delta
     print(event.delta, end="", flush=True)
 elif kind == "conversation.item.input_audio_transcription.completed":
-    text = (event.transcript or partial).strip()
-    stamp = datetime.now().strftime("%H:%M:%S")
-    print(f"\r\033[K{stamp}  {text}")
+    line(event.transcript or partial)
+    partial = ""
+elif kind == "response.done" and partial:
+    # A reply cut off by a barge-in, or one that failed, sends no .completed.
+    line(partial)
+    partial = ""
 ```
+
+`line()` stamps the text with the time, prints it and appends it to the `--out` file. The `response.done` branch keeps what arrived when a reply ends without a `.completed`, so a line isn't left half printed.
 
 Stop on `invalid_request_error`. It usually means the `session.update` was refused, which leaves the session on the server's defaults:
 
