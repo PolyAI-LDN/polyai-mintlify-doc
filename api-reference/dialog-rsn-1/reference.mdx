@@ -13,7 +13,7 @@ keywords:
 
 {/* Source of truth: poly_core src/dialog_rsn_1/dialogue_api/README.md and realtime-dev-kit traces/local/divergences.json. Checked against poly_core master 49908520f8 and the live self-serve host on 11 Oct 2026, and against 49958e275a (prod image 202610140837Z) on api.us.poly.ai on 14 Oct 2026. A protocol change updates all three. */}
 
-Dialog-RSN-1 is a real-time voice model. You stream the caller's audio over one WebSocket and get the reply back as text, with the model deciding when the caller has finished speaking. You speak the text with your own text-to-speech, or let the API speak it for you.
+Dialog-RSN-1 is a real-time voice model. You stream the caller's audio over one WebSocket and the model decides when the caller has finished speaking. The API speaks the reply and streams its transcript, or sends the reply as text for your own text-to-speech.
 
 The wire format is the OpenAI Realtime API (GA schema). A stock OpenAI Realtime client works by changing the base URL and the key. The model name on the wire is `dialog-rsn-1`.
 
@@ -34,13 +34,7 @@ The wire format is the OpenAI Realtime API (GA schema). A stock OpenAI Realtime 
 Connect to `wss://api.studio.poly.ai/v1/realtime` with an API key from [studio.poly.ai](https://studio.poly.ai). Sign up or log in there and create the key in the **API Keys** tab. The [quickstart](/dialog-rsn-1/quickstart#getting-an-api-key) has the steps.
 
 <Note>
-**Enterprise accounts on a regional Agent Studio** use that region's host, with a key from that Studio. A key only works on the host that matches the Studio that issued it, and a mismatch returns `401`.
-
-| Agent Studio | WebSocket URL |
-| --- | --- |
-| `studio.us.poly.ai` | `wss://api.us.poly.ai/v1/realtime` |
-| `studio.eu.poly.ai` | `wss://api.eu.poly.ai/v1/realtime` |
-| `studio.uk.poly.ai` | `wss://api.uk.poly.ai/v1/realtime` |
+**Enterprise accounts on `studio.us.poly.ai`** connect to `wss://api.us.poly.ai/v1/realtime` instead, with a key from that Studio. A key only works on the host that matches the Studio that issued it, and a mismatch returns `401`. Dialog-RSN-1 runs in the US only.
 </Note>
 
 Check the service is up with the health route, which takes the same key:
@@ -150,7 +144,7 @@ Send `session.update` after `session.created`. Updates are merged into the sessi
 | `max_output_tokens` | An integer or `"inf"`. The deployment's own cap is the ceiling. The model reasons before it answers and reasoning tokens come out of the same budget, so a small cap can leave a truncated or empty reply. |
 | `audio.input.format` | See [Audio in](#audio-in) |
 | `audio.input.turn_detection.create_response` | `true` (default): the model confirms the end of each turn and the server generates a reply. `false`: you send `response.create`, and turns are taken at face value with no model confirmation. The voice-activity detector still commits the turn at each pause it hears, and `input_audio_buffer.commit` commits at once. |
-| `output_modalities` | `["text"]` for text replies you voice yourself. `["audio"]`, the default for a new session, has the API speak the reply: the text then arrives as `response.output_audio_transcript.delta`, not `response.output_text.delta`. |
+| `output_modalities` | `["audio"]`, the default for a new session, has the API speak the reply: audio arrives as `response.output_audio.delta` and the text as `response.output_audio_transcript.delta`. `["text"]` sends text replies you voice yourself, as `response.output_text.delta`. |
 | `audio.output.voice` | The voice for spoken replies: a Cartesia voice id, as a string or `{"id": "..."}`. Unset, the deployment's default voice speaks. An id Cartesia doesn't know is accepted here, and each response then fails with `audio_synthesis_failed`. Kept on a text session, and used if the session switches to `["audio"]`. |
 | `poly_knowledge`, `poly_response_language`, `poly_input_rate` | See [PolyAI extensions](#polyai-extensions) |
 
@@ -211,6 +205,8 @@ With `create_response: true` the sequence for one caller turn is:
 4. `response.created`, `response.output_item.added`, `response.content_part.added`, then `response.output_text.delta` frames until `response.output_text.done`, `response.content_part.done`, `response.output_item.done` and `response.done`. `conversation.item.input_audio_transcription.delta` and `.completed`, carrying what the model heard, arrive during the reply, usually after its first text delta.
 
 With `create_response: false`, the model doesn't confirm the turn: step 2 follows the first pause the detector hears, or your `input_audio_buffer.commit`. Step 4 starts when you send `response.create`.
+
+The samples below set `["text"]` so they can print the reply. Leave it out and the API speaks the reply instead: read `response.output_audio_transcript.delta` for the text and `response.output_audio.delta` for the audio.
 
 <CodeGroup>
 ```python Python
@@ -503,4 +499,15 @@ ws.on("close", (code) => {
 
 ## Examples
 
-There is no PolyAI SDK for this API; any OpenAI Realtime client works. Working integrations with [Pipecat and LiveKit](https://github.com/PolyAI-LDN/realtime-dev-kit/tree/main/examples) are in the realtime-dev-kit repository, which is the conformance harness we run against OpenAI's own traces.
+There is no PolyAI SDK for this API; any OpenAI Realtime client works. Each guide has a public repo with its full example:
+
+| Repo | What it is | Guide |
+| --- | --- | --- |
+| [dialog-rsn-1-python-from-scratch](https://github.com/polyai/dialog-rsn-1-python-from-scratch) | Voice agent on plain `websockets`, with tool calling and a live microphone | [Python from scratch](/dialog-rsn-1/guides/python-from-scratch) |
+| [dialog-rsn-1-javascript-browser](https://github.com/polyai/dialog-rsn-1-javascript-browser) | Browser microphone through a small key-holding relay | [Browser with JavaScript](/dialog-rsn-1/guides/javascript-browser) |
+| [dialog-rsn-1-openai-migration](https://github.com/PolyAI-LDN/dialog-rsn-1-openai-migration) | The same agent on the `openai` SDK, before and after the switch | [OpenAI Realtime API](/dialog-rsn-1/guides/openai-realtime-migration) |
+| [dialog-rsn-1-streaming-tts](https://github.com/PolyAI-LDN/dialog-rsn-1-streaming-tts) | Replies spoken through your own TTS as they stream, with barge-in | [Streaming to your TTS](/dialog-rsn-1/guides/streaming-text-to-speech) |
+| [dialog-rsn-1-speech-to-text](https://github.com/PolyAI-LDN/dialog-rsn-1-speech-to-text) | Transcriber and support agent in Python and Node | [Speech to text](/dialog-rsn-1/guides/speech-to-text) |
+| [dialog-rsn-1-voice-agent](https://github.com/PolyAI-LDN/dialog-rsn-1-voice-agent) | FastAPI voice agent with Cartesia speech and a browser page | [Browser voice agent with Cartesia](/dialog-rsn-1/guides/voice-agent-cartesia) |
+| [livekit-plugins-polyai](https://github.com/PolyAI-LDN/livekit-plugins-polyai) and [dialog-rsn-1-livekit](https://github.com/PolyAI-LDN/dialog-rsn-1-livekit) | Dialog-RSN-1 as a LiveKit Agents realtime model, and a hotel agent built on it | [LiveKit](/dialog-rsn-1/guides/livekit) |
+| [dialog-rsn-1-realtime-agents](https://github.com/polyai/dialog-rsn-1-realtime-agents) | Multi-agent handoffs, a chat supervisor and a knowledge agent, in plain JavaScript | |
