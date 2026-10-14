@@ -20,7 +20,7 @@ Put a small relay in front of it: a same-origin WebSocket endpoint on your own s
 
 ```text connect
 Browser  →  wss://your-app.example.com/realtime-relay   (no key, same-origin)
-Relay    →  wss://api.studio.poly.ai/v1/realtime            (holds the real key)
+Relay    →  wss://api.studio.poly.ai/v1/realtime        (holds the real key)
 ```
 
 The [companion repo](https://github.com/polyai/dialog-rsn-1-javascript-browser) includes a Node relay, `relay.js`, that also serves the page. If you write your own, set a `User-Agent` on the upstream connection. The API refuses a handshake without one with a bare 403, and Node's `ws` package sends none by default.
@@ -84,7 +84,7 @@ async function startCapture(ws) {
 }
 ```
 
-The browser takes the `AudioContext` sample rate from the hardware, 48kHz on most machines, where Dialog-RSN-1's native rate is 16kHz. Rather than resample in the client, declare your true rate with the `poly_input_rate` extension field on `session.update` and let the server resample on the way in:
+The browser takes the `AudioContext` sample rate from the hardware, 48 kHz on most machines, where Dialog-RSN-1's native rate is 16 kHz. Rather than resample in the client, declare your true rate with the `poly_input_rate` extension field on `session.update` and let the server resample on the way in:
 
 ```json session.update
 {
@@ -97,7 +97,7 @@ The browser takes the `AudioContext` sample rate from the hardware, 48kHz on mos
 }
 ```
 
-Send the rate your `AudioContext` reports in `audioContext.sampleRate`. Hardcoding 48000 breaks on hardware that runs at 44.1kHz, because the server then resamples from a rate your audio was never at. You can read the rate before the user clicks anything. A context created on page load starts suspended, but its `sampleRate` is already set. Call `audioContext.resume()` first thing in the click handler, before you wait on the microphone: Safari only lets a context start during the click itself. The full example below does this.
+Send the rate your `AudioContext` reports in `audioContext.sampleRate`. Hardcoding 48000 is wrong on hardware that runs at 44.1 kHz: the server then resamples from a rate your audio was never at, and hears it about 9% fast. You can read the rate before the user clicks anything. A context created on page load starts suspended, but its `sampleRate` is already set. Call `audioContext.resume()` first thing in the click handler, before you wait on the microphone: Safari only lets a context start during the click itself. The full example below does this.
 
 ## Streaming audio and handling server VAD
 
