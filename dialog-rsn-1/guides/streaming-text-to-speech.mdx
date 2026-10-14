@@ -12,7 +12,7 @@ keywords:
   - voice agents
 ---
 
-Dialog-RSN-1 answers in text, [on purpose](/dialog-rsn-1/overview#the-core-split), and the spoken half of the call is entirely yours to build. If everything you've done so far has been speech-to-speech, that half is new: there's no audio-out event to wait for, and the provider you pick has its own failure modes that show up as call defects rather than API errors. This page covers the ones that actually bite.
+Dialog-RSN-1 answers in text, [on purpose](/dialog-rsn-1/overview#why-its-built-this-way). Set `output_modalities: ["text"]` in your `session.update`, because sessions otherwise start in audio with the service's managed voice. Then the spoken half of the call is entirely yours to build. If everything you've done so far has been speech-to-speech, that half is new: there's no audio-out event to wait for, and the provider you pick has its own failure modes that show up as call defects rather than API errors. This page covers the ones that actually bite.
 
 <Card title="Full code on GitHub" icon="github" href="https://github.com/PolyAI-LDN/dialog-rsn-1-streaming-tts">
   A Python agent that speaks each reply through ElevenLabs as it streams, with every section of this page in code.
@@ -40,7 +40,7 @@ That cancellation is two separate steps, and treating them as one leaves audio p
 1. **Cancel the TTS context for that response.** Stop feeding it text and stop it synthesizing more audio for a reply that's no longer going to be said.
 2. **Flush what's already queued in the speaker.** Audio synthesized before the cancellation can still be sitting in a playback buffer, and closing the TTS context doesn't reach into that buffer and clear it. Do that as its own step, or the caller keeps hearing the tail end of a reply the model has already abandoned.
 
-`response.done` arrives with `status: "cancelled"` when this happens, unprompted, right after a `speech_started` you didn't ask for. That's your signal to run both steps, not just the first one.
+Run both steps on `input_audio_buffer.speech_started` while a reply is still playing. It reports a confirmed turn, so by then Dialog-RSN-1 has confirmed the caller is talking. Most replies finish generating well before they finish playing, so this is usually the only signal you get. If the reply was still generating, `response.done` with `status: "cancelled"` follows too, unprompted. Treat that as the same signal, not a second one.
 
 ## Guard unspeakable text before it reaches the synthesizer
 
