@@ -54,7 +54,7 @@ uv run transcribe.py
 Speak, and each line prints when you finish the sentence. Add `--reply` to see the model's "ok" under each line, and `--out notes.txt` to append each line to a file:
 
 ```text
-connecting to https://api.studio.poly.ai/v1/realtime …
+connecting to wss://api.studio.poly.ai/v1/realtime …
 [connected to dialog-rsn-1]  speak when ready, Ctrl-C to quit
 
 23:10:43  Hi, I'm calling about order N W one zero four eight two. It's under Maria Alvarez.
@@ -73,14 +73,16 @@ uv run transcribe.py --file clip.wav
 
 ## Step 1: Connect with the SDK
 
-Pass the Dialog-RSN-1 base URL and key to the client. The SDK builds `wss://api.studio.poly.ai/v1/realtime?model=dialog-rsn-1`, sends the key as `Authorization: Bearer`, and parses every event into its typed models.
+Pass the Dialog-RSN-1 base URL and key to the client. `url` is the full realtime URL, so drop `/realtime` and switch the scheme to get the base. The SDK builds `wss://api.studio.poly.ai/v1/realtime?model=dialog-rsn-1`, sends the key as `Authorization: Bearer`, and parses every event into its typed models.
 
 <CodeGroup>
 
 ```python Python
-client = AsyncOpenAI(api_key=key, base_url=url)
+# The SDK takes the base URL and appends /realtime itself.
+base_url = url.removesuffix("/realtime").replace("wss://", "https://", 1)
+client = AsyncOpenAI(api_key=key, base_url=base_url)
 stop = asyncio.Event()
-print(f"connecting to {url}/realtime …")
+print(f"connecting to {url} …")
 async with client.realtime.connect(model=MODEL) as conn:
     await conn.session.update(session=SESSION)
 ```
@@ -88,13 +90,14 @@ async with client.realtime.connect(model=MODEL) as conn:
 ```javascript Node
 // The SDK builds wss://<host>/v1/realtime?model=... from the client's base URL and sends the
 // key as Authorization: Bearer. Nothing else about the connection is ours.
+const baseURL = url.replace(/\/realtime$/, "").replace(/^wss:/, "https:");
 const client = new OpenAI({ apiKey, baseURL });
 const rt = new OpenAIRealtimeWS({ model: MODEL }, client);
 ```
 
 </CodeGroup>
 
-`url` defaults to `https://api.studio.poly.ai/v1`. Set `DIALOGUE_API_URL` in `.env`, or pass `--url`, to use another region. A key from a regional Studio only works on that region's host, such as `https://api.us.poly.ai/v1`.
+`url` defaults to `wss://api.studio.poly.ai/v1/realtime`. Set `DIALOG_REALTIME_URL` in `.env`, or pass `--url`, to use another region. A key from a regional Studio only works on that region's host, such as `wss://api.us.poly.ai/v1/realtime`.
 
 ## Step 2: Configure the session
 
@@ -274,7 +277,7 @@ We streamed recorded clips to us-1 production over 14 turns, 20 ms at a time as 
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `DIALOG_API_KEY is not set` | No `.env`, an empty key, or a `.env` that still uses the old name `DIALOGUE_API_KEY` | Copy `.env.example` to `.env` at the repo root and paste the key after `DIALOG_API_KEY=` |
-| HTTP 401 when connecting | A personal access token, a wrong key, or a regional key on the default host | Use a workspace API key from Agent Studio. For a key from a regional Studio, set `DIALOGUE_API_URL` or `--url` to that region's host |
+| HTTP 401 when connecting | A personal access token, a wrong key, or a regional key on the default host | Use a workspace API key from Agent Studio. For a key from a regional Studio, set `DIALOG_REALTIME_URL` or `--url` to that region's host |
 | No transcript ever arrives | `create_response` is `false`, so no turn runs | Set it to `true`, or send `response.create` after each `input_audio_buffer.committed` |
 | `unsupported_parameter` after `session.update` | A field the service refuses, such as `idle_timeout_ms` or `interrupt_response: false` in `turn_detection`, or `reasoning` | Remove it. A rejected update applies none of its fields |
 | `must be mono, 16-bit, 24000 Hz` | The WAV isn't in the session's format | Convert it with `afconvert -f WAVE -d LEI16@24000 -c 1 in.wav out.wav` |
