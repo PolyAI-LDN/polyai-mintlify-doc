@@ -101,7 +101,7 @@ Send the rate your `AudioContext` reports in `audioContext.sampleRate`. Hardcodi
 
 ## Streaming audio and handling server VAD
 
-Once you've wired up capture, `input_audio_buffer.append` frames flow without a break. The server decides when a turn starts and ends: voice activity detection proposes a boundary, Dialog-RSN-1 confirms it, and the server tells you with these events:
+Once you've wired up capture, `input_audio_buffer.append` frames flow without a break. The server decides when a turn starts and ends. Voice activity detection proposes a boundary and Dialog-RSN-1 judges it. `speech_stopped` always waits for Dialog-RSN-1's judgment that the caller has finished. `speech_started` arrives as soon as the detector hears sound, unless a reply is playing, when Dialog-RSN-1 confirms the caller is talking first. A sound it then judges to be noise is dropped, so a `speech_started` can arrive with no `speech_stopped` after it. The server tells you with these events:
 
 ```js vad.js
 ws.addEventListener("message", (event) => {
@@ -117,7 +117,7 @@ ws.addEventListener("message", (event) => {
 });
 ```
 
-There's no client-side VAD to configure or tune. If the caller starts talking while a response is still streaming, Dialog-RSN-1 confirms the audio came from the caller and then cancels the response for you, the same as if you'd sent `response.cancel` yourself.
+There's no client-side VAD to configure or tune. If the caller starts talking while a response is still streaming, Dialog-RSN-1 confirms the audio came from the caller and then cancels the response for you. You get the same `response.done` with `status: "cancelled"` that `response.cancel` produces, with `status_details.reason` set to `"turn_detected"` rather than `"client_cancelled"`.
 
 ## Reconstructing the streamed reply
 
@@ -156,7 +156,7 @@ function renderFinal(itemId, text) {
 }
 ```
 
-Keying by `item_id` matters as soon as a turn can hold more than one output item. Without it, concurrent deltas interleave into garbled text.
+Keying by `item_id` keeps each reply separate. Only one response runs at a time and each carries one text item, so deltas never interleave, but a new reply's deltas start a new entry instead of appending to the last one.
 
 Keep the `error` branch. Every failure on this API arrives as an `error` event and leaves the connection open, as the [quickstart](/dialog-rsn-1/quickstart#all-of-it-together) explains. Without the branch, a rejected `session.update` looks like a page that connects and never answers.
 
@@ -200,6 +200,12 @@ ws.addEventListener("open", () => {
   }));
 });
 
+ws.addEventListener("close", () => {
+  // The server closes a connection that sends nothing for 5 minutes, so a page left
+  // unclicked goes quiet. Say so rather than leave a button that does nothing.
+  document.getElementById("reply").textContent = "Disconnected. Reload the page to start again.";
+});
+
 ws.addEventListener("message", (event) => {
   const msg = JSON.parse(event.data);
   if (msg.type === "response.output_text.delta") {
@@ -212,7 +218,9 @@ ws.addEventListener("message", (event) => {
   }
 });
 
-document.getElementById("start").addEventListener("click", async () => {
+const button = document.getElementById("start");
+button.addEventListener("click", async () => {
+  button.disabled = true; // a second click would add a second worklet and send every frame twice
   await audioContext.resume(); // first, while the click still counts as a user gesture
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   await audioContext.audioWorklet.addModule("pcm-worklet.js");
