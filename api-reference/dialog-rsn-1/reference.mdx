@@ -105,15 +105,17 @@ Authorization: Bearer <key>
 
 There is no query-string key and no WebSocket subprotocol credential. Browsers cannot set either header on a WebSocket, so put a relay in front of browser clients.
 
-A refused handshake answers with an HTTP status and a JSON body. A WebSocket library that cannot surface the HTTP response sees the matching close code instead.
+A refused handshake answers with an HTTP status and a JSON body. The close codes below are sent only by a server without the `websocket.http.response` extension, which can't answer the handshake with a status. A client library that can't read the HTTP response sees a failed handshake, not a close code.
 
 | HTTP | Close code | Meaning | What to do |
 | --- | --- | --- | --- |
 | `401` | `4401` | Missing, unknown or inactive key | Check the key, and that it was issued by the Studio that matches the host |
 | `402` | `4402` | The account is not enrolled for billing, or has no balance left | Add funds in Agent Studio, then reconnect. A session already open is not cut off when the balance reaches zero. |
 | `403` | `4403` | A personal access token | Use a workspace API key |
-| `429` | `4429` | Too many new connections this minute, or the account is at its concurrent-session cap (body `"code": "session_limit_reached"`) | Honour `Retry-After`. For the session cap, close a session before opening another. See [Limits](/api-reference/dialog-rsn-1/limits). |
-| `503` | `4503` | Authentication service unavailable, or no capacity for a new session (body `"code": "capacity_exceeded"`) | Retry with backoff. The key is fine. |
+| `429` | | Too many new connections this minute for this key, refused at the gateway | Honour `Retry-After` |
+| `429` | `4429` | The account is at its concurrent-session cap (body `"code": "session_limit_reached"`) | There is no `Retry-After`. Close a session before opening another. See [Limits](/api-reference/dialog-rsn-1/limits). |
+| `503` | `4503` | Authentication service unavailable | Retry with backoff. The key is fine. |
+| `503` | `1013` | No capacity for a new session on this server (body `"code": "capacity_exceeded"`) | Retry after `Retry-After` (1 second). The retry very likely lands on another server. |
 
 ## Configure the session
 
@@ -142,12 +144,13 @@ Send `session.update` after `session.created`. Updates are merged into the sessi
 | Field | Notes |
 | --- | --- |
 | `instructions` | The system prompt |
-| `tools` | Function tools only. Mark at most one string parameter per tool with `"poly_spoken": true` and the model speaks that argument aloud while the tool runs. |
+| `tools` | Function tools only. Mark at most one string parameter per tool with `"poly_spoken": true` and the model says that argument to the caller while the tool runs: as `response.output_text.delta` on a text session, for your text-to-speech to speak, or aloud on an audio session. |
 | `tool_choice` | `"auto"` only |
 | `max_output_tokens` | An integer or `"inf"`. The deployment's own cap is the ceiling. The model reasons before it answers and reasoning tokens come out of the same budget, so a small cap can leave a truncated or empty reply. |
 | `audio.input.format` | See [Audio in](#audio-in) |
-| `audio.input.turn_detection.create_response` | `true` (default): the server generates a reply at the end of each turn. `false`: you send `response.create`. |
+| `audio.input.turn_detection.create_response` | `true` (default): the model confirms the end of each turn and the server generates a reply. `false`: you send `response.create`, and turns are taken at face value with no model confirmation. The voice-activity detector still commits the turn at each pause it hears, and `input_audio_buffer.commit` commits at once. |
 | `output_modalities` | `["text"]` for text replies you voice yourself. `["audio"]`, the default for a new session, has the API speak the reply: the text then arrives as `response.output_audio_transcript.delta`, not `response.output_text.delta`. |
+| `audio.output.voice` | The voice for spoken replies: a Cartesia voice id, as a string or `{"id": "..."}`. Unset, the deployment's default voice speaks. An id Cartesia doesn't know is accepted here, and each response then fails with `audio_synthesis_failed`. Kept on a text session, and used if the session switches to `["audio"]`. |
 | `poly_knowledge`, `poly_response_language`, `poly_input_rate` | See [PolyAI extensions](#polyai-extensions) |
 
 ### Accepted and ignored
@@ -157,7 +160,9 @@ Fields that stock clients send by default and that would change nothing a caller
 - `model` (the session stays `dialog-rsn-1`), `tracing`, `truncation`, `include`
 - `audio.input.noise_reduction`; `audio.input.transcription` (transcripts are always sent)
 - Turn-detection timing: `threshold`, `silence_duration_ms`, `prefix_padding_ms`, `eagerness`. `type: "semantic_vad"` is reported back as `server_vad`. The server finds the end of the turn: a voice-activity detector proposes a boundary and the model confirms it.
-- `audio.output.*` on a text session; `parallel_tool_calls` (the model makes one call per turn)
+- `turn_detection.interrupt_response: true`, which is already how the service behaves
+- `audio.output.voice` set to an OpenAI voice name (`alloy`, `marin` and the rest): the deployment's default voice speaks instead. `audio.output.speed`.
+- `parallel_tool_calls` (the model makes one call per turn)
 
 ### Refused
 
@@ -172,9 +177,13 @@ Fields that would change what you get if silently ignored are refused with an `e
 | `audio.input.turn_detection: null` (push-to-talk) | `unsupported_parameter` | `audio.input.turn_detection` |
 | `turn_detection.interrupt_response: false` | `unsupported_parameter` | `audio.input.turn_detection.interrupt_response` |
 | `turn_detection.idle_timeout_ms` | `unsupported_parameter` | `audio.input.turn_detection.idle_timeout_ms` |
+| `audio.output.format.type` other than `"audio/pcm"` | `unsupported_parameter` | `audio.output.format.type` |
 | `output_modalities` asking for `text` and `audio` together | `invalid_request_error` | |
 | `max_output_tokens` below 1 | `invalid_request_error` | `max_output_tokens` |
 | `poly_session_id`, `expires_at` (set by the server) | `invalid_request_error` | the field |
+| `poly_knowledge` that isn't a list of `{ "name", "content", "actions"? }` with `actions` a string | `invalid_request_error` | `poly_knowledge`, or the entry, e.g. `poly_knowledge[2]` |
+| `poly_response_language` that isn't a string, is blank, or is over 64 characters | `invalid_request_error` | `poly_response_language` |
+| `poly_spoken` set to anything but `true`, on a non-string property, or on more than one property of a tool | `invalid_request_error` | the path under `tools[i].parameters.properties` |
 
 ## Audio in
 
@@ -200,7 +209,7 @@ With `create_response: true` the sequence for one caller turn is:
 3. `conversation.item.added` and `conversation.item.done` for the caller's turn.
 4. `response.created`, `response.output_item.added`, `response.content_part.added`, then `response.output_text.delta` frames until `response.output_text.done`, `response.content_part.done`, `response.output_item.done` and `response.done`. `conversation.item.input_audio_transcription.delta` and `.completed`, carrying what the model heard, arrive during the reply, usually after its first text delta.
 
-With `create_response: false`, step 4 starts when you send `response.create`.
+With `create_response: false`, the model doesn't confirm the turn: step 2 follows the first pause the detector hears, or your `input_audio_buffer.commit`. Step 4 starts when you send `response.create`.
 
 <CodeGroup>
 ```python Python
@@ -324,8 +333,8 @@ ws.on("message", (data) => {
 
 Rules that catch people out:
 
-- **One response at a time.** A `response.create` while a response is open is refused with `conversation_already_has_active_response`. Send `response.cancel` first. A `response.create` sent while the caller is still speaking is held and answered by the response to their turn.
-- **`response.create` may set `instructions`, `max_output_tokens` and `metadata`.** `conversation`, `output_modalities`, `tool_choice` and `tools` must match the session or are refused with `unsupported_parameter`.
+- **One response at a time.** A `response.create` while a response is open is refused with `conversation_already_has_active_response`. Send `response.cancel` first. Two requests are held rather than refused: one sent while the caller is still speaking is answered by the response to their turn, and one sent while a reply the server speaks is still playing is answered when that audio ends. Only one request is held at a time.
+- **`response.create` may set `instructions`, `max_output_tokens` and `metadata`.** `parallel_tool_calls` is ignored. Every other field must match the session or is refused with `unsupported_parameter`, naming `response.<field>`. That includes `conversation: "none"` (no out-of-band responses), a per-response `output_modalities`, `tools` or `tool_choice`, `input`, `audio`, `prompt` and `reasoning`. Change the session with `session.update` instead.
 - **A confirmed barge-in always cancels the reply.** `interrupt_response` cannot be turned off. The cancelled response ends with status `cancelled`.
 - **Tell the server what the caller heard.** If you speak the text through your own TTS, send the `poly.output_audio.*` events below so that an interrupted reply is kept in history as the words that were actually played.
 
@@ -342,7 +351,7 @@ Every event is a JSON text frame with a `type` and an `event_id`. Fields follow 
 | `input_audio_buffer.commit` | An empty buffer gets `input_audio_buffer_commit_empty` |
 | `input_audio_buffer.clear` | |
 | `conversation.item.create` | Messages, `function_call` and `function_call_output` items. Answered with `conversation.item.added` then `.done`. |
-| `conversation.item.retrieve` | Returns the audio you sent, with its transcript |
+| `conversation.item.retrieve` | Returns the item. For a caller's audio turn that is the transcript, not the audio itself. |
 | `conversation.item.delete` | |
 | `conversation.item.truncate` | Cuts history only for a reply spoken by the server; otherwise validates the item and changes nothing |
 | `response.create` | |
@@ -374,21 +383,24 @@ Extensions are additive fields on existing events, all prefixed `poly_`. Nothing
 | `session` | `poly_response_language` | An ISO 639 tag (`es`, `pt-BR`) or words (`"Singlish"`). The model answers in that language and no other. `null` clears it. |
 | `session` | `poly_input_rate` | Set for you when `audio.input.format.rate` is not 24000 |
 | `session` | `poly_session_id` | Read-only echo of the `session_id` query parameter |
-| `tools[].parameters.properties.<name>` | `poly_spoken: true` | The model speaks this string argument while the tool runs. One per tool, string parameters only. |
+| `tools[].parameters.properties.<name>` | `poly_spoken: true` | The model says this string argument to the caller while the tool runs: as `response.output_text.delta` on a text session, aloud on an audio session. One per tool, string parameters only. |
 | `conversation.item.create` with `function_call_output` | `poly_knowledge` | Knowledge attached to one tool result |
 | `response.done.response` | `poly_cited_topics` | Knowledge entries the reply cited; absent when none |
 | `response.done.response` | `poly_out_of_domain` | `true` when the model judged the request outside its instructions |
-| `response.done.response` | `poly_compacted_item_ids`, `poly_probe_usage` | History items whose audio was released, and the token cost of turn detection |
+| `response.done.response` | `poly_compacted_item_ids` | Items the prompt now leaves out, because older history was summarised or dropped to fit the context window. Sent on the first response after that changes. The items stay in history and can still be retrieved. |
+| `response.done.response` | `poly_probe_usage` | The token cost of turn detection |
 
 **Playback reports.** When you voice the reply yourself, send these so the server knows what the caller heard:
 
 ```json
 {"type": "poly.output_audio.started", "response_id": "resp_123"}
-{"type": "poly.output_audio.delta",   "response_id": "resp_123", "audio_ms": 1250}
+{"type": "poly.output_audio.delta",   "response_id": "resp_123", "audio_ms": 1250, "delta": "Sure, what's"}
 {"type": "poly.output_audio.stopped", "response_id": "resp_123", "audio_ms": 2100, "dropped_ms": 900, "spoken_text": "Sure, what's your"}
 ```
 
-Send a `delta` every 250 ms or so with the cumulative milliseconds played. On a barge-in, `stopped` carries what was dropped and the words that were actually spoken, and the reply is kept in history as those words.
+Send a `delta` every 250 ms or so with the cumulative milliseconds played and, in `delta`, the text spoken since the last report. The server builds what the caller has heard so far from those increments, so it knows where to cut the reply before `stopped` arrives. On a barge-in, `stopped` carries what was dropped and the words that were actually spoken, and the reply is kept in history as those words.
+
+A client that sends no reports gets an estimate instead: the server treats a reply as audible for as long as it takes to say at 15 characters a second, and after a barge-in keeps the words it estimates were heard. On a reply the server speaks itself, it tracks playback and ignores these reports.
 
 ## Errors
 
@@ -406,7 +418,7 @@ Send a `delta` every 250 ms or so with the cumulative milliseconds played. On a 
 }
 ```
 
-Branch on `code`, never on `message`. `error.event_id` names the client frame the error is about, where there is one. `type` is `invalid_request_error` for something you sent and `server_error` for something that failed on our side; a `server_error` that ends a response also arrives on `response.done` with status `failed` and the same code.
+Branch on `code`, never on `message`. `error.event_id` names the client frame the error is about, where there is one. `type` is `invalid_request_error` for something you sent and `server_error` for something that failed on our side. A `server_error` that ends a response also arrives on `response.done` with status `failed`. There, `status_details.error` carries the code in both `code` and `type`, for example `generation_failed`.
 
 | `code` | `type` | Retry? |
 | --- | --- | --- |
@@ -418,12 +430,14 @@ Branch on `code`, never on `message`. `error.event_id` names the client frame th
 | `unsupported_item_type` | `invalid_request_error` | No. An MCP item or audio in `conversation.item.create`. |
 | `input_audio_buffer_commit_empty` | `invalid_request_error` | No. Nothing was lost. |
 | `conversation_already_has_active_response` | `invalid_request_error` | Yes, after `response.done`, or send `response.cancel` first |
+| `conversation_item_limit_exceeded` | `invalid_request_error` | Not as sent. The conversation already holds as many client-created items, or as many bytes of them, as the deployment allows. Delete some with `conversation.item.delete` first. A `function_call_output` answering the outstanding call is never refused. |
 | `response_cancel_not_active` | `invalid_request_error` | No |
 | `session_expired` | `invalid_request_error` | Reconnect now. The session reached its maximum duration; the socket closes with `4410` straight after. |
 | `context_length_exceeded` | `server_error` | Not as sent. The conversation is too long for the context window; shorten instructions, tools or knowledge, or start a new session. The connection stays open. |
 | `capacity_exceeded` | `server_error` | Yes, after a short backoff. No inference capacity for this conversation. |
 | `policy_violation` | `server_error` | No |
 | `generation_failed` | `server_error` | Yes |
+| `audio_synthesis_failed` | `server_error` | Yes. A spoken reply's audio could not be synthesised, so the response fails. Check `audio.output.voice` names a voice that exists. |
 | `server_error` | `server_error` | Yes |
 
 **Close codes**
@@ -435,7 +449,8 @@ Branch on `code`, never on `message`. `error.event_id` names the client frame th
 | `1011` | The session could not be started, after `server_error` | Retry |
 | `4408` | No client event for 5 minutes, or the client stopped reading for 5 seconds | Reconnect when you next have audio to send |
 | `4410` | The session reached its maximum duration, after `session_expired`. `session.created.expires_at` tells you when. | Reconnect now and carry on |
-| `4401`, `4402`, `4403`, `4429`, `4503` | A refused handshake on a client that cannot read the HTTP response | See [Authenticate](#authenticate) |
+| `1013` | No capacity for a new session on this server, from a server that can't answer the handshake with a status | Retry after a second |
+| `4401`, `4402`, `4403`, `4429`, `4503` | A refused handshake, from a server that can't answer it with an HTTP status | See [Authenticate](#authenticate) |
 
 Handling a refused handshake and a timed-out session:
 
@@ -462,7 +477,8 @@ async def run_session() -> None:
         if e.response.status_code == 402:
             print("No balance: add funds in Agent Studio")  # body: {"detail": "..."}
         elif e.response.status_code == 429:
-            print("At the session cap or rate limit; retry after", e.response.headers.get("Retry-After"))
+            # The gateway's rate limit sends Retry-After; the session cap doesn't, so close a session first.
+            print("Rate limited or at the session cap; Retry-After:", e.response.headers.get("Retry-After"))
         else:
             raise
     except ConnectionClosed as e:
@@ -473,7 +489,8 @@ async def run_session() -> None:
 ```typescript TypeScript
 ws.on("unexpected-response", (_req, res) => {
   if (res.statusCode === 402) console.error("No balance: add funds in Agent Studio");
-  else if (res.statusCode === 429) console.error("Retry after", res.headers["retry-after"]);
+  // Retry-After comes with the gateway's rate limit, not the session cap.
+  else if (res.statusCode === 429) console.error("Rate limited or at the session cap", res.headers["retry-after"]);
 });
 
 ws.on("close", (code) => {
