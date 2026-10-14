@@ -54,9 +54,9 @@ Most metrics come off the [event stream](/dialog-rsn-1/reference#server-→-clie
 
 Two properties of that stream shape the collector.
 
-**The events report a judgment, not a threshold.** `speech_started` and `speech_stopped` are sent once Dialog-RSN-1 has confirmed the boundary voice activity detection proposed, so [exactly one pair arrives per turn](/dialog-rsn-1/reference#turn-taking-and-audio). A caller pausing mid-sentence produces no events at all. That makes turn segmentation directly checkable: count the triples, compare against the turns your fixture contains.
+**The end of a turn is a judgment, not a threshold.** `speech_stopped` is sent only once Dialog-RSN-1 has confirmed the boundary voice activity detection proposed, so a caller pausing mid-sentence produces no stop at all. `speech_started` is confirmed the same way only while a reply is playing. With nothing playing, it goes out on the detector's onset, and a sound the model then judges to be noise is dropped with no `speech_stopped` after it. That makes turn segmentation directly checkable: count `speech_stopped` and `committed` pairs, compare against the turns your fixture contains, and treat a lone `speech_started` as a sound the model ignored. The [reference](/dialog-rsn-1/reference#turn-taking-and-audio) has the full sequence.
 
-**The transcript is a by-product of the reply, not a stage before it.** It streams from the same generation, so it can arrive after the response text has already started. A collector that waits for the transcript before recording the reply will deadlock on some turns and pass on others. Record both, join them by item id afterwards.
+**The transcript is a by-product of the reply, not a stage before it.** It's the last thing the generation writes, so it arrives after the reply text, and `conversation.item.input_audio_transcription.completed` comes only with a completed reply. A reply cancelled by a barge-in, or one that fails, usually leaves its turn with no transcript at all. A collector that waits for the transcript before recording the reply will hang on exactly those turns. Record both, join them by item id afterwards.
 
 ## Telling the server what the caller heard
 
@@ -73,9 +73,9 @@ Dialog-RSN-1 owns hearing and you own speaking, so nothing in the standard proto
   "spoken_text": "I've got you a table for two at 7pm" }
 ```
 
-**They change behavior.** Barge-in confirmation runs for as long as a reply is audible. With no reports, "audible" can only mean "still generating", and generation finishes long before your text-to-speech does; every sound after that point is forwarded as an unconfirmed interruption. Reporting playback extends the window across the spoken reply, so a "mm-hmm" two seconds in gets checked rather than acted on. A client that reports nothing keeps the behavior it had before.
+**They change behavior.** Barge-in confirmation runs for as long as a reply is audible. With no reports, Dialog-RSN-1 guesses how long that is from a typical speaking rate of 15 characters a second, counted from the reply's first words. Your text-to-speech rarely runs at exactly that rate, so the guess ends early on a slow voice, and a sound after that point is forwarded as an unconfirmed interruption. Reporting playback makes the window match the real speaker, so a "mm-hmm" two seconds into a slow reply gets checked rather than acted on.
 
-**They are evidence.** `spoken_text` on `poly.output_audio.stopped` is the client's own account of what the caller actually heard, and `dropped_ms` is what your synthesizer threw away on a barge-in. That pair is the ground truth [conversation history can't hold](/dialog-rsn-1/reference#known-limitations), because history records what Dialog-RSN-1 sent.
+**They are evidence.** `spoken_text` on `poly.output_audio.stopped` is the client's own account of what the caller actually heard, and `dropped_ms` is what your synthesizer threw away on a barge-in. Dialog-RSN-1 cuts the reply in history back to that text, so the model knows what the caller missed. Without reports, history holds the speaking-rate estimate instead, which is why your record of what was played is the ground truth to grade against.
 
 Three details to get right:
 
@@ -129,7 +129,7 @@ Define a start and an end event for every timer, and never mix populations.
 | Metric | What it is |
 |---|---|
 | Word error rate | The final transcript against your reference, normalized the same way every run. |
-| Transcript completion rate | Fraction of turns that produced a `.completed` transcription event at all. Track it, but don't gate the reply on it. |
+| Transcript completion rate | Fraction of turns that produced a `.completed` transcription event at all. Track it, but don't gate the reply on it. Expect it to drop in barge-in scenarios, because a cancelled reply usually carries no transcript. |
 | Spoken-form compliance | Deterministic checks on the reply text: no markdown, no bare numeric forms your prompt said to expand, no stage directions. Markdown-free output is the default rather than something you prompted for, so a failure here is a regression, not a missing instruction. See the [response style recipes](/dialog-rsn-1/prompt-cookbook/response-style) for the conventions you did ask for. |
 | Reply length | Words per reply, and the longest single reply. A proxy for how long a caller waits with nothing to do. |
 
@@ -214,8 +214,8 @@ Run connects your agent to an independent simulated caller and lets both sides t
 
 That timeline is where [playback reporting](#telling-the-server-what-the-caller-heard) earns its place, and Run is how you size what it buys you. Two things to grade:
 
-- **Whether a sound during playback gets confirmed.** Without reports it doesn't, and how often that bites depends on your prompts and reply lengths, because both set the size of the window.
-- **What the caller heard, which comes from your side rather than from history.** `poly.output_audio.stopped` is where you say so. Grade the confirmation the caller actually got against `spoken_text`, and keep the full reply text for grading the model.
+- **Whether a sound during playback gets confirmed.** Without reports it does only while the speaking-rate estimate says the reply is still playing. How often that misses depends on your voice's real pace and your reply lengths.
+- **What the caller heard, which comes from your side.** `poly.output_audio.stopped` is where you say so, and Dialog-RSN-1 writes it into history. Without reports, history holds an estimate. Grade the confirmation the caller actually got against `spoken_text`, and keep the full reply text for grading the model.
 
 For each scenario the harness:
 
@@ -238,7 +238,7 @@ For each scenario the harness:
 Give the cut-off row its own scenario if your agent collects digits at all. It's the failure the [turn-taking recipes](/dialog-rsn-1/prompt-cookbook/turn-taking#waiting-for-a-complete-sequence) exist to prevent, and the event log makes it unambiguous: two `committed` events for one spoken number means the caller was cut off.
 
 <Warning>
-**Manual turns test generation, not turn-taking.** Driving turns yourself with `create_response: false` and an explicit `input_audio_buffer.commit` puts the boundary wherever your harness decides. That's useful for determinism in Crawl, but it means any turn-taking metric from that run describes your code rather than the model. Anything measuring boundaries needs server-driven turns.
+**Manual turns test generation, not turn-taking.** With `create_response: false`, Dialog-RSN-1 skips its own end-of-turn check. A turn commits at your `input_audio_buffer.commit`, or at the first silence voice activity detection hears, whichever comes first, and nothing confirms it. That's useful for determinism in Crawl, but any turn-taking metric from that run describes your harness and a raw detector rather than the model. Anything measuring boundaries needs server-driven turns.
 </Warning>
 
 ## Collecting the evidence
@@ -248,19 +248,25 @@ One collector serves all three stages. What matters is a single monotonic timeli
 ```python timeline collector
 import json, time
 
-async def collect(ws, timeline):
-    """Append every server event with a monotonic timestamp. Join by item id later."""
+async def collect(ws, timeline, until=lambda event: False):
+    """Append every server event with a monotonic timestamp. Join by item id later.
+
+    Returns the first event `until` accepts, or None when the socket closes.
+    """
     async for raw in ws:
         event = json.loads(raw)
         timeline.append({"t": time.monotonic(), "dir": "in", "event": event})
+        if until(event):
+            return event
 
-        if event["type"] == "response.done":
-            # Terminal, whatever the outcome. status is completed, cancelled, or failed.
-            return event["response"]["status"]
+
+# One reply: stop at its response.done, which is terminal whatever the outcome.
+# done = await collect(ws, timeline, until=lambda e: e["type"] == "response.done")
+# done["response"]["status"] is completed, cancelled, or failed.
 
 
 def turn_boundaries(timeline):
-    """One triple per turn, in order. A short or long count is the finding."""
+    """Turn events in order. Count turns by committed; a lone speech_started was noise."""
     wanted = {
         "input_audio_buffer.speech_started",
         "input_audio_buffer.speech_stopped",
