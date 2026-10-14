@@ -28,27 +28,37 @@ You have an existing OpenAI Realtime API integration and want to point it at Dia
 | Connection URL | `wss://api.openai.com/v1/realtime?model=...` | `wss://api.studio.poly.ai/v1/realtime` |
 | Key | Your OpenAI API key | Your Dialog-RSN-1 key, sent as `Authorization: Bearer <key>` or `X-API-KEY: <key>` |
 | `model` | e.g. `gpt-realtime` | Anything. The service runs Dialog-RSN-1 whatever you pass |
-| `output_modalities` | `["audio"]` or `["text", "audio"]` | must be exactly `["text"]` |
+| `output_modalities` | `["audio"]` or `["text", "audio"]` | `["text"]` for your own text-to-speech, or `["audio"]` for the managed voice. Never both |
 
 If you use the official `openai` SDK, the first and third rows are the whole connection change: pass the new `base_url` and key to the client, and it builds the URL and sends the key as a bearer token, which this API accepts.
 
 <Card title="Full code on GitHub" icon="github" href="https://github.com/PolyAI-LDN/dialog-rsn-1-openai-migration">
-  A voice agent on the `openai` SDK, before and after the move. `diff before.py after.py` is every change on this page.
+  A voice agent on the `openai` SDK, before and after the move to text replies. `diff before.py after.py` is the whole migration.
 </Card>
 
 ## What to strip out
 
-An OpenAI Realtime client usually carries settings and code this API has no use for. Leftover settings now return errors, and leftover code waits for events that never arrive.
+An OpenAI Realtime client usually carries settings and code this API has no use for. A few leftover settings return errors, and with text replies, leftover audio code waits for events that never arrive.
 
 **Session settings this API rejects.** Each of these returns an `unsupported_parameter` error naming the field:
 
-- `audio.output`, including `voice` and the output format.
-- Every `turn_detection` field except `create_response`: `threshold`, `prefix_padding_ms`, `silence_duration_ms`, `idle_timeout_ms` and `interrupt_response`. `"type": "semantic_vad"` is rejected too.
-- `audio.input.noise_reduction` and `reasoning`.
+- `reasoning` and `prompt`.
+- `tool_choice` other than `"auto"`, and any tool that isn't a `function`, MCP servers included.
+- `turn_detection: null`, and in `turn_detection`, `idle_timeout_ms` and `"interrupt_response": false`.
+- An `audio.output.format` type other than `audio/pcm`.
 
-`output_modalities` other than `["text"]` fails with `invalid_request_error`.
+`output_modalities: ["text", "audio"]` fails with `invalid_request_error`.
 
-A rejected `session.update` applies none of its fields, so one leftover setting also throws away the `instructions` and `tools` sent alongside it. If your client logs errors and carries on, it ends up running with no prompt and no tools, so remove the fields rather than silencing the error. This is what this API acts on:
+A rejected `session.update` applies none of its fields, so one leftover setting also throws away the `instructions` and `tools` sent alongside it. If your client logs errors and carries on, it ends up running with no prompt and no tools, so remove the fields rather than silencing the error.
+
+**Session settings this API ignores.** These are accepted and dropped, so `session.updated` shows only what's in effect. Remove them anyway, since they do nothing here:
+
+- `model`, `tracing`, `truncation` and `include`.
+- The `turn_detection` timing fields `threshold`, `prefix_padding_ms` and `silence_duration_ms`, and `"interrupt_response": true`. `"type": "semantic_vad"` leaves the session on `server_vad`.
+- `audio.input.noise_reduction`.
+- An OpenAI voice name such as `marin` in `audio.output.voice`, and `audio.output.speed`.
+
+This is what this API acts on, for text replies:
 
 ```json what this service acts on
 {
@@ -64,13 +74,16 @@ A rejected `session.update` applies none of its fields, so one leftover setting 
 
 Turn timing isn't tunable because the turn boundary here is a model judgment, not a silence timer. Dialog-RSN-1 confirms or overrules what the detector proposes, based on the conversation. What you'd have expressed as `silence_duration_ms` you express in `instructions`, in plain language, as the [prompt guide](/dialog-rsn-1/prompt-guide#turn-taking) explains. The fixed thresholds behind the detector are in the [reference](/dialog-rsn-1/reference#turn-taking-and-audio).
 
-**The audio playback path.** A real OpenAI Realtime client typically listens for `response.output_audio.delta` and feeds it to a jitter-buffered player. This API emits no `response.output_audio.*` events at all. Delete that code, and read the reply from `response.output_text.delta` instead.
+**The audio playback path.** A real OpenAI Realtime client typically listens for `response.output_audio.delta` and feeds it to a jitter-buffered player. Dialog-RSN-1 writes its reply as text, and you choose who speaks it:
 
-**Echo avoidance.** If your client mutes the microphone while the assistant's audio plays, to stop the assistant hearing itself through the speakers, remove that too. This API produces no audio to leak. When you add your own text-to-speech, report playback instead, as the [streaming to TTS guide](/dialog-rsn-1/guides/streaming-text-to-speech) covers.
+- **Your own text-to-speech.** Set `output_modalities: ["text"]`, delete the playback code, and read the reply from `response.output_text.delta` instead. No `response.output_audio.*` events arrive. This is what the companion repo's `after.py` does.
+- **The managed voice.** Sessions start with `output_modalities: ["audio"]`, and the service speaks each reply itself. The audio arrives as `response.output_audio.delta`, PCM16 at 24 kHz, with the transcript in `response.output_audio_transcript.*`, so your playback code keeps working. To choose a voice, pass a Cartesia voice ID in `audio.output.voice`.
+
+**Echo avoidance.** With text replies, if your client mutes the microphone while the assistant's audio plays, to stop the assistant hearing itself through the speakers, remove that too. This API produces no audio to leak. When you add your own text-to-speech, report playback instead, as the [streaming to TTS guide](/dialog-rsn-1/guides/streaming-text-to-speech) covers.
 
 ## Known limitations to account for
 
-If your client was built against OpenAI's fuller feature set, you're more likely to notice the gaps than if you'd built fresh against this API. Two worth knowing before you migrate: `conversation.item.truncate` is acknowledged but doesn't actually shorten history, and MCP-server tool declarations are dropped rather than half-supported. The full list is in [Known limitations](/dialog-rsn-1/reference#known-limitations).
+If your client was built against OpenAI's fuller feature set, you're more likely to notice the gaps than if you'd built fresh against this API. Two worth knowing before you migrate: with text replies, `conversation.item.truncate` is acknowledged but doesn't actually shorten history, and MCP server tools are rejected rather than half-supported. The full list is in [Known limitations](/dialog-rsn-1/reference#known-limitations).
 
 <CardGroup cols={2}>
   <Card title="Overview" icon="lightbulb" href="/dialog-rsn-1/overview">
