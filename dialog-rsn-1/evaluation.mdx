@@ -39,7 +39,7 @@ The cost is that no metric on this API describes what a caller heard. Latency me
 
 ## What the wire gives you
 
-Most metrics come off the [event stream](/dialog-rsn-1/reference#server-→-client-events). Record every frame you send with a monotonic timestamp and every event you receive with another, and you have the evidence for all of the below.
+Most metrics come off the [event stream](/dialog-rsn-1/reference#server-→-client-events). The events below are the ones a text session sends, so set `output_modalities: ["text"]` in your `session.update` rather than relying on the default. Record every frame you send with a monotonic timestamp and every event you receive with another, and you have the evidence for all of the below.
 
 | You want to know | Watch for |
 |---|---|
@@ -100,7 +100,7 @@ Grouped by which failure they catch. All of them come from the event log plus yo
 | Tool call count | Actual against expected. Catches the duplicate booking that a pass/fail on final state can miss. |
 | Grounded confirmation | Whether the reply claiming success came from a response created *after* the matching `function_call_output` was added. A confirmation in the same response as the tool call is a guess. |
 | Refusal held | For scenarios that must be refused: the reply declines, and the forbidden call never appears in the event log or the application state. |
-| Scope accuracy | `poly_out_of_domain` on `response.done` against your scenario's own in-scope or out-of-scope label. The model reports its verdict on every turn it judges, tool calls included, and both `true` and `false` are answers rather than one being an absence. Catches an agent drifting outside what it was deployed for, and the opposite failure of refusing work it should be doing. |
+| Scope accuracy | `poly_out_of_domain` on `response.done` against your scenario's own in-scope or out-of-scope label. The model reports its verdict on every turn it judges, tool calls included, and both `true` and `false` are answers rather than one being an absence. Catches an agent drifting outside what it was deployed for, and the opposite failure of refusing work it should be doing. Grade the response that answers the caller: a response that only calls a search tool can report `true` before it has the passages. |
 | Semantic quality | LLM-judged, for what a string comparison can't reach: did it understand the request, keep context, ask a useful clarifying question. Diagnostic and partial credit only. |
 
 ### Turn-taking
@@ -120,7 +120,7 @@ Define a start and an end event for every timer, and never mix populations.
 | Metric | Measured from, to |
 |---|---|
 | Turn confirmation | The last frame you appended containing caller speech, to `input_audio_buffer.committed`. Usually the largest single segment of a turn, and the one [the model is deciding on](/dialog-rsn-1/overview#turn-taking). |
-| Time to first token | `response.created` to the first `response.output_text.delta`. |
+| Time to first token | `response.created` to the first `response.output_text.delta` of the same response. A response that only calls a tool has no text, so pair them by `response_id`. |
 | Reply completion | `response.created` to `response.output_text.done`. Matters because most clients start speaking before this lands. |
 | Caller-perceived latency | Caller stops speaking, to your text-to-speech emitting its first audio. The only latency a caller can feel, and the only one this API can't see. Measure it in your harness. |
 
@@ -271,9 +271,12 @@ def turn_boundaries(timeline):
 
 
 def first_token_latency(timeline):
-    created = next(r["t"] for r in timeline if r["event"]["type"] == "response.created")
-    first = next(r["t"] for r in timeline if r["event"]["type"] == "response.output_text.delta")
-    return first - created
+    """First text delta, timed from the response.created of the same response."""
+    first = next(r for r in timeline if r["event"]["type"] == "response.output_text.delta")
+    rid = first["event"]["response_id"]
+    created = next(r["t"] for r in timeline if r["event"]["type"] == "response.created"
+                   and r["event"]["response"]["id"] == rid)
+    return first["t"] - created
 
 
 def scope_verdict(response):

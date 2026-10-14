@@ -40,7 +40,7 @@ The loop Dialog-RSN-1 expects is **tool → tool → … → text**. Emitting te
 
 ### What "say X and call Y" actually does
 
-Prompting for a spoken line *and* a tool call in the same response doesn't produce both. Dialog-RSN-1 resolves it in order: **it calls Y in its next response, then says X after.** That's deliberate rather than a failure to follow the instruction: a prompt like this is ambiguous about ordering, and picking one resolution consistently removes a class of bugs that would otherwise show up as the agent sometimes speaking first and sometimes not.
+Prompting for a spoken line *and* a tool call in the same response doesn't produce both. Dialog-RSN-1 resolves it in order: **it calls Y first, and its text comes in the response after the tool result.** By then the result has usually overtaken X, so expect the reply to report the outcome rather than say X word for word. That's deliberate rather than a failure to follow the instruction: a prompt like this is ambiguous about ordering, and picking one resolution consistently removes a class of bugs that would otherwise show up as the agent sometimes speaking first and sometimes not.
 
 Write your instructions knowing the tool call goes first. If the caller needs to hear something before the tool runs, that's the next pattern.
 
@@ -84,7 +84,7 @@ Turn-taking is decided by the model, not a silence timer. The first token Dialog
 That means there's no silence window to tune, and no threshold tuning to do for interruptions, hesitation, background noise, or an automated voice on the line. It also means the verdict is **promptable**, in plain language, the same as everything else.
 
 <Warning>
-**The realtime schema's turn-timing fields are rejected.** `silence_duration_ms`, `prefix_padding_ms`, `threshold`, `idle_timeout_ms`, `interrupt_response` and `"type": "semantic_vad"` each fail with `unsupported_parameter`, because the detector's thresholds are fixed. `create_response` is the only field of `turn_detection` this service reads. Tune turn-taking in `instructions` instead. See the [reference](/dialog-rsn-1/reference#turn-taking-and-audio).
+**The realtime schema's turn-timing fields change nothing.** `silence_duration_ms`, `prefix_padding_ms`, `threshold` and `"type": "semantic_vad"` are accepted and left at this service's values, because the detector's thresholds are fixed, and `session.updated` echoes `server_vad` back. `turn_detection: null`, `interrupt_response: false` and `idle_timeout_ms` are refused with `unsupported_parameter`. `create_response` is the only field of `turn_detection` this service reads. Tune turn-taking in `instructions` instead. See the [reference](/dialog-rsn-1/reference#turn-taking-and-audio).
 </Warning>
 
 ### What prompting can't do
@@ -97,7 +97,7 @@ Prompting can't make Dialog-RSN-1 cut in while the caller is still talking. Barg
 
 **A pause mid-answer looks like the end of a turn unless you say otherwise.** Callers with more than one thing to say, several items in an order, more than one date, seldom get through it in one breath.
 
-Say what "complete" looks like and the verdict follows it: *"wait until the caller says they're done before responding."* Keeping track of what's been collected so far gives the model something concrete to check against.
+Say what "complete" looks like, and what to do when a pause ends the turn short of it: ask "anything else?" rather than act on the first item. The caller gets the floor straight back instead of an agent that has already moved on.
 
 Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/turn-taking#waiting-for-a-complete-sequence).
 
@@ -147,7 +147,7 @@ If you'd rather track a condition as explicit state, the alternative is to **hav
 
 **A sneeze, or a "hang on" muttered mid-sentence, is something a text-only pipeline drops entirely.** `instructions` can ask Dialog-RSN-1 to acknowledge these in passing, a "bless you" or a short pause, and carry on with the sentence it was in the middle of.
 
-Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/turn-taking#acknowledging-whats-not-a-word).
+Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/turn-taking#acknowledging-what’s-not-a-word).
 
 ## Tool calling
 
@@ -161,7 +161,7 @@ The mechanics are fixed and not promptable: arguments stream in, you run the too
 
 **A tool that cancels a booking or charges a card shouldn't fire on the first thing that sounds like a yes.** Nothing in the protocol distinguishes a read-only tool from a destructive one, since `tools` only carries a name, a description, and a parameter schema, not a risk level.
 
-That distinction has to live in `instructions`: name the tools that need a spoken confirmation first, and say so explicitly, rather than trusting the model to infer which ones are risky from their names alone. Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/tool-calling#confirming-before-anything-that-cant-be-undone).
+That distinction has to live in `instructions`: name the tools that need a spoken confirmation first, and say so explicitly, rather than trusting the model to infer which ones are risky from their names alone. Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/tool-calling#confirming-before-anything-that-can’t-be-undone).
 
 #### Speaking naturally about a result, not the tool that produced it
 
@@ -192,7 +192,7 @@ Whatever error shape your tools return, `instructions` has to describe it, or Di
 }
 ```
 
-When the model calls it, your harness runs the actual search and attaches what it found as [`poly_knowledge`](/dialog-rsn-1/reference#the-session-object) on the `function_call_output`, a list of `{name, content, actions}` topics, alongside whatever `output` you'd normally return:
+When the model calls it, your harness runs the actual search and attaches what it found as [`poly_knowledge`](/dialog-rsn-1/reference#the-session-object) on the `function_call_output`, a list of `{name, content}` topics, alongside whatever `output` you'd normally return:
 
 ```json answering the search with retrieved topics
 {
@@ -202,12 +202,14 @@ When the model calls it, your harness runs the actual search and attaches what i
     "call_id": "call_abc123",
     "output": "{\"found\": 2}",
     "poly_knowledge": [
-      { "name": "refund_policy", "content": "Refunds are issued within 5 business days of approval.", "actions": [] },
-      { "name": "return_window", "content": "Items can be returned within 30 days of delivery.", "actions": [] }
+      { "name": "refund_policy", "content": "Refunds are issued within 5 business days of approval." },
+      { "name": "return_window", "content": "Items can be returned within 30 days of delivery." }
     ]
   }
 }
 ```
+
+A topic can also carry `actions`, an optional string. Send it as a string, not a list: a list fails validation with `invalid_request_error` and the whole item is refused.
 
 Send a fresh `response.create` after that, same as any other tool result. Dialog-RSN-1 renders those topics into one numbered list to cite into, and the reply's `response.done` carries `poly_cited_topics`: the names of the topics it actually answered from, absent rather than empty when it cited none. `instructions` is where you say when to search rather than answer from memory, and what to do when the search comes back with nothing relevant. Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/tool-calling#searching-and-getting-citations-back).
 
