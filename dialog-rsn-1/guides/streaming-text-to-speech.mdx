@@ -1,0 +1,99 @@
+---
+title: "Streaming text to your text-to-speech"
+sidebarTitle: "Streaming to TTS"
+description: "Wire the streamed reply into a text-to-speech provider: streaming the delta instead of waiting for the whole turn, barge-in as two separate steps, unspeakable text, emotion tags, playback reports, and the latency that's actually felt."
+keywords:
+  - realtime
+  - text to speech
+  - TTS
+  - streaming
+  - barge-in
+  - latency
+  - voice agents
+---
+
+By default the server speaks each reply in its own voice. When you want your own voice, your own text-to-speech vendor, or control over playback, Dialog-RSN-1 [can answer in text](/dialog-rsn-1/overview#why-it’s-built-this-way) instead. Set `output_modalities: ["text"]` in your `session.update`. Then the spoken half of the call is entirely yours to build. If everything you've done so far has been speech-to-speech, that half is new: there's no audio-out event to wait for, and the provider you pick has its own failure modes that show up as call defects rather than API errors. This page covers the ones that actually bite.
+
+<Card title="Full code on GitHub" icon="github" href="https://github.com/PolyAI-LDN/dialog-rsn-1-streaming-tts">
+  A Python agent that speaks each reply through ElevenLabs as it streams, with every section of this page in code.
+</Card>
+
+## Stream the delta, don't wait for the whole reply
+
+**Waiting for `response.output_text.done` adds the entire generation to your time-to-first-audio.** `response.output_text.delta` starts arriving as soon as the model has anything to say, well before the turn finishes, and most streaming TTS providers accept text incrementally for exactly this reason: feed a context small amounts of text at a time and it starts synthesizing before it has the whole thing.
+
+```text the shape, not a specific SDK
+on response.output_text.delta:
+    tts_context.push_text(delta)      # feed the increment, not the accumulated string
+on response.output_text.done:
+    tts_context.flush()               # tell it there's no more coming for this turn
+```
+
+Push the increment your event carries, not the string you've accumulated so far. Re-sending the whole reply on every delta re-synthesizes what the provider already has, which costs you the latency you were trying to avoid.
+
+## One context per response, and cancel and flush are two different steps
+
+**Open one TTS streaming context per `response_id`, not one for the whole call.** A response can be cancelled mid-stream, on [barge-in](/dialog-rsn-1/reference#turn-taking-and-audio), and a context that's still mid-turn when that happens needs to be told to stop rather than quietly finishing a reply the caller already talked over.
+
+That cancellation is two separate steps, and treating them as one leaves audio playing that the caller has already interrupted:
+
+1. **Cancel the TTS context for that response.** Stop feeding it text and stop it synthesizing more audio for a reply that's no longer going to be said.
+2. **Flush what's already queued in the speaker.** Audio synthesized before the cancellation can still be sitting in a playback buffer, and closing the TTS context doesn't reach into that buffer and clear it. Do that as its own step, or the caller keeps hearing the tail end of a reply the model has already abandoned.
+
+Run both steps on `input_audio_buffer.speech_started` while a reply is still playing. It reports a confirmed turn, so by then Dialog-RSN-1 has confirmed the caller is talking. Most replies finish generating well before they finish playing, so this is usually the only signal you get. If the reply was still generating, `response.done` with `status: "cancelled"` follows too, unprompted. Treat that as the same signal, not a second one.
+
+## Guard unspeakable text before it reaches the synthesizer
+
+**Empty text and punctuation-only text are both things Dialog-RSN-1 can legitimately produce, and most TTS vendors 400 on them.** A reply that's only an [emotion tag](#strip-the-emotion-tag-before-it-reaches-tts) with nothing after it, or a turn where the model has nothing further to add, can arrive as an empty or near-empty string once you've stripped what you're going to strip anyway.
+
+If your harness treats a TTS failure as fatal to the call, that 400 takes the call down over text that was never meant to be spoken. Check what's left after stripping tags and whitespace, and skip the synthesis call entirely when there's nothing left to say, rather than sending it and handling the error after the fact:
+
+```text the check, not a specific SDK
+speakable = strip_emotion_tag(text)
+if speakable.strip(" \t\n.,!?-"):
+    tts_context.push_text(speakable)
+# else: nothing to say this turn, don't call the synthesizer at all
+```
+
+## Strip the emotion tag before it reaches TTS
+
+**If you're using the [emotion-tag pattern](/dialog-rsn-1/prompt-cookbook/response-style#tagging-a-reply-with-an-emotion), the tag has to come off before the text reaches your synthesizer, not after.** Send `[reassuring] Don't worry, I can get that sorted for you.` straight to TTS and most providers will say the bracket and the word "reassuring" out loud, right before the reply itself.
+
+Parse the prefix once, at the point text leaves your harness for TTS, and use it for what it's for, a style or voice parameter, rather than letting it fall through as spoken content:
+
+```text the split, not a specific SDK
+match = /^\[(\w+)\]\s*/.match(text)
+tag, speakable = (match.group(1), text[match.end():]) if match else (None, text)
+tts_context.push_text(speakable, style=tag)
+```
+
+Remember the tag is optional: a response that's only a tool call carries no text at all, so there's nothing to prefix and nothing to strip.
+
+## Report playback back
+
+**Without a playback report, the server guesses what the caller heard.** It assumes your TTS speaks at a typical rate, about 15 characters a second, starting from the reply's first text. It treats the reply as audible for that long, and on a barge-in it cuts history back to the words it estimates were heard. Your synthesizer's real pace, buffering and network delay all make that guess drift from what actually happened.
+
+Send [`poly.output_audio.started`, `.delta`, and `.stopped`](/dialog-rsn-1/reference#playback-reports) as your TTS starts, progresses through, and finishes or is cut off from a reply, and the guess is replaced by what really played. A backchannel partway through a long reply gets confirmed as an interruption instead of acted on, for as long as the reply is actually playing. And history is rewritten to `spoken_text` on `.stopped`, so the model's next turn knows exactly where the caller cut in. Once a session has sent one report, the server stops estimating for it, so send them for every reply. See the [overview](/dialog-rsn-1/overview#turn-taking) for how playback reports change barge-in behavior, and the [reference](/dialog-rsn-1/reference#playback-reports) for the event shapes.
+
+## Measure time-to-first-audio, not time-to-first-token
+
+**The first `response.output_text.delta` is not what the caller feels; the first sample your TTS actually plays is.** Everything upstream of that, the model's latency, your own text buffering, the round trip to your synthesizer, sits inside a gap the caller experiences as silence. Time-to-first-token looks fast on a dashboard and still leaves a caller wondering if the call dropped.
+
+This is covered in more depth, with the metric definitions and how to separate model latency from TTS latency, in [Evaluations](/dialog-rsn-1/evaluation#latency).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Response style cookbook" icon="waveform" href="/dialog-rsn-1/prompt-cookbook/response-style">
+    The emotion-tag recipe this page assumes, and the other spoken-output patterns.
+  </Card>
+  <Card title="Reference: playback reports" icon="file-lines" href="/dialog-rsn-1/reference#playback-reports">
+    The exact shape of `poly.output_audio.started` / `.delta` / `.stopped`.
+  </Card>
+  <Card title="Overview" icon="lightbulb" href="/dialog-rsn-1/overview#turn-taking">
+    How barge-in and playback reports fit together.
+  </Card>
+  <Card title="Evaluations" icon="flask" href="/dialog-rsn-1/evaluation#latency">
+    Time-to-first-token versus caller-perceived latency, and how to measure the gap between them.
+  </Card>
+</CardGroup>

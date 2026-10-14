@@ -1,0 +1,77 @@
+---
+title: "Response style recipes"
+sidebarTitle: "Response style"
+description: "`instructions` text for spoken output: saying numbers the way a caller expects, keeping replies short, and tagging a reply with an emotion for your TTS."
+keywords:
+  - realtime
+  - prompting
+  - instructions
+  - text to speech
+  - emotion tags
+  - cookbook
+  - recipes
+---
+
+Each of these is `instructions` text, not a new field or event. The reasoning behind them is in [Prompting for spoken output](/dialog-rsn-1/prompt-guide#response-style).
+
+<Note>
+**Start from nothing.** Dialog-RSN-1's default text style is already tuned for speech: plain spoken sentences, no markdown, no headings, no bullet lists. You don't need a recipe to get that, and a paragraph spent ruling out screen formatting is prompt you could have spent on your business logic. The recipes below are the overrides worth making on top of the default.
+</Note>
+
+## Saying numbers the way a caller expects
+
+**Tell the model which reading you want, since the same digits support more than one.** Match this list to what your agent actually says out loud.
+
+```text instructions: say numbers naturally
+Say prices in full, for example "fourteen dollars and ninety nine cents,"
+not "fourteen point nine nine." Say dates as a person would, for example
+"the fifth of March," not "oh three oh five." Say phone numbers and
+confirmation codes one digit at a time, for example "one two three four,"
+not as a single large number.
+```
+
+## Keeping replies short
+
+**Set an explicit ceiling instead of trusting brevity to the model's judgment.** A reply that reads fine as a paragraph plays back as a caller wondering if the agent is ever going to stop talking.
+
+```text instructions: cap reply length
+Keep every reply to 1 or 2 short sentences unless the caller has explicitly
+asked for more detail. If an answer needs more than that, give the most
+important part first and ask if they want the rest, rather than saying it
+all at once.
+```
+
+## Tagging a reply with an emotion
+
+**If your text-to-speech takes a style or emotion input, let the model pick one per reply.** Offer the set of tags you support and ask for the answer prefixed with one in square brackets, then strip the tag off in your harness before the text reaches the synthesizer. Skip that step and the caller hears the bracket and the tag word spoken aloud, ahead of the reply. See the [streaming to TTS guide](/dialog-rsn-1/guides/streaming-text-to-speech#strip-the-emotion-tag-before-it-reaches-tts) for where that split happens in your pipeline.
+
+```text instructions: prefix each reply with an emotion tag
+Choose ONE emotion tag for your response from: [friendly], [apologetic],
+[reassuring], [empathetic], [patient]. Return your answer prefixed with the
+tag in square brackets, for example "[reassuring] Don't worry, I can get
+that sorted for you."
+```
+
+The tags aren't a fixed enum, so a set of your own works as well as the common ones. A response that's only a tool call carries no tag, since it emits no text to prefix, so parse the prefix as optional rather than assuming every response has one.
+
+## Overriding the default style
+
+**If you're replacing the default voice with a persona of your own, restate what still has to hold.** A long persona instruction can pull the model back toward writing for a reader, and this is the case where naming the formatting rules earns its place.
+
+```text instructions: a persona that stays speakable
+You are Ash, an upbeat and slightly informal agent for a bike repair shop.
+Everything you write is spoken aloud, never displayed, so keep to plain
+sentences a person would say out loud: no markdown, no bullet points, no
+headings, no emoji.
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Prompt guide" icon="wand-magic-sparkles" href="/dialog-rsn-1/prompt-guide#response-style">
+    What the default style already covers, and which overrides are worth making.
+  </Card>
+  <Card title="Overview" icon="lightbulb" href="/dialog-rsn-1/overview">
+    How Dialog-RSN-1 writes each reply before it's spoken, and where your own TTS fits in.
+  </Card>
+</CardGroup>
