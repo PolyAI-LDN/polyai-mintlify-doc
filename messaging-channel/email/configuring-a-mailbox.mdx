@@ -1,7 +1,7 @@
 ---
 title: "Configuring a mailbox"
 sidebarTitle: "Mailbox Configuration"
-description: "Connect a support email address to your agent: forwarding, domain verification, handoff configuration and testing."
+description: "Connect a support email address to your agent in Agent Studio: sender address, delivery method, DNS records, signature, testing and activation."
 ---
 
 This guide connects a support email address to your agent. It is written for your email administrator and whoever manages your DNS. Expect around 30 minutes of hands-on work, plus DNS propagation time, which is usually a few minutes but can take up to 24 hours.
@@ -11,57 +11,85 @@ You do not need to migrate anything. Your email provider stays in place and your
 ## How it works
 
 1. A customer emails your support address, for example `support@yourcompany.com`.
-2. Your email provider forwards the message to a PolyAI mailbox provisioned for you.
-3. Your agent reads the message and either answers it or hands it to your team.
+2. Your email provider forwards the message to a receiving address PolyAI generates for you.
+3. Your agent reads the message and either answers it or [hands it to your team](/messaging-channel/email/handoff).
 4. Replies leave authenticated under your own domain, so they land in the customer's existing thread with your branding intact.
 
 PolyAI sits between your support inbox and your handoff destination. It does not replace either.
 
 ## Before you start
 
-| What you need | Why |
-| --- | --- |
-| Admin access to your email provider | To create the forwarding rule |
-| Admin access to your DNS zone | To add the records that let the agent reply as your domain |
-| Agent Studio access with admin permissions | To create the channel and configure handoff |
-| The support address you want to connect | One address per email channel |
-| A handoff inbox | Where the agent sends anything it should not answer itself |
+| What you need                             | Why                                                                                           |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Admin access to your email provider       | To create the forwarding rule                                                                 |
+| Admin access to your DNS zone             | To add the records that let the agent reply as your domain                                    |
+| Agent Studio access with edit permissions | To add the address and configure handoff. Viewers can see the setup but cannot run DNS checks |
+| The support address you want to connect   | One address per environment                                                                   |
+| A handoff inbox                           | Where the agent sends anything it should not answer itself                                    |
 
 Decide three things up front:
 
-- **Which address to connect.** Start with one. A shared support alias works better than a named individual's mailbox.
-- **Which inbox receives handoffs.** This is where your team picks up, so it must be monitored.
-- **Your region.** Your emails are stored in the AWS region matching your registered location.
+- **Which address to connect.** A shared support alias works better than a named individual's mailbox.
+- **Which inbox receives handoffs.** This is where your team picks up, so it must be monitored. See [Email handoff](/messaging-channel/email/handoff).
+- **Who owns your DNS.** The DNS records are the only step that blocks go-live, so the timeline usually depends on this person.
 
 <Note>
-Email works with any provider that supports standard forwarding and DNS records. There is no fixed list of supported vendors and nothing to install. If your mail passes through a security gateway such as Mimecast or Proofpoint, contact PolyAI before starting, as routing is configured differently.
+  Email works with any provider that supports standard forwarding and DNS
+  records. There is no fixed list of supported vendors and nothing to install.
+  If your mail passes through a security gateway such as Mimecast or Proofpoint,
+  contact PolyAI before starting, as routing is configured differently.
 </Note>
 
-<Steps>
-<Step title="Create the email channel in Agent Studio">
+## Open the Email page
 
-In Agent Studio, open **Email** and create a new email channel for your project.
+In Agent Studio, go to **Channels > Email**. The page has three tabs:
 
-Agent Studio provisions a virtual mailbox and displays its address, for example:
+| Tab                 | What it controls                                                                                                              |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **General**         | The channel on/off switch, attachments, signature, style prompt, language model and safety filters                            |
+| **Email addresses** | The sender address for each environment, its setup progress and its domain status                                             |
+| **Handoffs**        | Where handed-off emails go and what your team and the customer receive. See [Email handoff](/messaging-channel/email/handoff) |
 
-```text
-abc123@agent.us-1.poly.ai
-```
+<Note>
+  If you do not see **Email** under **Channels**, the channel has not been
+  enabled for your project. Contact your PolyAI account manager.
+</Note>
 
-The mailbox is unique to your project and isolated from every other client. Copy the address; you need it in Step 2.
+### Environments
 
-| Region | Mailbox domain |
-| --- | --- |
-| US | `agent.us-1.poly.ai` |
-| EU | `agent.euw-1.poly.ai` |
-| UK | `agent.uk-1.poly.ai` |
+The **Email addresses** tab shows one card for each environment: **Sandbox**, **Staging** (pre-release) and **Live**. Each environment has its own sender address, receiving address, signature and handoff settings, so you can test in Sandbox without affecting live customers. Each environment can hold one email address.
 
-Email is configured per environment, so your sandbox and production environments each get their own mailbox. Set up the sandbox first and test there.
+Set up Sandbox first, test there, then repeat the setup for Live. See [Environments and versions](/environments-and-versions/introduction).
 
-</Step>
-<Step title="Forward your support address to your PolyAI mailbox">
+## Add an email address
 
-Create a forwarding rule that sends everything arriving at your support address to the PolyAI mailbox from Step 1. Follow the route for your provider.
+1. Open the **Email addresses** tab.
+2. On the card for the environment you are setting up, select **Email address**.
+3. In **Add an email address**, enter the **Sender email address**. This is the address your customers write to and the address replies are sent from, for example `help@yourcompany.com`.
+4. Select **Add address**.
+
+Agent Studio creates the address and opens **Complete email setup**, a five-step guide. Each step shows **Not started**, **In progress** or **Complete**, and progress is saved, so you can leave and come back. To resume later, open the address's menu on the **Email addresses** tab and select **Edit email**.
+
+A domain can only be connected to one project at a time.
+
+## Choose a delivery method
+
+The **Delivery method** step shows your **Receiving email address**: a unique address PolyAI generates for this environment, on the domain for your region.
+
+| Region | Receiving address domain   |
+| ------ | -------------------------- |
+| US     | `agent.us-1.prod.poly.ai`  |
+| EU     | `agent.euw-1.prod.poly.ai` |
+| UK     | `agent.uk-1.prod.poly.ai`  |
+
+Select **Copy address**, then choose a **Setup method**:
+
+- **Forwarding rule** (default): forward customer emails from your existing inbox to the receiving address. Best when you keep using your current mail provider.
+- **MX record**: route email for a domain directly to PolyAI. Best for a dedicated support subdomain that carries nothing but support traffic. Contact PolyAI for the MX value to publish; Agent Studio does not display it.
+
+### Create the forwarding rule
+
+Create a rule that sends everything arriving at your support address to the receiving address. Follow the route for your provider.
 
 <AccordionGroup>
 <Accordion title="Google Workspace">
@@ -69,7 +97,7 @@ Create a forwarding rule that sends everything arriving at your support address 
 1. Open the Admin console and go to **Apps > Google Workspace > Gmail > Default routing**.
 2. Select **Add another rule**.
 3. Under **Specify envelope recipients to match**, choose **Single recipient** and enter your support address.
-4. Under **For the above types of messages, do the following**, tick **Change envelope recipient** and enter your PolyAI mailbox address.
+4. Under **For the above types of messages, do the following**, tick **Change envelope recipient** and enter your receiving address.
 5. Under **Account types to affect**, select **Users** and **Groups**.
 6. Set the rule to apply to non-recognised and recognised addresses, then save.
 
@@ -77,8 +105,8 @@ Create a forwarding rule that sends everything arriving at your support address 
 <Accordion title="Gmail (single mailbox, not Workspace)">
 
 1. Go to **Settings > See all settings > Forwarding and POP/IMAP**.
-2. Select **Add a forwarding address** and enter your PolyAI mailbox address.
-3. Gmail sends a verification link to that address. Ask your PolyAI contact to retrieve the confirmation code from the virtual mailbox, then enter it in Gmail.
+2. Select **Add a forwarding address** and enter your receiving address.
+3. Gmail sends a verification link to that address. Ask your PolyAI contact to retrieve the confirmation code, then enter it in Gmail.
 4. Select **Forward a copy of incoming mail to** and choose **keep Gmail's copy in the Inbox**.
 
 </Accordion>
@@ -86,111 +114,147 @@ Create a forwarding rule that sends everything arriving at your support address 
 
 1. In the Microsoft 365 admin center, go to **Users > Active users** and select the support mailbox, or open **Exchange admin center > Recipients > Mailboxes**.
 2. Open **Mail flow settings** and select **Manage email forwarding**.
-3. Tick **Forward all emails sent to this mailbox**, enter your PolyAI mailbox address, and tick **Keep a copy of forwarded email**.
-4. If your organisation uses transport rules instead, create a rule that redirects messages sent to the support address to your PolyAI mailbox.
+3. Tick **Forward all emails sent to this mailbox**, enter your receiving address, and tick **Keep a copy of forwarded email**.
+4. If your organisation uses transport rules instead, create a rule that redirects messages sent to the support address to your receiving address.
 
 </Accordion>
 <Accordion title="Any other provider">
 
-Look in your provider's documentation for forwarding, mail rules, routing or redirect. The rule you want: every message delivered to the support address is also delivered to the PolyAI mailbox address.
-
-</Accordion>
-<Accordion title="MX record alternative">
-
-If you would rather route a whole subdomain instead of forwarding individual addresses, point the MX record for that subdomain at the PolyAI mailbox domain for your region. Agent Studio shows the exact value. Use this only if the subdomain carries nothing but support traffic.
+Look in your provider's documentation for forwarding, mail rules, routing or redirect. The rule you want: every message delivered to the support address is also delivered to the receiving address.
 
 </Accordion>
 </AccordionGroup>
 
 <Warning>
-Two things to get right:
-
-- **Keep a copy in your own inbox** while you pilot. It gives your team a fallback and makes it obvious what the agent has picked up.
-- **Turn off any auto-reply or out-of-office on the connected address.** The agent does not respond to auto-replies, and an auto-responder on the connected address creates noise.
+  **Keep a copy in your own inbox** while you pilot. It gives your team a
+  fallback and makes it obvious what the agent has picked up. Also **turn off
+  any auto-reply or out-of-office on the connected address**. Automatic
+  replies, bounces and bulk mail are discarded rather than answered, so an
+  auto-responder only creates noise.
 </Warning>
 
-</Step>
-<Step title="Authorise PolyAI to reply from your domain">
+## Set up your sending domain
 
-Replies leave under your domain, not PolyAI's, so customers see your brand and your mail passes authentication checks.
+The **Sending domain** step authorises PolyAI to send replies as your domain, so customers see your brand and your mail passes authentication checks.
 
-1. In Agent Studio, enter the domain replies should send from, for example `yourcompany.com`.
-2. Agent Studio generates your DNS records: one TXT record and three CNAME records. Together these authorise PolyAI to send email as your domain and cryptographically sign each reply so receiving mail servers accept it.
-3. Copy each record exactly as shown, including any trailing dots, into your DNS zone. Common places to do this: Cloudflare, Amazon Route 53, Azure DNS, Google Cloud DNS, GoDaddy.
-4. Return to Agent Studio and click **Validate**.
+1. Open the DNS settings for your domain with your domain provider, for example Cloudflare, Amazon Route 53, Azure DNS, Google Cloud DNS or GoDaddy.
+2. Add each record in the table using the **Record type**, **Name** and **Value** shown. Use the copy buttons to avoid typos.
+3. Save the changes with your domain provider.
+4. Return to Agent Studio and select **Verify DNS records**.
 
-If validation fails, wait and try again before changing anything. Propagation is usually minutes but can take up to 24 hours.
+Agent Studio also checks the records automatically each time you open this step. It does not poll, so select **Verify DNS records** again after you publish a change.
+
+### The DNS checks
+
+The records table groups records by check. Only DKIM is required.
+
+| Check     | Records                                                       | Required | Purpose                                                                                                          |
+| --------- | ------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------- |
+| **DKIM**  | Three CNAME records                                           | Yes      | Signs every reply as your domain. Nothing is sent from your domain until DKIM is verified                        |
+| **SPF**   | An MX and a TXT record on a `bounce` subdomain of your domain | No       | Aligns the envelope sender with your domain and routes bounces under it. Your existing SPF record is not touched |
+| **DMARC** | Your own DMARC policy record                                  | No       | Advisory. DMARC passes on DKIM alone, so this is shown for information                                           |
+
+The summary above the table reads, for example, **2 of 3 verified**. Each record shows one of these statuses:
+
+| Status       | Meaning                                                        |
+| ------------ | -------------------------------------------------------------- |
+| **Verified** | The record is published and correct                            |
+| **Pending**  | Not found yet. Wait for propagation and verify again           |
+| **Failed**   | The check gave up. Fix the record in your DNS and verify again |
+| **Missing**  | The record has not been published                              |
+| **Unknown**  | The record could not be checked. Try again in a moment         |
+| **Off**      | The check does not apply to this deployment                    |
+
+When DKIM is verified, Agent Studio shows **Sending domain verified** and the step is complete. You can continue to the next step before verification finishes; the step stays incomplete until it passes.
 
 <Warning>
-Do not delete your existing SPF, DKIM or DMARC records. These records are additions, not replacements.
+  Do not delete your existing SPF, DKIM or DMARC records. These records are
+  additions, not replacements.
 </Warning>
 
-</Step>
-<Step title="Configure handoff">
+## Add an email signature
 
-The agent answers what it is allowed to answer and passes everything else to a person. Configure where that goes.
+The **Email signature** step sets the signature added to the end of every reply sent from this address.
 
-1. **Handoff inbox.** The address your team monitors. When the agent hands off, this inbox receives the full email chain, a summary of the conversation, and a suggested reply.
-2. **Handoff template.** The message the customer receives in their thread telling them a person is taking over. Write it in your own style.
-3. **Signature and style.** Set the signature applied to outgoing replies, and optionally a style prompt to tailor tone and format for email.
+The signature is written in HTML. Switch between **HTML** to edit and **Preview** to see it below a sample reply. For example:
 
-If you run Zendesk or Salesforce Service Cloud, use an address from that platform as the handoff inbox and handoffs arrive there for your team to edit and send.
+```html
+<p>Best regards,<br /><strong>The support team</strong></p>
+```
 
-<Tip>
-Send a test handoff early. A mistyped handoff address fails silently, and this is the step most often left until too late.
-</Tip>
+The agent's reply text is sent as plain text, so formatting such as bold or links belongs in the signature, not in your knowledge base or style prompt.
 
-</Step>
-<Step title="Test end to end in your sandbox">
+## Test and activate
 
-Run all of these in the sandbox environment before touching production.
+The final step, **Test your email setup**, is optional but recommended.
 
-| Test | What good looks like |
-| --- | --- |
-| Simple FAQ | Customer sends a standard question, the agent replies from your domain, and the reply lands in the same thread |
-| Handoff | Customer sends something complex or sensitive, the chain plus summary arrives in the handoff inbox, and the customer receives the handoff message |
-| Thread continuity | Customer replies to the agent's reply and the agent keeps the context rather than starting over |
-| Attachment | The message routes straight to handoff, attachment intact |
-| Large email | Anything over 10MB routes straight to handoff |
-| Authentication | The reply passes SPF and DKIM checks and does not land in spam |
+1. Select **Send test email**. The test is sent to your [handoff inbox](/messaging-channel/email/handoff), so set that first. Until your domain is verified, the test is sent from the PolyAI receiving address rather than your own.
+2. Select **Activate email**. The address goes live in its environment and Agent Studio returns to the **Email addresses** tab.
 
-</Step>
-<Step title="Go live">
+Then run these tests from a real mailbox in Sandbox:
 
-1. Repeat Steps 1 to 4 in your production environment.
-2. Switch the forwarding rule on the live support address.
+| Test              | What good looks like                                                                                                              |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Simple FAQ        | Customer sends a standard question, the agent replies from your domain, and the reply lands in the same thread                    |
+| Handoff           | Customer sends something complex or sensitive, the handoff inbox receives the case, and the customer receives the handoff message |
+| Thread continuity | Customer replies to the agent's reply and the agent keeps the context rather than starting over                                   |
+| Attachment        | With attachments turned off, the message goes straight to handoff                                                                 |
+| Authentication    | The reply passes SPF and DKIM checks and does not land in spam                                                                    |
+
+Conversations appear under **Email** in [Conversation Review](/analytics/conversations/review), with **Production** and **Test** views.
+
+## General settings
+
+The **General** tab holds settings that apply across your email addresses.
+
+| Card                | What it does                                                                                                                                                                |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Email channel**   | Turns email on or off for every address in every environment. Turning it off stops sending and receiving, but keeps your configuration so you can reactivate it at any time |
+| **Attachments**     | When on, the agent receives PDF, JPEG and PNG files customers attach. When off, emails with attachments are handed to your team. Off by default                             |
+| **Email signature** | The same HTML signature as the setup step. Use the environment picker to choose which address you are editing                                                               |
+| **Style prompt**    | Tailors tone, format and etiquette for email. Do not redefine the agent's role or general behavior here; that belongs on the Agent page                                     |
+| **Language model**  | The model the agent uses on email. Only text models are listed                                                                                                              |
+| **Safety filters**  | Content filters for the email channel only. See [Safety filters](/behavior/guardrails/safety-filters)                                                                       |
+
+The style prompt, language model and safety filters are part of your agent configuration, so they follow your normal publishing flow. The other settings save to the address immediately.
+
+## Manage email addresses
+
+From the **Email addresses** tab, each address shows its domain status, for example **Domain verified**, **Verifying domain** or **Domain setup required**. Open the address's menu for these actions:
+
+- **Edit email**: reopens the setup steps, where you can check DNS records, change the signature or send a test email.
+- **Change sender address**: changes the address customers see. If you move to a different domain, verification resets and you must publish and verify new DNS records before replies can be sent again.
+- **Remove email address**: stops sending and receiving through this address. Type the address to confirm.
+
+## Go live
+
+1. Repeat the setup in the **Live** environment. If you use the same domain as Sandbox, the DNS records are already in place.
+2. Switch the forwarding rule on for the live support address.
 3. Watch the first days closely with your team still copied on the inbox.
-4. Review conversations and the audit log in Agent Studio. Every inbound and outbound message is captured for compliance and quality review.
-
-</Step>
-</Steps>
-
-## What the agent answers
-
-The agent answers low-risk questions with standard answers: policy questions, status checks, straightforward information requests. It hands off anything complex or compliance-sensitive, anything with an attachment, and anything over 10MB.
-
-Thread context is held for two weeks, so conversations spanning days stay coherent. A reply after that window starts a new conversation.
+4. Review conversations in Conversation Review. Every inbound and outbound message is captured.
 
 ## Troubleshooting
 
-| Symptom | Check |
-| --- | --- |
-| Nothing reaches PolyAI | Forwarding rule is enabled, the PolyAI mailbox address has no typo, forwarding verification was completed, and messages are not caught by a spam or quarantine policy |
-| Replies do not arrive | DNS validation passed in Agent Studio, the agent is published on the email channel, the recipient address is correct, and the customer's spam folder is empty |
-| Replies land in spam | All DNS records are present and exact, there is no conflicting SPF record, and your domain reputation is healthy |
-| DNS validation fails | Records copied exactly with no typos, added to the correct zone, no duplicate or conflicting records, and full propagation time allowed |
-| Agent starts a new thread instead of continuing | The customer replied outside the two-week window, or replied from a different address |
+| Symptom                                         | Check                                                                                                                                                                                     |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Nothing reaches PolyAI                          | The forwarding rule is on, the receiving address has no typo, forwarding verification was completed, the address is activated, and messages are not caught by a spam or quarantine policy |
+| Replies do not arrive                           | DKIM shows **Verified**, the address and the channel are active, and the customer's spam folder is empty                                                                                  |
+| Replies land in spam                            | All DKIM records are present and exact, and your domain reputation is healthy. Publishing the optional SPF records also helps                                                             |
+| DNS stays **Pending**                           | Records were added to the correct zone with no typos or duplicates, and full propagation time has passed                                                                                  |
+| DNS shows **Failed**                            | The record values are wrong or were not found in time. Correct them and select **Verify DNS records**                                                                                     |
+| Agent starts a new thread instead of continuing | The customer replied after the conversation closed (see [Conversation lifecycle](/messaging-channel/email/email#conversation-lifecycle)), or replied from a different address             |
 
 ## Go-live checklist
 
-- [ ] Email channel created and virtual mailbox address noted
+- [ ] Sender address added in each environment you use
 - [ ] Forwarding rule live and verified
 - [ ] Auto-reply removed from the connected address
-- [ ] DNS records added and validated in Agent Studio
+- [ ] DKIM records published and verified
+- [ ] Signature set
 - [ ] Handoff inbox configured and monitored
-- [ ] Handoff template written in your voice
-- [ ] All six sandbox tests passed
-- [ ] Production environment configured
+- [ ] Customer handoff message written in your voice
+- [ ] Sandbox tests passed
+- [ ] Live address activated
 - [ ] Team briefed on where handoffs land
 
 ## Related pages
@@ -200,13 +264,17 @@ Thread context is held for two weeks, so conversations spanning days stay cohere
     How the email channel works and what the agent answers
   </Card>
 
-  <Card title="Knowledge base" icon="book" href="/knowledge/faqs/introduction">
-    Define what the agent can answer autonomously
-  </Card>
+<Card
+  title="Email handoff"
+  icon="user-group"
+  href="/messaging-channel/email/handoff"
+>
+  Configure where handed-off emails go and what your team receives
+</Card>
 
-  <Card title="Safety filters" icon="shield" href="/behavior/guardrails/safety-filters">
-    Configure content filtering for inbound and outbound email
-  </Card>
+<Card title="Knowledge base" icon="book" href="/knowledge/faqs/introduction">
+  Define what the agent can answer autonomously
+</Card>
 
   <Card title="Conversation review" icon="magnifying-glass" href="/analytics/conversations/review">
     Review agent decisions and email threads
