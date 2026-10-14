@@ -6,51 +6,81 @@ description: "Connect your agent to a support email address. The agent answers q
 
 PolyAI Email connects your agent to a support email address. Customers email the address they already use, the agent reads and replies to questions with standard answers, and passes everything else to your team with a summary and a suggested reply. You keep your existing email provider and inbox; PolyAI sits in front of them.
 
+Email is configured in Agent Studio under **Channels > Email**.
+
 ## Email channel pages
 
 <CardGroup cols={2}>
   <Card title="Configuring a mailbox" icon="envelope" href="/messaging-channel/email/configuring-a-mailbox">
-    Connect your support address and configure routing, tone, and handoff
+    Connect your support address, set up DNS, and configure the channel
+  </Card>
+
+  <Card title="Email handoff" icon="user-group" href="/messaging-channel/email/handoff">
+    Configure where handed-off emails go and trigger handoff from a function
   </Card>
 </CardGroup>
 
 ## How it works
 
 1. A customer emails your support address, for example `help@yourbrand.com`.
-2. Your provider forwards the email to a PolyAI virtual mailbox. The email is screened for spam and viruses, then matched to its conversation thread.
-3. The agent reads the email and decides whether it can answer base don the information available to it in the knowledge base. The decision also considers the type of request, not just confidence: sensitive requests such as complaints, refunds and regulated matters are always passed to your team.
+2. Your provider forwards the email to a PolyAI receiving address. The email is screened for spam and viruses, then matched to its conversation thread.
+3. The agent reads the email and decides whether it can answer based on the information available to it in the knowledge base. The decision also considers the type of request, not just confidence: sensitive requests such as complaints, refunds and regulated matters are passed to your team.
 4. If the agent can answer, it replies from your own email address, in your configured tone, with your signature.
-5. If not, the customer receives a note in the same thread that a member of the team will respond, and your chosen handoff inbox receives the case: the customer's details, the original subject line, a summary of the conversation, a suggested reply, and the full email thread attached.
+5. If not, the customer receives a note in the same thread that a member of the team will respond, and your handoff inbox receives the case: the customer's details, the original subject line, a summary of the conversation, a suggested reply, and the full email thread attached.
 
-Replies are authenticated with your domain's DNS records, so they are sent as you and thread correctly in the customer's inbox.
+Replies are signed with your domain's DKIM records, so they are sent as you and thread correctly in the customer's inbox.
 
 ## Features
 
 **Autonomous replies to standard questions.** The agent answers the repetitive share of your inbox, such as order status, policy questions and document requests, without a person reading them. What it is allowed to answer is defined during setup.
 
-**Handoff with a drafted reply.** Emails the agent doesn't answer arrive at your handoff inbox as a prepared case with a summary and a suggested reply, so your team edits and sends rather than starting from scratch.
+**Handoff with a drafted reply.** Emails the agent doesn't answer arrive at your handoff inbox as a prepared case with a summary and a suggested reply, so your team edits and sends rather than starting from scratch. See [Email handoff](/messaging-channel/email/handoff).
 
-**Conversation threading.** Replies continue the same conversation. Context is retained for two weeks, so a customer who replies days later continues where they left off.
+**Conversation threading.** Replies continue the same conversation, so a customer who replies days later continues where they left off. See [Conversation lifecycle](#conversation-lifecycle).
 
-**Your tone and signature.** A style prompt tailors tone, format and etiquette for email, and a global signature is applied to outgoing replies.
+**Your tone and signature.** A style prompt tailors tone, format and etiquette for email, and an HTML signature is added to every reply.
+
+**Attachments.** When turned on, the agent can read PDF, JPEG and PNG files customers attach. When off, emails with attachments go to your team.
+
+**Separate environments.** Sandbox, Staging and Live each have their own address and settings, so you can test end to end without touching live customers.
 
 **One brain, multiple channels.** Email uses the same agent brain, including your knowledge base and configuration as your voice and chat channels, so customers receive the same answer everywhere.
 
-**Safety and review.** Inbound email is screened for spam and viruses, safety filters apply to content in both directions, and every email is visible in Conversation Review with the routing decision that was taken.
+**Safety and review.** Inbound email is screened for spam and viruses, safety filters apply to content in both directions, and every email is visible in Conversation Review.
 
 **Provider agnostic.** Works with any provider that supports standard email forwarding and DNS records, including Microsoft 365, Google Workspace and helpdesk platforms. Handed-off emails can be routed to a helpdesk address such as Zendesk or Salesforce.
+
+## Conversation lifecycle
+
+Each email thread is one conversation. Replies in the same thread continue it with full context.
+
+A conversation lasts 14 days. If the customer has not replied after 10 days, they receive an email warning that the conversation will close. A reply after the conversation closes starts a new conversation without the earlier context.
+
+## Limits
+
+| Item | Limit |
+| --- | --- |
+| Email size | 10 MB. Larger emails go straight to your handoff inbox |
+| Email body | The first 128 KB of text is read |
+| Attachments, when turned on | Up to 5 files per email, 5 MB each, PDF, JPEG or PNG. Otherwise the email goes to your handoff inbox |
+| Addresses | One sender address per environment |
 
 ## Current limitations
 
 - Email is inbound only: conversations start with the customer.
-- Emails with attachments are passed to your team rather than answered autonomously.
-- Automatic replies such as out-of-office responses are filtered and not answered.
+- The agent's replies are plain text. Only the signature supports HTML.
+- Automatic emails, such as out-of-office replies, bounces and bulk mail, are discarded rather than answered.
+- The agent cannot send attachments.
 
 ## Related pages
 
 <CardGroup cols={2}>
   <Card title="Configuring a mailbox" icon="envelope" href="/messaging-channel/email/configuring-a-mailbox">
     Connect your support address and configure the agent
+  </Card>
+
+  <Card title="Email handoff" icon="user-group" href="/messaging-channel/email/handoff">
+    Route emails the agent should not answer to your team
   </Card>
 
   <Card title="Knowledge base" icon="book" href="/knowledge/faqs/introduction">

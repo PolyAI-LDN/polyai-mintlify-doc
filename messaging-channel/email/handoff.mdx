@@ -1,0 +1,117 @@
+---
+title: "Email handoff"
+sidebarTitle: "Handoff"
+description: "Configure where handed-off emails go, what your team receives, and how to trigger an email handoff from a function."
+---
+
+When the agent should not answer an email itself, it hands the conversation to your team. Email handoff is not a live transfer. The agent sends two emails:
+
+- **To your handoff inbox:** a case bundle with the customer's details, a summary of the conversation, a suggested reply, and the full thread attached. Your team edits the suggested reply and sends it from their own inbox or helpdesk.
+- **To the customer:** a message in their existing thread saying that a member of the team will reply.
+
+Handoff is configured per environment on the **Handoffs** tab of **Channels > Email**, and triggered from a function that returns an `email_integration` handoff.
+
+## When the agent hands off
+
+An email is handed off when:
+
+- **Your function triggers it.** For example, the email is a complaint, refund request or regulated query, the customer asks for a person, or the knowledge base cannot answer it. See [Trigger a handoff from a function](#trigger-a-handoff-from-a-function).
+- **It has attachments the agent cannot take.** If [attachments are turned off](/messaging-channel/email/configuring-a-mailbox#general-settings), or any file breaks the attachment rules, the email goes straight to your team. When attachments are on, the agent accepts up to five PDF, JPEG or PNG files of up to 5 MB each.
+- **It is larger than 10 MB.**
+
+Emails handed off because of attachments or size skip the agent entirely. Your handoff inbox receives a notice with the customer's address, the subject, the message text and a list of the attachments, but not the files themselves. Keep a copy of incoming mail in your own inbox so your team can open the originals.
+
+## Configure handoff in Agent Studio
+
+Open **Channels > Email > Handoffs** and pick the environment in the top right. You need an email address in that environment before you can edit its handoff settings.
+
+### Human handoff template
+
+This card controls the case bundle your team receives.
+
+| Setting | Description |
+| --- | --- |
+| **Handoff inbox** | The address that receives handed-off emails. It must be monitored. To route handoffs into Zendesk, Salesforce Service Cloud or another helpdesk, use an inbound address from that tool |
+| **Include in handoff** | The fields shown in the bundle. Choose any of **Customer first name**, **Customer email**, **Case subject**, **Conversation summary** and **Suggested reply**. All are on by default and at least one must stay on |
+| **Greeting** | How the bundle opens: **Customer first name**, **No greeting** or **Custom** |
+
+**Email preview** shows the bundle with sample data as you change these settings.
+
+<Tip>
+A mistyped handoff address is the most common setup problem. Check it by triggering a handoff in Sandbox and confirming the case arrives.
+</Tip>
+
+### Customer handoff message
+
+**Handoff message to customers** is the text the customer receives in their thread when the agent hands off. Write it in your own voice. If you leave it empty, the customer receives:
+
+> Thanks for your message — we're connecting you with a human agent who will reply to this email shortly.
+
+A function can replace this message for a single handoff with `notify_message`.
+
+## What your team receives
+
+The case bundle arrives at the handoff inbox:
+
+- **Subject:** the customer's own subject line, unchanged, so the case files next to the original thread.
+- **Body:** the heading **New escalation case**, then the fields you selected under **Include in handoff**, then any custom fields under **Additional details**.
+- **Attachment:** the full conversation as `full-transcript.eml`.
+- **Reply-To:** the customer's address, so replying to the bundle reaches the customer directly.
+
+The platform writes the **Conversation summary** and **Suggested reply** with your agent's language model, from what the customer and the agent said. The suggested reply is written from your team's point of view, in the customer's language, with placeholders such as `[insert X information here]` where the agent does not know a detail. Function outputs and internal instructions are never included. If generation fails, the bundle is still sent without those two fields.
+
+## Trigger a handoff from a function
+
+Return a `handoff` payload with `email_integration` from a [function](/tools/introduction), then call that function from the topics, rules or flow steps that should hand off.
+
+```python
+def handoff_to_human(conv: Conversation, reason: str):
+    return {
+        "handoff": {
+            "text_chat": {
+                "email_integration": {
+                    "custom_fields": {
+                        "Handoff reason": reason,
+                        "Membership number": conv.state.get("membership_number", ""),
+                    },
+                },
+            },
+        },
+    }
+```
+
+| Field | Required | Description |
+| --- | --- | --- |
+| `custom_fields` | No | Extra rows shown under **Additional details**, such as an order number, booking reference or the handoff reason. Keys are shown as labels exactly as written and rows are sorted by key, so use display-ready names. Up to 20 rows; keys over 64 characters and values over 512 characters are truncated |
+| `notify_message` | No | Replaces the **Customer handoff message** for this handoff. Sent exactly as written |
+
+Pass an empty object, `"email_integration": {}`, to hand off with the default bundle and customer message.
+
+You do not need to write the summary or suggested reply. The platform generates both and replaces any value a function passes for them.
+
+## Best practices
+
+- **Tell the agent when to hand off.** In your rules, list the cases that must always reach a person, such as complaints, refunds, disputes, legal threats and requests for a human, and the reason to pass for each.
+- **Send reasons as custom fields.** A `Handoff reason` row lets your team triage the inbox without opening each case.
+- **Keep chat and voice phrasing out of email.** If you clone rules from a voice or chat project, remove phrases such as "I'll put you through" or "thanks for calling".
+- **Review handoffs regularly.** Every handed-off conversation is visible in [Conversation Review](/analytics/conversations/review). Recurring handoff topics are candidates for new knowledge base content.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Configuring a mailbox" icon="envelope" href="/messaging-channel/email/configuring-a-mailbox">
+    Connect your support address and set up DNS
+  </Card>
+
+  <Card title="Email overview" icon="envelope-open" href="/messaging-channel/email/email">
+    How the email channel works and its current limitations
+  </Card>
+
+  <Card title="Chat handoff integrations" icon="headset" href="/integrations/chat/introduction">
+    Hand off webchat and SMS conversations to a live agent
+  </Card>
+
+  <Card title="Tools" icon="wrench" href="/tools/introduction">
+    Write the function that triggers the handoff
+  </Card>
+</CardGroup>
