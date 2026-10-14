@@ -48,7 +48,7 @@ Dialog-RSN-1 folds the first two steps into one. It takes the caller's audio dir
 ## Prerequisites
 
 1. Python 3.12 and [uv](https://docs.astral.sh/uv/).
-2. A Dialog-RSN-1 workspace API key from Agent Studio.
+2. A Dialog-RSN-1 API key. Sign up or log in at [studio.poly.ai](https://studio.poly.ai) and create one in the **API Keys** tab. The [quickstart](/dialog-rsn-1/quickstart#getting-an-api-key) walks through it.
 3. A [Cartesia](https://cartesia.ai) API key. The free tier works.
 4. Chrome, Edge or Safari, and headphones if you'll use the microphone.
 
@@ -57,7 +57,7 @@ Dialog-RSN-1 folds the first two steps into one. It takes the caller's audio dir
 ```bash
 git clone https://github.com/PolyAI-LDN/dialog-rsn-1-voice-agent
 cd dialog-rsn-1-voice-agent
-cp .env.example .env    # add DIALOG_API_KEY and CARTESIA_API_KEY
+cp .env.example .env    # add POLY_API_KEY and CARTESIA_API_KEY
 uv sync
 uv run app.py
 ```
@@ -95,10 +95,10 @@ Each browser tab gets its own `Call`, which opens a Dialog-RSN-1 WebSocket with 
 ```python
 self.rsn = await websockets.connect(
     config.DIALOG_REALTIME_URL, max_size=None,
-    additional_headers={"X-API-KEY": config.DIALOG_API_KEY})
+    additional_headers={"X-API-KEY": config.POLY_API_KEY})
 ```
 
-`config.DIALOG_REALTIME_URL` defaults to us-1 production, `wss://api.studio.poly.ai/v1/realtime`. Set `DIALOG_REALTIME_URL` in `.env` to point somewhere else.
+`config.DIALOG_REALTIME_URL` defaults to `wss://api.studio.poly.ai/v1/realtime`. Set `DIALOG_REALTIME_URL` in `.env` to point somewhere else.
 
 Then it sends one `session.update`:
 
@@ -255,7 +255,7 @@ The `audio_end_ms` mark sits about 500 ms after the caller's last word, so the c
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| "Dialog-RSN-1 refused the connection (HTTP 401)" | The key is missing, or it's a personal access token | Use a workspace API key from Agent Studio |
+| "Dialog-RSN-1 refused the connection (HTTP 401)" | The key is missing, or it's a personal access token | Create a key in the **API Keys** tab at [studio.poly.ai](https://studio.poly.ai) and set it as `POLY_API_KEY` in `.env` |
 | `unsupported_parameter` after `session.update` | A field this service doesn't support, such as `idle_timeout_ms`, crept in | Remove it. None of the update was applied, so fix it and resend |
 | The agent keeps interrupting itself | The microphone hears the speakers | Wear headphones. Echo cancellation helps but isn't perfect |
 | The agent talks on for seconds after you interrupt | The page's audio queue wasn't flushed | Flush on `speech_started` as well as cancelling the TTS context (Step 4) |
