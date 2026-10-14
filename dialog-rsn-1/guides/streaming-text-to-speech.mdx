@@ -49,9 +49,9 @@ Run both steps on `input_audio_buffer.speech_started` while a reply is still pla
 If your harness treats a TTS failure as fatal to the call, that 400 takes the call down over text that was never meant to be spoken. Check what's left after stripping tags and whitespace, and skip the synthesis call entirely when there's nothing left to say, rather than sending it and handling the error after the fact:
 
 ```text the check, not a specific SDK
-speakable = strip_emotion_tag(text).strip(" \t\n.,!?-")
-if speakable:
-    tts_context.push_text(text)
+speakable = strip_emotion_tag(text)
+if speakable.strip(" \t\n.,!?-"):
+    tts_context.push_text(speakable)
 # else: nothing to say this turn, don't call the synthesizer at all
 ```
 
@@ -71,9 +71,9 @@ Remember the tag is optional: a response that's only a tool call carries no text
 
 ## Report playback back
 
-**Without a playback report, the model's sense of what the caller heard and what actually happened diverge.** Conversation history holds what Dialog-RSN-1 sent, not the part your TTS actually got through before a barge-in cut it off, and the server's barge-in check only knows a reply is "audible" while it's generating unless you tell it otherwise, which ends well before your synthesizer finishes speaking it.
+**Without a playback report, the server guesses what the caller heard.** It assumes your TTS speaks at a typical rate, about 15 characters a second, starting from the reply's first text. It treats the reply as audible for that long, and on a barge-in it cuts history back to the words it estimates were heard. Your synthesizer's real pace, buffering and network delay all make that guess drift from what actually happened.
 
-Send [`poly.output_audio.started`, `.delta`, and `.stopped`](/dialog-rsn-1/reference#playback-reports) as your TTS starts, progresses through, and finishes or is cut off from a reply, and two things follow: a backchannel partway through a long reply gets confirmed as an interruption instead of acted on, and `spoken_text` on `.stopped` gives you the one account of what the caller actually heard, since history won't. See the [overview](/dialog-rsn-1/overview#turn-taking) for how playback reports change barge-in behavior, and the [reference](/dialog-rsn-1/reference#playback-reports) for the event shapes.
+Send [`poly.output_audio.started`, `.delta`, and `.stopped`](/dialog-rsn-1/reference#playback-reports) as your TTS starts, progresses through, and finishes or is cut off from a reply, and the guess is replaced by what really played. A backchannel partway through a long reply gets confirmed as an interruption instead of acted on, for as long as the reply is actually playing. And history is rewritten to `spoken_text` on `.stopped`, so the model's next turn knows exactly where the caller cut in. Once a session has sent one report, the server stops estimating for it, so send them for every reply. See the [overview](/dialog-rsn-1/overview#turn-taking) for how playback reports change barge-in behavior, and the [reference](/dialog-rsn-1/reference#playback-reports) for the event shapes.
 
 ## Measure time-to-first-audio, not time-to-first-token
 
