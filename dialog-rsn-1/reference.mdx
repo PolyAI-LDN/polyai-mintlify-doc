@@ -59,11 +59,11 @@ Sent inside `session.update`, echoed back on `session.created` / `session.update
 |---|---|
 | `type` | Always `"realtime"`. Omit it and the server fills it in for you. |
 | `model` | Informational: setting it, on update or in the connection URL's `?model=`, selects nothing. The service runs Dialog-RSN-1 whatever you pass, and currently echoes `dialog-rsn-1` on `session.created` / `session.updated`. Don't assert on it. |
-| `instructions` | System prompt, forwarded as-is. |
+| `instructions` | System prompt. It goes into the model's prompt word for word, with no rewriting. |
 | `max_output_tokens` | An integer or `"inf"`, with the deployment's own cap as the ceiling. Reasoning comes out of the same budget, so a small cap can leave an empty reply. Below 1 is refused with `invalid_request_error`. |
 | `tool_choice` | `"auto"` only. Anything else is rejected with `unsupported_parameter`. |
 | `tools` | Function tools only: `{type, name, description, parameters}`. An MCP entry (any `type` but `"function"`) is rejected with `unsupported_parameter`. A function entry with no `name` is dropped before generation but still echoed back in `session.updated`, so the echo is not confirmation that a tool reached the model. |
-| `output_modalities` | `["text"]` for text replies you speak with your own text-to-speech, or `["audio"]`, the default, for replies the server speaks. Never both. See [Text or spoken replies](#text-or-spoken-replies). |
+| `output_modalities` | `["audio"]`, the default, for replies the server speaks, or `["text"]` for text replies you speak with your own text-to-speech. Never both. See [Text or spoken replies](#text-or-spoken-replies). |
 | `audio.input.format` | `{"type": "audio/pcm", "rate": 24000}` by default. Omit `rate` and the server reads 24 kHz. Set `"rate": 16000` to send Dialog-RSN-1's native rate with no resampling. `audio/pcmu` and `audio/pcma` take G.711 at 8 kHz. |
 | `audio.input.turn_detection` | `{"type": "server_vad", "create_response": bool}`. **`create_response` is the only field read.** The timing fields and `"type": "semantic_vad"` are accepted and ignored; `turn_detection: null`, `interrupt_response: false` and `idle_timeout_ms` are rejected with `unsupported_parameter`. See [Turn-taking & audio](#turn-taking-and-audio). |
 | `reasoning` | Rejected with `unsupported_parameter`. Reasoning on this service is automatic and per-turn, with no client-side knob. |
@@ -82,7 +82,6 @@ Sent inside `session.update`, echoed back on `session.created` / `session.update
     "type": "realtime",
     "model": "dialog-rsn-1",
     "instructions": "You are a helpful voice assistant. Keep responses brief.",
-    "output_modalities": ["text"],
     "audio": {
       "input": {
         "format": { "type": "audio/pcm" },
@@ -113,7 +112,7 @@ The server recognizes all eleven GA client event types, plus the three [playback
 
 ### Playback reports
 
-*Extension.* Three events with no GA equivalent, because there is nothing to be equivalent to: OpenAI's server owns audio output and already knows what a caller is hearing. Here you own the text-to-speech, so only you know. Event extensions are namespaced `poly.`, the way field extensions are namespaced `poly_`.
+*Extension.* Three events with no GA equivalent, because there is nothing to be equivalent to: OpenAI's server owns audio output and already knows what a caller is hearing. When you bring your own text-to-speech, only you know. On a session the server speaks, it tracks playback itself and ignores these reports. Event extensions are namespaced `poly.`, the way field extensions are namespaced `poly_`.
 
 | Event | Behavior |
 |---|---|
@@ -220,12 +219,12 @@ Dialog-RSN-1 transcribes spoken audio as part of the same generation that answer
 
 ## Text or spoken replies
 
-Dialog-RSN-1 is a text-out model. It hears audio and answers in text. You choose who turns that text into speech.
+A new session speaks its replies. Dialog-RSN-1 writes each reply and the server voices it, so you choose whether to take the speech or the text.
 
-- **`output_modalities: ["text"]`**: the reply streams as `response.output_text.delta`, and you speak it with your own text-to-speech. This is the setup every guide on this site uses. It gives you a place to log the reply and run your guardrails before a caller hears it.
-- **`output_modalities: ["audio"]`**: the default for a new session. The server speaks the reply through its own text-to-speech. The text streams as `response.output_audio_transcript.delta` and the sound as `response.output_audio.delta`, and no `response.output_text.delta` is sent.
+- **`output_modalities: ["audio"]`**: the default. The server speaks the reply. The sound streams as `response.output_audio.delta`, base64 PCM16 mono at 24 kHz, sent at the pace it plays. The words stream as `response.output_audio_transcript.delta`. Pick the voice with `audio.output.voice`, a Cartesia voice id; leave it unset for the default voice. `response.done` arrives once the reply has finished playing.
+- **`output_modalities: ["text"]`**: bring your own text-to-speech. The reply streams as `response.output_text.delta`, with no audio events, and you speak it however you like. Use it when you want your own voice or vendor, control over playback, or a place to log the reply and run your guardrails before a caller hears it. Then send [playback reports](#playback-reports), so barge-in and history follow what the caller really heard.
 
-A client that reads only `response.output_text.delta` must set `["text"]`, or it sees an empty reply and no error. Asking for both modalities at once is refused with `invalid_request_error`.
+A speaking session sends no `response.output_text.delta`, so a client that reads only text deltas sees an empty reply and no error. Read the transcript deltas, or set `["text"]`. Asking for both modalities at once is refused with `invalid_request_error`.
 
 ## Function calling
 
@@ -291,7 +290,7 @@ These are deliberate scope cuts.
 
 ## Example flows
 
-Three complete conversations, shown as `dialog-rsn-1` returns them.
+Three complete conversations, shown as `dialog-rsn-1` returns them. Flow 1 uses the default spoken output; flows 2 and 3 set `output_modalities: ["text"]`, so the reply arrives as `output_text.delta`.
 
 ### 1. A plain question, driven manually
 
@@ -300,7 +299,7 @@ Session configured with `create_response: false`, so nothing answers until asked
 1. **Client → server:** `conversation.item.create`, a real user message: *"What's the capital of France? Answer in one short sentence."*
 2. **Server → client:** `conversation.item.added` → `.done`
 3. **Client → server:** `response.create`
-4. **Server → client:** `response.created` → `output_item.added` → `content_part.added` → `output_text.delta` ×N → `output_text.done` → `content_part.done` → `output_item.done` → `response.done`
+4. **Server → client:** `response.created` → `output_item.added` → `content_part.added` → `output_audio_transcript.delta` ×N → `output_audio.delta` ×N → `output_audio.done` → `output_audio_transcript.done` → `content_part.done` → `output_item.done` → `response.done`
 
 > **dialog-rsn-1:** "The capital of France is Paris."
 

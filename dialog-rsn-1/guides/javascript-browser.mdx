@@ -9,7 +9,7 @@ description: "Capture microphone audio in the browser, stream it to Dialog-RSN-1
 A browser page that captures microphone audio, streams it to Dialog-RSN-1 over a WebSocket, and renders the reply as text while it's still arriving. You'll use `getUserMedia` for the microphone, `AudioWorklet` to reach the raw samples, and a WebSocket for the wire protocol. There's no SDK to install and no build step.
 
 <Note>
-**Text replies only.** This guide asks for text with `output_modalities: ["text"]` and stops there. Set the field explicitly: a session that leaves it out answers in audio, and a page listening for text deltas then shows nothing. For a spoken reply, feed the accumulated text to a text-to-speech provider of your own.
+**Text replies only.** This guide shows the reply on the page, so it asks for text with `output_modalities: ["text"]` and stops there. Set the field explicitly: a session that leaves it out speaks its replies, and a page listening for text deltas then shows nothing. For a spoken reply, leave the default and play the server's audio, or feed the accumulated text to a text-to-speech provider of your own.
 </Note>
 
 ## Connecting from the browser
@@ -161,7 +161,7 @@ Keying by `item_id` keeps each reply separate. Only one response runs at a time 
 Keep the `error` branch. Every failure on this API arrives as an `error` event and leaves the connection open, as the [quickstart](/dialog-rsn-1/quickstart#all-of-it-together) explains. Without the branch, a rejected `session.update` looks like a page that connects and never answers.
 
 <Note>
-**Voice output is out of scope here.** With `output_modalities: ["text"]` the server sends no audio events. For a spoken reply, hand the accumulated text from `renderFinal` to a text-to-speech provider. You build that alongside the page, and the protocol stays as it is.
+**Voice output is out of scope here.** With `output_modalities: ["text"]` the server sends no audio events. For a spoken reply, either drop the `output_modalities` line and play `response.output_audio.delta` (base64 PCM16 at 24 kHz) through Web Audio, or hand the accumulated text from `renderFinal` to a text-to-speech provider of your own.
 </Note>
 
 ## Full example
