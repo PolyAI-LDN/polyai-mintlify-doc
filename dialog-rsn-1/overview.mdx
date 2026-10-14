@@ -30,7 +30,7 @@ Each stage adds delay, and each transcript handoff drops what the audio carried 
 
 Dialog-RSN-1 collapses the first two stages into one model. It hears the call and answers it in one pass, with no transcript handoff in between. It also spends thinking time per turn rather than on a fixed schedule, so a simple question stays fast.
 
-Dialog-RSN-1 answers in text, not audio, and that's the shape of the model rather than a stage on the way to speech-to-speech. Answering in text gives you a place to log the reply and run your platform guardrails over it before a caller hears anything. Pair the streamed reply with your own text-to-speech.
+Dialog-RSN-1 answers in text, not audio, and that's the shape of the model rather than a stage on the way to speech-to-speech. Answering in text gives you a place to log the reply and run your platform guardrails over it before a caller hears anything. Pair the streamed reply with your own text-to-speech, or leave a session on its default `["audio"]` output and the API speaks the reply for you.
 
 ## The core split
 
@@ -57,7 +57,7 @@ The detector is infrastructure; Dialog-RSN-1 makes the judgment, confirming what
 | A task with real thinking to do (dates, ambiguous requests, multi-step logic) | Nothing to configure. Reasoning is automatic, and Dialog-RSN-1 decides per turn whether a turn earns it |
 | An agent whose replies are spoken aloud | Report playback with `poly.output_audio.*`, so barge-in confirmation covers the reply the caller is still hearing. See the [streaming to TTS guide](/dialog-rsn-1/guides/streaming-text-to-speech) for the rest of that wiring |
 | An agent answering from your own knowledge base | Pass retrieved passages as `poly_knowledge`, and read `poly_cited_topics` back off `response.done` |
-| A spoken reply | Your own text-to-speech. Dialog-RSN-1 answers in text only, and that doesn't change |
+| A spoken reply | Your own text-to-speech over the streamed text, with `output_modalities: ["text"]`. Or keep the default `["audio"]` and the API speaks the reply, with the text as its transcript |
 
 ## How the pieces fit together
 
@@ -71,9 +71,9 @@ The turn-status check that decides a caller has finished talking accounts for mo
 
 **Barge-in cancels the in-flight response.** When the caller starts talking again while a reply is audible, Dialog-RSN-1 checks that the sound is the caller and not its own reply echoing back, then cancels the response.
 
-How far "audible" reaches is up to you. Left alone, the server only knows a reply is audible while it's generating, which ends well before your text-to-speech has finished saying it, so sound arriving after that is forwarded as an unconfirmed interruption. Report playback with [`poly.output_audio.started` / `.delta` / `.stopped`](/dialog-rsn-1/reference#playback-reports) and the check covers the spoken reply too, so a backchannel partway through gets confirmed instead of cutting the agent off.
+How far "audible" reaches depends on what you tell the server. Left alone, it estimates how long the reply takes to say at a typical speaking rate and treats it as audible for that long. Report playback with [`poly.output_audio.started` / `.delta` / `.stopped`](/dialog-rsn-1/reference#playback-reports) and the check follows your real playback instead, so a backchannel partway through gets confirmed instead of cutting the agent off.
 
-Those reports are also the only account of what the caller actually heard. Conversation history records what Dialog-RSN-1 sent, not the part your text-to-speech reached before the caller talked over it, so `spoken_text` on `poly.output_audio.stopped` is where you close that gap if you keep a strict transcript.
+Those reports are also how the server learns what the caller actually heard. After a barge-in, conversation history keeps the reply as the words your text-to-speech reached, taken from `spoken_text` on `poly.output_audio.stopped`, so the next turn is generated from what was said rather than what was sent. When the API speaks the reply itself, it tracks playback for you.
 
 ### Generation and transcription
 
@@ -88,7 +88,7 @@ Most turns don't need a distinct thinking step. A request for store hours doesn'
 There's no client-side knob for this. The decision is the model's, per turn, and the operating point is set on the service rather than per session: simple turns stay fast, and the ones that need thinking time take it.
 
 <Warning>
-**Setting `reasoning` on the session does nothing.** The realtime schema carries a `reasoning` field, so `session.update` accepts one and `session.updated` echoes it back, but this service ignores it. A client that sets it and reads the echo will believe it has tuned something it hasn't. See the [session object](/dialog-rsn-1/reference#the-session-object).
+**Setting `reasoning` on the session is refused.** The realtime schema carries a `reasoning` field, but this service rejects it with `unsupported_parameter`, and the rest of that `session.update` is dropped with it. Leave the field out. See the [session object](/dialog-rsn-1/reference#the-session-object).
 </Warning>
 
 ### Tool calling
@@ -120,22 +120,25 @@ Write that harness yourself or bring one you already use. The [Guides](/dialog-r
 
 ## Common mistakes
 
-**Requesting audio back returns an error.**
+**Leaving the output modality unset gets you speech, not text.**
 
-```json wrong: expecting audio back
+```json wrong: no output_modalities, then reading response.output_text.delta
 {
   "type": "session.update",
-  "session": { "output_modalities": ["audio"] }
+  "session": { "instructions": "You are a helpful, concise assistant." }
 }
 ```
-```json right: text only
+```json right: text out, for your own text-to-speech
 {
   "type": "session.update",
-  "session": { "output_modalities": ["text"] }
+  "session": {
+    "instructions": "You are a helpful, concise assistant.",
+    "output_modalities": ["text"]
+  }
 }
 ```
 
-Asking for `["audio"]` returns an error rather than a silent response, so you find out on the spot instead of debugging a quiet integration.
+A new session starts in `["audio"]`. Its replies arrive as `response.output_audio.delta` with the text on `response.output_audio_transcript.delta`, and no `response.output_text.delta` is ever sent. A client that reads only text deltas sees an empty reply and no error.
 
 **A tool result never answers on its own.**
 
