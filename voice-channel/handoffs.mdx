@@ -181,10 +181,14 @@ When the agent transfers a caller to a human, the human-side system needs contex
 | Channel | Best for | What you get |
 |---------|----------|--------------|
 | **SIP headers** | Lightweight metadata embedded in the transfer signal itself; supported by most SBCs and Twilio Flex. | Custom `X-` headers (e.g. `X-Customer-ID`, `X-Reason`, `X-Caller-ID`) populated from `conv.state` variables at transfer time. See [Configuring SIP headers](#configuring-sip-headers). |
-| **[Handoff API](/api-reference/handoff/introduction)** | Larger structured payloads that don't fit in headers, or when the destination needs a "screen pop" with full context. | The `handoff` object stored in `conv.state.handoff` (or written via `conv.call_handoff()`), retrievable by `id` or `shared_id`. The `data` field is free-form JSON, so you control the shape. |
+| **[Handoff API](/api-reference/handoff/introduction)** | Larger structured payloads that don't fit in headers, or when the destination needs a "screen pop" with full context. | Selected `conv.state` fields, retrievable by `id` or `shared_id`. Which fields populate the `data` object must be configured for your project before they're exposed via the API — this isn't self-serve yet, so contact your PolyAI representative to set it up. See [Before you start](/api-reference/handoff/introduction#before-you-start). |
 | **[Conversations API](/api-reference/conversations/introduction)** | Post-handoff CRM enrichment, BI, and QA workflows. | Full conversation including the `handoff` object with `destination`, `reason`, `utterance`, plus the entire transcript, [`conv.log`](/tools/classes/conv-log) entries, and any [custom metrics](/tools/classes/conv-object#write_metric) the agent recorded. |
 
 The data the agent writes (and the human therefore sees) is whatever you choose to store. Common fields:
+
+<Note>
+For the Handoff API specifically, the fields below must be configured for your project before they're exposed via `GET /handoff_state` — contact your PolyAI representative to set this up. See [Before you start](/api-reference/handoff/introduction#before-you-start).
+</Note>
 
 - **Identifiers** – `customer_id`, `account_number`, `shared_id` linking the PolyAI conversation to a record in your CRM
 - **Verification status** – `successfully_identified`, `auth_method`, `verification_attempts` so the agent doesn't ask the caller to re-verify
@@ -193,7 +197,7 @@ The data the agent writes (and the human therefore sees) is whatever you choose 
 - **Caller intent and slots** – any entities collected during the AI portion of the call (order ID, refund amount, preferred callback time)
 
 <Tip>
-Choose **one** channel as the source of truth and keep the others consistent with it. Changes made in `conv.state.handoff` are reflected in both the Handoff API and the Conversations API automatically; SIP headers must be set explicitly on each handoff destination or via `conv.call_handoff(sip_headers={...})`.
+Choose **one** channel as the source of truth and keep the others consistent with it. SIP headers must be set explicitly on each handoff destination or via `conv.call_handoff(sip_headers={...})`; the Handoff API draws on the `conv.state` fields configured for your project, so keep those two in sync if you use both.
 </Tip>
 
 #### Writing context from a function
