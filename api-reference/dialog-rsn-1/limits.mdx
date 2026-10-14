@@ -13,7 +13,7 @@ keywords:
 
 {/* Source of truth: poly_core src/dialog_rsn_1/dialogue_api/README.md and config.py, poly_gitops_apps apps/dialogue-api and apps/vllm-server-omni-1 values. Checked against poly_core master 49908520f8 on 11 Oct 2026. Rows marked "From 20 October 2026" land with general availability. */}
 
-Every limit below applies per account and is the same on every host. Where a limit is reached you get a named error or close code, listed on the [API reference](/api-reference/dialog-rsn-1/reference#errors).
+Concurrency applies per account and the connection rate per key. Session duration, idle timeout, frame size and turn length apply to each connection. Every limit is the same on every host. Where a limit is reached you get a named error or close code, listed on the [API reference](/api-reference/dialog-rsn-1/reference#errors).
 
 | Limit | Value | When you hit it |
 | --- | --- | --- |
@@ -25,9 +25,9 @@ Every limit below applies per account and is the same on every host. Where a lim
 | Turn length | **300 seconds** of audio in one turn | Audio past that is dropped |
 | Context window | **32,768 tokens**, audio included | From the tenth caller turn, older turns keep their transcript and release their audio, so most calls never reach it. If a conversation still outgrows the window, that response fails with `context_length_exceeded` and the connection stays open. |
 | Reply length | `max_output_tokens` up to **1,024** per response, reasoning included | A cap smaller than the model's reasoning leaves a short or empty reply |
-| Output | Text | Bring your own text-to-speech |
+| Output | Text, or speech synthesized by the API | A new session starts in `output_modalities: ["audio"]`. Set `["text"]` to voice replies with your own text-to-speech |
 | Audio in | PCM16 mono at 24 kHz (default), 16 kHz, or any rate; G.711 mu-law and A-law at 8 kHz | Other encodings are refused on `session.update` |
-| Languages | Any ISO 639 tag via `poly_response_language`, or in words | English, Spanish, French and Portuguese are covered by our tests. Unset, the model follows your instructions. |
+| Languages | English | More languages are coming in a model update. `poly_response_language` takes an ISO 639 tag or words and sets the reply language; unset, the model follows your instructions. |
 
 Not limited: messages per second within a session, sessions per day, tokens per minute.
 
@@ -36,7 +36,7 @@ Not limited: messages per second within a session, sessions per day, tokens per 
 A session is one open WebSocket. The cap counts sessions open at the same time across all your keys, however long each one lasts, and is what bounds how much of the model one account can hold.
 
 - **10** concurrent sessions per account, on the free credit and after you add a card.
-- Need more? Contact us from Agent Studio. A higher cap is agreed per account rather than self-serve, because one account at that level takes a large share of a GPU.
+- Need more? Contact us from Agent Studio at [studio.poly.ai](https://studio.poly.ai). A higher cap is agreed per account rather than self-serve, because one account at that level takes a large share of a GPU.
 
 Enterprise deployments run on reserved capacity and are not subject to the self-serve cap.
 
