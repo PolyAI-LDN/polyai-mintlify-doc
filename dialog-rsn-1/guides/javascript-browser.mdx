@@ -9,7 +9,7 @@ description: "Capture microphone audio in the browser, stream it to Dialog-RSN-1
 A browser page that captures microphone audio, streams it to Dialog-RSN-1 over a WebSocket, and renders the reply as text while it's still arriving. You'll use `getUserMedia` for the microphone, `AudioWorklet` to reach the raw samples, and a WebSocket for the wire protocol. There's no SDK to install and no build step.
 
 <Note>
-**No voice output.** Dialog-RSN-1 answers in text, and `output_modalities` is locked to `["text"]`. The model is text-out by design; there is no speech-to-speech path to enable. This guide stops there. For a spoken reply, feed the accumulated text to a text-to-speech provider. That integration is yours to build, and this API has no part in it.
+**Text replies only.** This guide asks for text with `output_modalities: ["text"]` and stops there. Set the field explicitly: a session that leaves it out answers in audio, and a page listening for text deltas then shows nothing. For a spoken reply, feed the accumulated text to a text-to-speech provider of your own.
 </Note>
 
 ## Connecting from the browser
@@ -161,7 +161,7 @@ Keying by `item_id` matters as soon as a turn can hold more than one output item
 Keep the `error` branch. Every failure on this API arrives as an `error` event and leaves the connection open, as the [quickstart](/dialog-rsn-1/quickstart#all-of-it-together) explains. Without the branch, a rejected `session.update` looks like a page that connects and never answers.
 
 <Note>
-**Voice output is out of scope here.** There's no audio-out event to listen for. For a spoken reply, hand the accumulated text from `renderFinal` to a text-to-speech provider. You build that alongside the page, and the protocol stays as it is.
+**Voice output is out of scope here.** With `output_modalities: ["text"]` the server sends no audio events. For a spoken reply, hand the accumulated text from `renderFinal` to a text-to-speech provider. You build that alongside the page, and the protocol stays as it is.
 </Note>
 
 ## Full example
