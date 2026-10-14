@@ -30,15 +30,15 @@ Dialog-RSN-1 has no separate speech-to-text model. It transcribes the caller as 
 - **You need a reply to get a transcript.** Set `create_response: true` so each turn starts a reply on its own. With `create_response: false`, no transcript arrives until you send `response.create`.
 - **The transcriber asks for a one-word reply.** Its instructions say to answer "ok", which keeps each turn short.
 - **The transcript arrives when the turn ends.** You get no partial text while the caller is still talking. The whole line lands in a few events just after `input_audio_buffer.speech_stopped`.
-- **The reply starts before the transcript.** The first `response.output_text.delta` comes a few milliseconds after `speech_stopped`, and the transcript follows. The support agent holds the reply back so the terminal reads in order.
-- **`audio.input.transcription` changes nothing.** The service accepts the field and ignores it.
+- **The reply starts before the transcript.** The first `response.output_text.delta` comes within about 100 ms of `speech_stopped`, and the transcript follows. The support agent holds the reply back so the terminal reads in order.
+- **`audio.input.transcription` changes nothing.** The service accepts the field and echoes it in `session.updated`, but transcripts arrive the same with or without it.
 
 ## Prerequisites
 
 1. A Dialog-RSN-1 workspace API key from Agent Studio. The service refuses personal access tokens.
 2. For Python: Python 3.12 and [uv](https://docs.astral.sh/uv/).
 3. For Node: Node 22. `npm install` compiles the `naudiodon2` audio package, so you need a C++ toolchain.
-4. A microphone, or a 24 kHz mono WAV file to stream instead.
+4. A microphone, or a 24 kHz, 16-bit mono WAV file to stream instead.
 
 ## Run it
 
@@ -94,7 +94,7 @@ const rt = new OpenAIRealtimeWS({ model: MODEL }, client);
 
 </CodeGroup>
 
-`url` defaults to `https://api.studio.poly.ai/v1`. Set `DIALOGUE_API_URL` in `.env`, or pass `--url`, to use another region.
+`url` defaults to `https://api.studio.poly.ai/v1`. Set `DIALOGUE_API_URL` in `.env`, or pass `--url`, to use another region. A key from a regional Studio only works on that region's host, such as `https://api.us.poly.ai/v1`.
 
 ## Step 2: Configure the session
 
@@ -112,7 +112,7 @@ SESSION = {
 }
 ```
 
-- `output_modalities: ["text"]`. Dialog-RSN-1 answers in text only.
+- `output_modalities: ["text"]`. A new session defaults to `["audio"]`, which adds server-side speech and sends the reply as `response.output_audio_transcript.*`. Text only keeps the reply on `response.output_text.*`, which the program reads.
 - `rate: 24000`. The program opens the microphone at 24 kHz, so nothing resamples.
 - `create_response: true`. Dialog-RSN-1 decides when you've finished and starts the turn itself. That turn carries the transcript.
 
@@ -167,7 +167,7 @@ elif kind == "conversation.item.input_audio_transcription.completed":
     print(f"\r\033[K{stamp}  {text}")
 ```
 
-Stop on `invalid_request_error`. It usually means the session was refused, and nothing after it will work:
+Stop on `invalid_request_error`. It usually means the `session.update` was refused, which leaves the session on the server's defaults:
 
 ```python
 elif kind == "error":
@@ -258,25 +258,25 @@ Both programs take `--file call.wav` to stream a recording instead of the microp
 
 ## What the timing looks like
 
-We streamed recorded clips at real time to us-1 production over fifteen turns:
+We streamed recorded clips to us-1 production over 14 turns, 20 ms at a time as a microphone would, from London (about 90 ms round trip):
 
 | Measure | Time |
 |---|---|
-| Caller's last word to `speech_stopped` | about 450 to 500 ms |
-| `speech_stopped` to the first reply text | 2 to 23 ms |
-| `speech_stopped` to the finished transcript line | 60 to 310 ms |
-| Caller's last word to the finished transcript line | 510 to 840 ms |
+| Caller's last word to `speech_stopped` | about 610 to 810 ms |
+| `speech_stopped` to the first reply text | 0 to 100 ms |
+| `speech_stopped` to the finished transcript line | 30 to 310 ms |
+| Caller's last word to the finished transcript line | about 750 to 1,020 ms |
 
-`speech_stopped` reports `audio_end_ms`, the point in your audio where Dialog-RSN-1 places the end of speech. That mark sits about 500 ms after the last word, so time your own measurements from the audio, not from `audio_end_ms`.
+`speech_stopped` reports `audio_end_ms`, the point in your audio where Dialog-RSN-1 places the end of speech. That mark sits about 400 to 570 ms after the last word, so time your own measurements from the audio, not from `audio_end_ms`.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `DIALOG_API_KEY is not set` | No `.env`, or it's in the wrong folder | Copy `.env.example` to `.env` at the repo root, not in `python/` or `node/` |
-| HTTP 401 when connecting | A personal access token, or a wrong key | Use a workspace API key from Agent Studio |
+| `DIALOG_API_KEY is not set` | No `.env`, an empty key, or a `.env` that still uses the old name `DIALOGUE_API_KEY` | Copy `.env.example` to `.env` at the repo root and paste the key after `DIALOG_API_KEY=` |
+| HTTP 401 when connecting | A personal access token, a wrong key, or a regional key on the default host | Use a workspace API key from Agent Studio. For a key from a regional Studio, set `DIALOGUE_API_URL` or `--url` to that region's host |
 | No transcript ever arrives | `create_response` is `false`, so no turn runs | Set it to `true`, or send `response.create` after each `input_audio_buffer.committed` |
-| `unsupported_parameter` after `session.update` | A field the service rejects, such as `model`, `noise_reduction` or a turn-timing field | Remove it. Pass the model to `connect()` only. A rejected update applies none of its fields |
+| `unsupported_parameter` after `session.update` | A field the service refuses, such as `idle_timeout_ms` or `interrupt_response: false` in `turn_detection`, or `reasoning` | Remove it. A rejected update applies none of its fields |
 | `must be mono, 16-bit, 24000 Hz` | The WAV isn't in the session's format | Convert it with `afconvert -f WAVE -d LEI16@24000 -c 1 in.wav out.wav` |
 | Sam's answer prints above your question | Replies printed in arrival order | Hold the reply until `input_audio_transcription.completed`, as `support_agent.py` does |
 | `npm install` fails building `naudiodon2` | No C++ toolchain | On a Mac, run `xcode-select --install`, then `npm install` again |
