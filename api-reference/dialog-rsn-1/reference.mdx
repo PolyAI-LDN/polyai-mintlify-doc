@@ -31,16 +31,17 @@ The wire format is the OpenAI Realtime API (GA schema). A stock OpenAI Realtime 
 
 ## Connect
 
-| Deployment | WebSocket URL | Keys issued by |
-| --- | --- | --- |
-| Self-serve | `wss://api.studio.poly.ai/v1/realtime` | `https://studio.poly.ai` |
-| US | `wss://api.us.poly.ai/v1/realtime` | `https://studio.us.poly.ai` |
-| EU | `wss://api.eu.poly.ai/v1/realtime` | `https://studio.eu.poly.ai` |
-| UK | `wss://api.uk.poly.ai/v1/realtime` | `https://studio.uk.poly.ai` |
+Connect to `wss://api.studio.poly.ai/v1/realtime` with an API key from [studio.poly.ai](https://studio.poly.ai). Sign up or log in there and create the key in the **API Keys** tab. The [quickstart](/dialog-rsn-1/quickstart#getting-an-api-key) has the steps.
 
-<Warning>
-**The Agent Studio instance and API host must match.** A key generated from `studio.poly.ai` only works against `api.studio.poly.ai`. To call `api.us.poly.ai`, generate the key from `studio.us.poly.ai` (and likewise for `eu` and `uk`). A mismatch returns `401 Unauthorized`.
-</Warning>
+<Note>
+**Enterprise accounts on a regional Agent Studio** use that region's host, with a key from that Studio. A key only works on the host that matches the Studio that issued it, and a mismatch returns `401`.
+
+| Agent Studio | WebSocket URL |
+| --- | --- |
+| `studio.us.poly.ai` | `wss://api.us.poly.ai/v1/realtime` |
+| `studio.eu.poly.ai` | `wss://api.eu.poly.ai/v1/realtime` |
+| `studio.uk.poly.ai` | `wss://api.uk.poly.ai/v1/realtime` |
+</Note>
 
 Check the service is up with the health route, which takes the same key:
 
@@ -96,7 +97,7 @@ The server pings every 20 seconds, which keeps a quiet connection open through t
 
 ## Authenticate
 
-Send a workspace API key from Agent Studio in either header. They are equivalent.
+Send your API key from [studio.poly.ai](https://studio.poly.ai) in either header. They are equivalent.
 
 ```text
 X-API-KEY: <key>
@@ -109,9 +110,9 @@ A refused handshake answers with an HTTP status and a JSON body. A WebSocket lib
 
 | HTTP | Close code | Meaning | What to do |
 | --- | --- | --- | --- |
-| `401` | `4401` | Missing, unknown or inactive key | Check the key, and that it was issued by the Studio that matches the host |
-| `402` | `4402` | The account is not enrolled for billing, or has no balance left | Add funds in Agent Studio, then reconnect. A session already open is not cut off when the balance reaches zero. |
-| `403` | `4403` | A personal access token | Use a workspace API key |
+| `401` | `4401` | Missing, unknown or inactive key | Check the key, or create a new one in the **API Keys** tab at [studio.poly.ai](https://studio.poly.ai) |
+| `402` | `4402` | The account is not enrolled for billing, or has no balance left | Add funds at [studio.poly.ai](https://studio.poly.ai), then reconnect. A session already open is not cut off when the balance reaches zero. |
+| `403` | `4403` | A personal access token | Use an API key from the **API Keys** tab at [studio.poly.ai](https://studio.poly.ai) |
 | `429` | `4429` | Too many new connections this minute, or the account is at its concurrent-session cap (body `"code": "session_limit_reached"`) | Honour `Retry-After`. For the session cap, close a session before opening another. See [Limits](/api-reference/dialog-rsn-1/limits). |
 | `503` | `4503` | Authentication service unavailable, or no capacity for a new session (body `"code": "capacity_exceeded"`) | Retry with backoff. The key is fine. |
 
@@ -460,7 +461,7 @@ async def run_session() -> None:
                     break  # 4410 follows; open a new connection and continue the call
     except InvalidStatus as e:
         if e.response.status_code == 402:
-            print("No balance: add funds in Agent Studio")  # body: {"detail": "..."}
+            print("No balance: add funds at studio.poly.ai")  # body: {"detail": "..."}
         elif e.response.status_code == 429:
             print("At the session cap or rate limit; retry after", e.response.headers.get("Retry-After"))
         else:
@@ -472,7 +473,7 @@ async def run_session() -> None:
 
 ```typescript TypeScript
 ws.on("unexpected-response", (_req, res) => {
-  if (res.statusCode === 402) console.error("No balance: add funds in Agent Studio");
+  if (res.statusCode === 402) console.error("No balance: add funds at studio.poly.ai");
   else if (res.statusCode === 429) console.error("Retry after", res.headers["retry-after"]);
 });
 
