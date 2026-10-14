@@ -9,7 +9,7 @@ description: "Capture microphone audio in the browser, stream it to Dialog-RSN-1
 A browser page that captures microphone audio, streams it to Dialog-RSN-1 over a WebSocket, and renders the reply as text while it's still arriving. You'll use `getUserMedia` for the microphone, `AudioWorklet` to reach the raw samples, and a WebSocket for the wire protocol. There's no SDK to install and no build step.
 
 <Note>
-**No voice output.** Dialog-RSN-1 answers in text, and `output_modalities` is locked to `["text"]`. The model is text-out by design; there is no speech-to-speech path to enable. This guide stops there. For a spoken reply, feed the accumulated text to a text-to-speech provider. That integration is yours to build, and this API has no part in it.
+**Text replies only.** This guide asks for text with `output_modalities: ["text"]` and stops there. Set the field explicitly: a session that leaves it out answers in audio, and a page listening for text deltas then shows nothing. For a spoken reply, feed the accumulated text to a text-to-speech provider of your own.
 </Note>
 
 ## Connecting from the browser
@@ -20,7 +20,7 @@ Put a small relay in front of it: a same-origin WebSocket endpoint on your own s
 
 ```text connect
 Browser  →  wss://your-app.example.com/realtime-relay   (no key, same-origin)
-Relay    →  wss://api.studio.poly.ai/v1/realtime            (holds the real key)
+Relay    →  wss://api.studio.poly.ai/v1/realtime        (holds the real key)
 ```
 
 The [companion repo](https://github.com/polyai/dialog-rsn-1-javascript-browser) includes a Node relay, `relay.js`, that also serves the page. If you write your own, set a `User-Agent` on the upstream connection. The API refuses a handshake without one with a bare 403, and Node's `ws` package sends none by default.
@@ -84,7 +84,7 @@ async function startCapture(ws) {
 }
 ```
 
-The browser takes the `AudioContext` sample rate from the hardware, 48kHz on most machines, where Dialog-RSN-1's native rate is 16kHz. Rather than resample in the client, declare your true rate with the `poly_input_rate` extension field on `session.update` and let the server resample on the way in:
+The browser takes the `AudioContext` sample rate from the hardware, 48 kHz on most machines, where Dialog-RSN-1's native rate is 16 kHz. Rather than resample in the client, declare your true rate with the `poly_input_rate` extension field on `session.update` and let the server resample on the way in:
 
 ```json session.update
 {
@@ -97,7 +97,7 @@ The browser takes the `AudioContext` sample rate from the hardware, 48kHz on mos
 }
 ```
 
-Send the rate your `AudioContext` reports in `audioContext.sampleRate`. Hardcoding 48000 breaks on hardware that runs at 44.1kHz, because the server then resamples from a rate your audio was never at. You can read the rate before the user clicks anything. A context created on page load starts suspended, but its `sampleRate` is already set. Call `audioContext.resume()` first thing in the click handler, before you wait on the microphone: Safari only lets a context start during the click itself. The full example below does this.
+Send the rate your `AudioContext` reports in `audioContext.sampleRate`. Hardcoding 48000 is wrong on hardware that runs at 44.1 kHz: the server then resamples from a rate your audio was never at, and hears it about 9% fast. You can read the rate before the user clicks anything. A context created on page load starts suspended, but its `sampleRate` is already set. Call `audioContext.resume()` first thing in the click handler, before you wait on the microphone: Safari only lets a context start during the click itself. The full example below does this.
 
 ## Streaming audio and handling server VAD
 
@@ -161,7 +161,7 @@ Keying by `item_id` matters as soon as a turn can hold more than one output item
 Keep the `error` branch. Every failure on this API arrives as an `error` event and leaves the connection open, as the [quickstart](/dialog-rsn-1/quickstart#all-of-it-together) explains. Without the branch, a rejected `session.update` looks like a page that connects and never answers.
 
 <Note>
-**Voice output is out of scope here.** There's no audio-out event to listen for. For a spoken reply, hand the accumulated text from `renderFinal` to a text-to-speech provider. You build that alongside the page, and the protocol stays as it is.
+**Voice output is out of scope here.** With `output_modalities: ["text"]` the server sends no audio events. For a spoken reply, hand the accumulated text from `renderFinal` to a text-to-speech provider. You build that alongside the page, and the protocol stays as it is.
 </Note>
 
 ## Full example
