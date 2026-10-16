@@ -37,36 +37,31 @@ Windows), so include that in the summary.
    install it: `brew install uv` on macOS, `winget install astral-sh.uv` on
    Windows, or `pipx install uv` anywhere. Don't pipe a script into a shell.
 2. Install the CLI: `uv tool install --python 3.14 polyai-adk`. Then run `which -a poly`
-   (PowerShell: `Get-Command poly -All`) and `poly --version`. If the first `poly` on PATH
-   is not the one uv installed, or `poly --version` is older than what uv installed, run
-   every `poly` command below as `uvx --from polyai-adk poly ...` and tell me why. If
-   `poly` isn't found at all, run `uv tool update-shell` and tell me to open a new terminal.
+   (PowerShell: `Get-Command poly -All`). If the first `poly` listed isn't the one uv
+   installed, run every `poly` command below as `uvx --from polyai-adk poly ...` and tell
+   me why. If `poly` isn't found at all, run `uv tool update-shell` and tell me to open a
+   new terminal.
 3. Run `poly apikey --region studio`. It prints a sign-in URL and opens it if it
    can. Show me the URL either way; I'll sign in with GitHub in my browser. Allow
    up to five minutes, since it waits for me.
    If it reports "Multiple accounts found", show me the list, ask me which one to use,
-   and re-run with `--account-id <id>`. That re-run is the one retry you may do without
-   asking; it won't ask me to sign in again.
-   If it stops because POLY_API_KEY is already set to a different value, ask me
-   before re-running with `--force`.
+   and re-run with `--account-id <id>`. I won't need to sign in again.
 4. Show me the summary it prints. It only prints a masked key. Don't read
    ~/.poly/credentials.json, the registry, or my shell profile to see the key.
 5. Verify with `poly project list --region studio` and tell me what it shows.
    Remind me to open a new terminal so POLY_API_KEY is available.
-6. Tell me the next step: my first Dialog RSN 1 call is at https://docs.poly.ai/dialog-rsn-1,
-   and POLY_API_KEY is already set for it.
+6. Tell me the next step: my first Dialog RSN 1 call is at https://docs.poly.ai/dialog-rsn-1.
 
-If any other step fails, show me the output and stop. Don't retry with flags this prompt
-doesn't name.
+If any other step fails, show me the output and stop. Don't retry with other flags.
 ```
 
 ### What the assistant will do
 
 1. Check for **uv** and ask how you'd like to install it if it's missing.
-2. Install the CLI with `uv tool install --python 3.14 polyai-adk`, then check which `poly` runs (`which -a poly`, `poly --version`). If an older `poly` comes first on your `PATH`, it runs the new one with `uvx --from polyai-adk poly` instead and tells you.
+2. Install the CLI with `uv tool install --python 3.14 polyai-adk` and check which `poly` runs. If an older one comes first on your `PATH`, it runs the new one with `uvx --from polyai-adk poly` instead.
 3. Run [`poly apikey --region studio`](/adk/reference/cli#poly-apikey) and show you the sign-in URL.
 4. Wait while you approve the sign-in in your browser with GitHub.
-5. If you belong to more than one workspace, show you the list, ask which one to use, and re-run with `--account-id`. Your sign-in is kept, so you don't sign in again.
+5. If you belong to more than one account, show you the list, ask which to use, and re-run with `--account-id`.
 6. Show you the masked summary once it completes.
 7. Verify the key with `poly project list --region studio`.
 8. Point you at your first API call (Dialog RSN 1).
@@ -91,8 +86,8 @@ This only gets you an API key — to set up the ADK itself for building agents, 
 ### If something goes wrong
 
 - `poly` not found after install — run `uv tool update-shell` and open a new terminal.
-- `poly apikey` not recognised, or `poly --version` is older than what uv installed — an older `poly` comes earlier on your `PATH` (for example in `/opt/homebrew/bin`). `which -a poly` (PowerShell: `Get-Command poly -All`) lists them in order. Run `uvx --from polyai-adk poly apikey --region studio`, or remove the older install.
-- "Multiple accounts found" — you belong to more than one workspace. Pick one from the list and re-run with `--account-id <id>`; your sign-in is kept, so you won't sign in again. Run `poly apikey --region studio` yourself in a terminal to choose from a picker instead.
+- `poly apikey` not recognised — an older `poly` comes earlier on your `PATH`. `which -a poly` (PowerShell: `Get-Command poly -All`) lists them in order. Run `uvx --from polyai-adk poly apikey --region studio`, or remove the older install.
+- "Multiple accounts found" — pick one from the list and re-run with `--account-id <id>`. You won't sign in again. Run it yourself in a terminal to pick from a list instead.
 - `POLY_API_KEY` already set to a different value — the command stops with exit code `2`; the assistant will ask you before rerunning with `--force`.
 
 You can always do the same steps yourself — see [Getting started](/adk/get-started/get-started) for the `poly login` flow.
@@ -100,17 +95,3 @@ You can always do the same steps yourself — see [Getting started](/adk/get-sta
 ### Telemetry
 
 `poly apikey` sends anonymous usage events so we can see where setup fails; the key and sign-in token are never included. Set `DO_NOT_TRACK=1` or `POLY_NO_TELEMETRY=1` to opt out.
-
-### Next steps
-
-<CardGroup>
-  <Card title="Make your first Dialog RSN 1 call" href="/api-reference/dialog-rsn-1/reference">
-    Connect to the real-time voice model over WebSocket. `POLY_API_KEY` is already set.
-  </Card>
-  <Card title="Dialog RSN 1 limits and pricing" href="/api-reference/dialog-rsn-1/limits">
-    Concurrency, rate limits, session length and the connected-minute price.
-  </Card>
-  <Card title="API quickstart" href="/api-reference/quickstart">
-    Build a PolyAI agent from the API, from first call to production.
-  </Card>
-</CardGroup>
