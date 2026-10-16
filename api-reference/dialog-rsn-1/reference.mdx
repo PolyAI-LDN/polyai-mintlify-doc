@@ -347,7 +347,7 @@ Every event is a JSON text frame with a `type` and an `event_id`. Fields follow 
 | `conversation.item.truncate` | Cuts history only for a reply spoken by the server; otherwise validates the item and changes nothing |
 | `response.create` | |
 | `response.cancel` | With nothing active, `response_cancel_not_active` |
-| `output_audio_buffer.clear` | Always refused: WebRTC only. Send `response.cancel`. |
+| `output_audio_buffer.clear` | Always refused with `invalid_request_error`: it is WebRTC-only upstream, and this service answers the same over a WebSocket. Send `response.cancel` to stop a reply. |
 | `poly.output_audio.started`, `.delta`, `.stopped` | Playback reports, see below |
 
 **Server to client**
@@ -414,7 +414,7 @@ Branch on `code`, never on `message`. `error.event_id` names the client frame th
 | `code` | `type` | Retry? |
 | --- | --- | --- |
 | `unsupported_event_type` | `invalid_request_error` | No. This event is not implemented. |
-| `invalid_request_error` | `invalid_request_error` | No. A malformed frame, undecodable audio, a binary frame, or a bad `session_id`. |
+| `invalid_request_error` | `invalid_request_error` | No. A malformed frame, undecodable audio, a binary frame, a bad `session_id`, or `output_audio_buffer.clear` (WebRTC only). |
 | `unknown_parameter` | `invalid_request_error` | No. The path is in `param`. |
 | `unsupported_parameter` | `invalid_request_error` | No. The field is real and this service does not honour it; path in `param`. |
 | `item_not_found` | `invalid_request_error` | No |
