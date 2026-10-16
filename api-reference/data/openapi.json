@@ -4,7 +4,7 @@
     "title": "PolyAI Data API",
     "description": "Read conversation data served by the Data Gateway: the metric catalog, metric aggregation, transcript search and conversation search.",
     "version": "1.0.0",
-    "x-commit-sha": "35cedc7d0db193d6b714a12e457ed6ed3450923e"
+    "x-commit-sha": "32ae0a71bbcbec7780abb5f080411ff0326e0e06"
   },
   "servers": [
     {
@@ -36,7 +36,7 @@
           "conversations"
         ],
         "summary": "Search conversations",
-        "description": "Search conversations with metric filters, sorting, and pagination. Use `fields` to return only the metric keys you need per conversation (recommended for large searches); omit it to return all metric values. conversation_id is also accepted as a filter (eq/in) to fetch one or many conversations' metrics.",
+        "description": "Search conversations with metric filters, sorting, and pagination. Use `fields` to return only the metric keys you need per conversation (recommended for large searches); omit it to return all metric values. conversation_id is also accepted as a filter (eq/in) to fetch one or many conversations' metrics. AI Scores appear as CUSTOM_SCORE_<ID> keys; the metrics endpoint gives each one's name.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -137,7 +137,7 @@
           "metrics"
         ],
         "summary": "List metrics",
-        "description": "List the metric catalog for the account, optionally scoped to a project: each metric's name, type, and expected values. Call this first to discover valid metric names before filtering in the conversation search endpoint or aggregating in the analytics endpoint.",
+        "description": "List the metric catalog for the account, optionally scoped to a project: each metric's name, type, and expected values. Call this first to discover valid metric names before filtering in the conversation search endpoint or aggregating in the analytics endpoint. A project's AI Scores, its own 1-5 conversation ratings, are listed as CUSTOM_SCORE_<ID> metrics whose display_name is the score's name; refer to them by that name, not the ID.",
         "parameters": [
           {
             "description": "Project ID",
@@ -823,7 +823,8 @@
               "type": "string"
             },
             "type": "array",
-            "title": "Columns"
+            "title": "Columns",
+            "description": "Column names in row order: `bucket` when an interval is set, then one column per group_by dimension, then one per requested aggregation."
           },
           "rows": {
             "items": {
@@ -831,15 +832,18 @@
               "type": "array"
             },
             "type": "array",
-            "title": "Rows"
+            "title": "Rows",
+            "description": "Result rows, sorted by bucket ascending then by `sort`; each row's values are ordered by `columns`."
           },
           "limit": {
             "type": "integer",
-            "title": "Limit"
+            "title": "Limit",
+            "description": "Page size used for this response."
           },
           "offset": {
             "type": "integer",
-            "title": "Offset"
+            "title": "Offset",
+            "description": "Offset used for this response."
           }
         },
         "type": "object",
@@ -1127,22 +1131,26 @@
         "properties": {
           "conversation_id": {
             "type": "string",
-            "title": "Conversation Id"
+            "title": "Conversation Id",
+            "description": "Unique conversation identifier."
           },
           "project_id": {
             "type": "string",
-            "title": "Project Id"
+            "title": "Project Id",
+            "description": "Project the conversation belongs to."
           },
           "turns": {
             "items": {
               "$ref": "#/components/schemas/TranscriptTurn"
             },
             "type": "array",
-            "title": "Turns"
+            "title": "Turns",
+            "description": "Every turn of the conversation, in order."
           },
           "total_turns": {
             "type": "integer",
-            "title": "Total Turns"
+            "title": "Total Turns",
+            "description": "Number of turns in the conversation."
           }
         },
         "type": "object",
@@ -1161,11 +1169,13 @@
               "$ref": "#/components/schemas/Metric"
             },
             "type": "array",
-            "title": "Metrics"
+            "title": "Metrics",
+            "description": "Metrics available to the account, or to the project when scoped."
           },
           "total": {
             "type": "integer",
-            "title": "Total"
+            "title": "Total",
+            "description": "Number of metrics returned."
           }
         },
         "type": "object",
@@ -1264,18 +1274,21 @@
         "properties": {
           "conversation_id": {
             "type": "string",
-            "title": "Conversation Id"
+            "title": "Conversation Id",
+            "description": "Unique conversation identifier."
           },
           "project_id": {
             "type": "string",
-            "title": "Project Id"
+            "title": "Project Id",
+            "description": "Project the conversation belongs to."
           },
           "matched_turns": {
             "items": {
               "$ref": "#/components/schemas/MatchedTurn"
             },
             "type": "array",
-            "title": "Matched Turns"
+            "title": "Matched Turns",
+            "description": "Turns in this conversation that matched the query, each with its context."
           }
         },
         "type": "object",
@@ -1290,36 +1303,49 @@
         "properties": {
           "turn_index": {
             "type": "integer",
-            "title": "Turn Index"
+            "title": "Turn Index",
+            "description": "Position of the turn in the conversation, starting at 0."
           },
           "user_input": {
             "type": "string",
-            "title": "User Input"
+            "title": "User Input",
+            "description": "What the user said in this turn, in the conversation's language."
           },
           "user_input_datetime": {
             "type": "string",
             "format": "date-time",
-            "title": "User Input Datetime"
+            "title": "User Input Datetime",
+            "description": "When the user input was received."
           },
           "english_user_input": {
             "type": "string",
-            "title": "English User Input"
+            "title": "English User Input",
+            "description": "English translation of user_input for conversations held in another language; null otherwise."
           },
           "agent_response": {
             "type": "string",
-            "title": "Agent Response"
+            "title": "Agent Response",
+            "description": "What the agent said in reply, in the conversation's language."
           },
           "agent_response_datetime": {
             "type": "string",
             "format": "date-time",
-            "title": "Agent Response Datetime"
+            "title": "Agent Response Datetime",
+            "description": "When the agent response was sent."
           },
           "english_agent_response": {
             "type": "string",
-            "title": "English Agent Response"
+            "title": "English Agent Response",
+            "description": "English translation of agent_response for conversations held in another language; null otherwise."
           },
           "context": {
-            "$ref": "#/components/schemas/TurnContext"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TurnContext"
+              }
+            ],
+            "title": "Context",
+            "description": "Surrounding turns, so the match can be read in context."
           }
         },
         "type": "object",
@@ -1333,11 +1359,13 @@
         "properties": {
           "name": {
             "type": "string",
-            "title": "Name"
+            "title": "Name",
+            "description": "Metric name (case insensitive)."
           },
           "description": {
             "type": "string",
-            "title": "Description"
+            "title": "Description",
+            "description": "What the metric measures, as written by whoever defined it."
           },
           "type": {
             "$ref": "#/components/schemas/CustomMetricType"
@@ -1347,7 +1375,13 @@
               "type": "string"
             },
             "type": "array",
-            "title": "Values"
+            "title": "Values",
+            "description": "Expected values for a string metric; null when the metric is unconstrained or not a string."
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name",
+            "description": "Human-readable label. Equal to the name unless the metric is customer-defined with its own title, e.g. an AI Score"
           }
         },
         "type": "object",
@@ -1551,7 +1585,8 @@
               "$ref": "#/components/schemas/MatchedConversations"
             },
             "type": "array",
-            "title": "Results"
+            "title": "Results",
+            "description": "Conversations with at least one matching turn, for this page."
           },
           "total": {
             "type": "integer",
@@ -1610,33 +1645,40 @@
         "properties": {
           "turn_index": {
             "type": "integer",
-            "title": "Turn Index"
+            "title": "Turn Index",
+            "description": "Position of the turn in the conversation, starting at 0."
           },
           "user_input": {
             "type": "string",
-            "title": "User Input"
+            "title": "User Input",
+            "description": "What the user said in this turn, in the conversation's language."
           },
           "user_input_datetime": {
             "type": "string",
             "format": "date-time",
-            "title": "User Input Datetime"
+            "title": "User Input Datetime",
+            "description": "When the user input was received."
           },
           "english_user_input": {
             "type": "string",
-            "title": "English User Input"
+            "title": "English User Input",
+            "description": "English translation of user_input for conversations held in another language; null otherwise."
           },
           "agent_response": {
             "type": "string",
-            "title": "Agent Response"
+            "title": "Agent Response",
+            "description": "What the agent said in reply, in the conversation's language."
           },
           "agent_response_datetime": {
             "type": "string",
             "format": "date-time",
-            "title": "Agent Response Datetime"
+            "title": "Agent Response Datetime",
+            "description": "When the agent response was sent."
           },
           "english_agent_response": {
             "type": "string",
-            "title": "English Agent Response"
+            "title": "English Agent Response",
+            "description": "English translation of agent_response for conversations held in another language; null otherwise."
           }
         },
         "type": "object",
@@ -1653,14 +1695,16 @@
               "$ref": "#/components/schemas/TranscriptTurn"
             },
             "type": "array",
-            "title": "Before"
+            "title": "Before",
+            "description": "Up to context_turns turns immediately before the match, in order."
           },
           "after": {
             "items": {
               "$ref": "#/components/schemas/TranscriptTurn"
             },
             "type": "array",
-            "title": "After"
+            "title": "After",
+            "description": "Up to context_turns turns immediately after the match, in order."
           }
         },
         "type": "object",
