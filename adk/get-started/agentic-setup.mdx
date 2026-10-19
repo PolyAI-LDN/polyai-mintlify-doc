@@ -36,28 +36,33 @@ Windows), so include that in the summary.
 1. Check for uv with `uv --version`. If it's missing, ask me how I'd like to
    install it: `brew install uv` on macOS, `winget install astral-sh.uv` on
    Windows, or `pipx install uv` anywhere. Don't pipe a script into a shell.
-2. Install the CLI: `uv tool install --python 3.14 polyai-adk`. If `poly` isn't
-   found afterwards, run `uv tool update-shell` and tell me to open a new terminal.
-   If `poly apikey` isn't recognised, run `uv tool upgrade polyai-adk`.
+2. Install the CLI: `uv tool install --python 3.14 polyai-adk`. Then run `which -a poly`
+   (PowerShell: `Get-Command poly -All`). If the first `poly` listed isn't the one uv
+   installed, run every `poly` command below as `uvx --from polyai-adk poly ...` and tell
+   me why. If `poly` isn't found at all, run `uv tool update-shell` and tell me to open a
+   new terminal.
 3. Run `poly apikey --region studio`. It prints a sign-in URL and opens it if it
    can. Show me the URL either way; I'll sign in with GitHub in my browser. Allow
    up to five minutes, since it waits for me.
+   If it reports "Multiple accounts found", show me the list, ask me which one to use,
+   and re-run with `--account-id <id>`. I won't need to sign in again.
 4. Show me the summary it prints. It only prints a masked key. Don't read
    ~/.poly/credentials.json, the registry, or my shell profile to see the key.
 5. Verify with `poly project list --region studio` and tell me what it shows.
    Remind me to open a new terminal so POLY_API_KEY is available.
 
-If any step fails, show me the output and stop. Don't retry with different flags.
+If any other step fails, show me the output and stop. Don't retry with other flags.
 ```
 
 ### What the assistant will do
 
 1. Check for **uv** and ask how you'd like to install it if it's missing.
-2. Install the CLI with `uv tool install --python 3.14 polyai-adk`.
+2. Install the CLI with `uv tool install --python 3.14 polyai-adk` and check which `poly` runs. If an older one comes first on your `PATH`, it runs the new one with `uvx --from polyai-adk poly` instead.
 3. Run [`poly apikey --region studio`](/adk/reference/cli#poly-apikey) and show you the sign-in URL.
 4. Wait while you approve the sign-in in your browser with GitHub.
-5. Show you the masked summary once it completes.
-6. Verify the key with `poly project list --region studio`.
+5. If you belong to more than one account, show you the list, ask which to use, and re-run with `--account-id`.
+6. Show you the masked summary once it completes.
+7. Verify the key with `poly project list --region studio`.
 
 The assistant will ask for your "go" before running anything, and again before anything that needs a permission prompt in its own tool.
 
@@ -79,7 +84,8 @@ This only gets you an API key — to set up the ADK itself for building agents, 
 ### If something goes wrong
 
 - `poly` not found after install — run `uv tool update-shell` and open a new terminal.
-- `poly apikey` not recognised — run `uv tool upgrade polyai-adk`.
+- `poly apikey` not recognised — an older `poly` comes earlier on your `PATH`. `which -a poly` (PowerShell: `Get-Command poly -All`) lists them in order. Run `uvx --from polyai-adk poly apikey --region studio`, or remove the older install.
+- "Multiple accounts found" — pick one from the list and re-run with `--account-id <id>`. You won't sign in again. Run it yourself in a terminal to pick from a list instead.
 - `POLY_API_KEY` already set to a different value — the command stops with exit code `2`; the assistant will ask you before rerunning with `--force`.
 
 You can always do the same steps yourself — see [Getting started](/adk/get-started/get-started) for the `poly login` flow.
