@@ -138,6 +138,7 @@ Send `session.update` after `session.created`. Updates are merged into the sessi
 | `max_output_tokens` | An integer or `"inf"`. The deployment's own cap is the ceiling. The model reasons before it answers and reasoning tokens come out of the same budget, so a small cap can leave a truncated or empty reply. |
 | `audio.input.format` | See [Audio in](#audio-in) |
 | `audio.input.turn_detection.create_response` | `true` (default): the model confirms the end of each turn and the server generates a reply. `false`: you send `response.create`, and turns are taken at face value with no model confirmation. The voice-activity detector still commits the turn at each pause it hears, and `input_audio_buffer.commit` commits at once. |
+| `audio.input.turn_detection: null` | Push-to-talk. The voice-activity detector and the model's turn check are off: everything you append, silence included, is one turn until `input_audio_buffer.commit`, and only `response.create` starts a reply. No `speech_started` or `speech_stopped` is sent, only `input_audio_buffer.committed`, and nothing barges in. Send a `turn_detection` object to turn detection back on. |
 | `output_modalities` | `["audio"]`, the default for a new session, has the API speak the reply: audio arrives as `response.output_audio.delta` and the text as `response.output_audio_transcript.delta`. `["text"]` sends text replies you voice yourself, as `response.output_text.delta`. |
 | `audio.output.voice` | The voice for spoken replies: a Cartesia voice id, as a string or `{"id": "..."}`. Unset, the deployment's default voice speaks. An id Cartesia doesn't know is accepted here, and each response then fails with `audio_synthesis_failed`. Kept on a text session, and used if the session switches to `["audio"]`. |
 | `poly_knowledge`, `poly_response_language`, `poly_input_rate` | See [PolyAI extensions](#polyai-extensions) |
@@ -163,7 +164,6 @@ Fields that would change what you get if silently ignored are refused with an `e
 | `prompt`, `reasoning` | `unsupported_parameter` | `prompt` or `reasoning` |
 | `tool_choice` other than `"auto"` | `unsupported_parameter` | `tool_choice` |
 | `tools[i].type` other than `"function"` (no MCP) | `unsupported_parameter` | `tools[i].type` |
-| `audio.input.turn_detection: null` (push-to-talk) | `unsupported_parameter` | `audio.input.turn_detection` |
 | `turn_detection.interrupt_response: false` | `unsupported_parameter` | `audio.input.turn_detection.interrupt_response` |
 | `turn_detection.idle_timeout_ms` | `unsupported_parameter` | `audio.input.turn_detection.idle_timeout_ms` |
 | `audio.output.format.type` other than `"audio/pcm"` | `unsupported_parameter` | `audio.output.format.type` |
@@ -185,7 +185,7 @@ Audio travels as base64 inside `input_audio_buffer.append`. Binary WebSocket fra
 | `audio/pcma` | 8 kHz, fixed | G.711 A-law |
 
 - Send about 20 ms per frame (640 bytes at 16 kHz, 960 at 24 kHz). One frame may not exceed 256 KiB; a larger frame closes the connection with code `1009`.
-- Keep streaming during silence. The server decides where the turn ends from the audio; a client that stops sending looks idle, not quiet.
+- Keep streaming during silence. The server decides where the turn ends from the audio; a client that stops sending looks idle, not quiet. With push-to-talk, append only while the caller holds the button: silence you send becomes part of the turn.
 - One turn may hold up to 300 seconds of audio; anything longer is dropped.
 - Audio in `conversation.item.create` is refused with `unsupported_item_type`. Stream caller audio; use `conversation.item.create` for text, tool results and history.
 
@@ -199,6 +199,8 @@ With `create_response: true` the sequence for one caller turn is:
 4. `response.created`, `response.output_item.added`, `response.content_part.added`, then `response.output_text.delta` frames until `response.output_text.done`, `response.content_part.done`, `response.output_item.done` and `response.done`. `conversation.item.input_audio_transcription.delta` and `.completed`, carrying what the model heard, arrive during the reply, usually after its first text delta.
 
 With `create_response: false`, the model doesn't confirm the turn: step 2 follows the first pause the detector hears, or your `input_audio_buffer.commit`. Step 4 starts when you send `response.create`.
+
+With `turn_detection: null` (push-to-talk), step 2 is only `input_audio_buffer.committed`, sent when you send `input_audio_buffer.commit`. Step 4 starts when you send `response.create`.
 
 The samples below set `["text"]` so they can print the reply. Leave it out and the API speaks the reply instead: read `response.output_audio_transcript.delta` for the text and `response.output_audio.delta` for the audio.
 
@@ -326,7 +328,7 @@ Rules that catch people out:
 
 - **One response at a time.** A `response.create` while a response is open is refused with `conversation_already_has_active_response`. Send `response.cancel` first. Two requests are held rather than refused: one sent while the caller is still speaking is answered by the response to their turn, and one sent while a reply the server speaks is still playing is answered when that audio ends. Only one request is held at a time.
 - **`response.create` may set `instructions`, `max_output_tokens` and `metadata`.** `parallel_tool_calls` is ignored. Every other field must match the session or is refused with `unsupported_parameter`, naming `response.<field>`. That includes `conversation: "none"` (no out-of-band responses), a per-response `output_modalities`, `tools` or `tool_choice`, `input`, `audio`, `prompt` and `reasoning`. Change the session with `session.update` instead.
-- **A confirmed barge-in always cancels the reply.** `interrupt_response` cannot be turned off. The cancelled response ends with status `cancelled`.
+- **A confirmed barge-in always cancels the reply.** `interrupt_response` cannot be turned off. The cancelled response ends with status `cancelled`. With push-to-talk nothing barges in: send `response.cancel` to stop a reply.
 - **Tell the server what the caller heard.** If you speak the text through your own TTS, send the `poly.output_audio.*` events below so that an interrupted reply is kept in history as the words that were actually played.
 
 ## Events
