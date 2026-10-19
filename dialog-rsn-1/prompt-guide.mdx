@@ -48,6 +48,10 @@ Write your instructions knowing the tool call goes first. If the caller needs to
 
 **Since the model won't emit text and a tool call together, the hold line has to come from the call itself.** Give the tool an argument for it and mark that argument with `"poly_spoken": true`. The model fills it in as part of the call, in context, and Dialog-RSN-1 sends it to the caller as the call is written, before your tool runs.
 
+<Warning>
+**Without a spoken argument, a tool turn is silent until every tool call finishes.** The caller hears nothing through the whole chain, then the reply. This is the most common reason Dialog-RSN-1 seems slow in an existing agent or benchmark. Add a `poly_spoken` argument to every tool that keeps the caller waiting, and list it in `required`: the model often leaves an optional one empty.
+</Warning>
+
 ```json a tool schema with a hold-line argument
 {
   "type": "function",
@@ -71,6 +75,8 @@ Write your instructions knowing the tool call goes first. If the caller needs to
 The line arrives as the response's message, next to the `function_call` item. On a text session it streams as `response.output_text.delta` like any reply, so your text-to-speech speaks it with no extra code. When Dialog-RSN-1 speaks its own replies, it speaks the line. Either way, run the tool when `response.function_call_arguments.done` arrives, and the lookup happens while the caller hears the line.
 
 The keyword must be `true`, on a `string` property, and on one property per tool at most, or the `session.update` is refused. The model never sees it: Dialog-RSN-1 removes it and adds "Spoken aloud to the caller while the tool runs." to the property's description. If the caller talks over the line, the model's copy of the call keeps only what they heard.
+
+Leave it off tools that should stay silent, like one that only records a detail or classifies the caller, and off tools fast enough that a hold line would only add words. On a tool that ends the call, put the goodbye in its spoken argument, for example a `closing_message` the prompt tells the model to use, and hang up on `response.done` with status `completed`, which waits for the line to finish.
 
 ### Getting at what the caller said, mid-loop
 

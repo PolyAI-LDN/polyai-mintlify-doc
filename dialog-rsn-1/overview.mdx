@@ -122,6 +122,40 @@ Write that harness yourself or bring one you already use. The [Guides](/dialog-r
 
 ## Common mistakes
 
+**Tools with no spoken argument make every tool turn silent.**
+
+```json wrong: a tool with nothing to say while it runs
+{
+  "type": "function",
+  "name": "check_eligibility",
+  "parameters": {
+    "type": "object",
+    "properties": { "member_id": { "type": "string" } },
+    "required": ["member_id"]
+  }
+}
+```
+```json right: a required argument marked poly_spoken
+{
+  "type": "function",
+  "name": "check_eligibility",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "member_id": { "type": "string" },
+      "utterance": {
+        "type": "string",
+        "description": "A short line to say to the caller while this runs.",
+        "poly_spoken": true
+      }
+    },
+    "required": ["member_id", "utterance"]
+  }
+}
+```
+
+Dialog-RSN-1 is trained to run a turn as tool, tool, and so on, then text, and only the text hands the floor back. Each output is text or one tool call, never both. Without a spoken argument, the caller hears nothing until the last tool in the chain returns and the reply is written. Swap Dialog-RSN-1 into an existing agent unchanged and this is what makes it look slow. Add a `poly_spoken` argument and the line is spoken while the tool runs. Make it required: the model often skips an optional one. See [Speaking while a tool runs](/dialog-rsn-1/prompt-guide#speaking-while-a-tool-runs).
+
 **A speaking session sends no text deltas.**
 
 ```json wrong: no output_modalities, then reading response.output_text.delta
