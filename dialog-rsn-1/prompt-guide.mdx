@@ -1,7 +1,7 @@
 ---
 title: "Prompting Dialog-RSN-1"
 sidebarTitle: "Prompt guide"
-description: "What the `instructions` parameter can and can't control: one output per turn, turn-taking, what the model hears from raw audio, tool calling, and response style."
+description: "What the `instructions` parameter can and can't control: one output per turn, turn-taking, what the model hears from raw audio, tool calling, response style, and fitting the context window."
 keywords:
   - realtime
   - prompting
@@ -13,10 +13,11 @@ keywords:
   - agentic loop
   - acoustic understanding
   - response style
+  - context window
   - concepts
 ---
 
-The `instructions` parameter is your main lever over what Dialog-RSN-1 says and how it behaves: a system prompt, placed word for word into the model's prompt alongside your tools, your knowledge topics and the conversation so far. Nothing rewrites it. A `response.create` can add instructions for a single reply, and a platform content policy applies whatever your instructions say. This guide covers what that lever can and can't do. It starts with the one structural rule that catches most people out, then works through turn-taking, what the model hears, tool calling, and response style.
+The `instructions` parameter is your main lever over what Dialog-RSN-1 says and how it behaves: a system prompt, placed word for word into the model's prompt alongside your tools, your knowledge topics and the conversation so far. Nothing rewrites it. A `response.create` can add instructions for a single reply, and a platform content policy applies whatever your instructions say. This guide covers what that lever can and can't do. It starts with the one structural rule that catches most people out, then works through turn-taking, what the model hears, tool calling, response style, and how much of the context window your setup can take.
 
 For something to paste rather than read about, start with the [prompt cookbook](/dialog-rsn-1/prompt-cookbook/introduction) instead.
 
@@ -248,6 +249,34 @@ Choose ONE emotion tag for your response from: [friendly], [apologetic],
 ```
 
 The tags aren't a fixed enum, and the model generalizes to ones you invent. Common choices are `[friendly]`, `[energized]`, `[reassuring]`, `[empathetic]`, `[apologetic]`, `[patient]`, `[confident]`, `[assertive]`, `[diplomatic]`, and `[informative]`. A response that's only a tool call carries no tag, since it emits no text to prefix, so parse the prefix as optional. Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/response-style#tagging-a-reply-with-an-emotion).
+
+## Fitting the context window
+
+**Keep your `instructions` and `tools` under about 20,000 tokens together, so the conversation has room to grow.** The [context window](/api-reference/dialog-rsn-1/limits) is 32,768 tokens, audio included. Every reply's prompt holds your `instructions`, every tool definition, and the conversation so far.
+
+Only the conversation gets smaller as a call goes on. From the tenth caller turn, older turns give up their audio and keep their transcript. Your `instructions` and `tools` go into every prompt in full, on every turn, and nothing compacts them. A setup of 28,000 tokens leaves about 4,000 for the call itself, which a few turns use up.
+
+When a prompt outgrows the window, that response fails with `context_length_exceeded`: an `error` event, then a `response.done` with `status: "failed"`. The connection stays open. A `session.update` with oversized `instructions` is accepted without complaint, so the first sign is the first reply failing.
+
+### Measuring your setup
+
+**Read `response.usage.input_tokens` off the first reply.** Send your `session.update`, one short user message and a `response.create`, then check the number on `response.done`. That count is the fixed cost every later turn starts from.
+
+For a rough estimate before you send anything, count about four characters of English per token, and about 100 tokens for a tool with a one-line description and two parameters. Some measured first replies:
+
+| Setup | `input_tokens` |
+| --- | --- |
+| 270 characters of instructions, no tools | 392 |
+| The same instructions, 20 tools | 2,477 |
+| 13,550 characters of instructions, no tools | 3,136 |
+| 108,400 characters of instructions, no tools | 22,736 |
+
+### When you're over
+
+- **Cut what the model doesn't need on every turn.** Long policy text, FAQs and product lists cost their full size on every reply.
+- **Move reference material behind a search tool.** Return the passages as [`poly_knowledge`](#searching-and-getting-citations-back) on the tool result, so only what the caller asks about enters the prompt.
+- **Declare fewer tools.** Merge tools that take the same arguments, and drop the ones this agent never calls.
+- **Split the call into stages.** Give each stage its own `instructions` and `tools`, and swap them in with `session.update` as the call moves on. The history stays intact. The [realtime agents example](https://github.com/polyai/dialog-rsn-1-realtime-agents) does this for handoffs.
 
 ## Next steps
 

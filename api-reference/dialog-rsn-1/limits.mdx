@@ -23,7 +23,7 @@ Concurrency applies per account and the connection rate per key. Session duratio
 | Idle timeout | **5 minutes** without a client event | Close `4408`. Measured on frames, not speech: a silent caller mid-call is not idle as long as you keep streaming audio. |
 | Frame size | **256 KiB** per WebSocket frame | Close `1009`. About four seconds of 24 kHz audio; send 20 ms frames. |
 | Turn length | **300 seconds** of audio in one turn | Audio past that is dropped |
-| Context window | **32,768 tokens**, audio included | From the tenth caller turn, older turns keep their transcript and release their audio, so most calls never reach it. If a conversation still outgrows the window, that response fails with `context_length_exceeded` and the connection stays open. |
+| Context window | **32,768 tokens**, audio included | From the tenth caller turn, older turns keep their transcript and release their audio, so most calls never reach it. Your `instructions` and `tools` are never compacted and go into every prompt in full: keep them under about 20,000 tokens, as the [prompt guide](/dialog-rsn-1/prompt-guide#fitting-the-context-window) explains. If a conversation still outgrows the window, that response fails with `context_length_exceeded` and the connection stays open. |
 | Reply length | `max_output_tokens` up to **1,024** per response, reasoning included | A cap smaller than the model's reasoning leaves a short or empty reply |
 | Output | Text, or speech synthesized by the API | A new session starts in `output_modalities: ["audio"]`. Set `["text"]` to voice replies with your own text-to-speech |
 | Audio in | PCM16 mono at 24 kHz (default), 16 kHz, or any rate; G.711 mu-law and A-law at 8 kHz | Other encodings are refused on `session.update` |
