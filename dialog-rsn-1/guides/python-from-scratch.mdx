@@ -17,7 +17,7 @@ A voice agent you can talk to from your terminal, built on the standard `websock
 
 It comes together in stages: a socket and a single text turn first, then tool calling, then the concurrency that audio needs, and last the microphone itself, where the server decides when you've stopped speaking. The first script runs on its own, and each stage after it adds to that code until the full example at the end puts it all in one file.
 
-Nothing here assumes you've read anything else first. If you'd rather see the whole protocol laid out at once, that's the [reference](/dialog-rsn-1/reference).
+Nothing here assumes you've read anything else first. If you'd rather see the whole protocol laid out at once, that's the [API reference](/api-reference/dialog-rsn-1/reference).
 
 ## Before you start
 
@@ -187,7 +187,7 @@ async def handle_tool_call(ws, name, arguments_json, call_id):
 
 Send `SESSION_TOOLS` as `session.tools` in your `session.update` and you're wired up. A call then arrives as `response.function_call_arguments.done`, carrying the `name`, the full `arguments` as a JSON string, and a server-minted `call_id` your reply has to echo back.
 
-`handle_tool_call` is your half of the exchange, and it's the two-part move again with a tool result standing in for a user message: look the function up, run it, add the result as a `function_call_output` item, then ask for the follow-up turn with a fresh `response.create`. The second `response.create` is easy to leave out, and nothing else triggers the follow-up, since a tool result carries no audio and ends no turn by itself. Look it up with `.get` rather than indexing `TOOLS[name]` directly, too: a model can invent a name that isn't in the dict, and an unhandled `KeyError` there takes down the whole event loop instead of just failing that one call. The [reference's function calling section](/dialog-rsn-1/reference#function-calling) has the full wire shape.
+`handle_tool_call` is your half of the exchange, and it's the two-part move again with a tool result standing in for a user message: look the function up, run it, add the result as a `function_call_output` item, then ask for the follow-up turn with a fresh `response.create`. The second `response.create` is easy to leave out, and nothing else triggers the follow-up, since a tool result carries no audio and ends no turn by itself. Look it up with `.get` rather than indexing `TOOLS[name]` directly, too: a model can invent a name that isn't in the dict, and an unhandled `KeyError` there takes down the whole event loop instead of just failing that one call. The [protocol guide's function calling section](/dialog-rsn-1/reference#function-calling) has the full wire shape.
 
 ## Structuring concurrent tasks
 
@@ -274,7 +274,7 @@ Once frames are flowing, the server takes care of turn-taking. There's no silenc
 
 The server owns voice activity detection, and Dialog-RSN-1 judges what the detector proposes. When nothing is playing, `input_audio_buffer.speech_started` arrives as soon as the detector hears sound. While a reply is playing, Dialog-RSN-1 confirms the caller is really talking before it sends one. `input_audio_buffer.speech_stopped` always waits for Dialog-RSN-1's judgment that they've finished, then the server commits the turn and, with `create_response: true`, answers it. Pause mid-sentence and the detector may read it as silence, but if Dialog-RSN-1 judges the caller isn't finished, you don't see a turn boundary. If it judges the sound was noise, it drops the turn, so a `speech_started` can arrive with no `speech_stopped` after it.
 
-Start talking again while a reply is still streaming and Dialog-RSN-1 cancels that reply, once confirmed. It arrives as a `response.done` with status `cancelled` that you didn't ask for, so the event handler needs to expect one. The [reference's turn-taking section](/dialog-rsn-1/reference#turn-taking-and-audio) covers the mechanics.
+Start talking again while a reply is still streaming and Dialog-RSN-1 cancels that reply, once confirmed. It arrives as a `response.done` with status `cancelled` that you didn't ask for, so the event handler needs to expect one. The [protocol guide's turn-taking section](/dialog-rsn-1/reference#turn-taking-and-audio) covers the mechanics.
 
 ## Full example
 
@@ -456,8 +456,8 @@ Run it and say something. Asking for the time, or the weather somewhere, exercis
   <Card title="Overview" icon="lightbulb" href="/dialog-rsn-1/overview">
     What realtime streaming is, and how turn-taking, generation, and prompting fit together.
   </Card>
-  <Card title="Reference" icon="file-lines" href="/dialog-rsn-1/reference">
-    Every event, the session object, function calling, and error codes.
+  <Card title="API reference" icon="code" href="/api-reference/dialog-rsn-1/reference">
+    Every event, every session field, PolyAI extensions and error codes.
   </Card>
   <Card title="Browser (JavaScript)" icon="js" href="/dialog-rsn-1/guides/javascript-browser">
     The same protocol, from a browser tab, with microphone capture in the client.
