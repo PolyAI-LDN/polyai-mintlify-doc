@@ -1,0 +1,242 @@
+---
+title: "Dialog-RSN-1 quickstart for coding agents"
+sidebarTitle: "Quickstart (coding agents)"
+description: "Build a Dialog-RSN-1 voice agent with Claude Code, Codex, Cursor or Gemini CLI: install the Dialog-RSN-1 skill, check your key, then go from a first spoken reply to a live voice agent with tools in three prompts."
+keywords:
+  - realtime
+  - quickstart
+  - getting started
+  - coding agents
+  - claude code
+  - codex
+  - cursor
+  - skill
+  - dialog-rsn-1
+---
+
+Set your coding agent up once, then build a voice agent in three prompts. At each step you'll know what the agent should build, how to check it works, and what to say when it goes wrong.
+
+**What you'll build:**
+
+1. A coding agent that knows the Dialog-RSN-1 protocol and can test its own work.
+2. A script that sends one message and saves the spoken reply to `reply.wav`.
+3. A live voice conversation: your microphone in, the model's voice out, and you can interrupt it.
+4. A tool the model calls mid-conversation.
+
+**Before you start:**
+
+- A coding agent that can run shell commands: Claude Code, Codex, Cursor or Gemini CLI.
+- An empty folder to build in.
+- Python 3.10 or later with [uv](https://docs.astral.sh/uv/), or Node 20 or later. Every prompt below says "in Python". Change it to "in JavaScript" if you prefer Node.
+
+If you'd rather write the code yourself, follow the [quickstart](/dialog-rsn-1/quickstart) instead.
+
+## Set up your agent
+
+Do this once. Every step after it relies on it.
+
+### Install the Dialog-RSN-1 skill
+
+Dialog-RSN-1 speaks the OpenAI Realtime protocol. Coding agents know that protocol well, so they assume all of it carries over, and some of it doesn't. The [Dialog-RSN-1 skill](https://github.com/polyai/dialog-rsn-1-skill) gives your agent the differences, the audio patterns, and a script that checks your key against the live API.
+
+<Tabs>
+  <Tab title="Claude Code">
+    In Claude Code, run:
+
+    ```text
+    /plugin marketplace add polyai/dialog-rsn-1-skill
+    /plugin install dialog-rsn-1@polyai
+    ```
+
+    The plugin also connects the PolyAI docs as an MCP server, so Claude Code can search them while it works.
+  </Tab>
+  <Tab title="Codex, Cursor, Gemini CLI">
+    In your project folder, run:
+
+    ```bash
+    npx skills add polyai/dialog-rsn-1-skill
+    ```
+
+    This copies the skill into `.agents/skills/dialog-rsn-1`, where these agents look for skills. Add `-g` to install it for all your projects.
+  </Tab>
+</Tabs>
+
+### Get an API key
+
+Your code reads the key from the `POLY_API_KEY` environment variable. Don't paste the key into the chat: the agent never needs to see it.
+
+- **From your agent:** paste the [agentic setup prompt](/adk/get-started/agentic-setup) into it. It installs the PolyAI CLI, signs you in with GitHub, and saves `POLY_API_KEY` to your shell profile. Open a new terminal and restart the agent afterwards.
+- **By hand:** create a key at [studio.poly.ai](https://studio.poly.ai) in the **API Keys** tab, then put it in a `.env` file in your folder as `POLY_API_KEY=...`. The [quickstart](/dialog-rsn-1/quickstart#getting-an-api-key) has the steps.
+
+### Check it works
+
+Ask your agent:
+
+```text Prompt
+Run the dialog-rsn-1 skill's connection check.
+```
+
+It runs a spoken turn and a tool turn against the live API. You should see:
+
+```text output
+key    POLY_API_KEY from environment
+host   wss://api.studio.poly.ai/v1/realtime (default)
+ok     connected, session.created
+ok     spoken turn: 'Hello! How can I help you today?', 1.9 s of 24 kHz audio
+ok     tool call: check_availability({"day":"Friday"})
+ok     reply after tool: 'On Friday, I have openings at 9:30 and 2:00.'
+PASS
+```
+
+If it fails, the last line says why. A `401` almost always means the key comes from a different Studio than the host: see [Troubleshooting](#troubleshooting).
+
+## Step 1: hear your first reply
+
+```text Prompt
+In Python, write first_call.py: connect to Dialog-RSN-1, PolyAI's realtime voice
+model (my API key is in the POLY_API_KEY environment variable), tell it to be a
+friendly concierge for the Harbour Hotel (checkout is at 11, breakfast is 7 to 10 in
+the Quay restaurant, the spa opens at 9), send the text "What can you help me with?",
+print the reply, and save the spoken reply to reply.wav. Run it to check it works.
+```
+
+The facts in brackets matter. Dialog-RSN-1 says it doesn't know rather than make something up, so a concierge with no facts answers most questions with "I don't have information about that".
+
+**What it should build.** One WebSocket to `wss://api.studio.poly.ai/v1/realtime`, with the key in a header. After `session.created`, a `session.update` with the instructions. Then the turn, which is always two events: `conversation.item.create` adds your message, and `response.create` asks for a reply. The reply streams back as `response.output_audio.delta` (the speech, 24 kHz PCM16) and `response.output_audio_transcript.delta` (the words), until `response.done`.
+
+The server speaks the reply itself, so there's no text-to-speech to set up. The [quickstart](/dialog-rsn-1/quickstart#all-of-it-together) walks through the same script line by line.
+
+**Check it.** Play `reply.wav` (`afplay reply.wav` on macOS). You should hear a short greeting from the concierge.
+
+**If it goes wrong:**
+
+| What you see | Tell your agent |
+| --- | --- |
+| No `reply.wav`, or the reply is printed but there's no audio | "Leave output_modalities on the default so the server speaks the reply, and save response.output_audio.delta" |
+| `reply.wav` plays too fast or too slow | "The reply audio is 24 kHz mono PCM16. Write the WAV header to match" |
+| The script hangs or exits with nothing printed | "Handle error events and check response.status on response.done" |
+
+## Step 2: talk to it
+
+```text Prompt
+Now turn it into a live voice conversation in voice_agent.py: stream my microphone
+in, play the reply as it arrives, and stop playback when I interrupt. I'll talk to it
+myself afterwards, so give it a way to test without a microphone and test it that way.
+```
+
+**What it should build.** Microphone audio streamed in about 20 ms frames with `input_audio_buffer.append`, with the sample rate set in `audio.input.format`. The server decides when you've finished speaking, so there's no `commit` and no voice detection of its own. Reply audio plays as it arrives. When `input_audio_buffer.speech_started` arrives while the reply is playing, playback stops at once and queued audio is dropped. The server cancels the rest of the reply.
+
+For the test without a microphone, the skill has the agent generate a clip of caller speech and stream it in as if you'd said it.
+
+**Check it.** Run `voice_agent.py` with headphones on. Ask the concierge something, then interrupt it mid-sentence. It should stop talking and answer what you just said.
+
+**If it goes wrong:**
+
+| What you see | Tell your agent |
+| --- | --- |
+| It hears you but never answers | "Set audio.input.format.rate to the mic's real sample rate, and keep streaming audio during silence" |
+| It keeps talking when you interrupt | "Stop and flush playback as soon as input_audio_buffer.speech_started arrives" |
+| It interrupts itself | Use headphones, or ask: "Turn on echo cancellation for the mic" |
+| It only answers after you press a key (the agent set `turn_detection` to `null`, which is push-to-talk) | "Use the default server_vad turn detection, and don't commit the audio buffer yourself" |
+| `unsupported_parameter` naming `idle_timeout_ms` or `interrupt_response` | "Remove that field. The server handles turn-taking and interruptions" |
+
+## Step 3: give it a tool
+
+```text Prompt
+Add a check_availability(day) tool to voice_agent.py that returns made-up appointment
+slots for the hotel spa, and have the agent offer them to me. Test it.
+```
+
+**What it should build.** A function tool in `session.tools`. When the model calls it, `response.function_call_arguments.done` carries the `name`, the `arguments` and a `call_id`, and that response ends. The code runs the function, sends the result back as a `function_call_output` item, then sends `response.create` again, so the model can speak the answer.
+
+**Check it.** Ask "Is the spa free on Friday?" You should hear the slots read back.
+
+**If it goes wrong:**
+
+| What you see | Tell your agent |
+| --- | --- |
+| The agent goes quiet after the tool runs | "Send response.create after the function_call_output" |
+| `unsupported_parameter` naming `tool_choice` or `tools[0].type` | "Use function tools only, with tool_choice auto" |
+
+## Build your own
+
+You now have a voice agent that listens, talks, takes interruptions and calls tools. Some prompts to take it further, each with a guide that goes deeper:
+
+| Prompt | Guide |
+| --- | --- |
+| "Build a browser version with a small Node relay that holds the key" | [Browser with JavaScript](/dialog-rsn-1/guides/javascript-browser) |
+| "Speak the replies with my own ElevenLabs voice instead of the server voice" | [Streaming to your TTS](/dialog-rsn-1/guides/streaming-text-to-speech) |
+| "Port this OpenAI Realtime app to Dialog-RSN-1" | [OpenAI Realtime migration](/dialog-rsn-1/guides/openai-realtime-migration) |
+| "Make this a LiveKit agent" | [LiveKit](/dialog-rsn-1/guides/livekit) |
+
+Voice agents read differently from chat. Ask for short replies, no lists or markdown, and numbers written the way they're said. Then test by talking, not by reading the transcript. The [prompt guide](/dialog-rsn-1/prompt-guide) covers what `instructions` can and can't do.
+
+## Without the skill
+
+Point your agent at the docs instead. Every page is available as Markdown: add `.md` to its URL. The index of every page is [docs.poly.ai/llms.txt](https://docs.poly.ai/llms.txt). Start the agent with:
+
+```text Prompt
+Read https://docs.poly.ai/api-reference/dialog-rsn-1/reference.md before writing any
+code. Dialog-RSN-1 uses the OpenAI Realtime protocol, but follow that page wherever it
+differs from what you know.
+```
+
+The docs are also an MCP server at `https://docs.poly.ai/mcp`, which lets your agent search them:
+
+<Tabs>
+  <Tab title="Claude Code">
+    ```bash
+    claude mcp add --transport http polyai-docs https://docs.poly.ai/mcp
+    ```
+  </Tab>
+  <Tab title="Codex">
+    ```bash
+    codex mcp add polyai-docs --url https://docs.poly.ai/mcp
+    ```
+  </Tab>
+  <Tab title="Gemini CLI">
+    ```bash
+    gemini mcp add --transport http polyai-docs https://docs.poly.ai/mcp
+    ```
+  </Tab>
+  <Tab title="Cursor">
+    Add this to `.cursor/mcp.json`:
+
+    ```json
+    { "mcpServers": { "polyai-docs": { "url": "https://docs.poly.ai/mcp" } } }
+    ```
+  </Tab>
+</Tabs>
+
+## Troubleshooting
+
+| Symptom | Likely cause | Tell your agent |
+| --- | --- | --- |
+| `401` on connect | The key comes from a different Studio than the host. A [studio.poly.ai](https://studio.poly.ai) key only works on `api.studio.poly.ai` | If your key is from `studio.us.poly.ai`: "Set DIALOG_REALTIME_URL to wss://api.us.poly.ai/v1/realtime" |
+| `401` from your code, but the connection check passes | The key and the host come from different places, such as a key in your shell profile and a `DIALOG_REALTIME_URL` in `.env` | "Read POLY_API_KEY and DIALOG_REALTIME_URL from the same place, and print where each one came from" |
+| `402` on connect | No balance on the account | Nothing: add funds at [studio.poly.ai](https://studio.poly.ai) |
+| `429` with `session_limit_reached` | Too many sessions open on your account at once, often a test run that's still connected or another agent using the same key | Nothing: close the other session, or wait for it to end. There's no `Retry-After` |
+| `POLY_API_KEY is not set` | The agent started before the key was saved | Open a new terminal, restart the agent, and ask again |
+| Empty reply in a text UI | Replies are spoken by default | "Set output_modalities to text and read response.output_text.delta" |
+| `audio_synthesis_failed` | The voice id isn't a real Cartesia voice | "Leave audio.output.voice unset, or use a real Cartesia voice id" |
+| `conversation_already_has_active_response` | A new `response.create` before the last one finished | "Wait for response.done before the next response.create" |
+| `unsupported_parameter` or `unknown_parameter` | A field this API refuses | "Remove the field named in error.param" |
+
+Every error code is in the [reference](/api-reference/dialog-rsn-1/reference#errors).
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="Dialog-RSN-1 skill" icon="github" href="https://github.com/polyai/dialog-rsn-1-skill">
+    The skill's rules, references and connection check.
+  </Card>
+  <Card title="Reference" icon="file-lines" href="/api-reference/dialog-rsn-1/reference">
+    Every event, the session object, function calling and error codes.
+  </Card>
+  <Card title="Guides" icon="compass" href="/dialog-rsn-1/guides/introduction">
+    Browser, your own TTS, speech to text, LiveKit and more.
+  </Card>
+  <Card title="Limits and pricing" icon="gauge" href="/api-reference/dialog-rsn-1/limits">
+    Concurrency, session length and the connected-minute rate.
+  </Card>
+</CardGroup>
