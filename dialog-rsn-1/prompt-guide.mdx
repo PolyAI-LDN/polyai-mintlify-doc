@@ -50,7 +50,7 @@ Write your instructions knowing the tool call goes first. If the caller needs to
 **Since the model won't emit text and a tool call together, the hold line has to come from the call itself.** Give the tool an argument for it and mark that argument with `"poly_spoken": true`. The model fills it in as part of the call, in context, and Dialog-RSN-1 sends it to the caller as the call is written, before your tool runs.
 
 <Warning>
-**Without a spoken argument, a tool turn is silent until every tool call finishes.** The caller hears nothing through the whole chain, then the reply. This is the most common reason Dialog-RSN-1 seems slow in an existing agent or benchmark. Add a `poly_spoken` argument to every tool that keeps the caller waiting, and list it in `required`: the model often leaves an optional one empty.
+**Without a spoken argument, a tool turn is silent until every tool call finishes.** The caller hears nothing through the whole chain, then the reply. With slow tools, this is the most common reason Dialog-RSN-1 seems slow in an existing agent or benchmark. Add a `poly_spoken` argument only to tools you expect to be slow, like an API lookup, or that do something the caller should hear about. List it in `required`: the model often leaves an optional one empty.
 </Warning>
 
 ```json a tool schema with a hold-line argument
@@ -77,7 +77,7 @@ The line arrives as the response's message, next to the `function_call` item. On
 
 The keyword must be `true`, on a `string` property, and on one property per tool at most, or the `session.update` is refused. The model never sees it: Dialog-RSN-1 removes it and adds "Spoken aloud to the caller while the tool runs." to the property's description. If the caller talks over the line, the model's copy of the call keeps only what they heard.
 
-Leave it off tools that should stay silent, like one that only records a detail or classifies the caller, and off tools fast enough that a hold line would only add words. On a tool that ends the call, put the goodbye in its spoken argument, for example a `closing_message` the prompt tells the model to use, and hang up on `response.done` with status `completed`, which waits for the line to finish.
+Leave it off fast tools and silent ones, like a tool that logs a detail, classifies the caller, or moves to another step of a flow. On a fast tool the line costs more than it saves: the answer can't start until the line has been said. In one test with a 300 ms tool, a required line brought first audio forward from 1.7 to 1.0 seconds but pushed the answer back from 1.7 to 3.0 seconds. On a tool that ends the call, put the goodbye in its spoken argument, for example a `closing_message` the prompt tells the model to use, and hang up on `response.done` with status `completed`, which waits for the line to finish.
 
 ### Getting at what the caller said, mid-loop
 
