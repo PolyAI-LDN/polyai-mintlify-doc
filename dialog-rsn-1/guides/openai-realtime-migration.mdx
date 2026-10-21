@@ -80,6 +80,8 @@ This is what this API acts on, for text replies:
 
 `audio.input.transcription` is accepted, but there's no transcription model to pick: Dialog-RSN-1 transcribes the caller as part of its own turn, and the transcript arrives as the usual `conversation.item.input_audio_transcription.*` events. Because it comes from the model's turn, `.completed` arrives only when that response completes. A reply cancelled by a barge-in or `response.cancel`, or one that fails, gets at most some `.delta` events and no `.completed`. With the managed voice, `.completed` lands once the spoken reply has finished playing.
 
+If you only want the transcript, OpenAI's transcription sessions work too: connect with `intent=transcription` and send `session.type: "transcription"`. Each turn is transcribed and never answered. See [transcription sessions](/api-reference/dialog-rsn-1/reference#transcription-sessions) for what differs, notably English only.
+
 Turn timing isn't tunable because the turn boundary here is a model judgment, not a silence timer. Dialog-RSN-1 confirms or overrules what the detector proposes, based on the conversation. What you'd have expressed as `silence_duration_ms` you express in `instructions`, in plain language, as the [prompt guide](/dialog-rsn-1/prompt-guide#turn-taking) explains. The fixed thresholds behind the detector are in the [reference](/dialog-rsn-1/reference#turn-taking-and-audio).
 
 **The audio playback path.** A real OpenAI Realtime client typically listens for `response.output_audio.delta` and feeds it to a jitter-buffered player. Dialog-RSN-1 writes its reply as text, and you choose who speaks it:

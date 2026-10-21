@@ -17,15 +17,28 @@ Stream your microphone to Dialog-RSN-1 through the official `openai` SDK, and pr
   A terminal transcriber in Python, and a voice-in, text-out support agent in Python and Node.
 </Card>
 
+<Tip>
+**Only need the transcript?** Open a [transcription session](/api-reference/dialog-rsn-1/reference#transcription-sessions) instead: connect with `intent=transcription` and send `session.type: "transcription"`. Each turn is transcribed and never answered, so there's no reply to wait for or pay for, and no instructions to write. Transcription sessions are English only.
+
+```python
+async with client.realtime.connect(
+    model="dialog-rsn-1", extra_query={"intent": "transcription"}
+) as conn:
+    await conn.session.update(session={"type": "transcription"})
+```
+
+The transcript arrives on the same `conversation.item.input_audio_transcription.*` events as below.
+</Tip>
+
 ## What you'll build
 
 1. A transcriber. Speak, and each finished sentence prints with a timestamp, optionally appended to a file.
 2. A support agent. Speak, and Sam from a fictional outdoor store answers in text about three orders held in the prompt.
 3. The same support agent in Node, on the npm `openai` package.
 
-## How transcription works on Dialog-RSN-1
+## How transcription works in a realtime session
 
-Dialog-RSN-1 has no separate speech-to-text model. It transcribes the caller as part of writing its reply, so every transcript belongs to a turn. That shapes the whole program:
+In a realtime session, Dialog-RSN-1 transcribes the caller as part of writing its reply, so every transcript belongs to a turn. That shapes the whole program:
 
 - **You need a reply to get a transcript.** Set `create_response: true` so each turn starts a reply on its own. With `create_response: false`, no transcript arrives until you send `response.create`.
 - **The transcriber asks for a one-word reply.** Its instructions say to answer "ok", which keeps each turn short.

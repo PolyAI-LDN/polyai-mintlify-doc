@@ -148,7 +148,7 @@ Send `session.update` after `session.created`. Updates are merged into the sessi
 Fields that stock clients send by default and that would change nothing a caller notices are accepted. Most are left out of `session.updated`; `audio.input.transcription` and `parallel_tool_calls` are echoed back but change nothing:
 
 - `model` (the session stays `dialog-rsn-1`), `tracing`, `truncation`, `include`
-- `audio.input.noise_reduction`; `audio.input.transcription` (transcripts are always sent)
+- `audio.input.noise_reduction`; `audio.input.transcription` (transcripts are always sent; a [transcription session](#transcription-sessions) reads `language`)
 - Turn-detection timing: `threshold`, `silence_duration_ms`, `prefix_padding_ms`, `eagerness`. `type: "semantic_vad"` is reported back as `server_vad`. The server finds the end of the turn: a voice-activity detector proposes a boundary and the model confirms it.
 - `turn_detection.interrupt_response: true`, which is already how the service behaves
 - `audio.output.voice` set to an OpenAI voice name (`alloy`, `marin` and the rest): the deployment's default voice speaks instead. `audio.output.speed`.
@@ -331,6 +331,69 @@ Rules that catch people out:
 - **A confirmed barge-in always cancels the reply.** `interrupt_response` cannot be turned off. The cancelled response ends with status `cancelled`. With push-to-talk nothing barges in: send `response.cancel` to stop a reply.
 - **Tell the server what the caller heard.** If you speak the text through your own TTS, send the `poly.output_audio.*` events below so that an interrupted reply is kept in history as the words that were actually played.
 
+## Transcription sessions
+
+A transcription session transcribes each turn and never answers it: speech in, transcripts out. Use it for dictation, captions or notes, where a reply would only cost time and money. You pay for each turn's audio and its transcript, not for history, instructions or a reply.
+
+Open one the way OpenAI's clients do, with `intent=transcription` on the connection, then configure it with a `session.update` of `type: "transcription"`:
+
+```python
+async with client.realtime.connect(
+    model="dialog-rsn-1", extra_query={"intent": "transcription"}
+) as conn:
+    await conn.session.update(
+        session={
+            "type": "transcription",
+            "audio": {
+                "input": {
+                    "format": {"type": "audio/pcm", "rate": 24000},
+                    "transcription": {"language": "en"},
+                    "turn_detection": {"type": "server_vad"},
+                }
+            },
+        }
+    )
+    # Stream input_audio_buffer.append, and read the transcript events.
+```
+
+`session.created` reports `type: "transcription"`, with no `model`, `instructions` or `tools`.
+
+**One turn:**
+
+1. You stream `input_audio_buffer.append` frames.
+2. `input_audio_buffer.speech_started`, then `input_audio_buffer.speech_stopped` and `input_audio_buffer.committed` at the next pause. With `turn_detection: null`, only `committed`, when you send `input_audio_buffer.commit`.
+3. `conversation.item.added` and `conversation.item.done` for the turn, with no transcript yet.
+4. `conversation.item.input_audio_transcription.delta` frames, then `.completed` with the whole transcript and its usage in tokens. If the turn can't be transcribed, `.failed` instead.
+
+**How it differs from a realtime session:**
+
+- **A turn ends at a pause.** The model doesn't confirm the end of the turn, because nothing is answered, so a long pause mid-sentence splits it into two items. Use `turn_detection: null` and `input_audio_buffer.commit` to decide where turns end yourself.
+- **Each turn is transcribed on its own**, without earlier turns, and transcripts complete in the order the turns were spoken.
+- **English only.** `audio.input.transcription.language` other than `en` (or `en-*`) is refused with `unsupported_parameter`. `transcription.model` and `prompt` are accepted and echoed, and not used.
+- **`response.create` is refused** with `response_create_for_transcription_session`.
+- **The type is fixed.** A `session.update` with `type: "realtime"` on a transcription session, or `type: "transcription"` on a realtime session that has already taken a turn, is refused with `invalid_parameter`. An update that leaves out `type` applies to the session you have. Unlike OpenAI, a realtime session with nothing in its conversation yet can still become a transcription session.
+
+A `.completed` event, for a 1.2-second question:
+
+```json
+{
+  "type": "conversation.item.input_audio_transcription.completed",
+  "event_id": "event_263d9bed8f45497fb499115f30",
+  "item_id": "item_aea6a0ad79954f589946fd5fefc",
+  "content_index": 0,
+  "transcript": "Do you have a dress code?",
+  "usage": {
+    "type": "tokens",
+    "input_tokens": 364,
+    "input_token_details": { "text_tokens": 342, "audio_tokens": 22 },
+    "output_tokens": 11,
+    "total_tokens": 375
+  }
+}
+```
+
+Most of `text_tokens` is the same fixed prompt on every turn, and it's billed at the cached input rate.
+
 ## Events
 
 Every event is a JSON text frame with a `type` and an `event_id`. Fields follow the [OpenAI Realtime reference](https://platform.openai.com/docs/api-reference/realtime); only the differences are listed here.
@@ -347,14 +410,14 @@ Every event is a JSON text frame with a `type` and an `event_id`. Fields follow 
 | `conversation.item.retrieve` | Returns the item. For a caller's audio turn that is the transcript, not the audio itself. |
 | `conversation.item.delete` | |
 | `conversation.item.truncate` | Cuts history only for a reply spoken by the server; otherwise validates the item and changes nothing |
-| `response.create` | |
+| `response.create` | Refused in a [transcription session](#transcription-sessions) with `response_create_for_transcription_session` |
 | `response.cancel` | With nothing active, `response_cancel_not_active` |
 | `output_audio_buffer.clear` | Always refused with `invalid_request_error`: it is WebRTC-only upstream, and this service answers the same over a WebSocket. Send `response.cancel` to stop a reply. |
 | `poly.output_audio.started`, `.delta`, `.stopped` | Playback reports, see below |
 
 **Server to client**
 
-`session.created`, `session.updated`, `conversation.item.added`, `.done`, `.deleted`, `.retrieved`, `.truncated`, `conversation.item.input_audio_transcription.delta`, `.completed`, `input_audio_buffer.speech_started`, `.speech_stopped`, `.committed`, `.cleared`, `response.created`, `response.done`, `response.output_item.added`, `.done`, `response.content_part.added`, `.done`, `response.output_text.delta`, `.done`, `response.function_call_arguments.delta`, `.done`, `error`. On a session with `output_modalities: ["audio"]`, `response.output_audio_transcript.delta` and `.done` replace `response.output_text.*`, and `response.output_audio.delta` and `.done` carry the speech as base64 PCM16 mono at 24 kHz.
+`session.created`, `session.updated`, `conversation.item.added`, `.done`, `.deleted`, `.retrieved`, `.truncated`, `conversation.item.input_audio_transcription.delta`, `.completed`, `.failed` (transcription sessions), `input_audio_buffer.speech_started`, `.speech_stopped`, `.committed`, `.cleared`, `response.created`, `response.done`, `response.output_item.added`, `.done`, `response.content_part.added`, `.done`, `response.output_text.delta`, `.done`, `response.function_call_arguments.delta`, `.done`, `error`. On a session with `output_modalities: ["audio"]`, `response.output_audio_transcript.delta` and `.done` replace `response.output_text.*`, and `response.output_audio.delta` and `.done` carry the speech as base64 PCM16 mono at 24 kHz.
 
 Not sent: `rate_limits.updated`, `conversation.created`, MCP events. Token usage arrives on `response.done` as `response.usage`.
 
@@ -425,6 +488,8 @@ Branch on `code`, never on `message`. `error.event_id` names the client frame th
 | `conversation_already_has_active_response` | `invalid_request_error` | Yes, after `response.done`, or send `response.cancel` first |
 | `conversation_item_limit_exceeded` | `invalid_request_error` | Not as sent. The conversation already holds as many client-created items, or as many bytes of them, as the deployment allows. Delete some with `conversation.item.delete` first. A `function_call_output` answering the outstanding call is never refused. |
 | `response_cancel_not_active` | `invalid_request_error` | No |
+| `response_create_for_transcription_session` | `invalid_request_error` | No. A transcription session never replies. |
+| `invalid_parameter` | `invalid_request_error` | No. A `session.update` naming the other session type. Open a new connection for the other type. |
 | `session_expired` | `invalid_request_error` | Reconnect now. The session reached its maximum duration; the socket closes with `4410` straight after. |
 | `context_length_exceeded` | `server_error` | Not as sent. The conversation is too long for the context window; shorten instructions, tools or knowledge, or start a new session. The connection stays open. |
 | `capacity_exceeded` | `server_error` | Yes, after a short backoff. No inference capacity for this conversation. |
