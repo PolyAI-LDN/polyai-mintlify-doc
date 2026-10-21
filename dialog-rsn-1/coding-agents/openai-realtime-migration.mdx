@@ -1,0 +1,191 @@
+---
+title: "Port an OpenAI Realtime app with a coding agent"
+sidebarTitle: "Migrating from OpenAI Realtime (coding agents)"
+description: "Move an existing OpenAI Realtime app to Dialog-RSN-1 with Claude Code, Codex, Cursor or Gemini CLI: port the connection and session, test it like a call, and give slow tools a line to say, in three prompts."
+keywords:
+  - realtime
+  - openai
+  - migration
+  - coding agents
+  - claude code
+  - codex
+  - cursor
+  - skill
+  - dialog-rsn-1
+---
+
+Point your coding agent at your OpenAI Realtime app and move it to Dialog-RSN-1 in three prompts. The app keeps its SDK, its tools and its spoken replies, so you review a short diff, not a rewrite.
+
+**What you'll build:**
+
+1. Your app running on Dialog-RSN-1, on the same SDK or WebSocket code, speaking its replies and calling the same tools.
+2. A test that streams a caller's spoken question into the app, saves the spoken answer, and shows the server kept every setting the app sends.
+3. A short line the caller hears while a slow tool runs, instead of silence.
+
+**Before you start:**
+
+- Your coding agent, set up as in the quickstart's [Set up your agent](/dialog-rsn-1/quickstart-coding-agents#set-up-your-agent): the skill installed, `POLY_API_KEY` saved, and the connection check passing.
+- Your OpenAI Realtime app, in a folder the agent can run. It can use the `openai` SDK or a raw WebSocket, in Python or JavaScript. Commit it to git first, so you can review the port as a diff.
+- A local text-to-speech command for the test clip in Step 2: `say` on macOS, or `espeak` on Linux.
+
+You don't need your OpenAI key. Nothing in these steps calls OpenAI.
+
+This page keeps the server speaking the replies, so your playback code keeps working. The guide's example goes the other way, to text replies for your own text-to-speech. If you'd rather write the code yourself, follow the [OpenAI Realtime migration](/dialog-rsn-1/guides/openai-realtime-migration) guide instead.
+
+## Step 1: port the app
+
+```text Prompt
+Port this OpenAI Realtime app to Dialog-RSN-1, PolyAI's realtime voice model (my API
+key is in the POLY_API_KEY environment variable). Keep my SDK and everything the app
+does: it should still speak its replies and call the same tools. Change what
+Dialog-RSN-1 needs, remove the settings it refuses or ignores, and list each change
+with the reason. Run it with a text turn that needs a tool to check it works.
+```
+
+"Keep my SDK" matters. The skill steers new code to raw WebSockets, and you want a port, not a rewrite.
+
+**What it should build.** Dialog-RSN-1 speaks the OpenAI Realtime protocol, so most of the diff is the connection and the session.
+
+- **The connection.** On the `openai` SDK, only the client changes: `websocket_base_url="wss://api.studio.poly.ai/v1"` (or `base_url="https://api.studio.poly.ai/v1"`) and the key from `POLY_API_KEY`. The SDK adds `/realtime` and sends the key as `Authorization: Bearer`, which Dialog-RSN-1 accepts. On a raw WebSocket, the URL becomes `wss://api.studio.poly.ai/v1/realtime`, and the key goes in an `X-API-KEY` or `Authorization: Bearer` header. In Node, the skill also has the agent set a `User-Agent` header. Either way the model name does nothing: the server runs `dialog-rsn-1` whatever you pass.
+- **The session.** `output_modalities` stays `["audio"]`, so replies still arrive as `response.output_audio.delta` (24 kHz PCM16) with the words in `response.output_audio_transcript.delta`. The OpenAI voice name becomes a Cartesia voice id, since names like `alloy` and `marin` are ignored. `turn_detection` ends up as `{"type": "server_vad", "create_response": true}`.
+- **Settings it removes.** The ones Dialog-RSN-1 accepts and ignores: `model`, the turn-detection timing (`threshold`, `prefix_padding_ms`, `silence_duration_ms`, `eagerness`, `semantic_vad`), `interrupt_response: true`, the transcription model, `noise_reduction`, `speed` and `tracing`. The ones it refuses, if your app sends any: see [OpenAI features with no match](#openai-features-with-no-match).
+- **Errors.** A refused `session.update` applies nothing, so one leftover field also drops your instructions and tools. Expect your coding agent to make the app wait for `session.updated`, and to stop and print `error.code` and `error.param` on an `error`.
+- **What stays.** The tool loop: a `function_call` item, your `function_call_output`, then `response.create`. Some agents move those two sends to after `response.done`. Sending them as soon as the call arrives also works. Caller transcripts still arrive as `conversation.item.input_audio_transcription.completed`, with no transcription model to set.
+
+**Check it.** Run the text turn your coding agent ran, and read `git diff` against its list of changes. For the [front desk agent](https://github.com/PolyAI-LDN/dialog-rsn-1-openai-migration) in the guide's repo, it looks like this:
+
+```text output
+$ uv run agent.py --say "Hi, can you look up my booking? The code is GM40912."
+  -> look_up_reservation({"confirmation_code":"GM40912"}) = {"found": 1, ...}
+Hotel:  I've found your booking, Amara. You're staying in a Deluxe King room from
+        October 23rd to the 26th, with checkout at 11 AM.
+```
+
+You should hear the reply in the new voice. Agents usually also save it to `reply.wav`, as the skill asks.
+
+If your app makes out-of-band requests, such as a call summary with `conversation: "none"`, check their output too. Agents tend to move them into the call session, where they can come back as another in-character reply instead of the summary.
+
+**If it goes wrong:**
+
+| What you see | Tell your agent |
+| --- | --- |
+| The diff still has the VAD timing, the transcription model or an OpenAI voice name | "Remove the settings Dialog-RSN-1 ignores, and set audio.output.voice to a Cartesia voice id" |
+| `unsupported_parameter` naming `response.conversation`, `response.output_modalities`, `response.tools` or `response.tool_choice`, or a summary that prints as another reply to the caller, like "Great! What's your name for the booking?" | "Dialog-RSN-1 has no out-of-band responses. Make that request its own session: when the call ends, close the call session, open a second one with text output and no tools, send the transcript as a message, and ask there" |
+| The app hangs after an `error`, or prints only the message | "Print error.code and error.param on every error event, and stop when session.update is refused" |
+
+## Step 2: test it like a call
+
+```text Prompt
+Now test it the way a caller would use it, without a microphone: make a clip of a
+caller asking something that needs a tool, with a local text-to-speech command like
+say or espeak, stream it in, and save the spoken reply to a file. Show me the session
+settings the server says are in effect, and check that nothing my app sends is
+refused or ignored.
+```
+
+**What it should build.** A clip of a caller's question, made with `say` or `espeak` and converted to 24 kHz mono PCM16. The app streams it in real time with `input_audio_buffer.append`, about 20 ms per frame, then keeps streaming silence until the final reply is done. The server decides when the caller has finished, so the app sends no `commit`. The reply audio goes to a WAV file.
+
+For the settings, your coding agent compares the session your app sends with the one `session.updated` returns. A refused field comes back as an `error`. An ignored field is missing from `session.updated` or has a different value, except `audio.input.transcription` and `parallel_tool_calls`: those come back unchanged and still do nothing.
+
+**Check it.** Your coding agent shows what the server heard, the tool call and the reply. Play the saved file: it's the reply, spoken in the voice you set. The session in effect should show `output_modalities: ["audio"]`, your Cartesia voice id, `server_vad` with `create_response: true`, and your instructions and tools as you sent them.
+
+```text output
+Guest:  Hi there, my booking code is G, M, four one one eight two. Could I have a late
+        checkout at three in the afternoon? Is there a charge for that?
+  -> look_up_reservation({"confirmation_code":"GM41182"}) = {"found": 1, ...}
+Hotel:  Your reservation is for a Meridian Suite, and since you're a member, late
+        checkout up to 4 PM is free. Shall I change your checkout time to 15:00?
+```
+
+The instructions here were written for text, so the reply says "15:00". The first row below fixes that.
+
+**If it goes wrong:**
+
+| What you see | Tell your agent |
+| --- | --- |
+| The reply transcript has times and prices in digits, like "15:00", "8:30" or "25 GBP" | "Tell the instructions to say times, prices and codes the way people say them" |
+| The test clip answers the question instead of asking it (the skill's `check.py --speak` can do this) | "Make the caller clip with say or espeak, not check.py --speak" |
+| The server mishears a name or a code in the clip, so the lookup finds nothing | "In the clip, spell the code out letter by letter and digit by digit, like G M four one zero five five" |
+
+## Step 3: give slow tools a line to say
+
+An OpenAI Realtime agent often says "let me check" and calls a tool in the same response. Dialog-RSN-1 returns text or one tool call, never both, so the caller hears nothing until the tool returns. On a slow tool, that's a long silence.
+
+```text Prompt
+Some of my tools will call slow systems in production, like a booking API. Make the
+caller hear a short line while those tools run, the Dialog-RSN-1 way, and leave quick
+tools alone. Tell me which tools you picked and why. Test it with a two-second delay
+in one of them, and show me when the line is heard compared with when the tool returns.
+```
+
+**What it should build.** A new required string parameter on each slow tool, marked `"poly_spoken": true`, with a description that gives an example line. The model fills it in as part of the call, and the server speaks it while your tool runs.
+
+- **Your function is unchanged.** The app takes the spoken argument out before it calls your function. Left in, your function gets an argument it doesn't expect.
+- **The tool starts at once.** It runs when `response.function_call_arguments.done` arrives, not when the response ends. With a spoken line, `response.done` comes only after the line has been said, so a tool started there loses that time.
+- **The result goes back the same way.** A `function_call_output`, then `response.create`. Agents send them once the response with the line is done.
+
+Quick tools get no line. There, the line delays the answer: it has to finish before the answer can start. The [prompt guide](/dialog-rsn-1/prompt-guide#speaking-while-a-tool-runs) has the details.
+
+**Check it.** Your coding agent prints a timeline, in seconds from when the question was sent. The line should start as the tool starts. With a two-second tool, it usually ends before the tool returns:
+
+```text output
+    0.39  tool call look_up_reservation, spoken line 'Let me pull that up for you.'
+    0.39  look_up_reservation starts
+    0.44  >>> speaker starts playing
+    1.80  <<< speaker goes quiet (1.4 s played)
+    2.40  look_up_reservation returns
+    2.40  tool result sent, response.create
+    2.68  >>> speaker starts playing
+```
+
+**If it goes wrong:**
+
+| What you see | Tell your agent |
+| --- | --- |
+| It added a line to a tool you know is quick | "Only look_up_reservation is slow. Take the spoken line off the other tools", with your own tool names |
+
+## OpenAI features with no match
+
+Some OpenAI Realtime features have no match here. If your app uses one, the port needs more than a settings change. The full list is in the [reference](/api-reference/dialog-rsn-1/reference#configure-the-session) and its [known limitations](/dialog-rsn-1/reference#known-limitations).
+
+| Your app uses | On Dialog-RSN-1 | Tell your agent |
+| --- | --- | --- |
+| Out-of-band responses (`conversation: "none"`), or `output_modalities`, `tools` or `tool_choice` on one `response.create` | Refused with `unsupported_parameter` | "Make that request its own session: when the call ends, close the call session, open a second one with text output and no tools, send the transcript as a message, and ask there" |
+| `output_modalities: ["text", "audio"]` | Refused with `invalid_request_error` | "Keep audio output and read the words from response.output_audio_transcript.delta" |
+| `tool_choice` set to `"required"`, `"none"` or one function | Refused with `unsupported_parameter` | "Use tool_choice auto, and say in the instructions when to call each tool" |
+| MCP servers in `tools` | Refused with `unsupported_parameter` | "Call what I need from the MCP server inside function tools" |
+| `idle_timeout_ms`, or `interrupt_response: false` | Refused with `unsupported_parameter`. A barge-in always cancels the reply | "Remove them" |
+| Tuned turn detection | Ignored. The model decides when the caller has finished | "Remove the timing fields, and tell the instructions to wait if callers need more time to answer" |
+| `audio/pcmu` or `audio/pcma` output for a phone line | Refused. Output is 24 kHz PCM16. G.711 input works | "Keep G.711 input, and convert the 24 kHz PCM16 reply to G.711 yourself" |
+| WebRTC, or an ephemeral key in the browser | Not available: connect over a WebSocket with the key in a header | "Connect from a small server-side relay that holds the key". See [Browser with JavaScript](/dialog-rsn-1/guides/javascript-browser) |
+| `output_audio_buffer.clear` to stop a reply | Refused with `invalid_request_error` | "Send response.cancel instead" |
+
+## Troubleshooting
+
+| Symptom | Likely cause | Tell your agent |
+| --- | --- | --- |
+| `429` with `session_limit_reached` while the agent tests | A test run still connected, or another program on your account. The cap is 2 sessions until a card is on file: see [limits](/api-reference/dialog-rsn-1/limits) | Nothing: wait for the other session to end, then retry |
+| Your voice agent ignores its instructions and tools | One refused field dropped the whole `session.update` | "Print the error after session.update and remove the field named in error.param" |
+| "I don't have information about that" where it should call a tool | The model says it doesn't know rather than guess, and the instructions don't say when to use the tool | "Say in the instructions when to call each tool, for example: call find_slots whenever the caller asks what's free" |
+| The reply speaks in a voice you didn't pick | An OpenAI voice name, which is ignored, so the default voice speaks | "Set audio.output.voice to a Cartesia voice id" |
+| `audio_synthesis_failed` on every reply | The voice id isn't a real Cartesia voice | "Leave audio.output.voice unset, or use a real Cartesia voice id" |
+| Silence before every answer that needs a tool | The tool is slow, and nothing is said while it runs | The Step 3 prompt |
+
+For `401`, `402` and other connection errors, see the quickstart's [Troubleshooting](/dialog-rsn-1/quickstart-coding-agents#troubleshooting).
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="OpenAI Realtime migration" icon="code" href="/dialog-rsn-1/guides/openai-realtime-migration">
+    Every change by hand, and the move to text replies.
+  </Card>
+  <Card title="Streaming to your TTS" icon="volume-high" href="/dialog-rsn-1/guides/streaming-text-to-speech">
+    Speak the replies with your own text-to-speech voice.
+  </Card>
+  <Card title="Prompt guide" icon="message" href="/dialog-rsn-1/prompt-guide">
+    Turn-taking, tool calls and replies written for speech.
+  </Card>
+  <Card title="Reference" icon="file-lines" href="/api-reference/dialog-rsn-1/reference">
+    Every event, the session object, function calling and error codes.
+  </Card>
+</CardGroup>
