@@ -1,0 +1,128 @@
+---
+title: "Streaming to your TTS with a coding agent"
+sidebarTitle: "Streaming to TTS (coding agents)"
+description: "Switch the quickstart's voice agent from the server voice to your own ElevenLabs voice in two prompts: text replies streamed into ElevenLabs as they arrive, interruptions that stop playback, and playback reports that tell Dialog-RSN-1 what the caller heard."
+keywords:
+  - realtime
+  - text to speech
+  - TTS
+  - elevenlabs
+  - streaming
+  - barge-in
+  - coding agents
+  - dialog-rsn-1
+---
+
+Give the voice agent from the quickstart your own ElevenLabs voice. Two prompts take it from the server voice to a reply that starts speaking before it has finished generating, stops when you interrupt, and tells Dialog-RSN-1 which words you heard.
+
+**What you'll build:**
+
+1. A voice agent that gets its replies from Dialog-RSN-1 as text and speaks them through ElevenLabs.
+2. Text streamed into ElevenLabs as it arrives, so the first words play before the reply is finished.
+3. Interruptions that stop ElevenLabs and drop the audio still queued to play.
+4. Playback reports, so after an interruption the model remembers only what you heard.
+
+**Before you start:**
+
+- Your coding agent, set up as in the quickstart's [Set up your agent](/dialog-rsn-1/quickstart-coding-agents#set-up-your-agent): skill installed, `POLY_API_KEY` set, connection check passing.
+- The Python `voice_agent.py` from the [quickstart for coding agents](/dialog-rsn-1/quickstart-coding-agents): mic in, server voice out, interruptions, and the spa `check_availability` tool.
+- An ElevenLabs API key. In ElevenLabs, open **Developers**, then **API Keys**, and create one with access to text to speech. The free tier works.
+- An ElevenLabs voice id. Open **Voices**, pick a voice, and copy its id. On the free tier the API can use the default voices, such as Sarah (`EXAVITQu4vr4xnSDxMaL`), but not voices from the Voice Library.
+
+Add both to the `.env` file in your folder, next to the code, as `ELEVENLABS_API_KEY=...` and `ELEVENLABS_VOICE_ID=...`. As with your PolyAI key, don't paste them into the chat.
+
+If you'd rather write the code yourself, follow the [Streaming to your TTS](/dialog-rsn-1/guides/streaming-text-to-speech) guide instead.
+
+## Step 1: speak with your ElevenLabs voice
+
+```text Prompt
+Speak the replies with my own ElevenLabs voice instead of the server voice. My
+ElevenLabs API key is ELEVENLABS_API_KEY and my voice id is ELEVENLABS_VOICE_ID, both
+in .env. Stream the reply text into ElevenLabs as it arrives, so it starts speaking
+before the reply is finished, and keep interruptions and the spa tool working. I'll
+listen to it myself afterwards, so give it a way to test without speakers: save what
+would have played to a file, print the time to first audio, and test it that way.
+```
+
+**What it should build.** The `session.update` sets `output_modalities: ["text"]`, so the server stops speaking and the reply arrives as `response.output_text.delta`. Each delta goes to ElevenLabs the moment it arrives. The code sends the new piece, not the reply so far, and tells ElevenLabs there's no more text on `response.output_text.done`. Waiting for `.done` before sending anything would add the whole generation to the silence before the first word.
+
+ElevenLabs runs over its own WebSocket. The voice id goes in the URL path and the key in the `xi-api-key` header. Ask for `pcm_24000` output, so the audio plays on the same 24 kHz speaker as before. Each reply gets its own ElevenLabs context, keyed on the `response_id`.
+
+An interruption is two separate steps. When `input_audio_buffer.speech_started` arrives while a reply is playing, the code closes that reply's ElevenLabs context, so it stops synthesizing, and then empties the speaker's queue, so the audio ElevenLabs already sent doesn't play. A `response.done` with status `cancelled` for the same reply is the same signal, not a second one.
+
+A tool call's response carries no text, so nothing reaches ElevenLabs until the model answers with the result. Empty or punctuation-only text never reaches ElevenLabs.
+
+For the test without speakers, the agent swaps the speaker for one that plays to a WAV file at real speed. Time to first audio counts from the end of your turn to the first sample played, not to the first text delta.
+
+**Check it.** Run it with a typed question, such as `--say "Is the spa free on Friday?"`, and play the file it saved. You should hear your ElevenLabs voice read the Friday slots. Then talk to it with headphones on and interrupt it mid-sentence: it should stop at once and answer what you said.
+
+**If it goes wrong:**
+
+| What you see | Tell your agent |
+| --- | --- |
+| You still hear the server voice | "Set output_modalities to text in session.update and speak response.output_text.delta through ElevenLabs" |
+| A long silence, then the whole reply at once | "Send each response.output_text.delta to ElevenLabs as it arrives. Don't wait for response.output_text.done" |
+| It keeps talking for a second or two after you interrupt | "On speech_started, close the ElevenLabs context and also empty the speaker's queue. They're two steps" |
+| It says words twice, or each reply starts again from the top | "Send ElevenLabs only the new text in each delta, not the reply so far" |
+| The second reply is silent | "Open a new ElevenLabs context for each response_id" |
+
+## Step 2: tell it what you heard
+
+```text Prompt
+Send Dialog-RSN-1 playback reports as the ElevenLabs audio plays, so that after I
+interrupt, the model remembers only the words I actually heard. Test it with an
+interruption and show me the spoken_text you reported.
+```
+
+The server can't hear your speaker. Without reports, it guesses: it assumes about 15 characters a second from the first text, and after an interruption keeps the words it estimates you heard. Your voice's real pace and buffering make that guess drift.
+
+**What it should build.** Three events, all with the `response_id` of the reply being played:
+
+- `poly.output_audio.started` when the first sample of the reply plays.
+- `poly.output_audio.delta` about every 250 ms, with `audio_ms` (the milliseconds played so far) and `delta` (the words spoken since the last report).
+- `poly.output_audio.stopped` when the reply finishes or you interrupt it, with `audio_ms`, `dropped_ms` (the queued audio that never played) and `spoken_text` (the words you heard).
+
+The words come from the timings ElevenLabs sends with the audio. Turn them on with `sync_alignment=true` on the WebSocket URL. They count from the start of the context, not from each audio chunk. The code counts what the speaker played, not what ElevenLabs sent: a reply can be synthesized seconds ahead of playback.
+
+Send reports for every reply. Once a session sends one, the server stops estimating for it.
+
+**Check it.** Run the interruption test. The `stopped` report should show `dropped_ms` above zero and a `spoken_text` that ends where you cut in. The next reply should pick up from there, not from the end of the reply you didn't hear.
+
+**If it goes wrong:**
+
+| What you see | Tell your agent |
+| --- | --- |
+| `spoken_text` is the whole reply after an interruption | "Build spoken_text from the ElevenLabs character timings and the milliseconds the speaker has played, not from the text received" |
+| `spoken_text` is empty, or cut at the wrong word | "ElevenLabs character timings count from the start of the context, not from each audio chunk" |
+| Reports only for the first reply | "Send started, delta and stopped for every response_id" |
+
+## Troubleshooting
+
+| Symptom | Likely cause | Tell your agent |
+| --- | --- | --- |
+| ElevenLabs refuses with `quota_exceeded` | The account is out of credits | Nothing: wait for the quota to reset, or upgrade the plan in ElevenLabs |
+| No audio and no error, or "sent no audio for this reply" | The voice isn't available to your plan, such as a Voice Library voice on the free tier. ElevenLabs' streaming endpoint reports this only as a final message with no audio | Use one of the default voices, or "Print what the ElevenLabs REST endpoint says for this voice id" |
+| `missing_permissions` from ElevenLabs | The API key is restricted and lacks a permission the code uses, such as `voices_read` to list voices | Give the key that permission, or "Don't list voices. Use the voice id from ELEVENLABS_VOICE_ID" |
+| `invalid_request_error` on `session.update` | `output_modalities` asks for text and audio together | "Set output_modalities to text only" |
+| It says the word "reassuring" or "friendly" before a reply | Your instructions use [emotion tags](/dialog-rsn-1/prompt-cookbook/response-style#tagging-a-reply-with-an-emotion), and the tag reaches ElevenLabs | "Strip a leading [tag] from each reply before it reaches ElevenLabs. It can arrive split across deltas" |
+| ElevenLabs fails on a reply with nothing to say | Empty or punctuation-only text sent to ElevenLabs | "Don't send ElevenLabs text that's empty or only punctuation" |
+| First audio is slow but first text is fast | Text buffered before it reaches ElevenLabs, or a new ElevenLabs connection for every reply | "Keep one ElevenLabs WebSocket open for the call and push each delta as it arrives" |
+
+For key, connection and session limit errors from Dialog-RSN-1, see the quickstart's [Troubleshooting](/dialog-rsn-1/quickstart-coding-agents#troubleshooting).
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="Streaming to your TTS" icon="waveform" href="/dialog-rsn-1/guides/streaming-text-to-speech">
+    The guide behind this page: why each step matters, in more depth.
+  </Card>
+  <Card title="Full code on GitHub" icon="github" href="https://github.com/PolyAI-LDN/dialog-rsn-1-streaming-tts">
+    A Python agent that speaks each reply through ElevenLabs, with every step in code.
+  </Card>
+  <Card title="Playback reports" icon="file-lines" href="/api-reference/dialog-rsn-1/reference#polyai-extensions">
+    The exact shape of `poly.output_audio.started`, `.delta` and `.stopped`.
+  </Card>
+  <Card title="Evaluations" icon="flask" href="/dialog-rsn-1/evaluation#latency">
+    Time to first audio versus time to first token, and how to measure the gap.
+  </Card>
+</CardGroup>
