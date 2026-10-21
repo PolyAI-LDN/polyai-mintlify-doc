@@ -1,0 +1,145 @@
+---
+title: "Build a browser voice agent with a coding agent"
+sidebarTitle: "Browser (coding agents)"
+description: "Turn the quickstart's voice agent into a web page with Claude Code, Codex, Cursor or Gemini CLI: a small Node relay holds your key, and the page streams your microphone and plays the spoken reply."
+keywords:
+  - realtime
+  - browser
+  - javascript
+  - relay
+  - coding agents
+  - claude code
+  - codex
+  - cursor
+  - dialog-rsn-1
+---
+
+Move the quickstart's concierge into the browser in two prompts. You end with a page you talk to, and a relay that keeps your key off the page.
+
+**What you'll build:**
+
+1. A Node relay that serves the page and holds your API key, so the browser never sees it.
+2. A page that streams your microphone in, plays the concierge's spoken reply, and stops when you interrupt.
+3. The same `check_availability` spa tool, answered by the page mid-conversation.
+4. A check that no file or message the browser gets contains your key, and that other websites can't use your relay.
+
+**Before you start:**
+
+- Your coding agent, set up as in the quickstart's [Set up your agent](/dialog-rsn-1/quickstart-coding-agents#set-up-your-agent): the skill installed, `POLY_API_KEY` set, and the connection check passing.
+- The `voice_agent.py` you built in the [quickstart for coding agents](/dialog-rsn-1/quickstart-coding-agents), with its `check_availability` tool. Run these prompts in the same folder.
+- Node 22 or later.
+- A desktop browser and a microphone. Use headphones.
+
+If you'd rather write the code yourself, follow the [Browser with JavaScript](/dialog-rsn-1/guides/javascript-browser) guide instead.
+
+## Step 1: build the relay and the page
+
+```text Prompt
+Build a browser version of voice_agent.py with a small Node relay that holds the key.
+Put it in a browser/ folder. The relay serves the page and passes its WebSocket through
+to Dialog-RSN-1, adding my POLY_API_KEY on the way, so the key never reaches the browser.
+The page keeps the same concierge and check_availability tool, streams my microphone in,
+plays the spoken reply as it arrives, and stops playback when I interrupt. Test the page
+itself, not only the relay: load it in a headless browser with a generated clip of caller
+speech as the microphone, and check that it answers and calls the tool.
+```
+
+The last sentence matters. Without it, agents test only the relay, with a script, and never run the page's audio code. A page that stops sending microphone audio after its first frame then passes their test.
+
+Expect this step to take 5 to 15 minutes, most of it spent setting up the headless browser and running the test.
+
+**What it should build.** Two halves in `browser/`:
+
+- **The relay**, a Node server on the `ws` package. It serves the page and accepts the page's WebSocket on a path such as `/realtime-relay`. For each page that connects, it opens its own connection to `wss://api.studio.poly.ai/v1/realtime` with your key in the `X-API-KEY` header, then passes text frames both ways. It holds anything the page sends before that connection is open. A browser can't set headers on a WebSocket, so the page can't authenticate on its own. The relay is the only part that ever has the key.
+- **The page**, plain JavaScript with no build step. It speaks the same protocol as `voice_agent.py`. The click that starts the call also starts the `AudioContext`, which browsers only allow during a click. The microphone comes from `getUserMedia` with echo cancellation, and an `AudioWorklet` turns its samples into PCM16, sent as `input_audio_buffer.append` frames of about 20 ms. Browsers capture at their own rate, usually 48 kHz, so `session.update` sets `audio.input.format.rate` to the `AudioContext`'s `sampleRate`. Reply audio arrives as `response.output_audio.delta`, 24 kHz PCM16, and plays as buffers scheduled back to back. When `input_audio_buffer.speech_started` arrives, the page stops every scheduled buffer at once.
+
+The tool runs in the page. The page sends the same `check_availability` definition in `session.tools`. When `response.function_call_arguments.done` arrives, it runs the function, sends the result as a `function_call_output` item, then sends `response.create`, all through the relay. That keeps the relay a plain pipe, as in the [guide](/dialog-rsn-1/guides/javascript-browser#connecting-from-the-browser), and made-up slots need no secrets. A real booking system with its own credentials belongs on your server: have the tool call your own API, or answer tool calls in the relay.
+
+Agents usually lock the relay down too, without being asked. It listens only on your own machine, and refuses a WebSocket whose `Origin` isn't its own page. Step 2 checks that.
+
+**Check it.** Start the relay:
+
+```bash
+cd browser
+npm install
+npm start
+```
+
+Open the address it prints, such as `http://localhost:8787`. Click the button to start the call and allow the microphone. Ask "Is the spa free on Friday?" You should hear the free slots read back, and see the tool call and both sides of the conversation on the page. Your own words appear once the reply has started: the transcript of what you said arrives during the reply. Then talk over the concierge while it's speaking. It should stop at once and answer your new question.
+
+To see what the browser sends, open the developer tools and filter the **Network** tab to WebSockets. There's one socket, to your relay on `localhost`, not to `api.studio.poly.ai`. Once the call is set up, its messages show `input_audio_buffer.append` frames streaming the whole time, even while you're quiet.
+
+**If it goes wrong:**
+
+| What you see | Tell your agent |
+| --- | --- |
+| The page says it's listening but never answers, and the Network tab shows only one `input_audio_buffer.append` | "The mic worklet stops after its first frame: transferring the buffer detaches it, so frame.length is 0 afterwards. Allocate each new frame at the full size, then test the page in a headless browser" |
+| The agent says it tested the relay but couldn't run the page in a browser | "Install Playwright in browser/ and run the page in headless Chromium, with getUserMedia returning a stream that plays a generated clip of caller speech" |
+| `EADDRINUSE` when you run `npm start` | Something else is on that port. "Read the port from PORT", then run `PORT=8788 npm start` |
+
+## Step 2: check the key stays on the server
+
+```text Prompt
+Check that my key can't leak from the browser version. Confirm that no file the relay
+serves and no message the page receives contains it, and that only my page can use the
+relay, not other websites. Fix anything that fails, and show me how you checked without
+printing the key.
+```
+
+Agents try many kinds of attack here, so expect 5 to 20 minutes.
+
+**What it should build.** A test script, such as `npm run test:security`, plus fixes to the relay. The script searches for the key without printing it, and reports it only by length or a hash. It checks three things:
+
+- **Files:** everything the relay serves comes from the page's folder. Requests for `server.js`, `.env` or `../` paths get a `404`.
+- **Messages:** every message the page receives during a real call, including errors and a refused connection, is free of the key.
+- **Who can connect:** the relay accepts a WebSocket only from its own page. A page on another site, on another port, or on a domain pointed at `127.0.0.1` is refused with a `401` or `403`.
+
+Expect the agent to find and fix something. Typical fixes: refusing requests addressed to any host but `localhost`, a header that stops other sites showing the page in a frame, and a relay that crashed on a malformed request.
+
+<Note>
+The `Origin` check stops other websites, not other programs: anything that isn't a browser can send any `Origin` it likes. That's fine on your own machine. Before you put the relay online, put it behind your app's sign-in. Anyone who can reach it is spending your balance.
+</Note>
+
+**Check it.** Run the agent's test again yourself, with the command it gives you, such as `npm run test:security` in `browser/`. Then, with the relay running, try two requests it should refuse. Set `RELAY` to the address your relay printed:
+
+```bash
+RELAY=http://localhost:8787
+curl -s -o /dev/null -w "%{http_code}\n" $RELAY/server.js
+curl -s -o /dev/null -w "%{http_code}\n" -H "Origin: https://example.com" \
+  -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Sec-WebSocket-Version: 13" \
+  -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" $RELAY/realtime-relay
+```
+
+You should see `404`, then `401` or `403`. If your relay uses another WebSocket path, change `/realtime-relay` to match. Then talk to the page again to make sure the fixes didn't break it.
+
+## Troubleshooting
+
+For `401`, `402` and `429` on connect, see the quickstart's [troubleshooting](/dialog-rsn-1/quickstart-coding-agents#troubleshooting). The relay logs them, and agents usually show them on the page too.
+
+| Symptom | Likely cause | Tell your agent |
+| --- | --- | --- |
+| The relay exits saying `POLY_API_KEY` is not set | It was started from a terminal that doesn't have the key | Nothing: open a new terminal, check `echo ${POLY_API_KEY:+set}` prints `set`, and start the relay there |
+| The browser never asks for the microphone, or says it's unavailable | Browsers only allow the microphone on `localhost` or HTTPS | Open the page at `http://localhost`, not your machine's IP address. To reach it from another device, serve it over HTTPS |
+| The call connects but never answers | The session's input rate doesn't match the microphone | "Set audio.input.format.rate to the AudioContext's sampleRate, and keep streaming audio during silence" |
+| The reply sounds too fast, too slow or high-pitched | Playback buffers at the wrong rate | "Reply audio is 24 kHz mono PCM16. Create the playback buffers at 24000 Hz" |
+| It keeps talking when you interrupt | Scheduled audio keeps playing | "On input_audio_buffer.speech_started, stop every scheduled AudioBufferSourceNode and reset the playback clock" |
+| It interrupts itself | The microphone hears the speakers | Use headphones, or ask: "Turn on echoCancellation in getUserMedia" |
+
+Every error code is in the [reference](/api-reference/dialog-rsn-1/reference#errors).
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="Browser with JavaScript" icon="code" href="/dialog-rsn-1/guides/javascript-browser">
+    The relay and the page explained step by step, with the reply shown as text.
+  </Card>
+  <Card title="Companion repo" icon="github" href="https://github.com/polyai/dialog-rsn-1-javascript-browser">
+    The guide's page, worklet and relay, ready to run with `npm start`.
+  </Card>
+  <Card title="Realtime agents sample" icon="github" href="https://github.com/polyai/dialog-rsn-1-realtime-agents">
+    A larger browser app on the same relay: agent handoffs, a chat supervisor and a knowledge agent.
+  </Card>
+  <Card title="Limits and pricing" icon="gauge" href="/api-reference/dialog-rsn-1/limits">
+    Concurrency, session length and the connected-minute rate.
+  </Card>
+</CardGroup>
