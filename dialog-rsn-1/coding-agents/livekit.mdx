@@ -1,0 +1,163 @@
+---
+title: "Build a LiveKit voice agent with a coding agent"
+sidebarTitle: "LiveKit"
+description: "Turn the quickstart's concierge into a LiveKit Agents worker with Claude Code, Codex, Cursor or Gemini CLI, with Dialog-RSN-1 as the model and ElevenLabs as the voice, then test it in a local LiveKit room with a scripted caller."
+keywords:
+  - realtime
+  - livekit
+  - voice agents
+  - plugin
+  - barge-in
+  - coding agents
+  - claude code
+  - codex
+  - cursor
+  - dialog-rsn-1
+---
+
+Move the concierge from the quickstart onto [LiveKit Agents](https://docs.livekit.io/agents/) in two prompts. Dialog-RSN-1 stays the model: it hears the caller, decides when they've finished, and writes the reply. LiveKit carries the audio and ElevenLabs speaks the reply.
+
+**What you'll build:**
+
+1. `agent.py`: a LiveKit Agents worker with the concierge's instructions and the `check_availability` tool, Dialog-RSN-1 as the model and ElevenLabs as the voice.
+2. A text test your coding agent runs itself, and a voice session you run in your terminal with `lk agent console`.
+3. The agent in a room on a local LiveKit server, with a scripted caller that asks about the spa, talks over a long reply, and saves the agent's side of the call to `call.wav`.
+
+**Before you start:**
+
+- Your coding agent set up as in the [quickstart's Set up your agent section](/dialog-rsn-1/quickstart-coding-agents#set-up-your-agent): skill installed, `POLY_API_KEY` set, connection check passing.
+- The quickstart's `voice_agent.py`, with the `check_availability` tool, in the folder you build in. Continue in the same agent session if you can, so it already knows the code.
+- An [ElevenLabs](https://elevenlabs.io) API key in `.env` as `ELEVEN_API_KEY`. LiveKit's ElevenLabs plugin reads that name, not `ELEVENLABS_API_KEY`. The free tier works while it has credits.
+- Python 3.10 or later with [uv](https://docs.astral.sh/uv/), as in the quickstart.
+- The [LiveKit CLI](https://docs.livekit.io/intro/basics/cli/): `brew install livekit-cli`. It gives you `lk`.
+- For Step 2, a LiveKit server. This page runs one on your machine with `brew install livekit`, which needs no account. To use a [LiveKit Cloud](https://cloud.livekit.io) project instead, put its URL, API key and secret in `.env` in place of the local ones.
+
+If you'd rather write the code yourself, follow the [LiveKit](/dialog-rsn-1/guides/livekit) guide instead.
+
+## Step 1: make it a LiveKit agent
+
+```text Prompt
+Make this a LiveKit agent: write agent.py, a LiveKit Agents worker that runs the
+concierge with Dialog-RSN-1 as the model through PolyAI's livekit-plugins-polyai
+plugin (install it from https://github.com/PolyAI-LDN/livekit-plugins-polyai), and
+ElevenLabs for the voice (my key is ELEVEN_API_KEY in .env). Keep the concierge
+instructions and the check_availability tool. I'll talk to it with lk agent console,
+so test it in text mode with lk agent debugger first.
+```
+
+The plugin isn't on PyPI yet, so the prompt says where to get it.
+
+**What it should build.** A `pyproject.toml` with `livekit-agents[elevenlabs]`, `python-dotenv` (the worker reads `.env` with it), and `livekit-plugins-polyai` installed from GitHub (`livekit-plugins-polyai @ git+https://github.com/PolyAI-LDN/livekit-plugins-polyai`). In `agent.py`, an `Agent` subclass with the concierge's instructions, and `check_availability` as a `@function_tool` method that returns its result as a JSON string. The session takes two arguments:
+
+```python
+session = AgentSession(
+    llm=polyai.realtime.RealtimeModel(),
+    tts=elevenlabs.TTS(voice_id="EXAVITQu4vr4xnSDxMaL", model="eleven_flash_v2_5"),
+)
+```
+
+There's no `stt` and no turn detector: Dialog-RSN-1 does both jobs. There's no WebSocket code either. The plugin opens the Dialog-RSN-1 session, streams the room's audio in, and hands each tool call to your function. It asks Dialog-RSN-1 for text, so ElevenLabs speaks every reply and the voice changes from the quickstart's server voice to an ElevenLabs one. The greeting comes from the instructions and a plain `session.generate_reply()`, because the plugin drops per-reply instructions.
+
+Your agent may also move the instructions and `check_availability` into a shared module, so `voice_agent.py` and `agent.py` stay in step. That's fine.
+
+**Check it.** `lk agent console` runs the agent on your machine and connects it to your microphone and speakers. It needs no LiveKit server. It does need a real terminal, which is why your coding agent tests with `lk agent debugger`, the same text mode driven from a script. Start in text mode, which turns ElevenLabs off:
+
+```bash
+lk agent console agent.py --text
+```
+
+The concierge greets you. Type "Is the spa free on Friday?" The console shows the `check_availability` call and its result, then the concierge offers the slots. Then run `lk agent console agent.py` with headphones on, and talk to it.
+
+**If it goes wrong:**
+
+| What you see | Tell your agent |
+| --- | --- |
+| The agent says it couldn't run `lk agent console` because there's no terminal | Nothing: that's expected. Run `lk agent console` yourself, and let the agent use `lk agent debugger` |
+| The text test passes, but the agent reports that ElevenLabs refused the key with `quota_exceeded` | Nothing: add ElevenLabs credits. Text mode skips ElevenLabs, so the test passes either way. Voice mode stays silent until you do |
+| The concierge says it has booked a spa slot | "The concierge can only offer the times check_availability returns. Make it say the spa will confirm, not that it's booked" |
+
+## Step 2: run it in a LiveKit room
+
+```text Prompt
+Now run it in a LiveKit room on a local livekit-server --dev, with the server's URL,
+key and secret in .env. Write caller.py, a scripted caller that joins a new room and
+speaks generated audio at the agent: ask if the spa is free on Friday, then ask a
+question with a long answer and talk over the reply. Print both sides of the
+transcript and save what the agent said to call.wav. Run it, show me the transcript,
+then stop the server and the agent.
+```
+
+**What it should build.** Three lines in `.env` for the local server, which runs in dev mode with fixed credentials:
+
+```bash
+LIVEKIT_URL=ws://localhost:7880
+LIVEKIT_API_KEY=devkey
+LIVEKIT_API_SECRET=secret
+```
+
+The agent runs as a worker with `uv run agent.py dev`, which registers it with the server and sends it into every new room. `caller.py` uses LiveKit's Python SDK, not Dialog-RSN-1 directly. It signs a token with the same key and secret, joins a new room, and publishes a microphone track that streams generated speech in real time, with silence between lines. It records the agent's audio track to `call.wav` and prints the transcript LiveKit publishes on the `lk.transcription` text stream. To know when to speak, it watches the agent's `lk.agent.state` attribute, which goes from `speaking` to `listening` when a reply has played. For the barge-in, it starts the next line a second or two into the long reply instead of waiting.
+
+**Check it.** To run the call yourself, start each command in its own terminal, in this order:
+
+```bash
+livekit-server --dev
+uv run agent.py dev
+uv run caller.py
+```
+
+You should see something like this, though the wording and the slots vary:
+
+```text output
+Agent:  Hello, I'm the concierge at Harbour Hotel. How can I help you today?
+Caller: Hi there, is the spa free on Friday?
+Agent:  Yes, the spa is free on Friday at 9 am, 10:30 am, or noon. Which time would you prefer?
+Caller: Could you give me a full rundown of everything I should know for my stay? Breakfast, checkout, the spa, all of it.
+Agent:  Breakfast is served in the Quay restaurant from seven to ten in the morning. Checkout
+Caller: Sorry to cut in, what time's checkout again?
+Agent:  Checkout is at eleven in the morning. The spa opens at nine. Did you want to book a treatment?
+```
+
+The long reply stops mid-sentence, within about a second of the caller cutting in. LiveKit stops the audio, and the plugin cuts the reply in the model's history back to about the words the caller heard, so the next answer builds on what was actually said. The `Caller` lines are what Dialog-RSN-1 heard, sent with each reply. Play `call.wav` to hear the agent's side, cut-off included.
+
+Some log noise is harmless. The worker may log that dev mode is deprecated in favor of `lk agent dev`: it still works. Both programs may print an `InsecureKeyLengthWarning`, because the dev server's secret is short. And `caller.py` may print `AssertionError` lines from `FfiHandle.__del__` as it exits, after it has saved `call.wav`: that's LiveKit's Python SDK cleaning up.
+
+**If it goes wrong:**
+
+| What you see | Tell your agent |
+| --- | --- |
+| `ws_url is required, or set LIVEKIT_URL environment variable` when you start the worker yourself | "Put LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET for livekit-server --dev in .env, not only on the command line" |
+| The agent added a stand-in voice, such as the macOS `say` command, because ElevenLabs is out of credits | Nothing, for the test: without a voice the agent never speaks, so the caller has nothing to talk over. Add ElevenLabs credits, then run without the stand-in |
+| `caller.py` waits and no agent joins the room | "Run the worker with uv run agent.py dev against the same LIVEKIT_URL, and let it join every new room" |
+
+## Troubleshooting
+
+For key and connection errors, see the [quickstart's troubleshooting](/dialog-rsn-1/quickstart-coding-agents#troubleshooting).
+
+| Symptom | Likely cause | Tell your agent |
+| --- | --- | --- |
+| `Dialog-RSN-1 needs an API key` | The worker can't see `POLY_API_KEY` | "Load POLY_API_KEY from the environment or .env before the AgentSession starts" |
+| `Dialog-RSN-1 refused the connection (429)`, then the session closes | Too many Dialog-RSN-1 sessions open. Each console session and each room the worker joins holds one, so a leftover worker or test run counts | Nothing: stop the other worker or test, then try again |
+| `failed to synthesize speech: no audio frames were pushed for text` in the worker log | ElevenLabs refused the request, usually because the account is out of credits. The streaming connection doesn't pass on the reason | Nothing: add credits at ElevenLabs. To switch provider: "Use LiveKit's Cartesia plugin for the voice instead" |
+| `ElevenLabs API key is required` | The key is under the wrong name | Rename it to `ELEVEN_API_KEY` in `.env` |
+| The agent speaks in a voice you didn't choose, or ElevenLabs never runs | The code uses LiveKit's `openai.realtime.RealtimeModel`, which asks Dialog-RSN-1 for audio | "Use polyai.realtime.RealtimeModel from livekit-plugins-polyai, not the OpenAI plugin" |
+| `caller.py` waits and no agent joins, with the worker started by `lk agent dev` | `lk agent dev` registers the worker under its own deployment, so it doesn't join a plain new room | Run `uv run agent.py dev`, or `lk agent dev --deployment production` |
+| The agent keeps interrupting itself in `lk agent console` | The microphone hears the speakers | Wear headphones |
+
+The [LiveKit guide's troubleshooting](/dialog-rsn-1/guides/livekit#troubleshooting) covers the plugin's other errors, and [why not the OpenAI plugin](/dialog-rsn-1/guides/livekit#why-not-the-openai-plugin) explains the difference between the two.
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="LiveKit guide" icon="compass" href="/dialog-rsn-1/guides/livekit">
+    The same agent, step by step, with what carries over from a standard LiveKit pipeline.
+  </Card>
+  <Card title="livekit-plugins-polyai" icon="github" href="https://github.com/PolyAI-LDN/livekit-plugins-polyai">
+    The plugin's options and how each LiveKit feature maps to Dialog-RSN-1.
+  </Card>
+  <Card title="Prompt guide" icon="message" href="/dialog-rsn-1/prompt-guide">
+    Instructions for speech, including how patient the agent is before it replies.
+  </Card>
+  <Card title="LiveKit Agents docs" icon="book" href="https://docs.livekit.io/agents/">
+    Deployment, telephony and the rest of the framework.
+  </Card>
+</CardGroup>
