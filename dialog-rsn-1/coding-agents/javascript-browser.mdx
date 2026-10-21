@@ -1,6 +1,6 @@
 ---
 title: "Build a browser voice agent with a coding agent"
-sidebarTitle: "Browser (coding agents)"
+sidebarTitle: "Browser"
 description: "Turn the quickstart's voice agent into a web page with Claude Code, Codex, Cursor or Gemini CLI: a small Node relay holds your key, and the page streams your microphone and plays the spoken reply."
 keywords:
   - realtime
@@ -21,7 +21,7 @@ Move the quickstart's concierge into the browser in two prompts. You end with a 
 1. A Node relay that serves the page and holds your API key, so the browser never sees it.
 2. A page that streams your microphone in, plays the concierge's spoken reply, and stops when you interrupt.
 3. The same `check_availability` spa tool, answered by the page mid-conversation.
-4. A check that no file or message the browser gets contains your key, and that other websites can't use your relay.
+4. A quick check that the relay serves only the page and refuses other websites.
 
 **Before you start:**
 
@@ -80,27 +80,18 @@ To see what the browser sends, open the developer tools and filter the **Network
 ## Step 2: check the key stays on the server
 
 ```text Prompt
-Check that my key can't leak from the browser version. Confirm that no file the relay
-serves and no message the page receives contains it, and that only my page can use the
-relay, not other websites. Fix anything that fails, and show me how you checked without
-printing the key.
+Check that my key can't leak from the browser version: the relay should serve only the
+page's own files, and refuse a WebSocket from another website. Fix anything that fails.
+Keep it to those two checks, and don't print the key.
 ```
 
-Agents try many kinds of attack here, so expect 5 to 20 minutes.
-
-**What it should build.** A test script, such as `npm run test:security`, plus fixes to the relay. The script searches for the key without printing it, and reports it only by length or a hash. It checks three things:
-
-- **Files:** everything the relay serves comes from the page's folder. Requests for `server.js`, `.env` or `../` paths get a `404`.
-- **Messages:** every message the page receives during a real call, including errors and a refused connection, is free of the key.
-- **Who can connect:** the relay accepts a WebSocket only from its own page. A page on another site, on another port, or on a domain pointed at `127.0.0.1` is refused with a `401` or `403`.
-
-Expect the agent to find and fix something. Typical fixes: refusing requests addressed to any host but `localhost`, a header that stops other sites showing the page in a frame, and a relay that crashed on a malformed request.
+**What it should build.** Small fixes to the relay, if it needs any. It serves files only from the page's folder, so requests for `server.js`, `.env` or `../` paths get a `404`. It accepts a WebSocket only when the `Origin` is its own page, and refuses others with a `401` or `403`.
 
 <Note>
 The `Origin` check stops other websites, not other programs: anything that isn't a browser can send any `Origin` it likes. That's fine on your own machine. Before you put the relay online, put it behind your app's sign-in. Anyone who can reach it is spending your balance.
 </Note>
 
-**Check it.** Run the agent's test again yourself, with the command it gives you, such as `npm run test:security` in `browser/`. Then, with the relay running, try two requests it should refuse. Set `RELAY` to the address your relay printed:
+**Check it.** With the relay running, try two requests it should refuse. Set `RELAY` to the address your relay printed:
 
 ```bash
 RELAY=http://localhost:8787
