@@ -14,7 +14,7 @@ Amazon Connect transfers the call to a PolyAI number over the phone network (PST
 
 ![connect-diagram](/images/integrations/amazon/diagram.png)
 
-1. **Claim a number**: your contact flow invokes the `PolyAIWriteContactAttributesToDDB` Lambda function. It claims a free number from the pool of PolyAI numbers you picked, and saves it as the `ExternalPolyNumber` contact attribute. Each call in progress gets its own number, because PolyAI matches each call to its contact by the number dialed.
+1. **Claim a number**: your contact flow invokes the `PolyAIWriteContactAttributesToDDB` Lambda function. It claims a free number from the pool of PolyAI numbers you picked, and saves it as the `ExternalPolyNumber` contact attribute. PolyAI matches each call to its contact by the number dialed, so two calls on their way to PolyAI never share a number.
 2. **Transfer to PolyAI**: the flow transfers the call to that number. PolyAI reads the contact attributes, so the agent has the caller's context.
 3. **Conversation**: the PolyAI agent greets the caller and runs its flows, such as identity verification or information collection.
 4. **Hand back**: before hanging up, PolyAI sets the `should_transfer` contact attribute to `true` or `false`. The contact flow resumes and routes on it: to an agent queue, or to end the call.
@@ -23,11 +23,22 @@ Amazon Connect transfers the call to a PolyAI number over the phone network (PST
   Only one telephony integration can be connected to a project at a time. If the project already has another one connected, the Amazon Connect setup shows **Another telephony integration is connected** and does not start.
 </Note>
 
+### How numbers are reused
+
+A call holds its number only until PolyAI answers, not for the whole conversation.
+
+1. The Lambda function shuffles the numbers in your pool and tries each one with a conditional write to the `PolyAIConnectContactAttributes` DynamoDB table. The write only succeeds if the number has no record, or its record has expired. The first number that succeeds goes to the call, and the record stores the contact's details.
+2. When the PolyAI agent answers the transferred call, its start function looks up the record by the number dialed, reads the contact's details, and deletes the record. The number is free again, even while the first conversation continues.
+3. If the record is never deleted, for example because the transfer failed, the number frees when the record expires. The `DDBRecordTTL` stack parameter sets the expiry time, in seconds.
+
+So the pool needs enough numbers for the calls Connect transfers at about the same moment, not one for every call in progress. If every number is held, the function keeps trying until one frees or the function times out, and the flow takes the error branch of the **Invoke AWS Lambda function** block. Ask your PolyAI contact how many numbers to add for your traffic.
+
 ## Before you start
 
 - An active Amazon Connect instance, and access to the AWS console with permission to create a CloudFormation stack and IAM resources in that account.
 - At least one PolyAI number in the project. If you don't have one, buy one first from **Add number** → **Buy Twilio number** in the **Telephony** tab.
-- Enough numbers for your peak traffic. Each call that runs at the same time needs its own number.
+- Enough numbers for the calls Connect transfers to PolyAI at about the same moment. A number is free again once PolyAI answers. See [How numbers are reused](#how-numbers-are-reused).
+- If your security team reviews the access PolyAI gets, see [What PolyAI changes in your AWS account](#what-polyai-changes-in-your-aws-account).
 
 ## Set up Amazon Connect in Agent Studio
 
@@ -42,13 +53,13 @@ Go to **Integrations** → **Telephony** and click **Add number**. In the **Add 
     Under **Your Amazon Connect instance**, fill in:
 
     - **Instance ARN**: in the AWS console, open Amazon Connect and copy the [ARN](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference-arns.html) of your instance. It looks like `arn:aws:connect:us-east-1:123456789012:instance/00000000-0000-0000-0000-000000000000`. Once the ARN is valid, the setup shows the region and AWS account it found. Both are used for the rest of the setup.
-    - **PolyAI numbers Connect transfers to**: select the project numbers Connect can transfer calls to. Each option shows the number and its environment. Pick one number per call that can run at the same time. The PolyAI stack gives each call a free number from this pool, so two calls never share one. Select at least one.
+    - **PolyAI numbers Connect transfers to**: select the project numbers Connect can transfer calls to. Each option shows the number and its environment. The PolyAI stack gives each transferred call a free number from this pool, and the number frees once PolyAI answers. See [How numbers are reused](#how-numbers-are-reused). Select at least one.
 
     Click **Next**. PolyAI saves the connection and prepares a CloudFormation link for your account. From here you can't go back to change the instance.
   </Step>
 
   <Step title="AWS stack">
-    Under **Run the PolyAI stack in AWS**, you create the IAM role that lets PolyAI read and update contact attributes on your instance. PolyAI can't see anything else in your account.
+    Under **Run the PolyAI stack in AWS**, you create the DynamoDB table, Lambda function and IAM roles the integration uses, including the role that lets PolyAI read and update contact attributes on your instance. See [What PolyAI changes in your AWS account](#what-polyai-changes-in-your-aws-account) for what each one does and what PolyAI can access.
 
     1. Click **Open in AWS console**. CloudFormation opens in your AWS console with the template and every parameter already filled in.
     2. Tick the acknowledgement that the stack creates IAM resources, then create the stack.
@@ -58,7 +69,7 @@ Go to **Integrations** → **Telephony** and click **Add number**. In the **Add 
 
     Back in Agent Studio:
 
-    - **IAM role ARN** is prefilled from your instance. Change it only if you renamed the role when you created the stack.
+    - **IAM role ARN** is prefilled from your instance. Change it only if you renamed the role when you created the stack, or if you [use your own IAM role](#use-your-own-iam-role).
     - Tick **The stack reached CREATE_COMPLETE**.
 
     Click **Finish setup**. You see **Amazon Connect setup submitted**.
@@ -122,8 +133,95 @@ Once PolyAI tells you the connection is live:
 
 1. Call the number assigned to your contact flow and check the PolyAI agent answers with the right context.
 2. Trigger a handoff and check the call reaches the agent queue.
-3. Place several calls at once and check each gets its own PolyAI number.
+3. Place several calls at once and check each one reaches the PolyAI agent with the right context.
 4. Use Amazon Connect analytics to track call volume, routing and handoffs.
+
+## What PolyAI changes in your AWS account
+
+You create the PolyAI CloudFormation stack in your account, and the stack creates these resources. Each name ends with a suffix made from your PolyAI project ID.
+
+| Resource | Name | Purpose |
+|----------|------|---------|
+| DynamoDB table | `PolyAIConnectContactAttributes` | One record per call on its way to PolyAI, keyed by the PolyAI number. A record holds the contact's details from Amazon Connect, such as the contact ID, instance ARN, language, queue and the caller's phone number, plus an expiry time. |
+| Lambda function | `PolyAIWriteContactAttributesToDDB` | Claims a free number for each call and writes the call's record to the table. See [How numbers are reused](#how-numbers-are-reused). |
+| IAM role | `PolyAILambdaRoleToWriteContactToDDB` | The function's execution role. Only the Lambda service can assume it, not PolyAI. |
+| IAM role | `PolyAIRoleToReadAndUpdateContactAttributes` | The role PolyAI assumes during calls. Its trust policy requires your setup's external ID. |
+| IAM role | `PolyAIRoleToUpdateLambdaCode` | The role PolyAI assumes to update the function's code. |
+
+### What PolyAI does with these roles
+
+PolyAI assumes `PolyAIRoleToReadAndUpdateContactAttributes` with your setup's external ID. During a call, it uses the role to:
+
+- Read and delete the call's record in the table (`dynamodb:GetItem`, `dynamodb:DeleteItem`).
+- Read the contact's attributes (`connect:GetContactAttributes`).
+- Update the contact's attributes, such as `should_transfer` (`connect:UpdateContactAttributes`).
+
+PolyAI also uses this role to check the connection after you finish setup. The check assumes the role and makes one read from the table (`dynamodb:GetItem`).
+
+PolyAI can assume `PolyAIRoleToUpdateLambdaCode` to publish new code for `PolyAIWriteContactAttributesToDDB` from PolyAI's code bucket. An update replaces the function's code, so it overwrites any changes you made to the code. It doesn't change the function's settings, such as the number pool.
+
+### What PolyAI never does
+
+PolyAI never:
+
+- Deletes, updates or recreates your CloudFormation stack.
+- Edits your contact flows, queues or any other Amazon Connect configuration. It only reads and updates contact attributes.
+- Writes records to the table. Only the Lambda function does.
+- Creates or changes IAM roles or policies.
+
+If the setup is deleted on the PolyAI side, the stack and its roles stay in your account until you delete the stack.
+
+## Use your own IAM role
+
+You can create the role PolyAI assumes yourself, instead of using `PolyAIRoleToReadAndUpdateContactAttributes`. You still run the PolyAI stack, because it creates the table and the Lambda function. The role must be in the same AWS account as your Amazon Connect instance.
+
+**Trust policy.** Trust both PolyAI AWS accounts, `168609107022` and `471112995218`, and require your setup's external ID. This matches the role the stack creates. The external ID is the `polyAIAssignedExternalId` parameter on your stack's **Parameters** tab in CloudFormation. Agent Studio also shows it as **External ID** on the **Reference** step.
+
+```json Trust policy
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": ["168609107022", "471112995218"]
+      },
+      "Action": ["sts:AssumeRole"],
+      "Condition": {
+        "StringEquals": {
+          "sts:ExternalId": "<your-external-id>"
+        }
+      }
+    }
+  ]
+}
+```
+
+**Permissions.** Allow these four actions, on the table your PolyAI stack created and on your instance:
+
+```json Permissions policy
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["dynamodb:GetItem", "dynamodb:DeleteItem"],
+      "Resource": "<table-arn>"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["connect:GetContactAttributes", "connect:UpdateContactAttributes"],
+      "Resource": "<instance-arn>/*"
+    }
+  ]
+}
+```
+
+Enter the role's ARN in **IAM role ARN** on the **AWS stack** step, before you click **Finish setup**.
+
+<Warning>
+  PolyAI's connection check only assumes the role and calls `dynamodb:GetItem`. It doesn't test the other three actions. A role that is missing one of them still connects, then fails during calls. Without `dynamodb:DeleteItem`, PolyAI can't pick up the call's details. Without the Connect actions, it can't read or set contact attributes such as `should_transfer`. Check that the role allows all four actions before you send live calls.
+</Warning>
 
 ## Chat and messaging handoff
 
