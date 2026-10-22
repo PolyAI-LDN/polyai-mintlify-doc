@@ -163,7 +163,7 @@ Every event this service can send.
 | Event | Description |
 |---|---|
 | `conversation.item.input_audio_transcription.delta` | Streamed as part of the same generation that answers the turn, not a separate async pass. See [Voice input & transcription](#voice-input-and-transcription). |
-| `conversation.item.input_audio_transcription.completed` | Final transcript, plus a duration-based usage figure (no token counting yet). |
+| `conversation.item.input_audio_transcription.completed` | Final transcript, plus its usage: a duration on a realtime session, tokens on a transcription session. |
 
 **Response lifecycle**
 
@@ -220,6 +220,8 @@ Dialog-RSN-1 transcribes spoken audio as part of the same generation that answer
 <Note>
 **A timing note.** The transcript is a by-product of the same generation that answers the turn, not an independent asynchronous pass. Don't rely on the transcript arriving before the response text starts.
 </Note>
+
+To transcribe without a reply, open a [transcription session](/api-reference/dialog-rsn-1/reference#transcription-sessions). Each turn is transcribed on its own, and its transcript arrives shortly after the turn ends. Transcription sessions are English only.
 
 ## Text or spoken replies
 
@@ -286,7 +288,7 @@ These are deliberate scope cuts.
 - **Without playback reports, barge-in timing is an estimate.** Dialog-RSN-1's barge-in check runs while a reply is audible, and without reports the server estimates that from a typical speaking rate. If your text-to-speech runs behind that estimate, sound arriving after it ends is forwarded as an interruption without confirmation. [Playback reports](#playback-reports) close the gap.
 - **No MCP tools.** Only function tool entries are honored; an MCP tool declaration is rejected with `unsupported_parameter`.
 - **Turn timing isn't configurable.** The detector's thresholds are fixed. `silence_duration_ms`, `prefix_padding_ms`, `threshold`, `eagerness` and `"type": "semantic_vad"` are accepted and ignored; `idle_timeout_ms` and `interrupt_response: false` are rejected with `unsupported_parameter`. Only `create_response` is read. See [Turn-taking & audio](#turn-taking-and-audio).
-- **Transcription usage is a duration, not a token count.** `conversation.item.input_audio_transcription.completed` reports audio duration. Response token counts are separate, and do arrive on `response.usage`.
+- **Transcription usage on a realtime session is a duration, not a token count.** `conversation.item.input_audio_transcription.completed` reports audio duration. Response token counts are separate, and do arrive on `response.usage`. A [transcription session](/api-reference/dialog-rsn-1/reference#transcription-sessions) reports tokens.
 - **History is bounded.** From the tenth caller audio turn, older turns release their audio and keep their transcript. Where older history is summarised or dropped to fit the context window, the first `response.done` after that lists the items the prompt now leaves out in `poly_compacted_item_ids`; the items stay in history. A conversation that still outgrows the window fails that response with `context_length_exceeded`; the connection stays open.
 - **One response in flight per connection.** A `response.create` while a response is open is refused with `conversation_already_has_active_response`. A confirmed barge-in cancels the open response.
 - **Without playback reports, history holds an estimate of what was heard.** After a barge-in the server keeps the words it estimates the caller heard. Send `poly.output_audio.stopped` with `spoken_text` to replace the estimate with your synthesizer's account.
