@@ -31,7 +31,7 @@ A call holds its number only until PolyAI answers, not for the whole conversatio
 2. When the PolyAI agent answers the transferred call, its start function looks up the record by the number dialed, reads the contact's details, and deletes the record. The number is free again, even while the first conversation continues.
 3. If the record is never deleted, for example because the transfer failed, the number frees when the record expires. The `DDBRecordTTL` stack parameter sets the expiry time, in seconds.
 
-So the pool needs enough numbers for the calls Connect transfers at about the same moment, not one for every call in progress. If every number is held, the function keeps trying until one frees or the function times out, and the flow takes the error branch of the **Invoke AWS Lambda function** block. Ask your PolyAI contact how many numbers to add for your traffic.
+So the pool needs enough numbers for the calls Connect transfers at about the same moment, not one for every call in progress. If every number is held, the function keeps trying until PolyAI answers a held call and releases its number, or until the function times out. A record that expires during those retries doesn't free its number for that call. The `WriteContactAttributesToDDBLambdaTimeout` stack parameter sets the timeout, 3 seconds by default. If the function times out, the flow takes the error branch of the **Invoke AWS Lambda function** block. Ask your PolyAI contact how many numbers to add for your traffic.
 
 ## Before you start
 
@@ -146,34 +146,55 @@ You create the PolyAI CloudFormation stack in your account, and the stack create
 | Lambda function | `PolyAIWriteContactAttributesToDDB` | Claims a free number for each call and writes the call's record to the table. See [How numbers are reused](#how-numbers-are-reused). |
 | IAM role | `PolyAILambdaRoleToWriteContactToDDB` | The function's execution role. Only the Lambda service can assume it, not PolyAI. |
 | IAM role | `PolyAIRoleToReadAndUpdateContactAttributes` | The role PolyAI assumes during calls. Its trust policy requires your setup's external ID. |
-| IAM role | `PolyAIRoleToUpdateLambdaCode` | The role PolyAI assumes to update the function's code. |
+| IAM role | `PolyAIRoleToUpdateLambdaCode` | The role PolyAI can assume to update the function's code and configuration. Its trust policy doesn't require an external ID. |
 
-### What PolyAI does with these roles
+### What each role grants
 
-PolyAI assumes `PolyAIRoleToReadAndUpdateContactAttributes` with your setup's external ID. During a call, it uses the role to:
+The two roles PolyAI can assume trust both PolyAI AWS accounts, `168609107022` and `471112995218`.
 
-- Read and delete the call's record in the table (`dynamodb:GetItem`, `dynamodb:DeleteItem`).
-- Read the contact's attributes (`connect:GetContactAttributes`).
-- Update the contact's attributes, such as `should_transfer` (`connect:UpdateContactAttributes`).
+#### `PolyAILambdaRoleToWriteContactToDDB`
+
+- **Can be assumed by:** the Lambda service only, for the function. PolyAI can't assume it.
+- **Grants:** `dynamodb:PutItem` on the table. It also lets the function write its logs to CloudWatch Logs, through the AWS managed policy `AWSLambdaBasicExecutionRole`.
+- **Used for:** the function adds each call's record to the table.
+
+#### `PolyAIRoleToReadAndUpdateContactAttributes`
+
+- **Can be assumed by:** the PolyAI AWS accounts, and only with your setup's external ID.
+- **Grants:** `dynamodb:GetItem` and `dynamodb:DeleteItem` on the table. `connect:GetContactAttributes` and `connect:UpdateContactAttributes` on the contacts in your instance (`<instance-arn>/contact/*`).
+- **Used for:** PolyAI uses all four actions during a call:
+  - Read and delete the call's record in the table (`dynamodb:GetItem`, `dynamodb:DeleteItem`).
+  - Read the contact's attributes (`connect:GetContactAttributes`).
+  - Update the contact's attributes, such as `should_transfer` (`connect:UpdateContactAttributes`).
 
 PolyAI also uses this role to check the connection after you finish setup. The check assumes the role and makes one read from the table (`dynamodb:GetItem`).
 
-PolyAI can assume `PolyAIRoleToUpdateLambdaCode` to publish new code for `PolyAIWriteContactAttributesToDDB` from PolyAI's code bucket. An update replaces the function's code, so it overwrites any changes you made to the code. It doesn't change the function's settings, such as the number pool.
+#### `PolyAIRoleToUpdateLambdaCode`
 
-### What PolyAI never does
+- **Can be assumed by:** the PolyAI AWS accounts. Its trust policy has no `sts:ExternalId` condition, so PolyAI doesn't need your external ID to assume it.
+- **Grants:** `lambda:UpdateFunctionCode`, `lambda:GetFunctionConfiguration` and `lambda:UpdateFunctionConfiguration` on the function. `s3:ListBucket` and `s3:GetObject` on PolyAI's code bucket, where new code for the function comes from.
+- **Used for:** PolyAI can update the function's code and configuration through `PolyAIRoleToUpdateLambdaCode`. It does this only to ship PolyAI updates to that function.
 
-PolyAI never:
+A code update replaces the function's code, so it overwrites any changes you made to the code. A configuration update can replace the function's settings, such as its environment variables.
+
+### What PolyAI commits not to do
+
+PolyAI's policy is that it never:
 
 - Deletes, updates or recreates your CloudFormation stack.
 - Edits your contact flows, queues or any other Amazon Connect configuration. It only reads and updates contact attributes.
-- Writes records to the table. Only the Lambda function does.
+- Writes records to the table itself. Only the Lambda function does.
 - Creates or changes IAM roles or policies.
+
+This list is a policy. The technical limit is what the roles grant, listed in [What each role grants](#what-each-role-grants). PolyAI can update the function's code, and that code runs with the function's execution role, `PolyAILambdaRoleToWriteContactToDDB`. So code PolyAI ships can do anything that role grants: add records to the table and write logs.
 
 If the setup is deleted on the PolyAI side, the stack and its roles stay in your account until you delete the stack.
 
 ## Use your own IAM role
 
 You can create the role PolyAI assumes yourself, instead of using `PolyAIRoleToReadAndUpdateContactAttributes`. You still run the PolyAI stack, because it creates the table and the Lambda function. The role must be in the same AWS account as your Amazon Connect instance.
+
+Your own role doesn't remove the stack's role. The stack still creates `PolyAIRoleToReadAndUpdateContactAttributes`, and PolyAI can still assume it with your setup's external ID. The template has no option to leave it out. That role grants the same four actions as the permissions policy below, on the same resources. The stack also still creates `PolyAIRoleToUpdateLambdaCode`.
 
 **Trust policy.** Trust both PolyAI AWS accounts, `168609107022` and `471112995218`, and require your setup's external ID. This matches the role the stack creates. The external ID is the `polyAIAssignedExternalId` parameter on your stack's **Parameters** tab in CloudFormation. Agent Studio also shows it as **External ID** on the **Reference** step.
 
@@ -197,7 +218,7 @@ You can create the role PolyAI assumes yourself, instead of using `PolyAIRoleToR
 }
 ```
 
-**Permissions.** Allow these four actions, on the table your PolyAI stack created and on your instance:
+**Permissions.** Allow these four actions, on the table your PolyAI stack created and on the contacts in your instance:
 
 ```json Permissions policy
 {
@@ -211,7 +232,7 @@ You can create the role PolyAI assumes yourself, instead of using `PolyAIRoleToR
     {
       "Effect": "Allow",
       "Action": ["connect:GetContactAttributes", "connect:UpdateContactAttributes"],
-      "Resource": "<instance-arn>/*"
+      "Resource": "<instance-arn>/contact/*"
     }
   ]
 }
