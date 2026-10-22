@@ -150,6 +150,8 @@ You create the PolyAI CloudFormation stack in your account, and the stack create
 
 ### What each role grants
 
+These are the grants in PolyAI's current template. A stack created from an earlier template grants more until you update it. See [Stacks created from an earlier template](#stacks-created-from-an-earlier-template).
+
 The two roles PolyAI can assume trust both PolyAI AWS accounts, `168609107022` and `471112995218`.
 
 #### `PolyAILambdaRoleToWriteContactToDDB`
@@ -177,6 +179,27 @@ PolyAI also uses this role to check the connection after you finish setup. The c
 
 A code update replaces the function's code, so it overwrites any changes you made to the code. A configuration update can replace the function's settings, such as its environment variables.
 
+### Stacks created from an earlier template
+
+To check which template your stack uses, open `PolyAIRoleToUpdateLambdaCode` in IAM. If its policy allows `lambda:*`, your stack was created from an earlier template. An earlier template grants:
+
+- **`PolyAILambdaRoleToWriteContactToDDB`:** `dynamodb:*` on the table, and `connect:*` on everything in your instance (`<instance-arn>/*`).
+- **`PolyAIRoleToReadAndUpdateContactAttributes`:** 21 DynamoDB actions on the table, including `dynamodb:Scan`, `dynamodb:Query`, `dynamodb:BatchGetItem` and `dynamodb:GetRecords`. The two Connect actions apply to everything in your instance (`<instance-arn>/*`), not only contacts.
+- **`PolyAIRoleToUpdateLambdaCode`:** `lambda:*` on the function.
+
+PolyAI uses the same actions with either template. A stack on an earlier template keeps working, so the update is optional.
+
+To move to the current grants, update the stack with PolyAI's current template:
+
+1. Ask PolyAI support for the current template URL.
+2. In CloudFormation, open your PolyAI stack and choose **Update**.
+3. Choose **Replace existing template**, then paste the template URL as the **Amazon S3 URL**.
+4. Keep every parameter value as it is, including `s3KeyPrefix`.
+5. On the review page, check that the changes list only the three IAM roles. If the Lambda function is listed, stop and contact PolyAI support, because the update would replace the function's code.
+6. Acknowledge that the stack changes IAM resources, and submit.
+
+IAM updates the role policies in place, so calls aren't interrupted. If you use your own IAM role, the stack's roles still need this update. Update your own role's permissions policy yourself, using the policy in [Use your own IAM role](#use-your-own-iam-role).
+
 ### What PolyAI commits not to do
 
 PolyAI's policy is that it never:
@@ -186,7 +209,7 @@ PolyAI's policy is that it never:
 - Writes records to the table itself. Only the Lambda function does.
 - Creates or changes IAM roles or policies.
 
-This list is a policy. The technical limit is what the roles grant, listed in [What each role grants](#what-each-role-grants). PolyAI can update the function's code, and that code runs with the function's execution role, `PolyAILambdaRoleToWriteContactToDDB`. So code PolyAI ships can do anything that role grants: add records to the table and write logs.
+This list is a policy. The technical limit is what the roles grant, listed in [What each role grants](#what-each-role-grants). PolyAI can update the function's code, and that code runs with the function's execution role, `PolyAILambdaRoleToWriteContactToDDB`. So code PolyAI ships can do anything that role grants: on the current template, add records to the table and write logs. On an earlier template, that role grants more. See [Stacks created from an earlier template](#stacks-created-from-an-earlier-template).
 
 If the setup is deleted on the PolyAI side, the stack and its roles stay in your account until you delete the stack.
 
