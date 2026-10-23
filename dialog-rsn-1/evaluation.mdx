@@ -39,7 +39,7 @@ The cost is that no metric on this API describes what a caller heard. Latency me
 
 ## What the wire gives you
 
-Most metrics come off the [event stream](/dialog-rsn-1/reference#server-→-client-events). The events below are the ones a text session sends, so set `output_modalities: ["text"]` in your `session.update` rather than relying on the default. Record every frame you send with a monotonic timestamp and every event you receive with another, and you have the evidence for all of the below.
+Most metrics come off the [event stream](/api-reference/dialog-rsn-1/reference#events). The events below are the ones a text session sends, so set `output_modalities: ["text"]` in your `session.update` rather than relying on the default. Record every frame you send with a monotonic timestamp and every event you receive with another, and you have the evidence for all of the below.
 
 | You want to know | Watch for |
 |---|---|
@@ -54,7 +54,7 @@ Most metrics come off the [event stream](/dialog-rsn-1/reference#server-→-clie
 
 Two properties of that stream shape the collector.
 
-**The end of a turn is a judgment, not a threshold.** `speech_stopped` is sent only once Dialog-RSN-1 has confirmed the boundary voice activity detection proposed, so a caller pausing mid-sentence produces no stop at all. `speech_started` is confirmed the same way only while a reply is playing. With nothing playing, it goes out on the detector's onset, and a sound the model then judges to be noise is dropped with no `speech_stopped` after it. That makes turn segmentation directly checkable: count `speech_stopped` and `committed` pairs, compare against the turns your fixture contains, and treat a lone `speech_started` as a sound the model ignored. The [reference](/dialog-rsn-1/reference#turn-taking-and-audio) has the full sequence.
+**The end of a turn is a judgment, not a threshold.** `speech_stopped` is sent only once Dialog-RSN-1 has confirmed the boundary voice activity detection proposed, so a caller pausing mid-sentence produces no stop at all. `speech_started` is confirmed the same way only while a reply is playing. With nothing playing, it goes out on the detector's onset, and a sound the model then judges to be noise is dropped with no `speech_stopped` after it. That makes turn segmentation directly checkable: count `speech_stopped` and `committed` pairs, compare against the turns your fixture contains, and treat a lone `speech_started` as a sound the model ignored. The [protocol guide](/dialog-rsn-1/reference#turn-taking-and-audio) has the full sequence.
 
 **The transcript is a by-product of the reply, not a stage before it.** It's the last thing the generation writes, so it arrives after the reply text, and `conversation.item.input_audio_transcription.completed` comes only with a completed reply. A reply cancelled by a barge-in, or one that fails, usually leaves its turn with no transcript at all. A collector that waits for the transcript before recording the reply will hang on exactly those turns. Record both, join them by item id afterwards.
 
@@ -339,8 +339,11 @@ Before treating any of these as an agent failure, decide whether the run was val
 ## Next steps
 
 <CardGroup cols={2}>
-  <Card title="Reference" icon="file-lines" href="/dialog-rsn-1/reference#server-→-client-events">
-    Every event your collector can record, and the known limitations worth writing scenarios against.
+  <Card title="API reference" icon="code" href="/api-reference/dialog-rsn-1/reference#events">
+    Every event your collector can record.
+  </Card>
+  <Card title="Protocol guide" icon="diagram-project" href="/dialog-rsn-1/reference#known-limitations">
+    The known limitations worth writing scenarios against.
   </Card>
   <Card title="Prompt cookbook" icon="utensils" href="/dialog-rsn-1/prompt-cookbook/introduction">
     The `instructions` text behind the behaviors these scenarios test.

@@ -24,6 +24,9 @@ The wire format is the OpenAI Realtime API (GA schema). A stock OpenAI Realtime 
   <Card title="Dialog-RSN-1 docs" icon="book-open" href="/dialog-rsn-1/overview">
     The overview, quickstart, prompt guide, cookbook and integration guides.
   </Card>
+  <Card title="Protocol guide" icon="diagram-project" href="/dialog-rsn-1/reference">
+    How turn-taking, barge-in, transcription, tool calls and playback reports behave together.
+  </Card>
   <Card title="OpenAI Realtime reference" icon="arrow-up-right-from-square" href="https://platform.openai.com/docs/api-reference/realtime">
     Field-level documentation for every event. This page lists what we accept and where we differ.
   </Card>
@@ -133,7 +136,7 @@ Send `session.update` after `session.created`. Updates are merged into the sessi
 | Field | Notes |
 | --- | --- |
 | `instructions` | The system prompt |
-| `tools` | Function tools only. Mark at most one string parameter per tool with `"poly_spoken": true` and the model says that argument to the caller while the tool runs: as `response.output_text.delta` on a text session, for your text-to-speech to speak, or aloud on an audio session. |
+| `tools` | Function tools only. Mark at most one string parameter per tool with `"poly_spoken": true` and the model says that argument to the caller while the tool runs: as `response.output_text.delta` on a text session, for your text-to-speech to speak, or aloud on an audio session. A function entry with no `name` is dropped before generation but still echoed in `session.updated`, so the echo doesn't confirm a tool reached the model. |
 | `tool_choice` | `"auto"` only |
 | `max_output_tokens` | An integer or `"inf"`. The deployment's own cap is the ceiling. The model reasons before it answers and reasoning tokens come out of the same budget, so a small cap can leave a truncated or empty reply. |
 | `audio.input.format` | See [Audio in](#audio-in) |
@@ -354,9 +357,31 @@ Every event is a JSON text frame with a `type` and an `event_id`. Fields follow 
 
 **Server to client**
 
-`session.created`, `session.updated`, `conversation.item.added`, `.done`, `.deleted`, `.retrieved`, `.truncated`, `conversation.item.input_audio_transcription.delta`, `.completed`, `input_audio_buffer.speech_started`, `.speech_stopped`, `.committed`, `.cleared`, `response.created`, `response.done`, `response.output_item.added`, `.done`, `response.content_part.added`, `.done`, `response.output_text.delta`, `.done`, `response.function_call_arguments.delta`, `.done`, `error`. On a session with `output_modalities: ["audio"]`, `response.output_audio_transcript.delta` and `.done` replace `response.output_text.*`, and `response.output_audio.delta` and `.done` carry the speech as base64 PCM16 mono at 24 kHz.
+Every event this service sends:
 
-Not sent: `rate_limits.updated`, `conversation.created`, MCP events. Token usage arrives on `response.done` as `response.usage`.
+| Event | Notes |
+| --- | --- |
+| `session.created` | First event on every connection, with the default session |
+| `session.updated` | The full effective session after a merge |
+| `conversation.item.added` | An item entered history, before it's complete |
+| `conversation.item.done` | The same item, finalized. Sent whether the server or the client put the item there. |
+| `conversation.item.retrieved`, `.deleted`, `.truncated` | Answers to `retrieve`, `delete` and `truncate` |
+| `input_audio_buffer.speech_started` | The detector crossed into speech. Names the item id the turn will become. |
+| `input_audio_buffer.speech_stopped` | The model confirmed the caller finished. Reports that judgment, not the detector's raw signal, so a `speech_started` can arrive with no `speech_stopped` after it. |
+| `input_audio_buffer.committed` | The turn's audio joined history as one item |
+| `input_audio_buffer.cleared` | Answer to `input_audio_buffer.clear` |
+| `conversation.item.input_audio_transcription.delta`, `.completed` | What the model heard, streamed by the same generation that answers the turn, so it usually arrives after the reply's first delta. `.completed` carries a duration-based usage figure, not a token count. |
+| `response.created` | Opens the response. The only place you learn `response_id`. |
+| `response.output_item.added`, `.done` | Open and close an output item: a message or a function call |
+| `response.content_part.added`, `.done` | Open and close a message's one content part |
+| `response.output_text.delta`, `.done` | The reply's text, on a session with `output_modalities: ["text"]` |
+| `response.output_audio_transcript.delta`, `.done` | The spoken reply's text, in place of `response.output_text.*` when `output_modalities` is `["audio"]` |
+| `response.output_audio.delta`, `.done` | The spoken reply as base64 PCM16 mono at 24 kHz, sent at the pace it plays |
+| `response.function_call_arguments.delta`, `.done` | Tool-call arguments. `.done` carries `name`, the full `arguments` and the `call_id` your `function_call_output` must echo. |
+| `response.done` | Always terminal. `response.status` is `completed`, `cancelled` or `failed`. `response.usage` is always present on a finished response, zeros included: `input_tokens`, `output_tokens`, `total_tokens`, `input_token_details` (`text_tokens`, `audio_tokens`, `cached_tokens`) and `output_token_details`. Also carries the `poly_` fields in [PolyAI extensions](#polyai-extensions). |
+| `error` | See [Errors](#errors) |
+
+Not sent: `rate_limits.updated`, `conversation.created`, MCP events.
 
 **Differences a stock client notices**
 
@@ -374,7 +399,7 @@ Extensions are additive fields on existing events, all prefixed `poly_`. Nothing
 | --- | --- | --- |
 | `session` | `poly_knowledge` | A list of `{ "name", "content", "actions"? }` the model may cite in replies |
 | `session` | `poly_response_language` | An ISO 639 tag (`es`, `pt-BR`) or words (`"Singlish"`). The model answers in that language and no other. `null` clears it. |
-| `session` | `poly_input_rate` | Set for you when `audio.input.format.rate` is not 24000 |
+| `session` | `poly_input_rate` | Set for you when `audio.input.format.rate` is not 24000. `session.updated` still echoes `rate: 24000` and carries the real rate here. The server resamples on the way in. |
 | `session` | `poly_session_id` | Read-only echo of the `session_id` query parameter |
 | `tools[].parameters.properties.<name>` | `poly_spoken: true` | The model says this string argument to the caller while the tool runs: as `response.output_text.delta` on a text session, aloud on an audio session. One per tool, string parameters only. |
 | `conversation.item.create` with `function_call_output` | `poly_knowledge` | Knowledge attached to one tool result |
