@@ -1,0 +1,226 @@
+---
+title: "Read Poly Score from the CLI and the API"
+sidebarTitle: "Guide: Read Poly Score"
+description: "Find your metrics, pull Poly Score for a window, and end with weekly Poly Score by channel, from the ADK, curl or Python."
+keywords:
+  - Poly Score API
+  - poly metrics score
+  - metrics aggregate
+  - analytics API
+---
+
+[PolyScore](/analytics/polyscore) is the 1 to 5 quality score every eligible conversation receives. This guide reads it three ways: with the ADK's `poly metrics` commands, with curl, and with Python's `requests`. Each step shows all three, and they all call the same [Data API](/api-reference/data/introduction) routes.
+
+## Before you start
+
+You need an API key and a region. For curl and Python, export both:
+
+```bash
+export POLY_API_KEY="your_api_key_here"
+export POLY_API_URL="https://api.us.poly.ai"   # or api.uk, api.eu, api.studio
+```
+
+For the CLI, run `poly login` once and `poly init` inside your agent's project folder. The commands below then resolve the region, account and project from that folder, so you never pass them by hand. See [Get started with the ADK](/adk/get-started/get-started) if you have not set it up.
+
+<Note>
+`poly metrics available`, `query` and `score` are recent additions to the ADK. If `poly metrics --help` does not list them, upgrade with `pip install --upgrade polyai-adk`.
+</Note>
+
+## 1. Find the metrics you can read
+
+Start with the catalog. It tells you the exact metric names the aggregate and search endpoints accept, built-in and custom alike.
+
+<Tabs>
+  <Tab title="CLI">
+    ```bash
+    poly metrics available
+    ```
+
+    Add `--json` for machine-readable output. `poly metrics list` is different: it shows only the custom metric definitions in the project.
+  </Tab>
+  <Tab title="curl">
+    ```bash
+    curl "$POLY_API_URL/api/v1/metrics" \
+      -H "X-API-KEY: $POLY_API_KEY"
+    ```
+
+    Add `?project_id=<project-id>` to scope the catalog to one project.
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+    import requests
+
+    BASE = os.environ["POLY_API_URL"]
+    HEADERS = {"X-API-KEY": os.environ["POLY_API_KEY"]}
+
+    catalog = requests.get(f"{BASE}/api/v1/metrics", headers=HEADERS, timeout=30)
+    catalog.raise_for_status()
+    for metric in catalog.json()["metrics"]:
+        print(metric["name"], metric["type"], metric.get("description") or "")
+    ```
+  </Tab>
+</Tabs>
+
+Look for `poly_score` in the list. That is the name the rest of this guide aggregates.
+
+## 2. Poly Score for the last week, by day
+
+The simplest read: average score and conversation count per day for the last seven days.
+
+<Tabs>
+  <Tab title="CLI">
+    ```bash
+    poly metrics score
+    ```
+
+    `score` is a shortcut for `poly metrics query poly_score --agg avg --agg conversation_count` with a default window of the last 7 days bucketed daily. It prints a one-line headline above the table.
+  </Tab>
+  <Tab title="curl">
+    ```bash
+    curl -X POST "$POLY_API_URL/api/v1/metrics/aggregate" \
+      -H "X-API-KEY: $POLY_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "metric": "poly_score",
+        "aggs": ["avg", "conversation_count"],
+        "from": "2026-09-27T00:00:00Z",
+        "to": "2026-10-04T00:00:00Z",
+        "interval": "daily"
+      }'
+    ```
+
+    `from` is inclusive and `to` is exclusive. Add `"project_id": "<project-id>"` to scope to one agent.
+  </Tab>
+  <Tab title="Python">
+    ```python
+    body = {
+        "metric": "poly_score",
+        "aggs": ["avg", "conversation_count"],
+        "from": "2026-09-27T00:00:00Z",
+        "to": "2026-10-04T00:00:00Z",
+        "interval": "daily",
+    }
+    r = requests.post(f"{BASE}/api/v1/metrics/aggregate", json=body, headers=HEADERS, timeout=30)
+    r.raise_for_status()
+    result = r.json()
+    for row in result["rows"]:
+        print(dict(zip(result["columns"], row)))
+    ```
+  </Tab>
+</Tabs>
+
+The response is a table. `columns` is `["bucket", "avg", "conversation_count"]` and each row holds the values in that order:
+
+```json
+{
+  "columns": ["bucket", "avg", "conversation_count"],
+  "rows": [
+    ["2026-09-27T00:00:00Z", 4.21, 318],
+    ["2026-09-28T00:00:00Z", 4.35, 290]
+  ],
+  "limit": 20,
+  "offset": 0
+}
+```
+
+<Note>
+`POST /api/v1/metrics/aggregate` is **experimental**. The shape above is what the service returns today; check [the reference](/api-reference/data/endpoint/metrics/aggregate-a-metric) before depending on new fields.
+</Note>
+
+## 3. Narrow it to live traffic
+
+Scores from test calls and sandbox runs skew the average. Restrict to the live environment and, if you like, to voice.
+
+<Tabs>
+  <Tab title="CLI">
+    ```bash
+    poly metrics score --env live --channel VOICE-SIP
+    ```
+  </Tab>
+  <Tab title="curl">
+    ```bash
+    curl -X POST "$POLY_API_URL/api/v1/metrics/aggregate" \
+      -H "X-API-KEY: $POLY_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "metric": "poly_score",
+        "aggs": ["avg", "conversation_count"],
+        "from": "2026-09-27T00:00:00Z",
+        "to": "2026-10-04T00:00:00Z",
+        "interval": "daily",
+        "client_env": ["live"],
+        "channel": ["VOICE-SIP"]
+      }'
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    body.update({"client_env": ["live"], "channel": ["VOICE-SIP"]})
+    r = requests.post(f"{BASE}/api/v1/metrics/aggregate", json=body, headers=HEADERS, timeout=30)
+    r.raise_for_status()
+    ```
+  </Tab>
+</Tabs>
+
+Channels are `VOICE-SIP`, `CHAT`, `WEBCHAT`, `SMS` and `RCS`. Environments are `test`, `sandbox`, `pre-release`, `live` and `scenarios`.
+
+## 4. Weekly Poly Score by channel
+
+Bucket by week and group by channel to see where quality is moving. This is the view most teams put on a dashboard.
+
+<Tabs>
+  <Tab title="CLI">
+    ```bash
+    poly metrics score --from 2026-09-01 --to 2026-10-01 --interval weekly --by channel
+    ```
+
+    Date-only values are accepted: `--to` on a date means the end of that day. For percentiles or other aggregations, drop down to `poly metrics query poly_score --agg p50 --agg p95 --interval weekly --by channel`.
+  </Tab>
+  <Tab title="curl">
+    ```bash
+    curl -X POST "$POLY_API_URL/api/v1/metrics/aggregate" \
+      -H "X-API-KEY: $POLY_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "metric": "poly_score",
+        "aggs": ["avg", "conversation_count"],
+        "from": "2026-09-01T00:00:00Z",
+        "to": "2026-10-01T00:00:00Z",
+        "interval": "weekly",
+        "group_by": ["channel"],
+        "client_env": ["live"]
+      }'
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    body = {
+        "metric": "poly_score",
+        "aggs": ["avg", "conversation_count"],
+        "from": "2026-09-01T00:00:00Z",
+        "to": "2026-10-01T00:00:00Z",
+        "interval": "weekly",
+        "group_by": ["channel"],
+        "client_env": ["live"],
+    }
+    r = requests.post(f"{BASE}/api/v1/metrics/aggregate", json=body, headers=HEADERS, timeout=30)
+    r.raise_for_status()
+    result = r.json()
+
+    cols = result["columns"]          # ["bucket", "channel", "avg", "conversation_count"]
+    for row in result["rows"]:
+        week, channel, avg, count = row
+        print(f"{week[:10]}  {channel:<10} {avg:.2f}  ({count} conversations)")
+    ```
+  </Tab>
+</Tabs>
+
+With `group_by` set, the group column sits between `bucket` and the aggregations, so `columns` is `["bucket", "channel", "avg", "conversation_count"]`.
+
+## Where to go next
+
+- **Any other metric** works the same way: swap `poly_score` for a name from step 1, for example `duration` or a custom CSAT metric. In the CLI that is `poly metrics query <metric>`.
+- **Only buckets that matter**: add `having` (`--having avg lt 3` in the CLI) to keep only weeks where the average dropped below 3.
+- **Which conversations scored low?** [Search conversations](/api-reference/data/endpoint/conversations/search-conversations) with a filter such as `{"metric": "poly_score", "op": "lt", "value": 3}` returns the conversation IDs, and [Get a transcript](/api-reference/data/endpoint/transcripts/get-a-transcript) shows what was said. `poly conversations search` and `poly transcripts get` will wrap those in the ADK.
+- **Rate limit**: 100 requests per minute per key. Page with `limit` and `offset` instead of polling.
