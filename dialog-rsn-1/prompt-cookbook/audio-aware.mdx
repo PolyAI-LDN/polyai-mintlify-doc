@@ -1,0 +1,169 @@
+---
+title: "Audio-aware recipes"
+sidebarTitle: "Audio-aware"
+description: "`instructions` and tools for acting on what Dialog-RSN-1 hears beyond the words: a noisy line, a different voice after a security check, the caller's accent, a whispering caller, and hold music on an outbound call."
+keywords:
+  - realtime
+  - prompting
+  - instructions
+  - acoustic understanding
+  - speaker change
+  - outbound calls
+  - cookbook
+  - recipes
+---
+
+Dialog-RSN-1 hears the caller's audio, not a transcript of it, so you can prompt it to act on what it hears: background noise, a different voice on the line, an accent, a whisper, hold music. In a speech-to-text, LLM and text-to-speech cascade, each of these would need its own component, such as a speaker-change detector or a hold-music classifier. Here each one is a sentence in `instructions`, and for some, a tool.
+
+There are two patterns. For a reaction the caller should hear, prompt for the reply directly, with an example of the line you want. For anything your code acts on, have the model report what it hears as tool arguments: that's how Dialog-RSN-1 was trained to report audio, and it's more reliable than asking it to react out loud.
+
+Both depend on the model hearing the real line. [Send raw audio](/dialog-rsn-1/prompt-guide#send-raw-audio): noise suppression strips the cues these recipes use.
+
+## Telling a caller on a noisy line you can hear the noise
+
+**Say it once, then say back what you caught.** A caller who knows the line is noisy can move somewhere quieter. A caller who isn't told just gets asked to repeat themselves.
+
+```text instructions: flag a noisy line
+If there's a lot of background noise on the caller's end, briefly
+acknowledge it before helping, for example by saying it's a bit noisy on
+their end but you'll do your best. Then say back what they're asking for,
+so they know you heard them correctly, and ask for what you need.
+```
+
+With café chatter behind a caller asking about a prescription, the reply is along the lines of "It's a bit noisy on your end, but I'll do my best. You're calling to check if your prescription is ready to collect, is that right?" On a clean line it answers as normal.
+
+**Keep the example phrase.** Spoken reactions to audio work much better when `instructions` show the line you want. Without "for example by saying it's a bit noisy on their end", the model rarely mentions the noise at all.
+
+## Logging what the model hears about the caller
+
+**Use the tool the model was trained on, with the wording it was trained on.** Dialog-RSN-1 learned to report what it hears through a silent `tag_inbound_audio` call. Declaring that tool gives your code the kind of audio on each turn, the caller's perceived gender and accent, and whether they're whispering. The next three recipes all build on it.
+
+```json session.tools: tag_inbound_audio
+{
+  "type": "function",
+  "name": "tag_inbound_audio",
+  "description": "Log what you hear in the caller's audio on this turn: the kind of audio, the caller's perceived gender and accent, and whether they are whispering.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "content_type": {
+        "type": "string",
+        "enum": ["speech", "silence", "hold_music", "ambient_noise", "unclear"],
+        "description": "The kind of audio on this turn. `speech` = clear speech from the caller. `silence` = silent or near-silent audio. `hold_music` = ringtone, music, or what sounds like the caller's own hold system. `ambient_noise` = background noise only, no speech. `unclear` = something there but you cannot tell whether it is speech or noise."
+      },
+      "gender": {
+        "type": "string",
+        "enum": ["male", "female", "unknown"],
+        "description": "Perceived gender of the caller based on their voice. Pass `male` or `female` only on clear speech with a confident read. Pass `unknown` on any non-speech audio, on very brief utterances, whispered speech, or when genuinely ambiguous (e.g. a young child). Do NOT guess."
+      },
+      "accent": {
+        "type": "string",
+        "description": "The caller's regional accent or dialect, as specific as you can hear it. Pass \"unknown\" on non-speech audio or when speech is too brief or distorted to classify."
+      },
+      "whispering": {
+        "type": "boolean",
+        "description": "True if the caller is clearly whispering (breathy, deliberately hushed). False for normal speech, loud speech, soft-spoken callers, or non-speech audio."
+      }
+    },
+    "required": ["content_type", "gender", "accent", "whispering"]
+  }
+}
+```
+
+Add this to your agent's own `instructions`:
+
+```text instructions: tag what you hear
+Call tag_inbound_audio as your first action on every user turn, BEFORE any
+spoken text or other tool call, UNLESS the values you would log
+(content_type, gender, accent, whispering) are identical to your last
+tag_inbound_audio call. Then skip and respond directly. Call silently: do
+not narrate the tool, do not ask the caller about their voice, accent, or
+surroundings.
+```
+
+**The "unless identical" clause is what makes it fire when something changes.** The model calls the tool on the first turn, then again only when what it hears is different: a different voice, a whisper starting or stopping, the line going quiet. A plain "call this on every turn" gets one call on the first turn and is skipped after that, even when a different person speaks.
+
+Answer each call with a `function_call_output`, then `response.create`, since a tool result ends no turn on its own. The output is where your code tells the model what to do next. When nothing needs to change, return `{"logged": true}` and the model answers the caller as usual. Keep the last values you received: the recipes below compare against them.
+
+## Re-checking identity when a different voice comes on
+
+**A different voice after a security check is an unverified caller.** Your code owns whether the caller is verified, so the decision belongs there, not in the prompt. When a `tag_inbound_audio` call arrives with a different `gender` or `accent` from the last one, and the caller has already passed your check, clear that state and say so in the result:
+
+```json function_call_output: a different voice
+{
+  "logged": true,
+  "verified": false,
+  "next_step": "Someone else has come on the line and isn't verified. Don't answer their question and don't repeat anything about the account, even what you've already said. Say you need to check who you're speaking to, and ask for their full name and date of birth."
+}
+```
+
+**Spell out that it mustn't repeat what it already said.** The model still has the earlier tool results in context. Told only to verify "before you share anything else", it can answer the new voice from those results first and ask for their details second. Your code should also refuse account tools until the new caller passes your check. If one result shows both a different voice and a whisper, handle the different voice first.
+
+This catches a change the model can hear in those fields: a man taking the phone from a woman, or a different accent. Someone who matches on both, such as a second woman with the same accent, may not trigger a new call. Treat it as a reason to re-check, not as proof of who's speaking.
+
+## Logging the caller's accent
+
+**`accent` is a free-text field, so log it as it comes.** Use it for reporting, or to try routing a caller to a regional team. It's reliable on accents the model has heard a lot of, such as Australian and Indian English, and often wrong on less common ones, where it falls back on a nearby accent it knows better. Treat it as a hint, not a fact about the caller.
+
+**Keep the field description neutral.** Examples in a description pull the answer toward them: list a few accents there and the model will map nearby accents onto those. The description above names none.
+
+## Offering a text message to a caller who's whispering
+
+**A caller who whispers may not be able to talk freely.** When `whispering` comes back `true`, don't ask them to speak up, and don't ask why. Use the result to have the model offer a way to carry on that doesn't need their voice:
+
+```json function_call_output: whispering
+{
+  "logged": true,
+  "next_step": "The caller is whispering and may not be able to talk freely. Don't ask them to speak up or why. Keep your reply short and offer to carry on by text message, for example \"I can text you a link to finish this, would that help?\""
+}
+```
+
+If they say yes, call your own messaging tool. Keep the offer about the task, not about the caller: a line like "is it hard to talk right now?" can be heard by whoever else is in the room.
+
+## Staying quiet on hold
+
+**On an outbound call, hold music isn't a turn to answer.** Give the model a tool to call instead of speaking. `wait` isn't built in; you declare it like any other tool, and it takes no arguments. It's worth declaring in any agent that might be put on hold or transferred.
+
+```json session.tools: wait
+{
+  "type": "function",
+  "name": "wait",
+  "description": "Wait silently on the line. Use this when you hear hold music, a \"please hold while we transfer you\" message, a queue announcement, or any other recorded audio that does not need a response. Don't speak or use any other tool, just wait.",
+  "parameters": { "type": "object", "properties": {} }
+}
+```
+
+```text instructions: wait through hold
+You're calling Maple Street Pharmacy on behalf of a patient. You don't
+work for the pharmacy. The pharmacy may put you on hold. While you hear a
+recorded message or hold music, call wait and say nothing. Keep calling
+wait until a person picks up, then say you're an assistant calling on the
+patient's behalf, and ask your question.
+```
+
+**"You don't work for the pharmacy" earns its place.** Without it, the model can start talking as if it were the pharmacy.
+
+Answer `wait` with a `function_call_output`, such as `{"status": "waiting"}`, and **don't send `response.create` after it**: the model has nothing to say yet. It stays quiet until the next turn it hears. Hold music on its own usually doesn't open a turn at all, so in practice the model hears the recorded messages, calls `wait` for each, and answers the person who picks up. Keep streaming the line audio the whole time you're on hold. The model can only hear someone pick up in audio you send.
+
+## What it doesn't pick up reliably
+
+These are worth knowing before you design around them:
+
+| Cue | What happens |
+| --- | --- |
+| Short sounds: a doorbell, a knock, a siren, a sneeze | Rarely reported or reacted to, even with a field for them. |
+| A caller who sounds upset but says something neutral | Rarely escalated on tone alone. |
+| How loud the background is | Clean and very noisy lines separate well. Neighbouring levels in between overlap. |
+| Less common accents | Often heard as a nearby, more common accent. |
+| Spoken reactions with no example phrase | Rare. Give the line you want, as in the noisy-line recipe. |
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Prompt guide" icon="wand-magic-sparkles" href="/dialog-rsn-1/prompt-guide#what-the-model-hears">
+    What the model perceives beyond words, and why it needs the raw audio.
+  </Card>
+  <Card title="Tool calling recipes" icon="wrench" href="/dialog-rsn-1/prompt-cookbook/tool-calling">
+    Handling results and errors from the tools these recipes declare.
+  </Card>
+</CardGroup>
