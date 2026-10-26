@@ -6,7 +6,7 @@ keywords:
   - realtime
   - livekit
   - voice agents
-  - plugin
+  - openai plugin
   - barge-in
   - guide
 ---
@@ -39,7 +39,7 @@ A standard LiveKit pipeline chains speech-to-text, an LLM and text-to-speech, wi
 | Reply | An LLM, called with the transcript | Dialog-RSN-1 writes it from the audio it heard |
 | Voice | A TTS plugin | Any TTS plugin LiveKit supports |
 
-Dialog-RSN-1 plugs into LiveKit through its own plugin, [`livekit-plugins-polyai`](https://github.com/PolyAI-LDN/livekit-plugins-polyai). Dialog-RSN-1 speaks the OpenAI Realtime protocol, but LiveKit's OpenAI plugin isn't built for it. [Why not the OpenAI plugin](#why-not-the-openai-plugin) explains the difference.
+Dialog-RSN-1 speaks the OpenAI Realtime protocol, so it plugs into LiveKit through LiveKit's own OpenAI plugin: you point `openai.realtime.RealtimeModel` at Dialog-RSN-1's URL and key. [Settings that matter](#settings-that-matter) lists the few options to set or avoid.
 
 ## Before you begin
 
@@ -88,23 +88,25 @@ The ElevenLabs plugin reads `ELEVEN_API_KEY`, not `ELEVENLABS_API_KEY`. Leave th
 session = AgentSession(
     # Dialog-RSN-1 hears the caller, decides when they've finished, and streams the reply
     # as text. It replaces the STT, the LLM and the turn detector.
-    llm=polyai.realtime.RealtimeModel(),
-    # The plugin asks Dialog-RSN-1 for text, so a TTS voices each reply as it streams.
+    llm=openai.realtime.RealtimeModel(
+        base_url=os.environ.get("DIALOG_REALTIME_URL", "wss://api.studio.poly.ai/v1"),
+        api_key=os.environ["POLY_API_KEY"],
+        model="dialog-rsn-1",
+        # Text out, so the TTS below voices each reply as it streams.
+        modalities=["text"],
+    ),
     tts=elevenlabs.TTS(voice_id="EXAVITQu4vr4xnSDxMaL", model="eleven_flash_v2_5"),
 )
 
 await session.start(agent=FrontDesk(), room=ctx.room)
-# The plugin drops per-reply instructions, so the greeting comes from INSTRUCTIONS.
-await session.generate_reply()
+await session.generate_reply(instructions="Greet the caller.")
 ```
 
 Compared with the LiveKit starter template, the session leaves out three things:
 
 - **No `stt`.** Dialog-RSN-1 takes the room's audio as it arrives. You still see the caller's transcript in LiveKit, because Dialog-RSN-1 sends it with each reply. It comes at the end of a completed reply, so a turn whose reply is cancelled before it finishes generating has no transcript.
 - **No `turn_handling`.** You have no turn detector to configure. Dialog-RSN-1 judges each pause in the context of the conversation. To make it more or less patient, say so in the instructions. The [prompt guide](/dialog-rsn-1/prompt-guide) shows how.
-- **No instructions on `generate_reply()`.** The plugin drops per-reply instructions with a warning, so the greeting lives in the agent's main instructions.
-
-`polyai.realtime.RealtimeModel()` reads `POLY_API_KEY` and connects to `wss://api.studio.poly.ai/v1/realtime`. To use a different endpoint, set `DIALOG_REALTIME_URL`. It asks Dialog-RSN-1 for text, and the TTS plugin speaks each reply as the text streams in.
+The model connects to `wss://api.studio.poly.ai/v1/realtime`; the plugin adds `/realtime` to `base_url`. For a key from a regional Studio, set `DIALOG_REALTIME_URL`, for example `wss://api.us.poly.ai/v1`. `modalities=["text"]` asks Dialog-RSN-1 for text, and the TTS plugin speaks each reply as the text streams in. Leave it out and Dialog-RSN-1 speaks in its own voice instead, and LiveKit skips your TTS.
 
 The two tools are ordinary LiveKit function tools:
 
@@ -122,7 +124,7 @@ async def look_up_reservation(
     return json.dumps(look_up_reservation(confirmation_code, last_name))
 ```
 
-Each tool returns its result as a JSON string, which gives the model structured data to read. Dialog-RSN-1 accepts function tools only and refuses any other kind, so the plugin sends function tools and skips the rest with a warning.
+Each tool returns its result as a JSON string, which gives the model structured data to read. Dialog-RSN-1 accepts function tools only, so don't add OpenAI's provider tools such as web search.
 
 ## Step 4: Run the agent
 
@@ -187,28 +189,51 @@ When the call ends, the caller saves the agent's side to `call.wav` so you can l
 
 ## Add Dialog-RSN-1 to an existing LiveKit agent
 
-1. Install the plugin from GitHub. It isn't on PyPI yet:
+1. Install LiveKit's OpenAI plugin:
 
    ```bash
-   uv add "livekit-plugins-polyai @ git+https://github.com/PolyAI-LDN/livekit-plugins-polyai"
+   uv add "livekit-agents[openai]~=1.8.3"
    ```
 
-2. Import it: `from livekit.plugins import polyai`.
+2. Import it: `from livekit.plugins import openai`.
 3. Add `POLY_API_KEY` to your environment.
-4. In your `AgentSession`, set `llm=polyai.realtime.RealtimeModel()`. Remove `stt` and `turn_handling`, and keep your `tts`.
-5. Move any instructions you pass to `generate_reply()` into the agent's main instructions.
+4. In your `AgentSession`, set `llm` to `openai.realtime.RealtimeModel(base_url="wss://api.studio.poly.ai/v1", api_key=os.environ["POLY_API_KEY"], model="dialog-rsn-1", modalities=["text"])`. Remove `stt` and `turn_handling`, and keep your `tts`.
 
-## Why not the OpenAI plugin
+## Settings that matter
 
-You can point LiveKit's `openai.realtime.RealtimeModel` at Dialog-RSN-1 by changing `base_url` and the key, but it's built for OpenAI's models. `livekit-plugins-polyai` is built for Dialog-RSN-1:
+LiveKit's OpenAI plugin sends some OpenAI settings Dialog-RSN-1 doesn't use, such as a voice, semantic VAD tuning and a transcription model. Dialog-RSN-1 accepts and ignores them, so the defaults work. A few options do matter:
 
-| LiveKit's OpenAI plugin | `livekit-plugins-polyai` |
+| Option | What to do |
 |---|---|
-| Asks for audio by default, so Dialog-RSN-1 speaks the replies in its own voice and LiveKit skips your TTS | Asks for text, so your TTS plugin speaks every reply |
-| Sends OpenAI settings that Dialog-RSN-1 ignores, such as a voice, semantic VAD tuning and a transcription model | Sends only the fields Dialog-RSN-1 uses |
-| Lets you pass OpenAI options that Dialog-RSN-1 rejects, such as `interrupt_response=False`. A rejected `session.update` applies none of its fields | Has no options Dialog-RSN-1 rejects |
+| `modalities` | Set `["text"]` to voice replies with your TTS plugin. The default, `["text", "audio"]`, has Dialog-RSN-1 speak them |
+| `turn_detection` | Leave it at the default. Dialog-RSN-1 runs turn detection on the server whatever the VAD type, and refuses `interrupt_response=False` |
+| `AgentSession(turn_handling=...)`, `vad`, `stt` | Leave them out, so Dialog-RSN-1 decides when the caller has finished |
+| `tool_choice` | Leave it at `auto`. Dialog-RSN-1 refuses any other value |
 
-The plugin implements LiveKit's realtime model interface directly instead of patching another plugin, so a LiveKit upgrade is less likely to break it. Found a bug, or want a feature? [Open an issue](https://github.com/PolyAI-LDN/livekit-plugins-polyai/issues) or send a pull request.
+A refused `session.update` comes back as an `error` event, and LiveKit logs it.
+
+### Dialog-RSN-1's own fields
+
+Fields such as `poly_response_language` and `poly_knowledge` aren't plugin options. Send them on a raw `session.update`, and read `poly_cited_topics` from `response.done` in the raw server events:
+
+```python
+rt = session.current_agent.realtime_llm_session  # the OpenAI plugin's RealtimeSession
+
+def send_poly_settings() -> None:
+    rt.send_event({"type": "session.update", "session": {
+        "type": "realtime",
+        "poly_response_language": "es",
+        "poly_knowledge": [{"name": "spa-hours", "content": "The spa is open 7am to 9pm."}],
+    }})
+
+send_poly_settings()
+# The plugin replays only its own settings after a reconnect, so send these again.
+rt.on("session_reconnected", lambda _: send_poly_settings())
+rt.on("openai_server_event_received",
+      lambda ev: ev["type"] == "response.done" and print(ev["response"].get("poly_cited_topics")))
+```
+
+Later `session.update`s from the plugin don't clear these fields. To mark the argument a tool speaks while it runs with `poly_spoken`, declare that tool with `@function_tool(raw_schema=...)`, which the plugin sends unchanged.
 
 ## Choose a different voice
 
@@ -234,10 +259,10 @@ Nothing else in `agent.py` changes. LiveKit's [TTS models](https://docs.livekit.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `Dialog-RSN-1 needs an API key` | The Dialog-RSN-1 key is missing | Copy `.env.example` to `.env` and set `POLY_API_KEY` |
-| `Dialog-RSN-1 refused the connection (401)` | The Dialog-RSN-1 key is wrong, or it's from a regional Studio such as `studio.us.poly.ai` | Create a key in the **API Keys** tab at [studio.poly.ai](https://studio.poly.ai) and set it as `POLY_API_KEY` in `.env`. For a `studio.us.poly.ai` key, set `DIALOG_REALTIME_URL=wss://api.us.poly.ai/v1/realtime` |
-| `Dialog-RSN-1 refused the connection (403)` | It's a personal access token | Use an API key from the **API Keys** tab |
-| The agent speaks in a voice you didn't choose | The session uses LiveKit's `openai.realtime.RealtimeModel`, which asks Dialog-RSN-1 for audio by default | Use `polyai.realtime.RealtimeModel()` |
+| `KeyError: 'POLY_API_KEY'` | The Dialog-RSN-1 key is missing | Copy `.env.example` to `.env` and set `POLY_API_KEY` |
+| `OpenAI Realtime API connection failed after 3 attempts (… 401 …)` | The Dialog-RSN-1 key is wrong, or it's from a regional Studio such as `studio.us.poly.ai` | Create a key in the **API Keys** tab at [studio.poly.ai](https://studio.poly.ai) and set it as `POLY_API_KEY` in `.env`. For a `studio.us.poly.ai` key, set `DIALOG_REALTIME_URL=wss://api.us.poly.ai/v1` |
+| `OpenAI Realtime API connection failed after 3 attempts (… 403 …)` | It's a personal access token | Use an API key from the **API Keys** tab |
+| The agent speaks in a voice you didn't choose | `modalities` is missing, so Dialog-RSN-1 sends audio and LiveKit skips your TTS | Pass `modalities=["text"]` to `openai.realtime.RealtimeModel` |
 | `ElevenLabs API key is required` | The key is under the wrong name | Rename it to `ELEVEN_API_KEY` |
 | `ws_url is required, or set LIVEKIT_URL` | `agent.py dev` has no LiveKit server to join | Set the `LIVEKIT_*` values in `.env`, or use `lk agent console` |
 | `caller.py` prints "no agent spoke within 30 seconds" | The agent isn't running, or it's on a different server | Start `uv run agent.py dev` with the same `LIVEKIT_URL` as the caller |
@@ -246,14 +271,12 @@ Nothing else in `agent.py` changes. LiveKit's [TTS models](https://docs.livekit.
 ## What doesn't carry over
 
 - **Turn-handling options.** LiveKit's turn detector, endpointing delays and preemptive generation don't apply, because Dialog-RSN-1 decides when the turn ends.
-- **Per-reply instructions.** `generate_reply(instructions=...)` has no effect, because the plugin doesn't send them. Put the behavior in the agent's instructions.
 - **STT features.** With no STT plugin, options such as keyterm prompting have nothing to configure. Dialog-RSN-1 transcribes the caller as part of each turn.
-- **Playback reports.** The plugin doesn't send Dialog-RSN-1's `poly.output_audio.*` events yet. The [streaming text-to-speech guide](/dialog-rsn-1/guides/streaming-text-to-speech) explains what they add.
+- **Playback reports.** LiveKit doesn't send Dialog-RSN-1's `poly.output_audio.*` events, so Dialog-RSN-1 estimates what was heard. The [streaming text-to-speech guide](/dialog-rsn-1/guides/streaming-text-to-speech) explains what they add.
 
 ## Where to go next
 
 - The [OpenAI Realtime migration guide](/dialog-rsn-1/guides/openai-realtime-migration) lists every field Dialog-RSN-1 accepts and rejects.
 - The [prompt guide](/dialog-rsn-1/prompt-guide) covers turn-taking instructions in depth.
 - The [API reference](/dialog-rsn-1/reference) lists every client and server event.
-- The [`livekit-plugins-polyai` README](https://github.com/PolyAI-LDN/livekit-plugins-polyai) lists every option and how each LiveKit feature maps to Dialog-RSN-1.
 - LiveKit's [Agents docs](https://docs.livekit.io/agents/) cover deployment, telephony and the rest of the framework.

@@ -38,25 +38,31 @@ If you'd rather write the code yourself, follow the [LiveKit](/dialog-rsn-1/guid
 
 ```text Prompt
 Make this a LiveKit agent: write agent.py, a LiveKit Agents worker that runs the
-concierge with Dialog-RSN-1 as the model through PolyAI's livekit-plugins-polyai
-plugin (install it from https://github.com/PolyAI-LDN/livekit-plugins-polyai), and
-ElevenLabs for the voice (my key is ELEVEN_API_KEY in .env). Keep the concierge
+concierge with Dialog-RSN-1 as the model through LiveKit's OpenAI realtime plugin
+(openai.realtime.RealtimeModel with base_url wss://api.studio.poly.ai/v1, my
+POLY_API_KEY, model dialog-rsn-1 and modalities ["text"]), and ElevenLabs for the
+voice (my key is ELEVEN_API_KEY in .env). Keep the concierge
 instructions and the check_availability tool. I'll talk to it with lk agent console,
 so test it in text mode with lk agent debugger first.
 ```
 
-The plugin isn't on PyPI yet, so the prompt says where to get it.
+The prompt names the settings, because the plugin's defaults are OpenAI's: without `modalities=["text"]`, Dialog-RSN-1 speaks in its own voice and ElevenLabs never runs.
 
-**What it should build.** A `pyproject.toml` with `livekit-agents[elevenlabs]`, `python-dotenv` (the worker reads `.env` with it), and `livekit-plugins-polyai` installed from GitHub (`livekit-plugins-polyai @ git+https://github.com/PolyAI-LDN/livekit-plugins-polyai`). In `agent.py`, an `Agent` subclass with the concierge's instructions, and `check_availability` as a `@function_tool` method that returns its result as a JSON string. The session takes two arguments:
+**What it should build.** A `pyproject.toml` with `livekit-agents[openai,elevenlabs]` and `python-dotenv` (the worker reads `.env` with it). In `agent.py`, an `Agent` subclass with the concierge's instructions, and `check_availability` as a `@function_tool` method that returns its result as a JSON string. The session takes two arguments:
 
 ```python
 session = AgentSession(
-    llm=polyai.realtime.RealtimeModel(),
+    llm=openai.realtime.RealtimeModel(
+        base_url="wss://api.studio.poly.ai/v1",
+        api_key=os.environ["POLY_API_KEY"],
+        model="dialog-rsn-1",
+        modalities=["text"],
+    ),
     tts=elevenlabs.TTS(voice_id="EXAVITQu4vr4xnSDxMaL", model="eleven_flash_v2_5"),
 )
 ```
 
-There's no `stt` and no turn detector: Dialog-RSN-1 does both jobs. There's no WebSocket code either. The plugin opens the Dialog-RSN-1 session, streams the room's audio in, and hands each tool call to your function. It asks Dialog-RSN-1 for text, so ElevenLabs speaks every reply and the voice changes from the quickstart's server voice to an ElevenLabs one. The greeting comes from the instructions and a plain `session.generate_reply()`, because the plugin drops per-reply instructions.
+There's no `stt` and no turn detector: Dialog-RSN-1 does both jobs. There's no WebSocket code either. The plugin opens the Dialog-RSN-1 session, streams the room's audio in, and hands each tool call to your function. It asks Dialog-RSN-1 for text, so ElevenLabs speaks every reply and the voice changes from the quickstart's server voice to an ElevenLabs one. The greeting comes from `session.generate_reply(instructions="Greet the guest.")`.
 
 Your agent may also move the instructions and `check_availability` into a shared module, so `voice_agent.py` and `agent.py` stay in step. That's fine.
 
@@ -135,15 +141,15 @@ For key and connection errors, see the [quickstart's troubleshooting](/dialog-rs
 
 | Symptom | Likely cause | Tell your agent |
 | --- | --- | --- |
-| `Dialog-RSN-1 needs an API key` | The worker can't see `POLY_API_KEY` | "Load POLY_API_KEY from the environment or .env before the AgentSession starts" |
-| `Dialog-RSN-1 refused the connection (429)`, then the session closes | Too many Dialog-RSN-1 sessions open. Each console session and each room the worker joins holds one, so a leftover worker or test run counts | Nothing: stop the other worker or test, then try again |
+| `KeyError: 'POLY_API_KEY'` | The worker can't see `POLY_API_KEY` | "Load POLY_API_KEY from the environment or .env before the AgentSession starts" |
+| `OpenAI Realtime API connection failed` with a `429` | Too many Dialog-RSN-1 sessions open. Each console session and each room the worker joins holds one, so a leftover worker or test run counts | Nothing: stop the other worker or test, then try again |
 | `failed to synthesize speech: no audio frames were pushed for text` in the worker log | ElevenLabs refused the request, usually because the account is out of credits. The streaming connection doesn't pass on the reason | Nothing: add credits at ElevenLabs. To switch provider: "Use LiveKit's Cartesia plugin for the voice instead" |
 | `ElevenLabs API key is required` | The key is under the wrong name | Rename it to `ELEVEN_API_KEY` in `.env` |
-| The agent speaks in a voice you didn't choose, or ElevenLabs never runs | The code uses LiveKit's `openai.realtime.RealtimeModel`, which asks Dialog-RSN-1 for audio | "Use polyai.realtime.RealtimeModel from livekit-plugins-polyai, not the OpenAI plugin" |
+| The agent speaks in a voice you didn't choose, or ElevenLabs never runs | `modalities` is missing, so Dialog-RSN-1 sends audio and LiveKit skips the TTS | "Pass modalities=["text"] to openai.realtime.RealtimeModel" |
 | `caller.py` waits and no agent joins, with the worker started by `lk agent dev` | `lk agent dev` registers the worker under its own deployment, so it doesn't join a plain new room | Run `uv run agent.py dev`, or `lk agent dev --deployment production` |
 | The agent keeps interrupting itself in `lk agent console` | The microphone hears the speakers | Wear headphones |
 
-The [LiveKit guide's troubleshooting](/dialog-rsn-1/guides/livekit#troubleshooting) covers the plugin's other errors, and [why not the OpenAI plugin](/dialog-rsn-1/guides/livekit#why-not-the-openai-plugin) explains the difference between the two.
+The [LiveKit guide's troubleshooting](/dialog-rsn-1/guides/livekit#troubleshooting) covers other errors, and [settings that matter](/dialog-rsn-1/guides/livekit#settings-that-matter) lists the options to set or avoid.
 
 ## Where to go next
 
@@ -151,8 +157,8 @@ The [LiveKit guide's troubleshooting](/dialog-rsn-1/guides/livekit#troubleshooti
   <Card title="LiveKit guide" icon="compass" href="/dialog-rsn-1/guides/livekit">
     The same agent, step by step, with what carries over from a standard LiveKit pipeline.
   </Card>
-  <Card title="livekit-plugins-polyai" icon="github" href="https://github.com/PolyAI-LDN/livekit-plugins-polyai">
-    The plugin's options and how each LiveKit feature maps to Dialog-RSN-1.
+  <Card title="dialog-rsn-1-livekit" icon="github" href="https://github.com/PolyAI-LDN/dialog-rsn-1-livekit">
+    A finished hotel agent on LiveKit Agents, with a scripted caller.
   </Card>
   <Card title="Prompt guide" icon="message" href="/dialog-rsn-1/prompt-guide">
     Instructions for speech, including how patient the agent is before it replies.
