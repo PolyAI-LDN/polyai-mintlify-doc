@@ -102,15 +102,18 @@ If saving fails, you see **The setup did not save**. Click the button again to r
 
 ### While PolyAI finishes the connection
 
-After you finish setup, your side is done. PolyAI completes its own setup and lets you know when calls can flow, usually within one business day:
+After you finish setup, your side is done. PolyAI checks your stack straight away, then every five minutes, and connects as soon as it can use it. That is usually within minutes of `CREATE_COMPLETE`. Each check:
 
-1. PolyAI assumes the role you created, using the external ID.
-2. PolyAI confirms the numbers are reachable from your instance.
-3. You're told when the connection is live.
+1. Assumes the role you created, using the external ID.
+2. Reads the contact table the stack created.
+
+Once both work, the **Telephony** tab shows **Amazon Connect is connected**.
 
 Until then:
 
-- The **Telephony** tab shows **Amazon Connect setup is pending**. Click **View setup** to review what you submitted.
+- The **Telephony** tab shows **Amazon Connect setup is pending**. Click **Check now** to check again without waiting, or **View setup** to review what you submitted.
+- If a check fails, the setup shows the reason under **Why it has not connected yet**, with when PolyAI last checked.
+- If you named the role something else in AWS, enter its ARN in **IAM role ARN** and click **Update role**. PolyAI checks the new role straight away. You can change the role until the setup connects.
 - **Amazon Connect** shows as **Pending** in the **Add a number** panel.
 - If you closed the setup before ticking **The stack reached CREATE_COMPLETE**, opening it again takes you back to the **AWS stack** step.
 
@@ -145,7 +148,7 @@ The prompt already includes your instance ARN, number pool, `PolyProject` value,
 
 ## Test the integration
 
-Once PolyAI tells you the connection is live:
+Once the **Telephony** tab shows **Amazon Connect is connected**:
 
 1. Call the number assigned to your contact flow and check the PolyAI agent answers with the right context.
 2. Trigger a handoff and check the call reaches the agent queue.
@@ -281,7 +284,7 @@ Your own role doesn't remove the stack's role. The stack still creates `PolyAIRo
 }
 ```
 
-Enter the role's ARN in **IAM role ARN** on the **AWS stack** step, before you click **Finish setup**.
+Enter the role's ARN in **IAM role ARN** on the **AWS stack** step, before you click **Finish setup**. If you already finished setup, you can still change it until the setup connects. See [While PolyAI finishes the connection](#while-polyai-finishes-the-connection).
 
 <Warning>
   PolyAI's connection check only assumes the role and calls `dynamodb:GetItem`. It doesn't test the other three actions. A role that is missing one of them still connects, then fails during calls. Without `dynamodb:DeleteItem`, PolyAI can't pick up the call's details. Without the Connect actions, it can't read or set contact attributes such as `should_transfer`. Check that the role allows all four actions before you send live calls.
