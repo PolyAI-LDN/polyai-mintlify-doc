@@ -1,0 +1,126 @@
+---
+title: "Search spans"
+api: "POST /api/v1/traces/spans/search"
+description: "Find spans across conversations by name, status, duration and time window."
+---
+
+Searches spans across all conversations of the account or one agent. Use it to find the slowest or failing operations of a given kind, then open the conversation they belong to. For counts and percentiles use [aggregate spans](/api-reference/traces/endpoint/aggregate-spans) instead.
+
+## Request
+
+### Headers
+
+<ParamField header="X-API-KEY" type="string" required>
+  Account API key with read access to conversations.
+</ParamField>
+
+### Body
+
+<ParamField body="project_id" type="string">
+  Restrict to one agent. Omit to search the whole account.
+</ParamField>
+
+<ParamField body="span_name" type="string">
+  Exact span name, for example `polyai.llm_gateway.provider_call`.
+</ParamField>
+
+<ParamField body="conversation_id" type="string">
+  Restrict to one conversation.
+</ParamField>
+
+<ParamField body="status_code" type="string">
+  `Ok`, `Error` or `Unset`.
+</ParamField>
+
+<ParamField body="min_duration_ms" type="integer">
+  Only spans at least this long, 0–86,400,000.
+</ParamField>
+
+<ParamField body="from" type="datetime">
+  Inclusive lower bound on span start.
+</ParamField>
+
+<ParamField body="to" type="datetime">
+  Exclusive upper bound on span start.
+</ParamField>
+
+<ParamField body="limit" type="integer" default="20">
+  Spans per page, 1–100.
+</ParamField>
+
+<ParamField body="offset" type="integer" default="0">
+  Spans to skip, 0–1000.
+</ParamField>
+
+## Response
+
+<ResponseField name="spans" type="object[]">
+  Same fields as in [get conversation spans](/api-reference/traces/endpoint/get-conversation-trace#response), newest first.
+</ResponseField>
+<ResponseField name="limit" type="integer" />
+<ResponseField name="offset" type="integer" />
+<ResponseField name="has_more" type="boolean" />
+
+## Example
+
+### Failed LLM calls slower than one second
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.us.poly.ai/api/v1/traces/spans/search \
+  -H "X-API-KEY: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": "PROJECT-V258TF29",
+    "span_name": "polyai.llm_gateway.provider_call",
+    "status_code": "Error",
+    "min_duration_ms": 1000,
+    "from": "2026-10-26T00:00:00Z",
+    "to": "2026-10-28T00:00:00Z",
+    "limit": 2
+  }'
+```
+
+```json Response
+{
+  "spans": [
+    {
+      "timestamp": "2026-10-27T08:02:07.129899",
+      "trace_id": "a9ef4a96c0582a560b74f8c7eafb29dd",
+      "span_id": "dcceb1840a7d4ec3",
+      "parent_span_id": "47bcc81194662cda",
+      "span_name": "polyai.llm_gateway.provider_call",
+      "span_kind": "Client",
+      "duration_ns": 5010374548,
+      "duration_ms": 5010.374548,
+      "status_code": "Error",
+      "conversation_id": "CA3f2c1e9d6b7a4f8e9c0d1b2a3c4d5e6f",
+      "project_id": "PROJECT-V258TF29",
+      "turn_index": 1,
+      "function_name": null,
+      "function_execution_id": null,
+      "function_originating_turn_index": null,
+      "function_attempt": null,
+      "prompt_tokens": null,
+      "cached_tokens": null,
+      "prefix_cache_hit_ratio": null
+    }
+  ],
+  "limit": 2,
+  "offset": 0,
+  "has_more": true
+}
+```
+
+</CodeGroup>
+
+## Errors
+
+| Status | Meaning |
+| ------ | ------- |
+| `400`  | `from` is not before `to`. |
+| `401`  | Missing or invalid API key. |
+| `403`  | The key cannot read conversations. |
+| `422`  | A value is outside its range. |
+| `502`  | The trace backend did not answer. |

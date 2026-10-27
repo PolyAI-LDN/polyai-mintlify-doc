@@ -6,17 +6,20 @@ description: "Aggregate per-turn timing and errors across conversations, and sea
 
 The Traces API exposes the telemetry PolyAI records while an agent runs: one **span** per unit of work (a turn, an LLM call, a function execution, a knowledge lookup) and one **log line** per event your GenAI functions write. Use it to answer "where does latency come from?", "which functions fail, and why?" and "what happened inside this call?" from your own tooling.
 
-<Note>
-These endpoints are **experimental** — their schema may change.
-</Note>
-
 ## Endpoints
 
 | Endpoint | What it does |
 |---|---|
+| [`GET /api/v1/traces/conversations`](/api-reference/traces/endpoint/list-conversations) | Conversations that have spans in a window, with turn and error counts. |
+| [`GET /api/v1/traces/conversations/{conversation_id}`](/api-reference/traces/endpoint/get-conversation-trace) | Every span of one conversation, with parent links. |
+| [`GET /api/v1/traces/conversations/{conversation_id}/timeline`](/api-reference/traces/endpoint/get-conversation-timeline) | Per-turn, per-span start, end, duration and error count. |
+| [`GET /api/v1/traces/conversations/{conversation_id}/turns/{turn_index}`](/api-reference/traces/endpoint/get-conversation-turn) | The spans of one turn. |
+| [`POST /api/v1/traces/spans/search`](/api-reference/traces/endpoint/search-spans) | Find spans across conversations by name, status, duration and window. |
 | [`POST /api/v1/traces/spans/aggregate`](/api-reference/traces/endpoint/aggregate-spans) | Percentiles, counts and error rates over spans, bucketed by time and grouped by span name, turn, function, error type and more. |
 | [`POST /api/v1/traces/logs/search`](/api-reference/traces/endpoint/search-logs) | Page through the log lines your GenAI functions wrote, filtered by conversation, function, level, text, error type or the span they ran in. |
 | [`POST /api/v1/traces/logs/aggregate`](/api-reference/traces/endpoint/aggregate-logs) | Count those log lines and the conversations they belong to, bucketed by hour or day and grouped by event, function, error type and more. |
+
+The three `aggregate` and `logs` endpoints are **experimental** — their schema may change.
 
 ## Base URL and authentication
 
@@ -96,7 +99,9 @@ Lines the function runtime writes about itself (for example when a function cann
 | `limit` | 1–100, default 20 | 1–100, default 50 | 1–100, default 20 |
 | `offset` | 0–1000 | 0–1000 | 0–1000 |
 
-`from` is inclusive, `to` exclusive, both ISO 8601. Every response carries `has_more`. `logs/search` also echoes the `from` and `to` it used: pass them back on the next page so new log lines do not shift the results.
+The conversation endpoints and `spans/search` take an optional window with no cap, and page the same way.
+
+`from` is inclusive, `to` exclusive, both ISO 8601. Timestamps in responses are UTC; the span endpoints return them without an offset suffix, the log endpoints with `+00:00`. Every response carries `has_more`. `logs/search` also echoes the `from` and `to` it used: pass them back on the next page so new log lines do not shift the results.
 
 Aggregate responses are tabular: `columns` names the fields, and each entry in `rows` lists values in that order. When you set `interval`, the first column is `bucket`.
 

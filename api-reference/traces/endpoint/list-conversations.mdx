@@ -1,0 +1,98 @@
+---
+title: "List traced conversations"
+api: "GET /api/v1/traces/conversations"
+description: "Conversations that have spans in a window, newest first, with turn and error counts."
+---
+
+Lists the conversations that produced spans, one summary per conversation. Use it to find a conversation to inspect, then fetch its [spans](/api-reference/traces/endpoint/get-conversation-trace), [timeline](/api-reference/traces/endpoint/get-conversation-timeline) or a [single turn](/api-reference/traces/endpoint/get-conversation-turn).
+
+## Request
+
+### Headers
+
+<ParamField header="X-API-KEY" type="string" required>
+  Account API key with read access to conversations.
+</ParamField>
+
+### Query parameters
+
+<ParamField query="project_id" type="string">
+  Restrict to one agent. Omit to list the whole account.
+</ParamField>
+
+<ParamField query="from" type="datetime">
+  Inclusive lower bound on the conversation's first turn, ISO 8601.
+</ParamField>
+
+<ParamField query="to" type="datetime">
+  Exclusive upper bound. Must be after `from`.
+</ParamField>
+
+<ParamField query="limit" type="integer" default="20">
+  Conversations per page, 1–100.
+</ParamField>
+
+<ParamField query="offset" type="integer" default="0">
+  Conversations to skip, 0–1000.
+</ParamField>
+
+## Response
+
+<ResponseField name="conversations" type="object[]">
+  <Expandable title="properties">
+    <ResponseField name="conversation_id" type="string" />
+    <ResponseField name="project_id" type="string" />
+    <ResponseField name="first_turn" type="datetime">
+      Start of the first turn, UTC.
+    </ResponseField>
+    <ResponseField name="last_turn" type="datetime">
+      Start of the last turn, UTC.
+    </ResponseField>
+    <ResponseField name="turn_count" type="integer" />
+    <ResponseField name="error_count" type="integer">
+      Spans with status `Error` across the conversation.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="limit" type="integer" />
+<ResponseField name="offset" type="integer" />
+<ResponseField name="has_more" type="boolean" />
+
+## Example
+
+<CodeGroup>
+
+```bash cURL
+curl "https://api.us.poly.ai/api/v1/traces/conversations?project_id=PROJECT-V258TF29&from=2026-10-26T00:00:00Z&to=2026-10-28T00:00:00Z&limit=2" \
+  -H "X-API-KEY: YOUR_API_KEY"
+```
+
+```json Response
+{
+  "conversations": [
+    {
+      "conversation_id": "CA3f2c1e9d6b7a4f8e9c0d1b2a3c4d5e6f",
+      "project_id": "PROJECT-V258TF29",
+      "first_turn": "2026-10-27T15:07:34.930309",
+      "last_turn": "2026-10-27T15:07:35.680461",
+      "turn_count": 2,
+      "error_count": 0
+    }
+  ],
+  "limit": 2,
+  "offset": 0,
+  "has_more": true
+}
+```
+
+</CodeGroup>
+
+## Errors
+
+| Status | Meaning |
+| ------ | ------- |
+| `400`  | `from` is not before `to`. |
+| `401`  | Missing or invalid API key. |
+| `403`  | The key cannot read conversations. |
+| `502`  | The trace backend did not answer. |

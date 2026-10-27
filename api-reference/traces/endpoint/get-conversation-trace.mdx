@@ -1,0 +1,137 @@
+---
+title: "Get conversation spans"
+api: "GET /api/v1/traces/conversations/{conversation_id}"
+description: "Every span of one conversation, ordered by start time, with parent links so you can rebuild the tree."
+---
+
+Returns all spans recorded for a conversation. Each span carries `parent_span_id`, so you can nest them: a `polyai.turn` contains the LLM, function and retrieval spans that produced that turn. Function spans carry `span_id` values you can pass to [search function logs](/api-reference/traces/endpoint/search-logs) to read what that execution wrote.
+
+## Request
+
+### Headers
+
+<ParamField header="X-API-KEY" type="string" required>
+  Account API key with read access to conversations.
+</ParamField>
+
+### Path parameters
+
+<ParamField path="conversation_id" type="string" required>
+  The conversation to fetch.
+</ParamField>
+
+### Query parameters
+
+<ParamField query="project_id" type="string">
+  The agent the conversation belongs to. Optional with an account API key.
+</ParamField>
+
+## Response
+
+<ResponseField name="conversation_id" type="string" />
+<ResponseField name="project_id" type="string" />
+<ResponseField name="total" type="integer">
+  Number of spans returned, at most 10,000.
+</ResponseField>
+<ResponseField name="spans" type="object[]">
+  Ordered by `timestamp` ascending.
+
+  <Expandable title="properties">
+    <ResponseField name="timestamp" type="datetime">
+      Span start, UTC.
+    </ResponseField>
+    <ResponseField name="trace_id" type="string" />
+    <ResponseField name="span_id" type="string" />
+    <ResponseField name="parent_span_id" type="string">
+      `null` on a root span.
+    </ResponseField>
+    <ResponseField name="span_name" type="string">
+      See the [span names](/api-reference/traces/introduction#spans).
+    </ResponseField>
+    <ResponseField name="span_kind" type="string">
+      OpenTelemetry span kind, for example `Internal` or `Client`.
+    </ResponseField>
+    <ResponseField name="duration_ns" type="integer" />
+    <ResponseField name="duration_ms" type="number" />
+    <ResponseField name="status_code" type="string">
+      `Ok`, `Error` or `Unset`.
+    </ResponseField>
+    <ResponseField name="conversation_id" type="string" />
+    <ResponseField name="project_id" type="string" />
+    <ResponseField name="turn_index" type="integer">
+      0-based turn. `null` on spans outside a turn.
+    </ResponseField>
+    <ResponseField name="function_name" type="string">
+      Function spans only.
+    </ResponseField>
+    <ResponseField name="function_execution_id" type="string">
+      Function spans only.
+    </ResponseField>
+    <ResponseField name="function_originating_turn_index" type="integer">
+      Function spans only: the turn that triggered the call.
+    </ResponseField>
+    <ResponseField name="function_attempt" type="integer">
+      Function spans only: attempt number, higher on retries.
+    </ResponseField>
+    <ResponseField name="prompt_tokens" type="integer">
+      LLM spans, when the provider reports token usage.
+    </ResponseField>
+    <ResponseField name="cached_tokens" type="integer">
+      LLM spans, when reported: prompt tokens served from the provider's prefix cache.
+    </ResponseField>
+    <ResponseField name="prefix_cache_hit_ratio" type="number">
+      LLM spans, when reported: share of the prompt served from the prefix cache, 0–1.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example
+
+<CodeGroup>
+
+```bash cURL
+curl "https://api.us.poly.ai/api/v1/traces/conversations/CA3f2c1e9d6b7a4f8e9c0d1b2a3c4d5e6f?project_id=PROJECT-V258TF29" \
+  -H "X-API-KEY: YOUR_API_KEY"
+```
+
+```json Response
+{
+  "conversation_id": "CA3f2c1e9d6b7a4f8e9c0d1b2a3c4d5e6f",
+  "project_id": "PROJECT-V258TF29",
+  "total": 9,
+  "spans": [
+    {
+      "timestamp": "2026-10-27T15:07:34.930309",
+      "trace_id": "04f15d938151e7a09877c39978e7875f",
+      "span_id": "4519400991678f44",
+      "parent_span_id": "fb4025dc254eb11f",
+      "span_name": "polyai.turn",
+      "span_kind": "Internal",
+      "duration_ns": 19071851,
+      "duration_ms": 19.071851,
+      "status_code": "Unset",
+      "conversation_id": "CA3f2c1e9d6b7a4f8e9c0d1b2a3c4d5e6f",
+      "project_id": "PROJECT-V258TF29",
+      "turn_index": 0,
+      "function_name": null,
+      "function_execution_id": null,
+      "function_originating_turn_index": null,
+      "function_attempt": null,
+      "prompt_tokens": null,
+      "cached_tokens": null,
+      "prefix_cache_hit_ratio": null
+    }
+  ]
+}
+```
+
+</CodeGroup>
+
+## Errors
+
+| Status | Meaning |
+| ------ | ------- |
+| `401`  | Missing or invalid API key. |
+| `403`  | The key cannot read conversations. |
+| `404`  | The conversation has no spans, or belongs to another account. |
+| `502`  | The trace backend did not answer. |
