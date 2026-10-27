@@ -1,0 +1,198 @@
+---
+title: "Search function logs"
+api: "POST /api/v1/traces/logs/search"
+description: "Page through the log lines your GenAI functions wrote, newest first."
+---
+
+Returns the log lines written by the GenAI functions of an account, one entry per line, with the event label and the span the function ran in. Filter by conversation, function, level, environment, error type, whole-word text, or the exact span. The raw log line and its payload are never returned. See the [overview](/api-reference/traces/introduction#function-logs) for how lines link to spans.
+
+## Request
+
+### Headers
+
+<ParamField header="X-API-KEY" type="string" required>
+  Account API key with read access to conversations.
+</ParamField>
+
+### Body
+
+<ParamField body="project_id" type="string">
+  Restrict to one agent. Omit to search the whole account.
+</ParamField>
+
+<ParamField body="conversation_id" type="string">
+  Matches the conversation ID or the call SID.
+</ParamField>
+
+<ParamField body="function_names" type="string[]">
+  Function (tool) names, up to 20.
+</ParamField>
+
+<ParamField body="levels" type="string[]">
+  `debug`, `info`, `warning`, `error`, `critical`.
+</ParamField>
+
+<ParamField body="client_envs" type="string[]">
+  Environments: `test`, `sandbox`, `pre-release`, `live`, `scenarios`. `pre-release` is the Staging environment.
+</ParamField>
+
+<ParamField body="error_types" type="string[]">
+  Exception classes on failure lines, for example `KeyError`, up to 20.
+</ParamField>
+
+<ParamField body="text" type="object">
+  Whole-word, case-insensitive terms matched on the event label: `{ "all": [...], "any": [...], "none": [...] }`, up to 10 terms each. `api request` finds `API request error`; `api req` does not.
+</ParamField>
+
+<ParamField body="trace_id" type="string">
+  Trace ID of the function-execution span.
+</ParamField>
+
+<ParamField body="span_id" type="string">
+  Span ID of the function-execution span. Returns exactly the lines that one execution wrote.
+</ParamField>
+
+<ParamField body="turn_index" type="integer">
+  0-based turn the function call belongs to. Must be an integer.
+</ParamField>
+
+<ParamField body="from" type="datetime">
+  Inclusive window start. Defaults to 24 hours before `to`. The window may span at most 30 days.
+</ParamField>
+
+<ParamField body="to" type="datetime">
+  Exclusive window end. Defaults to now. The response echoes the value used; pass it back when paging so new lines do not shift the pages.
+</ParamField>
+
+<ParamField body="order" type="string" default="desc">
+  `desc` (newest first) or `asc`.
+</ParamField>
+
+<ParamField body="limit" type="integer" default="50">
+  Lines per page, 1–100.
+</ParamField>
+
+<ParamField body="offset" type="integer" default="0">
+  Lines to skip, 0–1000.
+</ParamField>
+
+## Response
+
+<ResponseField name="logs" type="object[]">
+  One entry per log line.
+
+  <Expandable title="properties">
+    <ResponseField name="timestamp" type="datetime" />
+    <ResponseField name="level" type="string" />
+    <ResponseField name="project_id" type="string" />
+    <ResponseField name="client_env" type="string" />
+    <ResponseField name="function_name" type="string" />
+    <ResponseField name="conversation_id" type="string" />
+    <ResponseField name="call_sid" type="string" />
+    <ResponseField name="event" type="string">
+      The event label the function logged, for example `API request error`.
+    </ResponseField>
+    <ResponseField name="error_type" type="string">
+      Exception class on a failure line, for example `KeyError`. Empty otherwise.
+    </ResponseField>
+    <ResponseField name="trace_id" type="string">
+      Trace ID of the function-execution span. Empty when the line is not linked.
+    </ResponseField>
+    <ResponseField name="span_id" type="string">
+      Span ID of the function-execution span. Empty when the line is not linked.
+    </ResponseField>
+    <ResponseField name="turn_index" type="string">
+      0-based turn the call belongs to, as a string. Empty when unknown.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="from" type="datetime">
+  Window start actually used.
+</ResponseField>
+<ResponseField name="to" type="datetime">
+  Window end actually used.
+</ResponseField>
+<ResponseField name="limit" type="integer" />
+<ResponseField name="offset" type="integer" />
+<ResponseField name="has_more" type="boolean" />
+
+## Examples
+
+### Errors from one function in the last 24 hours
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.us.poly.ai/api/v1/traces/logs/search \
+  -H "X-API-KEY: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": "PROJECT-V258TF29",
+    "function_names": ["send_sms"],
+    "levels": ["error"],
+    "limit": 2
+  }'
+```
+
+```json Response
+{
+  "logs": [
+    {
+      "timestamp": "2026-10-26T18:22:36.175000+00:00",
+      "level": "error",
+      "project_id": "PROJECT-V258TF29",
+      "client_env": "live",
+      "function_name": "send_sms",
+      "conversation_id": "CA3f2c1e9d6b7a4f8e9c0d1b2a3c4d5e6f",
+      "call_sid": "CA3f2c1e9d6b7a4f8e9c0d1b2a3c4d5e6f",
+      "event": "SMS failed to send",
+      "error_type": "",
+      "trace_id": "183208fafb304cebf5e07c90f7b48f0f",
+      "span_id": "8cff57c6d5aaa768",
+      "turn_index": "10"
+    }
+  ],
+  "from": "2026-10-26T13:57:43.353614+00:00",
+  "to": "2026-10-27T13:57:43.353614+00:00",
+  "limit": 2,
+  "offset": 0,
+  "has_more": true
+}
+```
+
+</CodeGroup>
+
+### Everything one execution wrote
+
+Take `span_id` from a search result, or from a span search, and pass it back:
+
+```json Request
+{
+  "project_id": "PROJECT-V258TF29",
+  "span_id": "8cff57c6d5aaa768",
+  "order": "asc"
+}
+```
+
+### Uncaught exceptions in a conversation
+
+```json Request
+{
+  "project_id": "PROJECT-V258TF29",
+  "conversation_id": "CA3f2c1e9d6b7a4f8e9c0d1b2a3c4d5e6f",
+  "error_types": ["KeyError", "TimeoutError"],
+  "from": "2026-10-20T00:00:00Z",
+  "to": "2026-10-27T00:00:00Z"
+}
+```
+
+## Errors
+
+| Status | Meaning |
+| ------ | ------- |
+| `400`  | The window is empty or exceeds 30 days. |
+| `401`  | Missing or invalid API key. |
+| `403`  | The key cannot read conversations. |
+| `422`  | A value is outside its enum or range, or `turn_index` is not an integer. |
+| `502`  | The log backend did not answer. |
