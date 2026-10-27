@@ -4,7 +4,7 @@ api: "GET /api/v1/traces/conversations/{conversation_id}/timeline"
 description: "One row per turn and span name, with start, end, duration and error count, in order."
 ---
 
-Collapses a conversation's spans into a chronological timeline: for each turn and span name, when the first such span started, when the last one ended, and how many failed. Lighter than [fetching every span](/api-reference/traces/endpoint/get-conversation-trace) when you want a per-turn latency picture.
+Collapses a conversation's spans into a chronological timeline: for each turn and span name, when the first such span started, when the last one ended, how long they ran in total, and how many failed. Lighter than [fetching every span](/api-reference/traces/endpoint/get-conversation-trace) when you want a per-turn latency picture.
 
 ## Request
 
@@ -47,7 +47,9 @@ Collapses a conversation's spans into a chronological timeline: for each turn an
     <ResponseField name="end_time" type="datetime">
       Latest end among the group's spans, UTC.
     </ResponseField>
-    <ResponseField name="duration_ns" type="integer" />
+    <ResponseField name="duration_ns" type="integer">
+      Sum of the group's span durations. Can be less than `end_time - start_time` when the spans do not run back to back.
+    </ResponseField>
     <ResponseField name="duration_ms" type="number" />
     <ResponseField name="error_count" type="integer">
       Spans in the group with status `Error`.
