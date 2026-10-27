@@ -7,7 +7,7 @@ mode: wide
 
 Data MCP exposes PolyAI's conversation data as MCP tools. Your client discovers them automatically on connection — you don't configure tools by hand. Each tool carries its own input schema, which the client reads directly from the server; the parameter tables below reproduce that schema so you can see what each tool takes without connecting first.
 
-Data MCP exposes **8 tools**. Tool names appear exactly as your client sees them in `tools/list`.
+Data MCP exposes **13 tools**. Tool names appear exactly as your client sees them in `tools/list`.
 
 <Note>
 To see exactly what your client discovered, ask it to list its tools or query the endpoint's `tools/list` method. Parameters map to a PolyAI REST endpoint — they're sent as path segments, query parameters, or a request body — but your client handles that wiring from the schema; the tables below just list what you can set.
@@ -102,9 +102,61 @@ Aggregate a metric over a time window into buckets you can chart — with groupi
 
 ## Traces & function logs
 
-Break latency and errors down per turn and per span, and read the log lines your GenAI functions write. These tools wrap the [Traces API](/api-reference/traces/introduction); see it for the span names, measures and `error_type` values.
+Find a conversation's spans, break latency and errors down per turn and per span, and read the log lines your GenAI functions write. These tools wrap the [Traces API](/api-reference/traces/introduction); see it for the span names, measures and `error_type` values.
 
-<Note>These tools are **experimental** — their schema may change. Your client discovers the current names from `tools/list`.</Note>
+### `list-product-conversations`
+
+List the conversations that produced spans in a time window, newest first, with turn and error counts.
+
+| Parameter          | Type     | Description                                                      |
+| ------------------ | -------- | ---------------------------------------------------------------- |
+| `from` / `to`      | datetime | Bounds on the conversation's first turn (`from` inclusive, `to` exclusive). |
+| `limit` / `offset` | integer  | Pagination. `limit` 1–100 (default 20), `offset` 0–1000.          |
+| `project_id`       | string   | Optional project scope.                                           |
+
+### `get-product-trace`
+
+Every span of one conversation, ordered by start time, with `parent_span_id` so the tree can be rebuilt. Function spans carry the `span_id` to pass to `search-function-logs`.
+
+| Parameter         | Type   | Description                               |
+| ----------------- | ------ | ----------------------------------------- |
+| `conversation_id` | string | The conversation to fetch. **Required.**  |
+| `project_id`      | string | Optional project scope.                   |
+
+### `get-product-timeline`
+
+One entry per turn and span name with start, end, duration and error count — a per-turn latency picture without every span.
+
+| Parameter         | Type   | Description                                  |
+| ----------------- | ------ | -------------------------------------------- |
+| `conversation_id` | string | The conversation to summarise. **Required.** |
+| `project_id`      | string | Optional project scope.                      |
+
+### `get-product-turn`
+
+The spans of one turn of a conversation.
+
+| Parameter         | Type    | Description                          |
+| ----------------- | ------- | ------------------------------------ |
+| `conversation_id` | string  | The conversation. **Required.**      |
+| `turn_index`      | integer | 0-based turn. **Required.**          |
+| `project_id`      | string  | Optional project scope.              |
+
+### `search-product-spans`
+
+Find spans across conversations by name, status, duration and window, newest first. For counts and percentiles use `aggregate-product-spans`.
+
+| Parameter          | Type     | Description                                                      |
+| ------------------ | -------- | ---------------------------------------------------------------- |
+| `span_name`        | string   | Exact span name, e.g. `polyai.llm_gateway.provider_call`.         |
+| `status_code`      | string   | `Ok`, `Error` or `Unset`.                                         |
+| `min_duration_ms`  | integer  | Only spans at least this long.                                    |
+| `conversation_id`  | string   | Restrict to one conversation.                                     |
+| `from` / `to`      | datetime | Bounds on span start (`from` inclusive, `to` exclusive).          |
+| `limit` / `offset` | integer  | Pagination. `limit` 1–100 (default 20), `offset` 0–1000.          |
+| `project_id`       | string   | Optional project scope.                                           |
+
+<Note>The three tools below are **experimental** — their schema may change. Your client discovers the current names from `tools/list`.</Note>
 
 ### `aggregate-product-spans`
 
