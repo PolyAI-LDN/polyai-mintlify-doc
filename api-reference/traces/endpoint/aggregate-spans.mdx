@@ -29,7 +29,7 @@ Aggregates the spans in a time window into one row per bucket and group. Use it 
 </ParamField>
 
 <ParamField body="measure" type="string" default="duration_ms">
-  Per-span value the timing aggregations run over: `duration_ms`, `time_to_first_token_ms` or `time_to_first_byte_ms`. Spans without the measure are skipped by the timing aggregations and still counted.
+  Per-span value the timing aggregations run over: `duration_ms`, `time_to_first_token_ms` (set on `polyai.llm_gateway.provider_call` spans) or `time_to_first_byte_ms` (set on TTS spans). Filter on `span_name` for the last two: where no span carries the measure, percentiles return `0` and `avg`/`min`/`max` return `null`.
 </ParamField>
 
 <ParamField body="group_by" type="string[]">
@@ -145,6 +145,7 @@ curl -X POST https://api.us.poly.ai/api/v1/traces/spans/aggregate \
   "project_id": "PROJECT-V258TF29",
   "from": "2026-10-26T00:00:00Z",
   "to": "2026-10-27T00:00:00Z",
+  "span_name": "polyai.llm_gateway.provider_call",
   "measure": "time_to_first_token_ms",
   "aggs": ["p95"],
   "group_by": ["turn_index"],
