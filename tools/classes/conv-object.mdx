@@ -723,13 +723,135 @@ The Conversation object (conv) provides access to conversation data and tools fo
   <Accordion title="set_voice">
     **Description**: Change the TTS voice for the current conversation moving forward.
     
-    **Parameters**: voice (TTSVoice) – the voice configuration to use.
-    
-    **Example**:
-    ```python
-    from polyai.voice import ElevenLabsVoice
-    conv.set_voice(ElevenLabsVoice(provider_voice_id="abc123"))
-    ```
+    **Parameters**: voice (TTSVoice) – a provider-specific voice object from `polyai.voice`. Each provider class has its own required and optional parameters:
+
+    | Class | Required | Optional |
+    |-------|----------|----------|
+    | `ElevenLabsVoice` | `provider_voice_id` | `model_id`, `stability`, `similarity_boost`, `speed` |
+    | `CartesiaVoice` | `provider_voice_id` | `model_id`, `speed`, `emotions`; Sonic 3+: `volume`, `emotion`, `language` |
+    | `RimeVoice` | `provider_voice_id` | `model_id`, `speech_alpha` |
+    | `PlayHTVoice` | `provider_voice_id` | `voice_engine`, `speed`, `temperature`, `emotion`, `voice_guidance`, `style_guidance` |
+    | `MinimaxVoice` | `model_id`, `voice_id` | `speed`, `vol`, `pitch`, `emotion` |
+    | `HumeVoice` | `provider_voice_id` | `voice_description`, `version`, `instant_mode`, `provider` |
+    | `GoogleVoice` | `provider_voice_id` | `gender` |
+    | `CustomVoice` | `provider`, `provider_voice_id` | Any extra keyword arguments |
+
+    Omitted optional parameters use the provider default. See [Voice classes](/tools/classes/voice) for value ranges and model IDs.
+
+    **Examples**:
+
+    <Tabs>
+      <Tab title="ElevenLabs">
+        ```python
+        from polyai.voice import ElevenLabsVoice
+
+        # Minimal – only provider_voice_id is required
+        conv.set_voice(ElevenLabsVoice(provider_voice_id="abc123"))
+
+        # With tuning
+        conv.set_voice(
+            ElevenLabsVoice(
+                provider_voice_id="abc123",
+                model_id="eleven_turbo_v2_5",
+                stability=0.5,
+                similarity_boost=0.7,
+                speed=1.0,
+            )
+        )
+        ```
+      </Tab>
+      <Tab title="Cartesia">
+        ```python
+        from polyai.voice import CartesiaVoice, Emotion, EmotionKind, EmotionIntensity
+
+        conv.set_voice(
+            CartesiaVoice(
+                provider_voice_id="abc123",
+                model_id="sonic-3",
+                speed=0.0,
+                emotions=[Emotion(EmotionKind.POSITIVITY, EmotionIntensity.HIGH)],
+            )
+        )
+        ```
+      </Tab>
+      <Tab title="Rime">
+        ```python
+        from polyai.voice import RimeVoice
+
+        conv.set_voice(
+            RimeVoice(
+                provider_voice_id="abc123",
+                model_id="mistv2",
+                speech_alpha=1.0,
+            )
+        )
+        ```
+      </Tab>
+      <Tab title="PlayHT">
+        ```python
+        from polyai.voice import PlayHTVoice
+
+        conv.set_voice(
+            PlayHTVoice(
+                provider_voice_id="abc123",
+                voice_engine="Play3.0-mini",
+                speed=1.0,
+            )
+        )
+        ```
+      </Tab>
+      <Tab title="Minimax">
+        `MinimaxVoice` requires `model_id` and `voice_id`. It does not take `provider_voice_id`.
+
+        ```python
+        from polyai.voice import MinimaxVoice
+
+        conv.set_voice(
+            MinimaxVoice(
+                model_id="speech-02-hd",
+                voice_id="abc123",
+                speed=1.0,
+            )
+        )
+        ```
+      </Tab>
+      <Tab title="Hume">
+        ```python
+        from polyai.voice import HumeVoice
+
+        conv.set_voice(
+            HumeVoice(
+                provider_voice_id="abc123",
+                version="2",
+            )
+        )
+        ```
+      </Tab>
+      <Tab title="Google">
+        ```python
+        from polyai.voice import GoogleVoice
+
+        conv.set_voice(
+            GoogleVoice(
+                provider_voice_id="en-US-Neural2-F",
+                gender="female",
+            )
+        )
+        ```
+      </Tab>
+      <Tab title="Custom">
+        ```python
+        from polyai.voice import CustomVoice
+
+        conv.set_voice(
+            CustomVoice(
+                provider="MY_PROVIDER",
+                provider_voice_id="abc123",
+            )
+        )
+        ```
+      </Tab>
+    </Tabs>
   </Accordion>
 
   <Accordion title="set_language">
