@@ -1,0 +1,190 @@
+---
+title: "Aggregate spans"
+api: "POST /api/v1/traces/spans/aggregate"
+description: "Percentiles, counts and error rates over product spans, bucketed by time and grouped by dimension."
+---
+
+Aggregates the spans in a time window into one row per bucket and group. Use it for latency breakdowns per turn or per span, error rates per function or per error type, and trends over hours, days, weeks or months. See the [overview](/api-reference/traces/introduction) for the span, measure and error-type vocabulary.
+
+## Request
+
+### Headers
+
+<ParamField header="X-API-KEY" type="string" required>
+  Account API key with read access to conversations.
+</ParamField>
+
+### Body
+
+<ParamField body="from" type="datetime" required>
+  Inclusive window start, ISO 8601.
+</ParamField>
+
+<ParamField body="to" type="datetime" required>
+  Exclusive window end. The window may span at most 30 days.
+</ParamField>
+
+<ParamField body="aggs" type="string[]" required>
+  Aggregations to compute, one column each: `p50`, `p95`, `p99`, `avg`, `min`, `max` (over `measure`), `count`, `error_count`, `error_rate` (errors divided by count, `null` when count is 0), `conversation_count`.
+</ParamField>
+
+<ParamField body="measure" type="string" default="duration_ms">
+  Per-span value the timing aggregations run over: `duration_ms`, `time_to_first_token_ms` (set on `polyai.llm_gateway.provider_call` spans) or `time_to_first_byte_ms` (set on TTS spans). Filter on `span_name` for the last two: where no span carries the measure, percentiles return `0` and `avg`/`min`/`max` return `null`.
+</ParamField>
+
+<ParamField body="group_by" type="string[]">
+  Dimensions to group by, one column each: `span_name`, `service`, `layer`, `project_id`, `client_env`, `turn_index`, `function_name`, `flow_name`, `step_name`, `deployment_version`, `error_type`.
+</ParamField>
+
+<ParamField body="interval" type="string">
+  Time bucket: `hourly`, `daily`, `weekly` or `monthly`. Adds a leading `bucket` column. Omit for one unbucketed result per group.
+</ParamField>
+
+<ParamField body="timezone" type="string">
+  IANA timezone (for example `Europe/London`) applied to the buckets. Defaults to UTC.
+</ParamField>
+
+<ParamField body="project_id" type="string">
+  Restrict to one agent. Omit to aggregate the whole account.
+</ParamField>
+
+<ParamField body="span_name" type="string">
+  Exact span name, for example `polyai.turn`.
+</ParamField>
+
+<ParamField body="status_code" type="string">
+  `Ok`, `Error` or `Unset`.
+</ParamField>
+
+<ParamField body="function_name" type="string">
+  Restrict to the spans of one GenAI function.
+</ParamField>
+
+<ParamField body="error_type" type="string">
+  Restrict to spans that failed for this reason, for example `LLM_PROVIDER_UNAVAILABLE` or `function_error`.
+</ParamField>
+
+<ParamField body="conversation_id" type="string">
+  Restrict to one conversation.
+</ParamField>
+
+<ParamField body="client_env" type="string[]">
+  Restrict to environments: `test`, `sandbox`, `pre-release`, `live`, `scenarios`. `pre-release` is the Staging environment.
+</ParamField>
+
+<ParamField body="sort" type="object">
+  `{ "field": "<a group_by or aggs value>", "order": "asc" | "desc" }`. Applied after the ascending bucket sort.
+</ParamField>
+
+<ParamField body="limit" type="integer" default="20">
+  Rows per page, 1–100.
+</ParamField>
+
+<ParamField body="offset" type="integer" default="0">
+  Rows to skip, 0–1000.
+</ParamField>
+
+## Response
+
+<ResponseField name="columns" type="string[]">
+  Column names in row order: `bucket` (when `interval` is set), then each `group_by` dimension, then each aggregation.
+</ResponseField>
+
+<ResponseField name="rows" type="array[]">
+  One array per bucket and group, values in `columns` order. Timing values are milliseconds.
+</ResponseField>
+
+<ResponseField name="limit" type="integer" />
+<ResponseField name="offset" type="integer" />
+<ResponseField name="has_more" type="boolean">
+  `true` when another page exists.
+</ResponseField>
+
+## Examples
+
+### Latency and error rate per span
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.us.poly.ai/api/v1/traces/spans/aggregate \
+  -H "X-API-KEY: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": "PROJECT-V258TF29",
+    "from": "2026-10-26T00:00:00Z",
+    "to": "2026-10-28T00:00:00Z",
+    "aggs": ["p50", "p95", "count", "error_count", "error_rate"],
+    "group_by": ["span_name"],
+    "sort": {"field": "count", "order": "desc"},
+    "limit": 10
+  }'
+```
+
+```json Response
+{
+  "columns": ["span_name", "p50", "p95", "count", "error_count", "error_rate"],
+  "rows": [
+    ["polyai.turn", 896.16, 2645.03, 5207, 0, 0.0],
+    ["polyai.rag.query", 37.57, 45.88, 5084, 0, 0.0],
+    ["polyai.llm_gateway.provider_call", 1226.5, 2140.77, 3495, 49, 0.014],
+    ["polyai.function.execution", 62.4, 151.42, 1949, 0, 0.0]
+  ],
+  "limit": 10,
+  "offset": 0,
+  "has_more": false
+}
+```
+
+</CodeGroup>
+
+### Time to first token per turn, hourly
+
+```json Request
+{
+  "project_id": "PROJECT-V258TF29",
+  "from": "2026-10-26T00:00:00Z",
+  "to": "2026-10-27T00:00:00Z",
+  "span_name": "polyai.llm_gateway.provider_call",
+  "measure": "time_to_first_token_ms",
+  "aggs": ["p95"],
+  "group_by": ["turn_index"],
+  "interval": "hourly",
+  "timezone": "Europe/London"
+}
+```
+
+### Why LLM calls failed
+
+```json Request
+{
+  "project_id": "PROJECT-V258TF29",
+  "from": "2026-10-26T00:00:00Z",
+  "to": "2026-10-28T00:00:00Z",
+  "status_code": "Error",
+  "aggs": ["count"],
+  "group_by": ["error_type"]
+}
+```
+
+```json Response
+{
+  "columns": ["error_type", "count"],
+  "rows": [
+    ["LLM_PROVIDER_UNAVAILABLE", 89]
+  ],
+  "limit": 20,
+  "offset": 0,
+  "has_more": false
+}
+```
+
+## Errors
+
+| Status | Meaning |
+| ------ | ------- |
+| `400`  | `sort.field` is not one of the output columns. |
+| `401`  | Missing or invalid API key. |
+| `403`  | The key cannot read conversations. |
+| `422`  | `from` is not before `to`, the window exceeds 30 days, or a value is outside its enum or range. |
+| `502`  | The trace backend did not answer. |

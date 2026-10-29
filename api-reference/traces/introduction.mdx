@@ -1,0 +1,116 @@
+---
+title: "Traces API"
+sidebarTitle: "Overview"
+description: "Aggregate per-turn timing and errors across conversations, and search the logs your GenAI functions write — without raw payloads."
+---
+
+The Traces API exposes the telemetry PolyAI records while an agent runs: one **span** per unit of work (a turn, an LLM call, a function execution, a knowledge lookup) and one **log line** per event your GenAI functions write. Use it to answer "where does latency come from?", "which functions fail, and why?" and "what happened inside this call?" from your own tooling.
+
+## Endpoints
+
+| Endpoint | What it does |
+|---|---|
+| [`GET /api/v1/traces/conversations`](/api-reference/traces/endpoint/list-conversations) | Conversations that have spans in a window, with turn and error counts. |
+| [`GET /api/v1/traces/conversations/{conversation_id}`](/api-reference/traces/endpoint/get-conversation-trace) | Every span of one conversation, with parent links. |
+| [`GET /api/v1/traces/conversations/{conversation_id}/timeline`](/api-reference/traces/endpoint/get-conversation-timeline) | Per-turn, per-span start, end, duration and error count. |
+| [`GET /api/v1/traces/conversations/{conversation_id}/turns/{turn_index}`](/api-reference/traces/endpoint/get-conversation-turn) | The spans of one turn. |
+| [`POST /api/v1/traces/spans/search`](/api-reference/traces/endpoint/search-spans) | Find spans across conversations by name, status, duration and window. |
+| [`POST /api/v1/traces/spans/aggregate`](/api-reference/traces/endpoint/aggregate-spans) | Percentiles, counts and error rates over spans, bucketed by time and grouped by span name, turn, function, error type and more. |
+| [`POST /api/v1/traces/logs/search`](/api-reference/traces/endpoint/search-logs) | Page through the log lines your GenAI functions wrote, filtered by conversation, function, level, text, error type or the span they ran in. |
+| [`POST /api/v1/traces/logs/aggregate`](/api-reference/traces/endpoint/aggregate-logs) | Count those log lines and the conversations they belong to, bucketed by hour or day and grouped by event, function, error type and more. |
+
+The three `aggregate` and `logs` endpoints are **experimental** — their schema may change.
+
+## Base URL and authentication
+
+Send an **account API key** in the `X-API-KEY` header (`Authorization: Bearer <key>` is also accepted). The key needs read access to conversations. Create keys from the **API Keys** tab in Agent Studio; see [API keys](/secrets/api-keys).
+
+Keys are region-specific. Use the host of the region your account lives in.
+
+| Region | Base URL |
+| ------ | ---------------------------------- |
+| US     | `https://api.us.poly.ai`           |
+| UK     | `https://api.uk.poly.ai`           |
+| EU     | `https://api.eu.poly.ai`           |
+| Studio | `https://api.studio.poly.ai`       |
+
+Every request body accepts an optional `project_id`. Omit it to query the whole account; set it to narrow to one agent. The value is the **Agent ID** shown in Agent Studio (`PROJECT-xxxxxxxx`). A project outside your account returns no rows, not an error (an ungrouped aggregate returns a single zero count).
+
+## Concepts
+
+### Spans
+
+A span is one timed operation with a name, a status (`Ok`, `Error` or `Unset`), a duration and a few allowlisted attributes. Spans nest: a `polyai.turn` span contains the LLM, function and retrieval spans that produced that turn's response. Common span names:
+
+| Span name | Meaning |
+|---|---|
+| `polyai.conversation` | The whole conversation. |
+| `polyai.turn` | One agent turn, from user input to response. |
+| `polyai.llm_gateway.inference` | One LLM request, including retries. |
+| `polyai.llm_gateway.provider_call` | One attempt against an LLM provider. |
+| `polyai.function.execution` | One run of a GenAI function (a tool, or a flow step). |
+| `polyai.rag.query` | One knowledge-base lookup. |
+| `polyai.asr.*`, `polyai.tts.*` | Speech recognition and synthesis (voice only). |
+
+Each span carries the `turn_index` it belongs to (0-based). Function spans also carry `function_name`. Spans may carry a `layer` (`conversation`, `telephony`, `voice`, `asr`, `tts`, `harness`, `gen_ai`, `tool`, `retrieval`); it is empty on spans that predate the attribute.
+
+### Measures
+
+Timing aggregates run over one **measure** per request:
+
+| Measure | Carried by |
+|---|---|
+| `duration_ms` (default) | Every span. |
+| `time_to_first_token_ms` | `polyai.llm_gateway.provider_call`: time until the provider streamed its first token. |
+| `time_to_first_byte_ms` | TTS spans: time until the first byte of audio arrived. |
+
+Filter on `span_name` when you use the last two. In a group where no span carries the measure, `p50`/`p95`/`p99` return `0` and `avg`/`min`/`max` return `null`; `count` still counts every span.
+
+### Error types
+
+Failed spans carry an `error_type` that says *why*. Filter and group on it.
+
+| `error_type` | Set on | Meaning |
+|---|---|---|
+| `LLM_PROVIDER_UNAVAILABLE` | LLM spans | The provider timed out or returned an error. |
+| `LLM_RATE_LIMITED` | LLM spans | The provider rejected the call for capacity. |
+| `LLM_INVALID_REQUEST` | LLM spans | The provider rejected the request itself. |
+| `LLM_CONTENT_FILTERED` | LLM spans | The provider's content filter blocked the response. |
+| `LLM_CUSTOMER_GATEWAY_ERROR` | LLM spans | Your own LLM gateway failed. |
+| `LLM_EXECUTION_FAILED` | LLM spans | Any other failure. |
+| `cancelled` | LLM spans | The request was cancelled before the provider answered. |
+| `function_error` | Function spans | The function returned an error to the agent. |
+| Exception class, e.g. `KeyError` | Function spans and log lines | The function raised and did not catch the exception. |
+
+### Function logs
+
+Every `log.info(...)`, `log.warning(...)` or `log.error(...)` call inside a GenAI function becomes one log line. The API returns each line's **event label** (the message you logged) and promoted columns, never the raw line or its payload, so no transcript or customer data can leak through it.
+
+Each line is linked to the span it ran in: `trace_id` and `span_id` identify the `polyai.function.execution` span, and `turn_index` is the turn that triggered the call. Pass a `span_id` from a span search to read exactly the lines that one execution wrote. The three fields are empty on lines from functions deployed before this linking was introduced; publish or promote the agent to refresh them.
+
+Lines the function runtime writes about itself (for example when a function cannot be loaded) are excluded.
+
+## Time windows and paging
+
+| | `spans/aggregate` | `logs/search` | `logs/aggregate` |
+|---|---|---|---|
+| `from` / `to` | Required | Optional: `to` defaults to now, `from` to 24 hours before `to` | Required |
+| Maximum window | 30 days | 30 days | 30 days |
+| `limit` | 1–100, default 20 | 1–100, default 50 | 1–100, default 20 |
+| `offset` | 0–1000 | 0–1000 | 0–1000 |
+
+The conversation endpoints and `spans/search` take an optional window with no cap, and page the same way.
+
+`from` is inclusive, `to` exclusive, both ISO 8601. Timestamps in responses are UTC; the span endpoints return them without an offset suffix, the log endpoints with `+00:00`. Every response carries `has_more`. `logs/search` also echoes the `from` and `to` it used: pass them back on the next page so new log lines do not shift the results.
+
+Aggregate responses are tabular: `columns` names the fields, and each entry in `rows` lists values in that order. When you set `interval`, the first column is `bucket`.
+
+## Errors
+
+| Status | Meaning |
+| ------ | ------- |
+| `400` | The sort field is not an output column, or the window is invalid. |
+| `401` | Missing or invalid API key. |
+| `403` | Authenticated, but the key cannot read conversations. |
+| `422` | Request validation failed: an unknown field value, a reversed window, a window over 30 days, or a non-integer `turn_index`. |
+| `502` | The trace backend did not answer. Retry with backoff. |

@@ -1,0 +1,106 @@
+---
+title: "Get conversation timeline"
+api: "GET /api/v1/traces/conversations/{conversation_id}/timeline"
+description: "One row per turn and span name, with start, end, duration and error count, in order."
+---
+
+Collapses a conversation's spans into a chronological timeline: for each turn and span name, when the first such span started, when the last one ended, how long they ran in total, and how many failed. Lighter than [fetching every span](/api-reference/traces/endpoint/get-conversation-trace) when you want a per-turn latency picture.
+
+## Request
+
+### Headers
+
+<ParamField header="X-API-KEY" type="string" required>
+  Account API key with read access to conversations.
+</ParamField>
+
+### Path parameters
+
+<ParamField path="conversation_id" type="string" required>
+  The conversation to summarise.
+</ParamField>
+
+### Query parameters
+
+<ParamField query="project_id" type="string">
+  The agent the conversation belongs to. Optional with an account API key.
+</ParamField>
+
+## Response
+
+<ResponseField name="conversation_id" type="string" />
+<ResponseField name="project_id" type="string" />
+<ResponseField name="total" type="integer">
+  Number of entries.
+</ResponseField>
+<ResponseField name="entries" type="object[]">
+  Ordered by `turn_index`, then `start_time`.
+
+  <Expandable title="properties">
+    <ResponseField name="turn_index" type="integer">
+      `null` for spans outside a turn.
+    </ResponseField>
+    <ResponseField name="span_name" type="string" />
+    <ResponseField name="start_time" type="datetime">
+      Earliest start among the group's spans, UTC.
+    </ResponseField>
+    <ResponseField name="end_time" type="datetime">
+      Latest end among the group's spans, UTC.
+    </ResponseField>
+    <ResponseField name="duration_ns" type="integer">
+      Sum of the group's span durations. Can be less than `end_time - start_time` when the spans do not run back to back.
+    </ResponseField>
+    <ResponseField name="duration_ms" type="number" />
+    <ResponseField name="error_count" type="integer">
+      Spans in the group with status `Error`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example
+
+<CodeGroup>
+
+```bash cURL
+curl "https://api.us.poly.ai/api/v1/traces/conversations/CA3f2c1e9d6b7a4f8e9c0d1b2a3c4d5e6f/timeline?project_id=PROJECT-V258TF29" \
+  -H "X-API-KEY: YOUR_API_KEY"
+```
+
+```json Response
+{
+  "conversation_id": "CA3f2c1e9d6b7a4f8e9c0d1b2a3c4d5e6f",
+  "project_id": "PROJECT-V258TF29",
+  "total": 8,
+  "entries": [
+    {
+      "turn_index": 0,
+      "span_name": "polyai.turn",
+      "start_time": "2026-10-27T15:07:34.930309",
+      "end_time": "2026-10-27T15:07:34.949381",
+      "duration_ns": 19071851,
+      "duration_ms": 19.071851,
+      "error_count": 0
+    },
+    {
+      "turn_index": 0,
+      "span_name": "polyai.goose.llemur.call",
+      "start_time": "2026-10-27T15:07:34.930317",
+      "end_time": "2026-10-27T15:07:34.946786",
+      "duration_ns": 16468707,
+      "duration_ms": 16.468707,
+      "error_count": 0
+    }
+  ]
+}
+```
+
+</CodeGroup>
+
+## Errors
+
+| Status | Meaning |
+| ------ | ------- |
+| `401`  | Missing or invalid API key. |
+| `403`  | The key cannot read conversations. |
+| `404`  | The conversation has no spans, or belongs to another account. |
+| `502`  | The trace backend did not answer. |

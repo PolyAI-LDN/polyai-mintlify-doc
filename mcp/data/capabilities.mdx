@@ -7,7 +7,7 @@ mode: wide
 
 Data MCP exposes PolyAI's conversation data as MCP tools. Your client discovers them automatically on connection — you don't configure tools by hand. Each tool carries its own input schema, which the client reads directly from the server; the parameter tables below reproduce that schema so you can see what each tool takes without connecting first.
 
-Data MCP exposes **5 tools**. Tool names appear exactly as your client sees them in `tools/list`.
+Data MCP exposes **13 tools**. Tool names appear exactly as your client sees them in `tools/list`.
 
 <Note>
 To see exactly what your client discovered, ask it to list its tools or query the endpoint's `tools/list` method. Parameters map to a PolyAI REST endpoint — they're sent as path segments, query parameters, or a request body — but your client handles that wiring from the schema; the tables below just list what you can set.
@@ -99,6 +99,119 @@ Aggregate a metric over a time window into buckets you can chart — with groupi
 | `sort`             | object   | Secondary sort on a `group_by` or `aggs` field, applied after the ascending bucket sort.                            |
 | `limit` / `offset` | integer  | Pagination. `limit` 1–100 (default 20), `offset` 0–1000.                                                           |
 | `project_id`       | string   | Optional project scope.                                                                     |
+
+## Traces & function logs
+
+Find a conversation's spans, break latency and errors down per turn and per span, and read the log lines your GenAI functions write. These tools wrap the [Traces API](/api-reference/traces/introduction); see it for the span names, measures and `error_type` values.
+
+### `list-product-conversations`
+
+List the conversations that produced spans in a time window, newest first, with turn and error counts.
+
+| Parameter          | Type     | Description                                                      |
+| ------------------ | -------- | ---------------------------------------------------------------- |
+| `from` / `to`      | datetime | Bounds on the conversation's first turn (`from` inclusive, `to` exclusive). |
+| `limit` / `offset` | integer  | Pagination. `limit` 1–100 (default 20), `offset` 0–1000.          |
+| `project_id`       | string   | Optional project scope.                                           |
+
+### `get-product-trace`
+
+Every span of one conversation, ordered by start time, with `parent_span_id` so the tree can be rebuilt. Function spans carry the `span_id` to pass to `search-function-logs`.
+
+| Parameter         | Type   | Description                               |
+| ----------------- | ------ | ----------------------------------------- |
+| `conversation_id` | string | The conversation to fetch. **Required.**  |
+| `project_id`      | string | Optional project scope.                   |
+
+### `get-product-timeline`
+
+One entry per turn and span name with start, end, duration and error count — a per-turn latency picture without every span.
+
+| Parameter         | Type   | Description                                  |
+| ----------------- | ------ | -------------------------------------------- |
+| `conversation_id` | string | The conversation to summarise. **Required.** |
+| `project_id`      | string | Optional project scope.                      |
+
+### `get-product-turn`
+
+The spans of one turn of a conversation.
+
+| Parameter         | Type    | Description                          |
+| ----------------- | ------- | ------------------------------------ |
+| `conversation_id` | string  | The conversation. **Required.**      |
+| `turn_index`      | integer | 0-based turn. **Required.**          |
+| `project_id`      | string  | Optional project scope.              |
+
+### `search-product-spans`
+
+Find spans across conversations by name, status, duration and window, newest first. For counts and percentiles use `aggregate-product-spans`.
+
+| Parameter          | Type     | Description                                                      |
+| ------------------ | -------- | ---------------------------------------------------------------- |
+| `span_name`        | string   | Exact span name, e.g. `polyai.llm_gateway.provider_call`.         |
+| `status_code`      | string   | `Ok`, `Error` or `Unset`.                                         |
+| `min_duration_ms`  | integer  | Only spans at least this long.                                    |
+| `conversation_id`  | string   | Restrict to one conversation.                                     |
+| `from` / `to`      | datetime | Bounds on span start (`from` inclusive, `to` exclusive).          |
+| `limit` / `offset` | integer  | Pagination. `limit` 1–100 (default 20), `offset` 0–1000.          |
+| `project_id`       | string   | Optional project scope.                                           |
+
+<Note>The three tools below are **experimental** — their schema may change. Your client discovers the current names from `tools/list`.</Note>
+
+### `aggregate-product-spans`
+
+Percentiles, counts and error rates over spans, bucketed by time and grouped by span name, turn, function, error type and more.
+
+| Parameter          | Type     | Description                                                                                                     |
+| ------------------ | -------- | --------------------------------------------------------------------------------------------------------------- |
+| `from` / `to`      | datetime | Window bounds (`from` inclusive, `to` exclusive), at most 30 days apart. **Required.**                           |
+| `aggs`             | array    | Aggregations to compute: `p50`, `p95`, `p99`, `avg`, `min`, `max`, `count`, `error_count`, `error_rate`, `conversation_count`. **Required.** |
+| `measure`          | string   | Value the timing aggregations run over: `duration_ms` (default), `time_to_first_token_ms` (LLM provider calls), `time_to_first_byte_ms` (TTS). |
+| `group_by`         | array    | Group by `span_name`, `service`, `layer`, `project_id`, `client_env`, `turn_index`, `function_name`, `flow_name`, `step_name`, `deployment_version` or `error_type`. |
+| `interval`         | string   | Time bucket: `hourly`, `daily`, `weekly`, `monthly`. Omit for a single unbucketed result per group.               |
+| `timezone`         | string   | IANA timezone applied to the buckets.                                                                            |
+| `span_name`, `status_code`, `function_name`, `error_type`, `conversation_id` | string | Exact-match filters. `status_code` is `Ok`, `Error` or `Unset`. |
+| `client_env`       | array    | Restrict to environments: `test`, `sandbox`, `pre-release`, `live`, `scenarios`.                                  |
+| `sort`             | object   | `{field, order}` on a `group_by` or `aggs` field, applied after the ascending bucket sort.                        |
+| `limit` / `offset` | integer  | Pagination. `limit` 1–100 (default 20), `offset` 0–1000.                                                         |
+| `project_id`       | string   | Optional project scope.                                                                                           |
+
+### `search-function-logs`
+
+Page through the log lines your GenAI functions wrote, newest first. Returns each line's event label and the span it ran in, never the raw line or its payload.
+
+| Parameter          | Type     | Description                                                                                                     |
+| ------------------ | -------- | --------------------------------------------------------------------------------------------------------------- |
+| `from` / `to`      | datetime | Window bounds. `to` defaults to now, `from` to 24 hours before `to`; at most 30 days apart.                      |
+| `conversation_id`  | string   | Matches the conversation ID or the call SID.                                                                     |
+| `function_names`   | array    | Function (tool) names.                                                                                           |
+| `levels`           | array    | `debug`, `info`, `warning`, `error`, `critical`.                                                                 |
+| `client_envs`      | array    | Restrict to environments: `test`, `sandbox`, `pre-release`, `live`, `scenarios`.                                  |
+| `error_types`      | array    | Exception classes on failure lines, e.g. `KeyError`.                                                             |
+| `text`             | object   | Whole-word, case-insensitive terms on the event label: `{all, any, none}`.                                        |
+| `trace_id` / `span_id` | string | The function-execution span the lines belong to. `span_id` returns exactly what one execution wrote.          |
+| `turn_index`       | integer  | 0-based turn the function call belongs to.                                                                       |
+| `order`            | string   | `desc` (default) or `asc` on timestamp.                                                                          |
+| `limit` / `offset` | integer  | Pagination. `limit` 1–100 (default 50), `offset` 0–1000.                                                         |
+| `project_id`       | string   | Optional project scope.                                                                                           |
+
+Each line carries `timestamp`, `level`, `function_name`, `conversation_id`, `event`, `error_type`, `trace_id`, `span_id` and `turn_index`. The response echoes the `from`/`to` it used; pass them back when paging.
+
+### `aggregate-function-logs`
+
+Count log lines and the conversations they belong to, bucketed by hour or day. Takes the same filters as `search-function-logs`.
+
+| Parameter          | Type     | Description                                                                                                     |
+| ------------------ | -------- | --------------------------------------------------------------------------------------------------------------- |
+| `from` / `to`      | datetime | Window bounds, at most 30 days apart. **Required.**                                                              |
+| `aggs`             | array    | `count`, `conversation_count`, `first_seen`, `last_seen`. **Required.**                                           |
+| `group_by`         | array    | Group by `event`, `function_name`, `conversation_id`, `level`, `client_env`, `project_id`, `error_type` or `turn_index`. |
+| `interval`         | string   | `hourly` or `daily`. Omit for a single unbucketed result per group.                                               |
+| `timezone`         | string   | IANA timezone applied to the buckets.                                                                            |
+| Filters            |          | Same as `search-function-logs`: `conversation_id`, `function_names`, `levels`, `client_envs`, `error_types`, `text`, `trace_id`, `span_id`, `turn_index`. |
+| `sort`             | object   | `{field, order}` on a `group_by` or `aggs` field, applied after the ascending bucket sort.                        |
+| `limit` / `offset` | integer  | Pagination. `limit` 1–100 (default 20), `offset` 0–1000.                                                         |
+| `project_id`       | string   | Optional project scope.                                                                                           |
 
 ## Errors
 
