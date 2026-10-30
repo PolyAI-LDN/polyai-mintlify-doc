@@ -4,7 +4,7 @@ sidebarTitle: "Verified Context Injection"
 description: "Pass verified user context (e.g. signed-in identity) into your web chat agent securely at session start."
 ---
 
-Verified Context Injection lets your backend pass trustworthy, cryptographically verified user context into a PolyAI conversation. Your backend creates a short-lived signed token (a JWT, or JSON Web Token) using a signing key you generate in Agent Studio. PolyAI verifies the signature, stores the verified values against the conversation, and makes them available to the agent's functions as read-only fields at every turn.
+Verified Context Injection lets your backend pass trustworthy, cryptographically verified user context into a PolyAI conversation. Your backend creates a short-lived signed token (a JWT, or JSON Web Token) using a signing key PolyAI provisions for your project. PolyAI verifies the signature, stores the verified values against the conversation, and makes them available to the agent's functions as read-only fields at every turn.
 
 Think of it as a per-conversation lockbox. Only your backend, which holds the signing key, can put values into it. The agent's functions can only read them out. Nothing in the browser, the widget, or any other layer can forge or tamper with the values.
 
@@ -16,9 +16,9 @@ Verified Context Injection closes that gap. Your backend **signs** the context; 
 
 ## What it does
 
-- **Sets context from a trusted origin.** Your backend signs a JWT with a key you generated in Agent Studio. The token has a 30-second lifetime and carries up to 8 KB of context data (fields such as customer identifier, account tier, or a short-lived auth token). The widget carries the opaque token but never sees the signing key.
+- **Sets context from a trusted origin.** Your backend signs a JWT with a signing key PolyAI provisions for your project. The token has a 30-second lifetime and carries up to 8 KB of context data (fields such as customer identifier, account tier, or a short-lived auth token). The widget carries the opaque token but never sees the signing key.
 - **Verifies the signature and stores verified values.** PolyAI validates the signature, checks the token binding and expiry, then stores the verified context payload against the conversation. Nothing bypasses this validation path.
-- **Reads into functions as read-only fields.** Every turn, the function runtime receives a read-only object (accessed as `conv.context_vault`) with the verified fields. Functions can act on them, for example calling your API with the customer identifier, checking the account tier, or using a short-lived auth token to call a downstream service. Values are never surfaced in prompts or transcripts unless a function explicitly copies them into state.
+- **Reads into functions as read-only fields.** Every turn, the function runtime receives a read-only object (accessed as `conv.verified_context`) with the verified fields. Functions can act on them, for example calling your API with the customer identifier, checking the account tier, or using a short-lived auth token to call a downstream service. Values are never surfaced in prompts or transcripts unless a function explicitly copies them into state.
 
 ## Benefits
 
@@ -48,7 +48,7 @@ Because verification is server-side and bound to a PolyAI-issued `context_id`, a
 
 ## What you need to build
 
-- A **signing key** provisioned for your project (a key ID and a secret from Agent Studio or your PolyAI representative). The key ID is stable across rotation.
+- A **signing key** provisioned for your project (a key ID and a secret from your PolyAI representative). The key ID is stable across rotation.
 - A **backend endpoint** that signs a JWT with that secret.
 - A small amount of JavaScript on your page to register the `onContextRequired` callback inside `onReady`.
 
@@ -88,7 +88,8 @@ The conversation **always** starts. Verified context is best-effort and never bl
 
 ## Good to know
 
-- **Signing key provisioning.** Get a key from Agent Studio or your PolyAI representative.
+- **Signing key provisioning.** There's no Agent Studio UI for signing keys. Ask your PolyAI representative for a key. The same key works in sandbox and live. If you were given a separate key for testing, revoke it before go-live.
+- **Turn on the agent-side read path.** Ask your PolyAI representative to turn it on. If you build with the [ADK](/adk/reference/experimental_config), you can instead set `{"verified_context": {"enabled": true}}` in `agent_settings/experimental_config.json`. It's off by default, and until it's on, functions don't receive the verified fields.
 - **One integration point, two behaviours.** You only ever implement `onContextRequired`. The mid-conversation refresh reuses it rather than needing anything new wired up.
 - **The vault set is idempotent.** A refresh fully replaces the previous context, last write wins.
 
