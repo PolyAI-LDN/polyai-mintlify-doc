@@ -327,7 +327,7 @@ ws.on("message", (data) => {
 Rules that catch people out:
 
 - **One response at a time.** A `response.create` while a response is open is refused with `conversation_already_has_active_response`. Send `response.cancel` first. Two requests are held rather than refused: one sent while the caller is still speaking is answered by the response to their turn, and one sent while a reply the server speaks is still playing is answered when that audio ends. Only one request is held at a time.
-- **`response.create` may set `instructions`, `max_output_tokens` and `metadata`.** `parallel_tool_calls` is ignored. Every other field must match the session or is refused with `unsupported_parameter`, naming `response.<field>`. That includes `conversation: "none"` (no out-of-band responses), a per-response `output_modalities`, `tools` or `tool_choice`, `input`, `audio`, `prompt` and `reasoning`. Change the session with `session.update` instead.
+- **`response.create` may set `instructions`, `max_output_tokens`, `metadata` and [`poly_say`](#say-a-fixed-reply).** `parallel_tool_calls` is ignored. Every other field must match the session or is refused with `unsupported_parameter`, naming `response.<field>`. That includes `conversation: "none"` (no out-of-band responses), a per-response `output_modalities`, `tools` or `tool_choice`, `input`, `audio`, `prompt` and `reasoning`. Change the session with `session.update` instead.
 - **A confirmed barge-in always cancels the reply.** `interrupt_response` cannot be turned off. The cancelled response ends with status `cancelled`. With push-to-talk nothing barges in: send `response.cancel` to stop a reply.
 - **Tell the server what the caller heard.** If you speak the text through your own TTS, send the `poly.output_audio.*` events below so that an interrupted reply is kept in history as the words that were actually played.
 
@@ -441,10 +441,27 @@ Extensions are additive fields on existing events, all prefixed `poly_`. Nothing
 | `session` | `poly_session_id` | Read-only echo of the `session_id` query parameter |
 | `tools[].parameters.properties.<name>` | `poly_spoken: true` | The model says this string argument to the caller while the tool runs: as `response.output_text.delta` on a text session, aloud on an audio session. One per tool, string parameters only. |
 | `conversation.item.create` with `function_call_output` | `poly_knowledge` | Knowledge attached to one tool result |
+| `response.create` `response` | `poly_say` | The reply's text, said word for word with no generation. See [Say a fixed reply](#say-a-fixed-reply). |
 | `response.done.response` | `poly_cited_topics` | Knowledge entries the reply cited; absent when none |
 | `response.done.response` | `poly_out_of_domain` | `true` when the model judged the request outside its instructions |
 | `response.done.response` | `poly_compacted_item_ids` | Items the prompt now leaves out, because older history was summarised or dropped to fit the context window. Sent on the first response after that changes. The items stay in history and can still be retrieved. |
 | `response.done.response` | `poly_probe_usage` | The token cost of turn detection |
+
+### Say a fixed reply
+
+Set `poly_say` on `response.create` to give the reply's text yourself. Nothing is generated, so a greeting, a recording disclosure or an outbound opener is said exactly as written, with no wait for the model:
+
+```json
+{"type": "response.create", "response": {"poly_say": "Hi, you're through to Acme. This call is recorded."}}
+```
+
+It's an ordinary response: `response.created`, the output item with its text or audio transcript events, and `response.done`, with zero token usage. On an audio session the server speaks it in the session's voice and language, a barge-in cuts it off, and history keeps what the caller heard. On a text session you get the text to speak. It goes into history as the assistant's turn, so the model carries on from it.
+
+An assistant message you add with `conversation.item.create` is history only and is never spoken, so seeding earlier turns doesn't read them aloud.
+
+- `poly_say` that isn't text, or is blank, is refused with `invalid_request_error`, `param: "response.poly_say"`.
+- `instructions` or `max_output_tokens` alongside `poly_say` are refused with `unsupported_parameter`, since nothing is generated for them to apply to.
+- The model transcribes the caller's audio as it writes its reply, so a caller turn answered with `poly_say` gets no transcript. An opener answers no turn and loses nothing. To have a turn transcribed, let the model answer it.
 
 **Playback reports.** When you voice the reply yourself, send these so the server knows what the caller heard:
 
