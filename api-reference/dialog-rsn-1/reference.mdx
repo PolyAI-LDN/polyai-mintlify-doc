@@ -172,7 +172,7 @@ Fields that would change what you get if silently ignored are refused with an `e
 | `poly_session_id`, `expires_at` (set by the server) | `invalid_request_error` | the field |
 | `poly_knowledge` that isn't a list of `{ "name", "content", "actions"? }` with `actions` a string | `invalid_request_error` | `poly_knowledge`, or the entry, e.g. `poly_knowledge[2]` |
 | `poly_response_language` that isn't a string, is blank, or is over 64 characters | `invalid_request_error` | `poly_response_language` |
-| `poly_first_assistant_message` that isn't text or is blank, or a different one once the conversation has started | `invalid_request_error` | `poly_first_assistant_message` |
+| `poly_first_assistant_message` that isn't text or is blank, or a different one once the conversation has a turn of its own | `invalid_request_error` | `poly_first_assistant_message` |
 | `poly_spoken` set to anything but `true`, on a non-string property, or on more than one property of a tool | `invalid_request_error` | the path under `tools[i].parameters.properties` |
 
 ## Audio in
@@ -458,7 +458,9 @@ Set `poly_first_assistant_message` on the session to have the assistant open the
 
 Set before the conversation has started, it's said straight after `session.updated`, as an ordinary response: `response.created`, the output item with its text or audio transcript events, and `response.done`, with zero token usage. On an audio session the server speaks it in the session's voice and language, a caller who barges in cuts it off, and history keeps what they heard. On a text session you get the text to speak. It becomes the first assistant turn, so the model carries on from it. It's said even if the caller has already started talking.
 
-It's said once. Sending the same value again, for example when you resend your whole session, is accepted and does nothing. A different value once the conversation has items or a response has started is refused with `invalid_request_error`, as is blank text. A [transcription session](#transcription-sessions) refuses it with `unsupported_parameter`, like every field that shapes a reply. `null` clears it.
+You don't need to send `response.create`. One sent while the opener plays is answered when it ends, as for any reply, so it adds a second assistant turn.
+
+It's said once. Sending the same value again, for example when you resend your whole session, is accepted and does nothing. History you seed with `conversation.item.create` comes before it, so seed first and set it last. A different value once the conversation has a turn of its own or a response has started is refused with `invalid_request_error`, as is blank text. A [transcription session](#transcription-sessions) refuses it with `unsupported_parameter`, like every field that shapes a reply. `null` clears it.
 
 An assistant message you add with `conversation.item.create` is history only and is never spoken, so seeding earlier turns doesn't read them aloud.
 
