@@ -6,13 +6,13 @@ description: "Enable and configure verified context injection for your Messaging
 
 ## Before you start
 
-Three things must be true, and all three are on PolyAI's side.
+Three things must be true.
 
 | Precondition | How to check |
 | --- | --- |
 | A signing key is provisioned for the project | Talk to your PolyAI representative about getting a key provisioned. |
-| The backend mints the context id in the session start event | Visible in the widget console on the session start payload |
-| **The agent-side read path is enabled for the project** | Set per project in experimental configuration. **Off by default** — ask your PolyAI representative to enable it. |
+| PolyAI mints the `context_id` in the session start event | Visible in the widget console on the session start payload |
+| **The agent-side read path is enabled for the project** | Ask your PolyAI representative to turn it on, or set `{"verified_context": {"enabled": true}}` in `agent_settings/experimental_config.json` with the [ADK](/adk/reference/experimental_config). **Off by default.** |
 
 The integrator needs: a **key ID** and a **secret** from PolyAI, a backend endpoint that can sign a JWT, and a few lines of JavaScript on the page.
 
@@ -37,7 +37,7 @@ WebchatAPI.onReady(function () {
 The handler is read **at request time**, not snapshotted at init, so registering inside `onReady` is comfortably in time. The effective deadline is `SESSION_START`.
 
 <Warning>
-  Return-value traps. Only a non-empty string is treated as a token. `undefined` , `null` , `''` , a number, or an object like `{ token: '...' }` are all treated as declines — you get a `console.war`n and the conversation proceeds without context.
+  Return-value traps. Only a non-empty string is treated as a token. `undefined` , `null` , `''` , a number, or an object like `{ token: '...' }` are all treated as declines — you get a `console.warn` and the conversation proceeds without context.
 </Warning>
 
 Other behaviours worth knowing:
@@ -125,7 +125,7 @@ Verified context is best-effort and fails open. The conversation **always** star
 | Token rejected (signature, `sub` mismatch, expired, oversize) | Normal conversation | No |
 
 <Danger>
-  **No success or failure signal ever reaches the host page.** There is no `onContextSet` / `onContextFailedcallback` — the full context-related public surface is `onContextRequired` and `refreshVerifiedContext`. If the vault rejects your token, the widget logs it, resolves internally as `failed`, and the agent joins without context. Your page is not told. Budget for widget-console and network-tab debugging, and design the agent to degrade gracefully.
+  **No success or failure signal ever reaches the host page.** There is no `onContextSet` / `onContextFailed` callback — the full context-related public surface is `onContextRequired` and `refreshVerifiedContext`. If the vault rejects your token, the widget logs it, resolves internally as `failed`, and the agent joins without context. Your page is not told. Budget for widget-console and network-tab debugging, and design the agent to degrade gracefully.
 </Danger>
 
 ## Related pages
