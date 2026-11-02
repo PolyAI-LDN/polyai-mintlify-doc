@@ -461,7 +461,8 @@ An assistant message you add with `conversation.item.create` is history only and
 
 - `poly_say` that isn't text, or is blank, is refused with `invalid_request_error`, `param: "response.poly_say"`.
 - `instructions` or `max_output_tokens` alongside `poly_say` are refused with `unsupported_parameter`, since nothing is generated for them to apply to.
-- The model transcribes the caller's audio as it writes its reply, so a caller turn answered with `poly_say` gets no transcript. An opener answers no turn and loses nothing. To have a turn transcribed, let the model answer it.
+- Any other `poly_` field on `response` is refused with `unknown_parameter`, so a misspelt `poly_say` is never answered with a generated reply.
+- If the caller speaks first, the opener answers their turn. That turn is still transcribed: `conversation.item.input_audio_transcription.delta` and `.completed` arrive as for any turn, and the transcription is billed.
 
 **Playback reports.** When you voice the reply yourself, send these so the server knows what the caller heard:
 
