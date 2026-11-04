@@ -38,6 +38,625 @@
       }
     },
     "schemas": {
+      "CreateFlowPublicBody": {
+        "title": "CreateFlowPublicBody",
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 1 },
+          "startStepId": { "type": "string" },
+          "steps": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string", "enum": ["default_step", "advanced_step", "function_step"] },
+                "name": { "type": "string" },
+                "prompt": { "type": "string" },
+                "position": { "type": "object", "properties": { "x": { "type": "number" }, "y": { "type": "number" } }, "required": ["x", "y"], "additionalProperties": false },
+                "conditions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "string" },
+                      "type": { "type": "string", "enum": ["exitFlowCondition", "noCodeStepCondition", "stepCondition", "functionStepCondition"] },
+                      "label": { "type": "string" },
+                      "description": { "type": "string" },
+                      "childStepId": { "type": "string" },
+                      "requiredEntities": { "type": "array", "items": { "type": "string" } }
+                    },
+                    "required": ["id", "type", "label"],
+                    "additionalProperties": false
+                  }
+                },
+                "references": {
+                  "type": "object",
+                  "properties": {
+                    "entities": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "attributes": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "variables": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "extractedEntities": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "transitionFunctions": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "globalFunctions": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "sms": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "handoff": { "type": "object", "additionalProperties": { "type": "boolean" } }
+                  },
+                  "additionalProperties": false
+                },
+                "id": { "type": "string" },
+                "function": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "name": { "type": "string" },
+                    "code": { "type": "string" },
+                    "latencyControl": {
+                      "type": "object",
+                      "properties": { "enabled": { "type": "boolean" }, "randomize": { "type": "boolean" }, "initialDelay": { "type": "number" }, "interval": { "type": "number" } },
+                      "required": ["enabled"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["name", "code"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["type", "name"],
+              "additionalProperties": false
+            }
+          },
+          "transitionFunctions": {
+            "type": "array",
+            "default": [],
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "code": { "type": "string" },
+                "description": { "type": "string" },
+                "parameters": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "type": { "type": "string" }, "description": { "type": "string" } },
+                    "required": ["id", "name", "type"],
+                    "additionalProperties": false
+                  }
+                },
+                "references": {
+                  "type": "object",
+                  "properties": {
+                    "flowSteps": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "variables": { "type": "object", "additionalProperties": { "type": "boolean" } }
+                  },
+                  "additionalProperties": false
+                },
+                "id": { "type": "string" }
+              },
+              "required": ["name", "code"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["name", "description", "steps"],
+        "additionalProperties": false
+      },
+      "CreateFlowPublicResponse": {
+        "title": "CreateFlowPublicResponse",
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "startStepId": { "type": "string" },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "type": { "type": "string", "enum": ["default_step", "advanced_step", "function_step"] },
+                "name": { "type": "string" },
+                "prompt": { "type": "string" },
+                "position": { "type": "object", "properties": { "x": { "type": "number" }, "y": { "type": "number" } }, "required": ["x", "y"], "additionalProperties": false },
+                "conditions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "string" },
+                      "type": { "type": "string", "enum": ["exitFlowCondition", "noCodeStepCondition", "stepCondition", "functionStepCondition"] },
+                      "label": { "type": "string" },
+                      "description": { "type": "string" },
+                      "childStepId": { "type": "string" },
+                      "requiredEntities": { "type": "array", "items": { "type": "string" } }
+                    },
+                    "required": ["id", "type", "label"],
+                    "additionalProperties": false
+                  }
+                },
+                "references": {
+                  "type": "object",
+                  "properties": {
+                    "entities": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "attributes": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "variables": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "extractedEntities": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "transitionFunctions": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "globalFunctions": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "sms": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "handoff": { "type": "object", "additionalProperties": { "type": "boolean" } }
+                  },
+                  "additionalProperties": false
+                },
+                "function": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "name": { "type": "string" },
+                    "code": { "type": "string" },
+                    "latencyControl": {
+                      "type": "object",
+                      "properties": { "enabled": { "type": "boolean" }, "randomize": { "type": "boolean" }, "initialDelay": { "type": "number" }, "interval": { "type": "number" } },
+                      "required": ["enabled"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["id", "name", "code"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["id", "type", "name"],
+              "additionalProperties": false
+            }
+          },
+          "transitionFunctions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "name": { "type": "string" },
+                "code": { "type": "string" },
+                "description": { "type": "string" },
+                "parameters": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "type": { "type": "string" }, "description": { "type": "string" } },
+                    "required": ["id", "name", "type"],
+                    "additionalProperties": false
+                  }
+                },
+                "references": {
+                  "type": "object",
+                  "properties": {
+                    "flowSteps": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "variables": { "type": "object", "additionalProperties": { "type": "boolean" } }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": ["id", "name", "code"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["id", "name", "description", "startStepId", "steps", "transitionFunctions"],
+        "additionalProperties": false
+      },
+      "CreateFunctionPublicBody": {
+        "title": "CreateFunctionPublicBody",
+        "description": "A new custom function to create on a branch.",
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" },
+          "code": { "type": "string" },
+          "parameters": {
+            "type": "array",
+            "default": [],
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "description": { "type": "string" },
+                "type": { "type": "string", "enum": ["string", "number", "boolean", "integer"] }
+              },
+              "required": ["name", "description", "type"],
+              "additionalProperties": false
+            }
+          },
+          "latencyControl": {
+            "type": "object",
+            "properties": {
+              "enabled": { "type": "boolean", "default": false },
+              "randomize": { "type": "boolean", "default": false },
+              "initialDelay": { "type": "number", "default": 0 },
+              "interval": { "type": "number", "default": 0 },
+              "delayResponses": {
+                "type": "array",
+                "default": [],
+                "items": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "duration": { "type": "number" } },
+                  "required": ["message", "duration"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": ["name", "description", "code"],
+        "additionalProperties": false
+      },
+      "CreateFunctionPublicResponse": {
+        "title": "CreateFunctionPublicResponse",
+        "description": "Identifiers for a newly created function.",
+        "type": "object",
+        "properties": { "id": { "type": "string" }, "name": { "type": "string" } },
+        "required": ["id", "name"],
+        "additionalProperties": false
+      },
+      "DuplicateFunctionPublicBody": {
+        "title": "DuplicateFunctionPublicBody",
+        "description": "An optional name to use for a duplicated function.",
+        "type": "object",
+        "properties": { "name": { "type": "string", "minLength": 1 } },
+        "additionalProperties": false
+      },
+      "DuplicateFunctionPublicResponse": {
+        "title": "DuplicateFunctionPublicResponse",
+        "description": "Identifiers for a newly duplicated function.",
+        "type": "object",
+        "properties": { "id": { "type": "string" }, "name": { "type": "string" } },
+        "required": ["id", "name"],
+        "additionalProperties": false
+      },
+      "ExecuteFunctionPublicBody": {
+        "title": "ExecuteFunctionPublicBody",
+        "description": "Arguments to invoke a function with, plus optional flow context.",
+        "type": "object",
+        "properties": {
+          "args": {
+            "type": "object",
+            "default": {},
+            "additionalProperties": { "anyOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }] }
+          },
+          "flowId": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "ExecuteFunctionPublicResponse": {
+        "title": "ExecuteFunctionPublicResponse",
+        "description": "The result of executing a function in a sandbox, including its return value, captured logs, status, and runtime.",
+        "type": "object",
+        "properties": {
+          "body": {},
+          "logs": { "type": "array", "items": { "type": "string" } },
+          "statusCode": { "type": "number" },
+          "runtime": { "type": "number" }
+        },
+        "required": ["logs", "statusCode", "runtime"],
+        "additionalProperties": false
+      },
+      "FunctionPublicResponse": {
+        "title": "FunctionPublicResponse",
+        "description": "A custom function on a branch, including its code, parameters, and any simulated-latency configuration.",
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "code": { "type": "string" },
+          "parameters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "description": { "type": "string" }, "type": { "type": "string" } },
+              "required": ["id", "name", "description", "type"],
+              "additionalProperties": false
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": { "lineno": { "type": "number" }, "message": { "type": "string" }, "text": { "type": "string" } },
+              "required": ["lineno", "message"],
+              "additionalProperties": false
+            }
+          },
+          "latencyControl": {
+            "type": "object",
+            "properties": {
+              "enabled": { "type": "boolean" },
+              "randomize": { "type": "boolean", "default": false },
+              "initialDelay": { "type": "number" },
+              "interval": { "type": "number" },
+              "delayResponses": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "duration": { "type": "number" } },
+                  "required": ["message", "duration"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["enabled", "initialDelay", "interval", "delayResponses"],
+            "additionalProperties": false
+          },
+          "archived": { "type": "boolean" }
+        },
+        "required": ["id", "name", "description", "code", "parameters", "errors", "archived"],
+        "additionalProperties": false
+      },
+      "FunctionReferencesPublicResponse": {
+        "title": "FunctionReferencesPublicResponse",
+        "description": "Where a function is referenced across a branch's flow steps, topics, stop keywords, behavior, and variables.",
+        "type": "object",
+        "properties": {
+          "functionId": { "type": "string" },
+          "name": { "type": "string" },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string", "enum": ["flowStep", "topic", "stopKeyword", "behaviour", "variable"] },
+                "id": { "type": "string" },
+                "name": { "type": ["string", "null"] }
+              },
+              "required": ["type", "id", "name"],
+              "additionalProperties": false
+            }
+          },
+          "totalReferences": { "type": "number" }
+        },
+        "required": ["functionId", "name", "references", "totalReferences"],
+        "additionalProperties": false
+      },
+      "FunctionTypeDefinitionsResponse": {
+        "title": "FunctionTypeDefinitionsResponse",
+        "description": "Python type stubs (e.g. the Conversation class) for IDE autocomplete when editing this function.",
+        "type": "object",
+        "properties": { "code": { "type": "string" } },
+        "required": ["code"],
+        "additionalProperties": false
+      },
+      "ListFlowsPublicResponse": {
+        "title": "ListFlowsPublicResponse",
+        "type": "array",
+        "items": { "$ref": "#/components/schemas/CreateFlowPublicResponse" }
+      },
+      "ListFunctionsPublicResponse": {
+        "title": "ListFunctionsPublicResponse",
+        "description": "The custom functions defined on a branch.",
+        "type": "array",
+        "items": { "$ref": "#/components/schemas/FunctionPublicResponse" }
+      },
+      "SpecialFunctionPublicResponse": {
+        "title": "SpecialFunctionPublicResponse",
+        "description": "The code, syntax errors, and parameters for a branch's start or end special function.",
+        "type": "object",
+        "properties": {
+          "code": { "type": "string" },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": { "lineno": { "type": "number" }, "message": { "type": "string" }, "text": { "type": "string" } },
+              "required": ["lineno", "message"],
+              "additionalProperties": false
+            }
+          },
+          "parameters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "description": { "type": "string" }, "type": { "type": "string" } },
+              "required": ["id", "name", "description", "type"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["code", "errors", "parameters"],
+        "additionalProperties": false
+      },
+      "UpdateFlowPublicBody": {
+        "title": "UpdateFlowPublicBody",
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" },
+          "startStepId": { "type": "string" },
+          "steps": {
+            "description": "Full replace semantics: when provided, this array becomes the complete set of the flow's steps — any existing step not included here is deleted. Omit the field entirely to leave steps untouched. Each step's own `conditions` field follows the same rule at the step level: omitted preserves the existing conditions on that step, while `[]` deletes all of that step's conditions.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "type": { "type": "string", "enum": ["default_step", "advanced_step", "function_step"] },
+                "name": { "type": "string" },
+                "prompt": { "type": "string" },
+                "position": { "type": "object", "properties": { "x": { "type": "number" }, "y": { "type": "number" } }, "required": ["x", "y"], "additionalProperties": false },
+                "conditions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "string" },
+                      "type": { "type": "string", "enum": ["exitFlowCondition", "noCodeStepCondition", "stepCondition", "functionStepCondition"] },
+                      "label": { "type": "string" },
+                      "description": { "type": "string" },
+                      "childStepId": { "type": "string" },
+                      "requiredEntities": { "type": "array", "items": { "type": "string" } }
+                    },
+                    "required": ["id", "type", "label"],
+                    "additionalProperties": false
+                  }
+                },
+                "references": {
+                  "type": "object",
+                  "properties": {
+                    "entities": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "attributes": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "variables": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "extractedEntities": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "transitionFunctions": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "globalFunctions": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "sms": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "handoff": { "type": "object", "additionalProperties": { "type": "boolean" } }
+                  },
+                  "additionalProperties": false
+                },
+                "function": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "name": { "type": "string" },
+                    "code": { "type": "string" },
+                    "latencyControl": {
+                      "type": "object",
+                      "properties": { "enabled": { "type": "boolean" }, "randomize": { "type": "boolean" }, "initialDelay": { "type": "number" }, "interval": { "type": "number" } },
+                      "required": ["enabled"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["id", "name", "code"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["id", "type", "name"],
+              "additionalProperties": false
+            }
+          },
+          "transitionFunctions": {
+            "description": "Full replace semantics: when provided, this array becomes the complete set of the flow's transition functions — any existing transition function not included here is deleted. Omit the field entirely to leave transition functions untouched.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "name": { "type": "string" },
+                "code": { "type": "string" },
+                "description": { "type": "string" },
+                "parameters": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "type": { "type": "string" }, "description": { "type": "string" } },
+                    "required": ["id", "name", "type"],
+                    "additionalProperties": false
+                  }
+                },
+                "references": {
+                  "type": "object",
+                  "properties": {
+                    "flowSteps": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                    "variables": { "type": "object", "additionalProperties": { "type": "boolean" } }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": ["id", "name", "code"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateFunctionPublicBody": {
+        "title": "UpdateFunctionPublicBody",
+        "description": "Partial update to a custom function.",
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" },
+          "code": { "type": "string" },
+          "parameters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "description": { "type": "string" },
+                "type": { "type": "string", "enum": ["string", "number", "boolean", "integer"] }
+              },
+              "required": ["name", "description", "type"],
+              "additionalProperties": false
+            }
+          },
+          "latencyControl": {
+            "type": "object",
+            "properties": {
+              "enabled": { "type": "boolean", "default": false },
+              "randomize": { "type": "boolean", "default": false },
+              "initialDelay": { "type": "number", "default": 0 },
+              "interval": { "type": "number", "default": 0 },
+              "delayResponses": {
+                "type": "array",
+                "default": [],
+                "items": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "duration": { "type": "number" } },
+                  "required": ["message", "duration"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "force": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      },
+      "UpdateSpecialFunctionPublicBody": {
+        "title": "UpdateSpecialFunctionPublicBody",
+        "description": "New code for a branch's start or end special function.",
+        "type": "object",
+        "properties": { "code": { "type": "string", "minLength": 1 } },
+        "required": ["code"],
+        "additionalProperties": false
+      },
+      "ValidateFunctionsPublicResponse": {
+        "title": "ValidateFunctionsPublicResponse",
+        "description": "The result of validating every function on a branch, including any syntax or reference issues found.",
+        "type": "object",
+        "properties": {
+          "valid": { "type": "boolean" },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string", "enum": ["syntax_error", "orphaned_reference"] },
+                "functionId": { "type": ["string", "null"] },
+                "functionName": { "type": ["string", "null"] },
+                "detail": { "type": ["string", "null"] },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": { "lineno": { "type": "number" }, "message": { "type": "string" }, "text": { "type": "string" } },
+                    "required": ["lineno", "message"],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": ["type", "functionId", "functionName", "detail"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["valid", "issues"],
+        "additionalProperties": false
+      },
       "ActiveDeploymentsResponse": {
         "description": "The latest deployment for each environment (sandbox, pre-release,\nlive). Entries are null when no deployment exists for an environment.",
         "type": "object",
@@ -2172,6 +2791,317 @@
     }
   },
   "paths": {
+    "/v1/agents/{agentId}/branches/{branchId}/functions": {
+      "parameters": [
+        { "name": "agentId", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "branchId", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "get": {
+        "summary": "List all functions for an agent on a branch",
+        "tags": ["Functions"],
+        "responses": {
+          "200": { "description": "List of functions", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ListFunctionsPublicResponse" } } } }
+        }
+      },
+      "post": {
+        "summary": "Create a new function",
+        "tags": ["Functions"],
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateFunctionPublicBody" } } } },
+        "responses": {
+          "201": { "description": "Created function", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateFunctionPublicResponse" } } } }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/functions/validate": {
+      "parameters": [
+        { "name": "agentId", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "branchId", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "get": {
+        "summary": "Validate all functions",
+        "tags": ["Functions"],
+        "responses": {
+          "200": { "description": "Validation issues found across all functions", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ValidateFunctionsPublicResponse" } } } }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/functions/start": {
+      "parameters": [
+        { "name": "agentId", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "branchId", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "get": {
+        "summary": "Get the start function code",
+        "description": "Get the start function code. Runs synchronously before every conversation greeting.",
+        "tags": ["Functions"],
+        "responses": {
+          "200": { "description": "Get the start function code. Runs synchronously before every conversation greeting.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SpecialFunctionPublicResponse" } } } }
+        }
+      },
+      "put": {
+        "summary": "Replace the start function code.",
+        "description": "Replace the entire code of the start function. This runs synchronously before every conversation greeting — this is a complete replacement, not a partial edit.",
+        "tags": ["Functions"],
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateSpecialFunctionPublicBody" } } } },
+        "responses": {
+          "200": { "description": "Updated start function", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SpecialFunctionPublicResponse" } } } }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/functions/end": {
+      "parameters": [
+        { "name": "agentId", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "branchId", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "get": {
+        "summary": "Get the end function code",
+        "description": "Get the end function code. Runs asynchronously after every conversation ends.",
+        "tags": ["Functions"],
+        "responses": {
+          "200": { "description": "Get the end function code. Runs asynchronously after every conversation ends.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SpecialFunctionPublicResponse" } } } }
+        }
+      },
+      "put": {
+        "summary": "Replace the end function code.",
+        "description": "Replace the entire code of the end function. This runs asynchronously after every conversation ends — this is a complete replacement, not a partial edit.",
+        "tags": ["Functions"],
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateSpecialFunctionPublicBody" } } } },
+        "responses": {
+          "200": { "description": "Updated end function", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SpecialFunctionPublicResponse" } } } }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/functions/{functionId}": {
+      "parameters": [
+        { "name": "agentId", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "branchId", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "functionId", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "get": {
+        "summary": "Get a single function by ID",
+        "tags": ["Functions"],
+        "responses": {
+          "200": { "description": "Function details", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FunctionPublicResponse" } } } },
+          "404": { "description": "Function not found" }
+        }
+      },
+      "patch": {
+        "summary": "Update a function",
+        "description": "Partially update a function on a branch: name, description, code, parameters, or latency control. Renaming also rewrites the `def` name inside the code body. Returns 409 Conflict if the rename would orphan flow-step references — pass `force: true` in the body to rename anyway. Changes are drafts until the branch is deployed.",
+        "tags": ["Functions"],
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateFunctionPublicBody" } } } },
+        "responses": {
+          "200": { "description": "Updated function", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FunctionPublicResponse" } } } },
+          "404": { "description": "Function not found" }
+        }
+      },
+      "delete": {
+        "summary": "Delete a function",
+        "description": "Archive a function on a branch. Returns 409 Conflict if the function is still referenced by flow steps, topics, stop keywords, behaviours, or variables — pass ?force=true to delete anyway and leave those references orphaned. Call get-function-references first to see what would break. Deletion is not visible to a running agent until the branch is deployed.",
+        "tags": ["Functions"],
+        "responses": {
+          "204": { "description": "Function deleted" },
+          "404": { "description": "Function not found" },
+          "409": { "description": "Function is referenced by other entities" }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/functions/{functionId}/type-definitions": {
+      "parameters": [
+        { "name": "agentId", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "branchId", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "functionId", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "get": {
+        "summary": "Get Python type stubs for a function",
+        "description": "Returns generic Python type-stub boilerplate (e.g. the Conversation class) for IDE autocomplete when editing this function’s code. The same stub is returned for every function; it is not derived from this function’s own code.",
+        "tags": ["Functions"],
+        "responses": {
+          "200": { "description": "Type stub code", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FunctionTypeDefinitionsResponse" } } } },
+          "404": { "description": "Function not found" }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/functions/{functionId}/references": {
+      "parameters": [
+        { "name": "agentId", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "branchId", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "functionId", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "get": {
+        "summary": "Get function references",
+        "tags": ["Functions"],
+        "responses": {
+          "200": { "description": "Entities referencing this function", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FunctionReferencesPublicResponse" } } } },
+          "404": { "description": "Function not found" }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/functions/{functionId}/execute": {
+      "parameters": [
+        { "name": "agentId", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "branchId", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "functionId", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "post": {
+        "summary": "Execute a function",
+        "description": "Run a function's code with test input and return its result, without deploying. Use to verify a function's logic before it's called by the agent at runtime.",
+        "tags": ["Functions"],
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExecuteFunctionPublicBody" } } } },
+        "responses": {
+          "200": { "description": "Function execution result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExecuteFunctionPublicResponse" } } } },
+          "404": { "description": "Function or deployment not found" }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/functions/{functionId}/duplicate": {
+      "parameters": [
+        { "name": "agentId", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "branchId", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "functionId", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "post": {
+        "summary": "Duplicate a function",
+        "description": "Clone an existing function into a new one with a different name, copying its code and parameters. Use when you want to reuse a function's logic as a starting point without modifying the original.",
+        "tags": ["Functions"],
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DuplicateFunctionPublicBody" } } } },
+        "responses": {
+          "201": { "description": "Duplicated function", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DuplicateFunctionPublicResponse" } } } },
+          "404": { "description": "Function not found" }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/flows": {
+      "parameters": [
+        { "name": "agentId", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "branchId", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "get": {
+        "operationId": "listFlows",
+        "summary": "List flows",
+        "description": "List every flow on a branch, including each flow's steps, step conditions, and transition functions.",
+        "tags": ["Flows"],
+        "responses": {
+          "200": {
+            "description": "List of flows",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListFlowsPublicResponse" },
+                "example": [
+                  {
+                    "id": "flow_8f2c1a7e",
+                    "name": "Book a table",
+                    "description": "Collects party size, date, and time, then checks availability and confirms the booking.",
+                    "startStepId": "step_collect_details",
+                    "steps": [
+                      {
+                        "id": "step_collect_details",
+                        "type": "default_step",
+                        "name": "Collect booking details",
+                        "prompt": "Ask the caller for their party size, preferred date, and preferred time.",
+                        "position": { "x": 0, "y": 0 },
+                        "conditions": [
+                          {
+                            "id": "cond_details_collected",
+                            "type": "stepCondition",
+                            "label": "Details collected",
+                            "description": "The caller has provided party size, date, and time.",
+                            "childStepId": "step_check_availability",
+                            "requiredEntities": ["party_size", "booking_date", "booking_time"]
+                          }
+                        ],
+                        "references": {
+                          "entities": { "party_size": true, "booking_date": true, "booking_time": true }
+                        }
+                      },
+                      {
+                        "id": "step_check_availability",
+                        "type": "function_step",
+                        "name": "Check availability",
+                        "position": { "x": 0, "y": 200 },
+                        "conditions": [
+                          {
+                            "id": "cond_exit",
+                            "type": "exitFlowCondition",
+                            "label": "Booking complete"
+                          }
+                        ],
+                        "function": {
+                          "id": "fn_check_availability",
+                          "name": "check_availability",
+                          "code": "def check_availability(conv: Conversation):\n    return {\"available\": True}\n",
+                          "latencyControl": { "enabled": false }
+                        }
+                      }
+                    ],
+                    "transitionFunctions": [
+                      {
+                        "id": "tf_confirm_booking",
+                        "name": "confirm_booking",
+                        "description": "Confirms the booking once the caller agrees.",
+                        "code": "def confirm_booking(conv: Conversation, party_size: int):\n    return {\"confirmed\": True}\n",
+                        "parameters": [
+                          {
+                            "id": "param_party_size",
+                            "name": "party_size",
+                            "type": "integer",
+                            "description": "Number of guests in the booking."
+                          }
+                        ],
+                        "references": {
+                          "flowSteps": { "step_check_availability": true }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create flow",
+        "tags": ["Flows"],
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateFlowPublicBody" } } } },
+        "responses": {
+          "201": { "description": "Created flow", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateFlowPublicResponse" } } } }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/flows/{flowId}": {
+      "parameters": [
+        { "name": "agentId", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "branchId", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "flowId", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "get": {
+        "summary": "Get flow",
+        "tags": ["Flows"],
+        "responses": {
+          "200": { "description": "Flow details", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateFlowPublicResponse" } } } },
+          "404": { "description": "Flow not found" }
+        }
+      },
+      "patch": {
+        "summary": "Update flow",
+        "tags": ["Flows"],
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateFlowPublicBody" } } } },
+        "responses": {
+          "200": { "description": "Updated flow", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateFlowPublicResponse" } } } },
+          "204": { "description": "No changes detected" },
+          "404": { "description": "Flow not found" }
+        }
+      },
+      "delete": {
+        "summary": "Delete flow",
+        "tags": ["Flows"],
+        "responses": {
+          "204": { "description": "Flow deleted" },
+          "404": { "description": "Flow not found" }
+        }
+      }
+    },
     "/v1/accounts/{accountId}/agents": {
       "get": {
         "responses": {
