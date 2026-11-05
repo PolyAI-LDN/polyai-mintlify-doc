@@ -657,6 +657,24 @@
         "required": ["valid", "issues"],
         "additionalProperties": false
       },
+      "ConnectorTokenResponse": {
+        "description": "The connector token for one client environment.",
+        "type": "object",
+        "properties": {
+          "clientEnv": { "description": "Client environment the token routes calls to", "type": "string", "enum": ["sandbox", "pre-release", "live"] },
+          "connectorId": { "description": "ID of the connector the token belongs to", "type": "string" },
+          "token": { "description": "Connector token. Treat as a secret; it grants call access to this agent in this environment.", "type": "string" }
+        },
+        "required": ["clientEnv", "connectorId", "token"]
+      },
+      "ConnectorTokensResponse": {
+        "description": "Connector tokens for every client environment that has one.",
+        "type": "object",
+        "properties": {
+          "tokens": { "description": "One entry per client environment with a connector", "type": "array", "items": { "$ref": "#/components/schemas/ConnectorTokenResponse" } }
+        },
+        "required": ["tokens"]
+      },
       "ActiveDeploymentsResponse": {
         "description": "The latest deployment for each environment (sandbox, pre-release,\nlive). Entries are null when no deployment exists for an environment.",
         "type": "object",
@@ -4947,6 +4965,52 @@
           }
         }
       ]
+    },
+    "/v1/agents/{agentId}/telephony/connector-tokens": {
+      "parameters": [
+        { "name": "agentId", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "get": {
+        "operationId": "listConnectorTokens",
+        "summary": "List connector tokens",
+        "description": "List the connector token for each client environment of an agent.\n\nOnly environments that already have a connector are returned. Use the PUT endpoint to create one for an environment that is missing.\n\nThe connector token is the per-environment credential a telephony or websocket integration presents so PolyAI routes the call to this agent in that environment. SIP integrations pass it as `X-PolyAi-Auth-Token` in the SIP URI and websocket integrations pass it as the `X-PolyAi-Auth-Token` custom parameter. It is not an API key. Treat it as a secret.",
+        "tags": ["Connectors"],
+        "responses": {
+          "200": { "description": "Successful response", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConnectorTokensResponse" } } } },
+          "401": { "description": "Unauthorized – missing or invalid API key" },
+          "403": { "description": "Forbidden – insufficient permissions" }
+        }
+      }
+    },
+    "/v1/agents/{agentId}/telephony/connector-tokens/{clientEnv}": {
+      "parameters": [
+        { "name": "agentId", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "clientEnv", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "get": {
+        "operationId": "getConnectorToken",
+        "summary": "Get the connector token for an environment",
+        "description": "Get the connector token for one client environment (sandbox, pre-release or live).\n\nReturns 404 if the environment has no connector yet. Use the PUT endpoint to create one.\n\nThe connector token is the per-environment credential a telephony or websocket integration presents so PolyAI routes the call to this agent in that environment. SIP integrations pass it as `X-PolyAi-Auth-Token` in the SIP URI and websocket integrations pass it as the `X-PolyAi-Auth-Token` custom parameter. It is not an API key. Treat it as a secret.",
+        "tags": ["Connectors"],
+        "responses": {
+          "200": { "description": "Successful response", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConnectorTokenResponse" } } } },
+          "401": { "description": "Unauthorized – missing or invalid API key" },
+          "403": { "description": "Forbidden – insufficient permissions" },
+          "404": { "description": "Resource not found" }
+        }
+      },
+      "put": {
+        "operationId": "ensureConnectorToken",
+        "summary": "Ensure a connector token exists for an environment",
+        "description": "Create a connector for one client environment (sandbox, pre-release or live) if none exists, and return its token.\n\nSafe to call repeatedly: if the environment already has a connector, its existing token is returned unchanged. No request body is needed.\n\nThe connector token is the per-environment credential a telephony or websocket integration presents so PolyAI routes the call to this agent in that environment. SIP integrations pass it as `X-PolyAi-Auth-Token` in the SIP URI and websocket integrations pass it as the `X-PolyAi-Auth-Token` custom parameter. It is not an API key. Treat it as a secret.",
+        "tags": ["Connectors"],
+        "responses": {
+          "200": { "description": "Successful response", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConnectorTokenResponse" } } } },
+          "401": { "description": "Unauthorized – missing or invalid API key" },
+          "403": { "description": "Forbidden – insufficient permissions" },
+          "404": { "description": "Resource not found" }
+        }
+      }
     },
     "/v1/agents/{agentId}/telephony/connectors": {
       "get": {
