@@ -1,0 +1,59 @@
+---
+title: "Get turn spans"
+api: "GET /api/v1/traces/conversations/{conversation_id}/turns/{turn_index}"
+description: "The spans of one turn of a conversation."
+---
+
+Returns the spans that belong to a single turn, with the same span shape as [get conversation spans](/api-reference/traces/endpoint/get-conversation-trace). Use it after the [timeline](/api-reference/traces/endpoint/get-conversation-timeline) has pointed you at a slow or failing turn.
+
+## Request
+
+### Headers
+
+<ParamField header="X-API-KEY" type="string" required>
+  Account API key with read access to conversations.
+</ParamField>
+
+### Path parameters
+
+<ParamField path="conversation_id" type="string" required>
+  The conversation.
+</ParamField>
+
+<ParamField path="turn_index" type="integer" required>
+  0-based turn.
+</ParamField>
+
+### Query parameters
+
+<ParamField query="project_id" type="string">
+  The agent the conversation belongs to. Optional with an account API key.
+</ParamField>
+
+## Response
+
+<ResponseField name="conversation_id" type="string" />
+<ResponseField name="project_id" type="string" />
+<ResponseField name="turn_index" type="integer" />
+<ResponseField name="total" type="integer">
+  Number of spans returned, at most 1,000.
+</ResponseField>
+<ResponseField name="spans" type="object[]">
+  Same fields as in [get conversation spans](/api-reference/traces/endpoint/get-conversation-trace#response), ordered by `timestamp` ascending.
+</ResponseField>
+
+## Example
+
+```bash cURL
+curl "https://api.us.poly.ai/api/v1/traces/conversations/CA3f2c1e9d6b7a4f8e9c0d1b2a3c4d5e6f/turns/10?project_id=PROJECT-V258TF29" \
+  -H "X-API-KEY: YOUR_API_KEY"
+```
+
+## Errors
+
+| Status | Meaning |
+| ------ | ------- |
+| `401`  | Missing or invalid API key. |
+| `403`  | The key cannot read conversations. |
+| `404`  | The conversation has no spans for that turn, or belongs to another account. |
+| `502`  | The trace backend did not answer. |
