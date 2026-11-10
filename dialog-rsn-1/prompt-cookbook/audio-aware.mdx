@@ -1,7 +1,7 @@
 ---
-title: "Audio-aware recipes"
+title: "Audio-aware ideas"
 sidebarTitle: "Audio-aware"
-description: "`instructions` and tools for acting on what Dialog-RSN-1 hears beyond the words: a noisy line, a different voice after a security check, the caller's accent, a whispering caller, and hold music on an outbound call."
+description: "Ideas for `instructions` and tools that act on what Dialog-RSN-1 hears beyond the words: a noisy line, a different voice after a security check, the caller's accent, a whispering caller, hold music on an outbound call, and more to try."
 keywords:
   - realtime
   - prompting
@@ -10,14 +10,16 @@ keywords:
   - speaker change
   - outbound calls
   - cookbook
-  - recipes
+  - ideas
 ---
 
 Dialog-RSN-1 hears the caller's audio, not a transcript of it, so you can prompt it to act on what it hears: background noise, a different voice on the line, an accent, a whisper, hold music. In a speech-to-text, LLM and text-to-speech cascade, each of these would need its own component, such as a speaker-change detector or a hold-music classifier. Here each one is a sentence in `instructions`, and for some, a tool.
 
-There are two patterns. For a reaction the caller should hear, prompt for the reply directly, with an example of the line you want. For anything your code acts on, have the model report what it hears as tool arguments: that's how Dialog-RSN-1 was trained to report audio, and it's more reliable than asking it to react out loud.
+This page collects ideas to start from. Each one worked in our tests and comes with the prompt and tool we used, so you can try it and change it to fit your agent. The last section lists ideas we haven't tested yet.
 
-Both depend on the model hearing the real line. [Send raw audio](/dialog-rsn-1/prompt-guide#send-raw-audio): noise suppression strips the cues these recipes use.
+Two approaches worked well. For a reaction the caller should hear, prompt for the reply directly, with an example of the line you want. For anything your code acts on, have the model report what it hears as tool arguments. In our tests that was more reliable than asking it to react out loud.
+
+Both depend on the model hearing the real line. [Send raw audio](/dialog-rsn-1/prompt-guide#send-raw-audio): noise suppression strips the cues these ideas use.
 
 ## Telling a caller on a noisy line you can hear the noise
 
@@ -36,7 +38,7 @@ With café chatter behind a caller asking about a prescription, the reply is alo
 
 ## Logging what the model hears about the caller
 
-**Use the tool the model was trained on, with the wording it was trained on.** Dialog-RSN-1 learned to report what it hears through a silent `tag_inbound_audio` call. Declaring that tool gives your code the kind of audio on each turn, the caller's perceived gender and accent, and whether they're whispering. The next three recipes all build on it.
+**Start with a tool the model calls silently to report what it hears.** Here's an example function that should work well, `tag_inbound_audio`. It gives your code the kind of audio on each turn, the caller's perceived gender and accent, and whether they're whispering. The next three ideas all build on it.
 
 ```json session.tools: tag_inbound_audio
 {
@@ -83,7 +85,7 @@ surroundings.
 
 **The "unless identical" clause is what makes it fire when something changes.** The model calls the tool on the first turn, then again only when what it hears is different: a different voice, a whisper starting or stopping, the line going quiet. A plain "call this on every turn" gets one call on the first turn and is skipped after that, even when a different person speaks.
 
-Answer each call with a `function_call_output`, then `response.create`, since a tool result ends no turn on its own. The output is where your code tells the model what to do next. When nothing needs to change, return `{"logged": true}` and the model answers the caller as usual. Keep the last values you received: the recipes below compare against them.
+Answer each call with a `function_call_output`, then `response.create`, since a tool result ends no turn on its own. The output is where your code tells the model what to do next. When nothing needs to change, return `{"logged": true}` and the model answers the caller as usual. Keep the last values you received: the ideas below compare against them.
 
 ## Re-checking identity when a different voice comes on
 
@@ -103,7 +105,7 @@ This catches a change the model can hear in those fields: a man taking the phone
 
 ## Logging the caller's accent
 
-**`accent` is a free-text field, so log it as it comes.** Use it for reporting, or to try routing a caller to a regional team. It's reliable on accents the model has heard a lot of, such as Australian and Indian English, and often wrong on less common ones, where it falls back on a nearby accent it knows better. Treat it as a hint, not a fact about the caller.
+**`accent` is a free-text field, so log it as it comes.** Use it for reporting, or to try routing a caller to a regional team. In our tests it was right about Australian and Indian English every time, and often wrong about less common accents, where it heard a nearby one instead: Irish came back as New Zealand or Australian. Treat it as a hint, not a fact about the caller.
 
 **Keep the field description neutral.** Examples in a description pull the answer toward them: list a few accents there and the model will map nearby accents onto those. The description above names none.
 
@@ -155,7 +157,17 @@ These are worth knowing before you design around them:
 | A caller who sounds upset but says something neutral | Rarely escalated on tone alone. |
 | How loud the background is | Clean and very noisy lines separate well. Neighbouring levels in between overlap. |
 | Less common accents | Often heard as a nearby, more common accent. |
-| Spoken reactions with no example phrase | Rare. Give the line you want, as in the noisy-line recipe. |
+| Spoken reactions with no example phrase | Rare. Give the line you want, as in the noisy-line idea. |
+
+## More ideas to try
+
+We haven't tested these yet. Each one turns on something the model can hear, so they're a place to start your own experiments:
+
+- Tell a live person from an IVR or voicemail greeting by how it sounds.
+- Notice a child on the line and ask for an adult before any account change.
+- Match the text-to-speech voice, or the regional team you route to, to the caller's accent.
+- Offer a callback when the caller sounds like they're driving.
+- Wait while a caller reads a number off a card, instead of jumping in at a pause.
 
 ## Next steps
 
@@ -164,6 +176,6 @@ These are worth knowing before you design around them:
     What the model perceives beyond words, and why it needs the raw audio.
   </Card>
   <Card title="Tool calling recipes" icon="wrench" href="/dialog-rsn-1/prompt-cookbook/tool-calling">
-    Handling results and errors from the tools these recipes declare.
+    Handling results and errors from the tools these ideas declare.
   </Card>
 </CardGroup>
