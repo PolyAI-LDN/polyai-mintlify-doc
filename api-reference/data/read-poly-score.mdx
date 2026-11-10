@@ -62,7 +62,11 @@ Start with the catalog. It tells you the exact metric names the aggregate and se
   </Tab>
 </Tabs>
 
-Look for `poly_score` in the list. That is the name the rest of this guide aggregates.
+Look for `POLY_SCORE_V2` in the list. That is the 1 to 5 PolyScore, and the name the rest of this guide aggregates. Metric names are case-insensitive, so the examples write it as `poly_score_v2`.
+
+<Note>
+The catalog also lists `POLY_SCORE`. That is the previous score, on a 0 to 10 scale, which only older conversations carry. The two are on different scales, so do not average or compare them. In the CLI, `poly metrics score --v1` reads it.
+</Note>
 
 ## 2. Poly Score for the last week, by day
 
@@ -74,7 +78,7 @@ The simplest read: average score and conversation count per day for the last sev
     poly metrics score
     ```
 
-    `score` is a shortcut for `poly metrics query poly_score --agg avg --agg conversation_count` with a default window of the last 7 days bucketed daily. It prints a one-line headline above the table.
+    `score` is a shortcut for `poly metrics query poly_score_v2 --agg avg --agg conversation_count` with a default window of the last 7 days bucketed daily. It prints a one-line headline above the table that names the score and its scale, for example `Poly Score V2 (1-5) from 2026-09-27 to 2026-10-03: 4.3 average over 2,012 conversations.`
   </Tab>
   <Tab title="curl">
     ```bash
@@ -82,7 +86,7 @@ The simplest read: average score and conversation count per day for the last sev
       -H "X-API-KEY: $POLY_API_KEY" \
       -H "Content-Type: application/json" \
       -d '{
-        "metric": "poly_score",
+        "metric": "poly_score_v2",
         "aggs": ["avg", "conversation_count"],
         "from": "2026-09-27T00:00:00Z",
         "to": "2026-10-04T00:00:00Z",
@@ -95,7 +99,7 @@ The simplest read: average score and conversation count per day for the last sev
   <Tab title="Python">
     ```python
     body = {
-        "metric": "poly_score",
+        "metric": "poly_score_v2",
         "aggs": ["avg", "conversation_count"],
         "from": "2026-09-27T00:00:00Z",
         "to": "2026-10-04T00:00:00Z",
@@ -144,7 +148,7 @@ Scores from test calls and sandbox runs skew the average. Restrict to the live e
       -H "X-API-KEY: $POLY_API_KEY" \
       -H "Content-Type: application/json" \
       -d '{
-        "metric": "poly_score",
+        "metric": "poly_score_v2",
         "aggs": ["avg", "conversation_count"],
         "from": "2026-09-27T00:00:00Z",
         "to": "2026-10-04T00:00:00Z",
@@ -172,10 +176,10 @@ Bucket by week and group by channel to see where quality is moving. This is the 
 <Tabs>
   <Tab title="CLI">
     ```bash
-    poly metrics score --from 2026-09-01 --to 2026-10-01 --interval weekly --by channel
+    poly metrics score --from 2026-08-31 --to 2026-09-27 --interval weekly --by channel
     ```
 
-    Date-only values are accepted: `--to` on a date means the end of that day. For percentiles or other aggregations, drop down to `poly metrics query poly_score --agg p50 --agg p95 --interval weekly --by channel`.
+    Date-only values are accepted: `--to` on a date means the end of that day. If the window does not start and end on a week boundary, the CLI widens it to whole weeks and says so. For percentiles or other aggregations, drop down to `poly metrics query poly_score_v2 --agg p50 --agg p95 --interval weekly --by channel`.
   </Tab>
   <Tab title="curl">
     ```bash
@@ -183,10 +187,10 @@ Bucket by week and group by channel to see where quality is moving. This is the 
       -H "X-API-KEY: $POLY_API_KEY" \
       -H "Content-Type: application/json" \
       -d '{
-        "metric": "poly_score",
+        "metric": "poly_score_v2",
         "aggs": ["avg", "conversation_count"],
-        "from": "2026-09-01T00:00:00Z",
-        "to": "2026-10-01T00:00:00Z",
+        "from": "2026-08-31T00:00:00Z",
+        "to": "2026-09-28T00:00:00Z",
         "interval": "weekly",
         "group_by": ["channel"],
         "client_env": ["live"]
@@ -196,10 +200,10 @@ Bucket by week and group by channel to see where quality is moving. This is the 
   <Tab title="Python">
     ```python
     body = {
-        "metric": "poly_score",
+        "metric": "poly_score_v2",
         "aggs": ["avg", "conversation_count"],
-        "from": "2026-09-01T00:00:00Z",
-        "to": "2026-10-01T00:00:00Z",
+        "from": "2026-08-31T00:00:00Z",
+        "to": "2026-09-28T00:00:00Z",
         "interval": "weekly",
         "group_by": ["channel"],
         "client_env": ["live"],
@@ -218,9 +222,15 @@ Bucket by week and group by channel to see where quality is moving. This is the 
 
 With `group_by` set, the group column sits between `bucket` and the aggregations, so `columns` is `["bucket", "channel", "avg", "conversation_count"]`.
 
+<Warning>
+Weekly buckets are whole weeks starting on Monday (UTC), and monthly buckets are whole calendar months. The API returns a bucket only when the bucket's start falls inside your window, so a `from` in the middle of a week drops that week. Start `from` on a Monday (or the 1st for monthly) and end `to` on one, as the example does: 31 August and 28 September 2026 are both Mondays. The CLI does this for you.
+</Warning>
+
+`timezone` (an IANA name such as `Europe/London`) applies to hourly and daily buckets only, and a `from` / `to` with no offset is read in it only for those two intervals. Send an explicit offset or `Z`, as the examples do, and the window means the same thing for every interval.
+
 ## Where to go next
 
-- **Any other metric** works the same way: swap `poly_score` for a name from step 1, for example `duration` or a custom CSAT metric. In the CLI that is `poly metrics query <metric>`.
+- **Any other metric** works the same way: swap `poly_score_v2` for a name from step 1, for example `duration` or a custom CSAT metric. In the CLI that is `poly metrics query <metric>`.
 - **Only buckets that matter**: add `having` (`--having avg lt 3` in the CLI) to keep only weeks where the average dropped below 3.
-- **Which conversations scored low?** [Search conversations](/api-reference/data/endpoint/conversations/search-conversations) with a filter such as `{"metric": "poly_score", "op": "lt", "value": 3}` returns the conversation IDs, and [Get a transcript](/api-reference/data/endpoint/transcripts/get-a-transcript) shows what was said. `poly conversations search` and `poly transcripts get` will wrap those in the ADK.
+- **Which conversations scored low?** [Search conversations](/api-reference/data/endpoint/conversations/search-conversations) with a filter such as `{"metric": "poly_score_v2", "op": "lt", "value": 3}` returns the conversation IDs, and [Get a transcript](/api-reference/data/endpoint/transcripts/get-a-transcript) shows what was said. `poly conversations search` and `poly transcripts get` will wrap those in the ADK.
 - **Rate limit**: 100 requests per minute per key. Page with `limit` and `offset` instead of polling.
