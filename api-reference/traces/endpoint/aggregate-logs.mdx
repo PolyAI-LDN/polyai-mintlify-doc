@@ -1,0 +1,192 @@
+---
+title: "Aggregate function logs"
+api: "POST /api/v1/traces/logs/aggregate"
+description: "Count GenAI function log lines and the conversations they belong to, bucketed by hour or day."
+---
+
+Counts the log lines your GenAI functions wrote, grouped by event, function, conversation, level, environment, project, error type or turn, and optionally bucketed by hour or day. Takes the same filters as [search](/api-reference/traces/endpoint/search-logs). Use it to see which events fire most, which functions raise, and when.
+
+## Request
+
+### Headers
+
+<ParamField header="X-API-KEY" type="string" required>
+  Account API key with read access to conversations.
+</ParamField>
+
+### Body
+
+<ParamField body="from" type="datetime" required>
+  Inclusive window start, ISO 8601.
+</ParamField>
+
+<ParamField body="to" type="datetime" required>
+  Exclusive window end. The window may span at most 30 days.
+</ParamField>
+
+<ParamField body="aggs" type="string[]" required>
+  Aggregations to compute, one column each: `count` (log lines), `conversation_count`, `first_seen`, `last_seen` (earliest and latest timestamp).
+</ParamField>
+
+<ParamField body="group_by" type="string[]">
+  Dimensions to group by, one column each: `event`, `function_name`, `conversation_id`, `level`, `client_env`, `project_id`, `error_type`, `turn_index`.
+</ParamField>
+
+<ParamField body="interval" type="string">
+  `hourly` or `daily`. Adds a leading `bucket` column. Omit for one unbucketed result per group.
+</ParamField>
+
+<ParamField body="timezone" type="string">
+  IANA timezone (for example `Europe/London`) applied to the buckets. Defaults to UTC.
+</ParamField>
+
+<ParamField body="project_id" type="string">
+  Restrict to one agent. Omit to aggregate the whole account.
+</ParamField>
+
+<ParamField body="conversation_id" type="string">
+  Matches the conversation ID or the call SID.
+</ParamField>
+
+<ParamField body="function_names" type="string[]">
+  Function (tool) names, up to 20.
+</ParamField>
+
+<ParamField body="levels" type="string[]">
+  `debug`, `info`, `warning`, `error`, `critical`.
+</ParamField>
+
+<ParamField body="client_envs" type="string[]">
+  Environments: `test`, `sandbox`, `pre-release`, `live`, `scenarios`.
+</ParamField>
+
+<ParamField body="error_types" type="string[]">
+  Exception classes on failure lines, for example `KeyError`, up to 20.
+</ParamField>
+
+<ParamField body="text" type="object">
+  Whole-word, case-insensitive terms matched on the event label: `{ "all": [...], "any": [...], "none": [...] }`, up to 10 terms each.
+</ParamField>
+
+<ParamField body="trace_id" type="string">
+  Trace ID of the function-execution span.
+</ParamField>
+
+<ParamField body="span_id" type="string">
+  Span ID of the function-execution span.
+</ParamField>
+
+<ParamField body="turn_index" type="integer">
+  0-based turn the function call belongs to. Must be an integer.
+</ParamField>
+
+<ParamField body="sort" type="object">
+  `{ "field": "<a group_by or aggs value>", "order": "asc" | "desc" }`. Applied after the ascending bucket sort.
+</ParamField>
+
+<ParamField body="limit" type="integer" default="20">
+  Rows per page, 1–100.
+</ParamField>
+
+<ParamField body="offset" type="integer" default="0">
+  Rows to skip, 0–1000.
+</ParamField>
+
+## Response
+
+<ResponseField name="columns" type="string[]">
+  Column names in row order: `bucket` (when `interval` is set), then each `group_by` dimension, then each aggregation.
+</ResponseField>
+
+<ResponseField name="rows" type="array[]">
+  One array per bucket and group, values in `columns` order.
+</ResponseField>
+
+<ResponseField name="limit" type="integer" />
+<ResponseField name="offset" type="integer" />
+<ResponseField name="has_more" type="boolean" />
+
+## Examples
+
+### Which functions log errors, and why
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.us.poly.ai/api/v1/traces/logs/aggregate \
+  -H "X-API-KEY: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": "PROJECT-V258TF29",
+    "from": "2026-10-26T00:00:00Z",
+    "to": "2026-10-28T00:00:00Z",
+    "levels": ["error"],
+    "aggs": ["count", "conversation_count"],
+    "group_by": ["function_name", "error_type"],
+    "sort": {"field": "count", "order": "desc"}
+  }'
+```
+
+```json Response
+{
+  "columns": ["function_name", "error_type", "count", "conversation_count"],
+  "rows": [
+    ["send_sms", "", 19, 18]
+  ],
+  "limit": 20,
+  "offset": 0,
+  "has_more": false
+}
+```
+
+</CodeGroup>
+
+An empty `error_type` means the function logged the error itself and carried on; a class name means it raised.
+
+### Log volume per day
+
+```json Request
+{
+  "project_id": "PROJECT-V258TF29",
+  "from": "2026-10-26T00:00:00Z",
+  "to": "2026-10-28T00:00:00Z",
+  "aggs": ["count"],
+  "interval": "daily"
+}
+```
+
+```json Response
+{
+  "columns": ["bucket", "count"],
+  "rows": [
+    ["2026-10-26T00:00:00+00:00", 3326],
+    ["2026-10-27T00:00:00+00:00", 88]
+  ],
+  "limit": 20,
+  "offset": 0,
+  "has_more": false
+}
+```
+
+### Most frequent events in one conversation
+
+```json Request
+{
+  "project_id": "PROJECT-V258TF29",
+  "conversation_id": "CA3f2c1e9d6b7a4f8e9c0d1b2a3c4d5e6f",
+  "from": "2026-10-26T00:00:00Z",
+  "to": "2026-10-27T00:00:00Z",
+  "aggs": ["count", "first_seen", "last_seen"],
+  "group_by": ["turn_index", "event"]
+}
+```
+
+## Errors
+
+| Status | Meaning |
+| ------ | ------- |
+| `400`  | `sort.field` is not one of the output columns. |
+| `401`  | Missing or invalid API key. |
+| `403`  | The key cannot read conversations. |
+| `422`  | `from` is not before `to`, the window exceeds 30 days, or a value is outside its enum or range. |
+| `502`  | The log backend did not answer. |
