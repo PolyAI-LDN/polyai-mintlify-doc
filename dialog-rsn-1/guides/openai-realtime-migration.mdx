@@ -10,6 +10,10 @@ keywords:
   - guide
 ---
 
+<Tip>
+Building with a coding agent? The [coding agent version](/dialog-rsn-1/coding-agents/openai-realtime-migration) of this guide gives you the prompts, what to check, and what to tell your agent when it goes wrong.
+</Tip>
+
 ## What this guide is
 
 You have an existing OpenAI Realtime API integration and want to point it at Dialog-RSN-1 instead. Since this API is wire-compatible with OpenAI's Realtime protocol, most of an existing client survives the move untouched. The work is in the differences, not a rewrite.
@@ -19,6 +23,7 @@ You have an existing OpenAI Realtime API integration and want to point it at Dia
 - The JSON event shape and names: `session.update`, `conversation.item.create`, `response.create`, `response.output_text.delta`, `response.done`, and the rest of the vocabulary your client already parses.
 - The add-then-respond turn shape: add an item to the conversation, then ask for a response to it, exactly as before.
 - The function-calling shape: `response.function_call_arguments.delta`/`.done`, answered with a `function_call_output` item and a fresh `response.create`.
+- Push-to-talk: `turn_detection: null`, then `input_audio_buffer.commit` and `response.create` for each turn.
 
 ## What to change
 
@@ -32,6 +37,8 @@ You have an existing OpenAI Realtime API integration and want to point it at Dia
 
 If you use the official `openai` SDK, the first and third rows are the whole connection change: pass the new `base_url` and key to the client, and it builds the URL and sends the key as a bearer token, which this API accepts.
 
+**Give your tools something to say.** An OpenAI Realtime agent often speaks and calls a tool in one response, prompted with "say X and call Y". Dialog-RSN-1 returns text or one tool call, never both, so the same agent goes silent until its last tool returns. Add a required string argument marked `"poly_spoken": true` to each tool you expect to be slow, like an API lookup, or that does something the caller should hear about, and tell the prompt to put the line there. Leave it off fast tools and ones that quietly log a detail or move to another flow step: there the line only delays the answer. See [Speaking while a tool runs](/dialog-rsn-1/prompt-guide#speaking-while-a-tool-runs).
+
 <Card title="Full code on GitHub" icon="github" href="https://github.com/PolyAI-LDN/dialog-rsn-1-openai-migration">
   A voice agent on the `openai` SDK, before and after the move to text replies. `diff before.py after.py` is the whole migration.
 </Card>
@@ -44,7 +51,7 @@ An OpenAI Realtime client usually carries settings and code this API has no use 
 
 - `reasoning` and `prompt`.
 - `tool_choice` other than `"auto"`, and any tool that isn't a `function`, MCP servers included.
-- `turn_detection: null`, and in `turn_detection`, `idle_timeout_ms` and `"interrupt_response": false`.
+- In `turn_detection`, `idle_timeout_ms` and `"interrupt_response": false`.
 - An `audio.output.format` type other than `audio/pcm`.
 
 `output_modalities: ["text", "audio"]` fails with `invalid_request_error`.
@@ -76,6 +83,8 @@ This is what this API acts on, for text replies:
 ```
 
 `audio.input.transcription` is accepted, but there's no transcription model to pick: Dialog-RSN-1 transcribes the caller as part of its own turn, and the transcript arrives as the usual `conversation.item.input_audio_transcription.*` events. Because it comes from the model's turn, `.completed` arrives only when that response completes. A reply cancelled by a barge-in or `response.cancel`, or one that fails, gets at most some `.delta` events and no `.completed`. With the managed voice, `.completed` lands once the spoken reply has finished playing.
+
+If you only want the transcript, OpenAI's transcription sessions work here too: connect with `intent=transcription` and send `session.type: "transcription"`. Each turn is transcribed and never answered. The main difference from OpenAI is that they are English only; [transcription sessions](/api-reference/dialog-rsn-1/reference#transcription-sessions) lists the rest.
 
 Turn timing isn't tunable because the turn boundary here is a model judgment, not a silence timer. Dialog-RSN-1 confirms or overrules what the detector proposes, based on the conversation. What you'd have expressed as `silence_duration_ms` you express in `instructions`, in plain language, as the [prompt guide](/dialog-rsn-1/prompt-guide#turn-taking) explains. The fixed thresholds behind the detector are in the [reference](/dialog-rsn-1/reference#turn-taking-and-audio).
 

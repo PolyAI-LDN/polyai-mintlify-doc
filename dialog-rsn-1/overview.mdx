@@ -52,7 +52,8 @@ The detector is infrastructure; Dialog-RSN-1 makes the judgment, confirming what
 | You are building... | Use |
 |---|---|
 | A phone-style agent with barge-in | Server VAD (`turn_detection: {"type": "server_vad"}`), and let `speech_started`/`speech_stopped` drive turns |
-| A push-to-talk or chat-like text UI | Manual responses: `create_response: false`, then `input_audio_buffer.commit` or `conversation.item.create` followed by an explicit `response.create`. The model no longer confirms turns, and the detector still commits the audio at each pause it hears, so one press can become several caller items. Nothing answers them until your `response.create`. |
+| A push-to-talk UI | Push-to-talk: `turn_detection: null`. Everything you append is one turn until your `input_audio_buffer.commit`, and nothing answers it until your `response.create`. No speech events and no barge-in |
+| A chat-like text UI | Manual responses: `create_response: false`, then `conversation.item.create` followed by an explicit `response.create` |
 | A tool-using agent | Declare `tools` in `session.update`; answer a call with `function_call_output`, then a fresh `response.create` |
 | A task with real thinking to do (dates, ambiguous requests, multi-step logic) | Nothing to configure. Reasoning is automatic, and Dialog-RSN-1 decides per turn whether a turn earns it |
 | An agent you voice with your own text-to-speech | Report playback with `poly.output_audio.*`, so barge-in confirmation covers the reply the caller is still hearing. See the [streaming to TTS guide](/dialog-rsn-1/guides/streaming-text-to-speech) for the rest of that wiring |
@@ -120,6 +121,40 @@ This API gives you a conversation and a model, and leaves the conversational log
 Write that harness yourself or bring one you already use. The [Guides](/dialog-rsn-1/guides/introduction) section covers both paths.
 
 ## Common mistakes
+
+**A slow tool with no spoken argument leaves the caller in silence.**
+
+```json wrong: a tool with nothing to say while it runs
+{
+  "type": "function",
+  "name": "check_eligibility",
+  "parameters": {
+    "type": "object",
+    "properties": { "member_id": { "type": "string" } },
+    "required": ["member_id"]
+  }
+}
+```
+```json right: a required argument marked poly_spoken
+{
+  "type": "function",
+  "name": "check_eligibility",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "member_id": { "type": "string" },
+      "utterance": {
+        "type": "string",
+        "description": "A short line to say to the caller while this runs.",
+        "poly_spoken": true
+      }
+    },
+    "required": ["member_id", "utterance"]
+  }
+}
+```
+
+Dialog-RSN-1 is trained to run a turn as tool, tool, and so on, then text, and only the text hands the floor back. Each output is text or one tool call, never both. Without a spoken argument, the caller hears nothing until the last tool in the chain returns and the reply is written. Swap Dialog-RSN-1 into an existing agent unchanged and this is what makes it look slow. Add a `poly_spoken` argument to tools you expect to be slow, like this lookup, or that do something the caller should hear about, and the line is spoken while the tool runs. Make it required: the model often skips an optional one. Leave it off fast tools and silent ones, like logging a detail or moving to another flow step: there the line only delays the answer. See [Speaking while a tool runs](/dialog-rsn-1/prompt-guide#speaking-while-a-tool-runs).
 
 **A speaking session sends no text deltas.**
 

@@ -24,14 +24,24 @@ Search conversations by metric filters, with sorting and pagination.
 | Parameter         | Type     | Description                                                                                                        |
 | ----------------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
 | `from` / `to`     | datetime | Bounds on conversation start time (`from` inclusive, `to` exclusive).                                              |
-| `filters`         | array    | Metric filters: `{metric, op, value}`. Operators: `eq`, `gt`, `gte`, `lt`, `lte`, `in`, `ex`, `contains`, `not_contains`, `exists`. `conversation_id` is also accepted as a filter (`eq`/`in`) to fetch one or many conversations' metrics. |
+| `filters`         | array    | Metric filters: `{metric, op, value}`. Operators: `eq`, `gt`, `gte`, `lt`, `lte`, `in`, `ex`, `contains`, `not_contains`, `exists`. `conversation_id` is also accepted as a filter (`eq`/`in`) to fetch one or many conversations' metrics. An [AI Score](/analytics/ai-scores) is `CUSTOM_SCORE_<ID>` and filters on its 1–5 score. |
 | `filter_operator` | string   | How filters combine: `and` (default) or `or`.                                                                      |
-| `fields`          | array    | Metric keys to include in each conversation's `metrics` map (case-insensitive). Omit to return all metrics — prefer passing only the metrics you need, especially on large searches. |
+| `fields`          | array    | Metric keys to include in each conversation's `metrics` map (case-insensitive). A `CUSTOM_SCORE_<ID>` key also selects that score in `custom_scores`. Omit to return all metrics — prefer passing only the metrics you need, especially on large searches. |
 | `channel`         | array    | Restrict to channels: `VOICE-SIP`, `CHAT`, `WEBCHAT`, `SMS`, `RCS`.                                                |
 | `client_env`      | array    | Restrict to environments: `test`, `sandbox`, `pre-release`, `live`, `scenarios`. `pre-release` is the Staging environment. |
 | `sort`            | object   | `{field, order}` — field is `started_at`, `duration`, or `conversation_id`. Defaults to `started_at` descending.   |
 | `limit` / `offset`| integer  | Pagination. `limit` 1–100 (default 20), `offset` 0–1000.                                                           |
 | `project_id`      | string   | Optional project scope.                                                                     |
+
+Each conversation in the response carries a flat `metrics` map and a `custom_scores` list. AI Scores appear in both: `metrics` holds each one's 1–5 value under its `CUSTOM_SCORE_<ID>` key, and `custom_scores` holds the same value together with the breakdown.
+
+| Field          | Description                                                                                                      |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `metric`       | The score's `CUSTOM_SCORE_<ID>` key, as in `metrics`.                                                            |
+| `display_name` | The score's name when the conversation was scored.                                                               |
+| `score`        | 1 (worst) to 5 (best). Null unless `state` is `processed`.                                                      |
+| `state`        | `processed`, or why there's no score: `skipped_short_conversation`, `skipped_excluded`, or `failed`.            |
+| `sub_scores`   | One entry per criterion: `criterion_id`, `display_name`, `score_type` (`THREE_POINT` or `YES_NO`), `weight` (percent), `answer` (Poor −1, Fair 0, Good 1; No 0, Yes 1) and `answer_label`. |
 
 ### `search-transcripts`
 
@@ -60,7 +70,7 @@ Discover which metrics you can filter and aggregate on, then roll one up over ti
 
 ### `get-metrics`
 
-List the filterable metrics for an account, optionally scoped to a project — built-in metrics plus any custom metrics the project defines. Use this first to discover what you can filter and aggregate on.
+List the filterable metrics for an account, optionally scoped to a project — built-in metrics plus any custom metrics the project defines. With a project scope, it also lists the project's AI Scores as `CUSTOM_SCORE_<ID>` metrics, each with the score's name as its `display_name`. Use this first to discover what you can filter and aggregate on.
 
 | Parameter    | Type   | Description                                       |
 | ------------ | ------ | ------------------------------------------------- |

@@ -1,7 +1,7 @@
 ---
 title: "Prompting Dialog-RSN-1"
 sidebarTitle: "Prompt guide"
-description: "What the `instructions` parameter can and can't control: one output per turn, turn-taking, what the model hears from raw audio, tool calling, and response style."
+description: "What the `instructions` parameter can and can't control: one output per turn, turn-taking, what the model hears from raw audio, tool calling, response style, and fitting the context window."
 keywords:
   - realtime
   - prompting
@@ -13,10 +13,11 @@ keywords:
   - agentic loop
   - acoustic understanding
   - response style
+  - context window
   - concepts
 ---
 
-The `instructions` parameter is your main lever over what Dialog-RSN-1 says and how it behaves: a system prompt, placed word for word into the model's prompt alongside your tools, your knowledge topics and the conversation so far. Nothing rewrites it. A `response.create` can add instructions for a single reply, and a platform content policy applies whatever your instructions say. This guide covers what that lever can and can't do. It starts with the one structural rule that catches most people out, then works through turn-taking, what the model hears, tool calling, and response style.
+The `instructions` parameter is your main lever over what Dialog-RSN-1 says and how it behaves: a system prompt, placed word for word into the model's prompt alongside your tools, your knowledge topics and the conversation so far. Nothing rewrites it. A `response.create` can add instructions for a single reply, and a platform content policy applies whatever your instructions say. This guide covers what that lever can and can't do. It starts with the one structural rule that catches most people out, then works through turn-taking, what the model hears, tool calling, response style, and how much of the context window your setup can take.
 
 For something to paste rather than read about, start with the [prompt cookbook](/dialog-rsn-1/prompt-cookbook/introduction) instead.
 
@@ -48,6 +49,10 @@ Write your instructions knowing the tool call goes first. If the caller needs to
 
 **Since the model won't emit text and a tool call together, the hold line has to come from the call itself.** Give the tool an argument for it and mark that argument with `"poly_spoken": true`. The model fills it in as part of the call, in context, and Dialog-RSN-1 sends it to the caller as the call is written, before your tool runs.
 
+<Warning>
+**Without a spoken argument, a tool turn is silent until every tool call finishes.** The caller hears nothing through the whole chain, then the reply. With slow tools, this is the most common reason Dialog-RSN-1 seems slow in an existing agent or benchmark. Add a `poly_spoken` argument only to tools you expect to be slow, like an API lookup, or that do something the caller should hear about. List it in `required`: the model often leaves an optional one empty.
+</Warning>
+
 ```json a tool schema with a hold-line argument
 {
   "type": "function",
@@ -72,6 +77,8 @@ The line arrives as the response's message, next to the `function_call` item. On
 
 The keyword must be `true`, on a `string` property, and on one property per tool at most, or the `session.update` is refused. The model never sees it: Dialog-RSN-1 removes it and adds "Spoken aloud to the caller while the tool runs." to the property's description. If the caller talks over the line, the model's copy of the call keeps only what they heard.
 
+Leave it off fast tools and silent ones, like a tool that logs a detail, classifies the caller, or moves to another step of a flow. On a fast tool the line costs more than it saves: the answer can't start until the line has been said. In one test with a 300 ms tool, a required line brought first audio forward from 1.7 to 1.0 seconds but pushed the answer back from 1.7 to 3.0 seconds. On a tool that ends the call, put the goodbye in its spoken argument, for example a `closing_message` the prompt tells the model to use, and hang up on `response.done` with status `completed`, which waits for the line to finish.
+
 ### Getting at what the caller said, mid-loop
 
 **The user transcript arrives after the text or tool call, not before it.** The reply is on the critical path and the transcript isn't, so it may simply not exist yet at the point in the loop where your harness wants it. See the [timing note](/dialog-rsn-1/reference#voice-input-and-transcription) in the reference.
@@ -85,7 +92,7 @@ Turn-taking is decided by the model, not a silence timer. The first token Dialog
 That means there's no silence window to tune, and no threshold tuning to do for interruptions, hesitation, background noise, or an automated voice on the line. It also means the verdict is **promptable**, in plain language, the same as everything else.
 
 <Warning>
-**The realtime schema's turn-timing fields change nothing.** `silence_duration_ms`, `prefix_padding_ms`, `threshold` and `"type": "semantic_vad"` are accepted and left at this service's values, because the detector's thresholds are fixed, and `session.updated` echoes `server_vad` back. `turn_detection: null`, `interrupt_response: false` and `idle_timeout_ms` are refused with `unsupported_parameter`. `create_response` is the only field of `turn_detection` this service reads. Tune turn-taking in `instructions` instead. See the [reference](/dialog-rsn-1/reference#turn-taking-and-audio).
+**The realtime schema's turn-timing fields change nothing.** `silence_duration_ms`, `prefix_padding_ms`, `threshold` and `"type": "semantic_vad"` are accepted and left at this service's values, because the detector's thresholds are fixed, and `session.updated` echoes `server_vad` back. `interrupt_response: false` and `idle_timeout_ms` are refused with `unsupported_parameter`. `turn_detection: null` turns detection off for push-to-talk, and your client then decides where every turn ends. `create_response` is the only field of `turn_detection` this service reads. Tune turn-taking in `instructions` instead. See the [reference](/dialog-rsn-1/reference#turn-taking-and-audio).
 </Warning>
 
 ### What prompting can't do
@@ -248,6 +255,34 @@ Choose ONE emotion tag for your response from: [friendly], [apologetic],
 ```
 
 The tags aren't a fixed enum, and the model generalizes to ones you invent. Common choices are `[friendly]`, `[energized]`, `[reassuring]`, `[empathetic]`, `[apologetic]`, `[patient]`, `[confident]`, `[assertive]`, `[diplomatic]`, and `[informative]`. A response that's only a tool call carries no tag, since it emits no text to prefix, so parse the prefix as optional. Recipe: [prompt cookbook](/dialog-rsn-1/prompt-cookbook/response-style#tagging-a-reply-with-an-emotion).
+
+## Fitting the context window
+
+**Keep your `instructions` and `tools` under about 20,000 tokens together, so the conversation has room to grow.** The [context window](/api-reference/dialog-rsn-1/limits) is 32,768 tokens, audio included. Every reply's prompt holds your `instructions`, every tool definition, and the conversation so far.
+
+Only the conversation gets smaller as a call goes on. From the tenth caller turn, older turns give up their audio and keep their transcript. Your `instructions` and `tools` go into every prompt in full, on every turn, and nothing compacts them. A setup of 28,000 tokens leaves about 4,000 for the call itself, which a few turns use up.
+
+When a prompt outgrows the window, that response fails with `context_length_exceeded`: an `error` event, then a `response.done` with `status: "failed"`. The connection stays open. A `session.update` with oversized `instructions` is accepted without complaint, so the first sign is the first reply failing.
+
+### Measuring your setup
+
+**Read `response.usage.input_tokens` off the first reply.** Send your `session.update`, one short user message and a `response.create`, then check the number on `response.done`. That count is the fixed cost every later turn starts from.
+
+For a rough estimate before you send anything, count about four characters of English per token, and about 100 tokens for a tool with a one-line description and two parameters. Some measured first replies:
+
+| Setup | `input_tokens` |
+| --- | --- |
+| 270 characters of instructions, no tools | 392 |
+| The same instructions, 20 tools | 2,477 |
+| 13,550 characters of instructions, no tools | 3,136 |
+| 108,400 characters of instructions, no tools | 22,736 |
+
+### When you're over
+
+- **Cut what the model doesn't need on every turn.** Long policy text, FAQs and product lists cost their full size on every reply.
+- **Move reference material behind a search tool.** Return the passages as [`poly_knowledge`](#searching-and-getting-citations-back) on the tool result, so only what the caller asks about enters the prompt.
+- **Declare fewer tools.** Merge tools that take the same arguments, and drop the ones this agent never calls.
+- **Split the call into stages.** Give each stage its own `instructions` and `tools`, and swap them in with `session.update` as the call moves on. The history stays intact. The [realtime agents example](https://github.com/polyai/dialog-rsn-1-realtime-agents) does this for handoffs.
 
 ## Next steps
 

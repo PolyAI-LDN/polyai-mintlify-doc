@@ -12,6 +12,21 @@ The PolyAI platform supports flexible voice selection for external providers suc
 
 When picking models, adjusting stability, or accessing third-party providers – use provider-specific TTSVoice classes.
 
+### Required parameters
+
+Every provider class needs a voice ID. All other parameters are optional and fall back to provider defaults.
+
+| Class | Required | Optional |
+|-------|----------|----------|
+| `ElevenLabsVoice` | `provider_voice_id` | `model_id`, `stability`, `similarity_boost`, `speed` |
+| `CartesiaVoice` | `provider_voice_id` | `model_id`, `speed`, `emotions`, `volume`, `emotion`, `language` |
+| `RimeVoice` | `provider_voice_id` | `model_id`, `speech_alpha` |
+| `PlayHTVoice` | `provider_voice_id` | `voice_engine`, `speed`, `temperature`, `emotion`, `voice_guidance`, `style_guidance` |
+| `MinimaxVoice` | `model_id`, `voice_id` | `speed`, `vol`, `pitch`, `emotion` |
+| `HumeVoice` | `provider_voice_id` | `voice_description`, `version`, `instant_mode`, `provider` |
+| `GoogleVoice` | `provider_voice_id` | `gender` |
+| `CustomVoice` | `provider`, `provider_voice_id` | Any extra keyword arguments |
+
 ### Example: ElevenLabs
 
 ```python
@@ -78,7 +93,27 @@ conv.set_voice(
 )
 ```
 
+### Example: PlayHT
+
+```python
+from polyai.voice import PlayHTVoice
+
+conv.set_voice(
+    PlayHTVoice(
+        provider_voice_id="voice_id",
+        voice_engine="Play3.0-mini",  # "Play3.0-mini", "PlayDialog", "PlayHT2.0-turbo", "PlayHT2.0", "PlayHT1.0"
+        speed=1.0,             # 0.1–5.0
+        temperature=1.0,       # 0–2, higher = more variation
+        emotion="female_happy",  # e.g. "male_sad"; only with some engines (Play3.0-mini, PlayHT2.0)
+        voice_guidance=3,      # 1–6, adherence to the base voice
+        style_guidance=10,     # 1–30, expressiveness
+    )
+)
+```
+
 ### Example: Minimax
+
+Minimax is the only provider that takes `model_id` and `voice_id` as required parameters, rather than `provider_voice_id`.
 
 ```python
 from polyai.voice import MinimaxVoice
@@ -106,10 +141,12 @@ conv.set_voice(
         voice_description="patient, empathetic counselor",  # Optional
         version="2",        # "1" for octave-1, "2" for octave-2
         instant_mode=False, # Ultra-low latency mode
-        provider="HUME_AI"  # "CUSTOM_VOICE" or "HUME_AI"
+        provider="HUME_AI"  # "CUSTOM_VOICE" (default) or "HUME_AI"
     )
 )
 ```
+
+`provider` is only needed when `provider_voice_id` is a voice name (for example `"ITO"`) rather than a UUID. Use `"HUME_AI"` for voices from Hume's Voice Library and `"CUSTOM_VOICE"` for voices you created. `instant_mode` requires `version="2"` and a predefined `provider_voice_id` (not `voice_description`).
 
 ### Example: Google TTS
 
