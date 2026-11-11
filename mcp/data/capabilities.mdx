@@ -7,7 +7,7 @@ mode: wide
 
 Data MCP exposes PolyAI's conversation data as MCP tools. Your client discovers them automatically on connection — you don't configure tools by hand. Each tool carries its own input schema, which the client reads directly from the server; the parameter tables below reproduce that schema so you can see what each tool takes without connecting first.
 
-Data MCP exposes **13 tools**. Tool names appear exactly as your client sees them in `tools/list`.
+Data MCP exposes **15 tools**. Tool names appear exactly as your client sees them in `tools/list`.
 
 <Note>
 To see exactly what your client discovered, ask it to list its tools or query the endpoint's `tools/list` method. Parameters map to a PolyAI REST endpoint — they're sent as path segments, query parameters, or a request body — but your client handles that wiring from the schema; the tables below just list what you can set.
@@ -213,6 +213,35 @@ Count log lines and the conversations they belong to, bucketed by hour or day. T
 | `limit` / `offset` | integer  | Pagination. `limit` 1–100 (default 20), `offset` 0–1000.                                                         |
 | `project_id`       | string   | Optional project scope.                                                                                           |
 
+## Telephony
+
+Read the SIP signalling and audio quality of a call, to see why it failed, how long it rang, who hung up, or whether the audio suffered from packet loss or jitter. These tools wrap the [Telephony API](/api-reference/telephony/introduction); see it for how legs, messages and audio-quality streams are reported. Telephony data is kept for 14 days.
+
+### `get-call-sip-ladder`
+
+All SIP signalling captured for one call, stitched across legs (carrier, PolyAI's SIP edge and the media server, including transfers). Phone numbers are masked unless the API key can read personal data.
+
+| Parameter         | Type     | Description                                                                                                           |
+| ----------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
+| `conversation_id` | string   | The call's CallSid. **Required.**                                                                                      |
+| `from` / `to`     | datetime | Bounds on the search window. `to` defaults to now, `from` to 14 days ago, which is also the earliest data kept.        |
+| `include_raw`     | boolean  | Include the full SIP text of each message. Only takes effect when the key can read personal data. Default `false`.     |
+| `project_id`      | string   | Optional project scope.                                                                                               |
+
+The response lists each `leg` (one per SIP dialog, with its `final_response`) and every `message` in capture order. `truncated` is `true` when the 2,000-message cap was reached.
+
+### `get-call-audio-quality`
+
+RTCP-derived audio quality for one call: packet loss and jitter per media stream, plus a per-call rollup. Use it to tell network or media problems apart from application problems.
+
+| Parameter         | Type     | Description                                                                                                    |
+| ----------------- | -------- | -------------------------------------------------------------------------------------------------------------- |
+| `conversation_id` | string   | The call's CallSid. **Required.**                                                                               |
+| `from` / `to`     | datetime | Bounds on the search window. `to` defaults to now, `from` to 14 days ago, which is also the earliest data kept. |
+| `project_id`      | string   | Optional project scope.                                                                                        |
+
+The response carries the rollup (`packets_lost`, `fraction_lost_max_pct`, `jitter_max_ms`) and one entry per `stream`. `truncated` is `true` when the 5,000-report cap was reached.
+
 ## Errors
 
 | Status | Meaning                                                                                |
@@ -222,3 +251,4 @@ Count log lines and the conversations they belong to, bucketed by hour or day. T
 | `403`  | Authenticated, but missing the required permission.                                      |
 | `404`  | Not found or empty result — also returned when a credential can't access the account.   |
 | `422`  | Unsupported filter.                                                                     |
+| `502`  | The backing data store did not answer. Retry with backoff.                               |

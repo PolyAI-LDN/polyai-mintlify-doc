@@ -1,0 +1,163 @@
+---
+title: "Get call audio quality"
+api: "GET /api/v1/telephony/calls/{conversation_id}/quality"
+description: "Packet loss and jitter per media stream for one call, plus a per-call rollup."
+---
+
+Returns RTCP-derived audio quality for a call: packet loss and jitter for each media stream, and a rollup across the call. Use it to tell network or media problems apart from application problems. To see the signalling for the same call, use [get call SIP ladder](/api-reference/telephony/endpoint/get-call-sip-ladder).
+
+## Request
+
+### Headers
+
+<ParamField header="X-API-KEY" type="string" required>
+  Account API key with read access to conversations.
+</ParamField>
+
+### Path parameters
+
+<ParamField path="conversation_id" type="string" required>
+  The call's CallSid.
+</ParamField>
+
+### Query parameters
+
+<ParamField query="project_id" type="string">
+  The agent the call belongs to. Optional with an account API key.
+</ParamField>
+
+<ParamField query="from" type="datetime">
+  Start of the window, ISO 8601. Defaults to 14 days ago, which is also the earliest data kept.
+</ParamField>
+
+<ParamField query="to" type="datetime">
+  End of the window, ISO 8601. Defaults to now.
+</ParamField>
+
+## Response
+
+<ResponseField name="conversation_id" type="string" />
+<ResponseField name="account_id" type="string" />
+<ResponseField name="project_id" type="string">
+  `null` when you did not pass `project_id`.
+</ResponseField>
+<ResponseField name="first_ts" type="datetime">
+  Time of the first report, UTC.
+</ResponseField>
+<ResponseField name="last_ts" type="datetime">
+  Time of the last report, UTC.
+</ResponseField>
+<ResponseField name="report_count" type="integer">
+  Number of RTCP reports received for the call. `0` when the call exists but no media was reported, for example because it ended before audio started; `streams` is then empty and the loss and jitter fields are `null`.
+</ResponseField>
+<ResponseField name="packets_lost" type="integer">
+  Packets lost, summed across streams.
+</ResponseField>
+<ResponseField name="fraction_lost_max_pct" type="number">
+  The highest loss reported between two reports on any stream, as a percentage.
+</ResponseField>
+<ResponseField name="jitter_max_ms" type="number">
+  The highest jitter on any stream, in milliseconds.
+</ResponseField>
+<ResponseField name="streams" type="object[]">
+  One entry per reporter and source pair, ordered by `first_ts`.
+
+  <Expandable title="properties">
+    <ResponseField name="call_id" type="string">
+      The SIP `Call-ID` of the leg the stream belongs to.
+    </ResponseField>
+    <ResponseField name="ssrc" type="string">
+      The reporting endpoint's RTP synchronization source identifier.
+    </ResponseField>
+    <ResponseField name="source_ssrc" type="string">
+      The stream being reported on.
+    </ResponseField>
+    <ResponseField name="first_ts" type="datetime" />
+    <ResponseField name="last_ts" type="datetime" />
+    <ResponseField name="report_count" type="integer" />
+    <ResponseField name="packets_sent" type="integer">
+      From the sender's reports.
+    </ResponseField>
+    <ResponseField name="packets_lost" type="integer">
+      Cumulative, from the stream's last report.
+    </ResponseField>
+    <ResponseField name="fraction_lost_avg_pct" type="number">
+      Average loss between reports, as a percentage.
+    </ResponseField>
+    <ResponseField name="fraction_lost_max_pct" type="number">
+      Worst loss between two reports, as a percentage.
+    </ResponseField>
+    <ResponseField name="jitter_avg_ms" type="number">
+      Average interarrival jitter, calculated assuming an 8 kHz RTP clock.
+    </ResponseField>
+    <ResponseField name="jitter_max_ms" type="number" />
+  </Expandable>
+</ResponseField>
+<ResponseField name="truncated" type="boolean">
+  `true` when the cap of 5,000 reports was reached and later reports are missing. Narrow the window to see them.
+</ResponseField>
+
+## Example
+
+<CodeGroup>
+
+```bash cURL
+curl "https://api.us.poly.ai/api/v1/telephony/calls/CA3f2c1e9d6b7a4f8e9c0d1b2a3c4d5e6f/quality?project_id=PROJECT-V258TF29" \
+  -H "X-API-KEY: YOUR_API_KEY"
+```
+
+```json Response
+{
+  "conversation_id": "CA3f2c1e9d6b7a4f8e9c0d1b2a3c4d5e6f",
+  "account_id": "ACCOUNT-4F8K2M1P",
+  "project_id": "PROJECT-V258TF29",
+  "first_ts": "2026-11-10T09:14:07.300000Z",
+  "last_ts": "2026-11-10T09:14:47.300000Z",
+  "report_count": 31,
+  "packets_lost": 12,
+  "fraction_lost_max_pct": 1.56,
+  "jitter_max_ms": 14.25,
+  "streams": [
+    {
+      "call_id": "b1c4e7f2-9a30-4d6e-8c5b-0f2a7d3e1b94",
+      "ssrc": "1928374650",
+      "source_ssrc": "3049281756",
+      "first_ts": "2026-11-10T09:14:07.300000Z",
+      "last_ts": "2026-11-10T09:14:47.300000Z",
+      "report_count": 16,
+      "packets_sent": 2250,
+      "packets_lost": 7,
+      "fraction_lost_avg_pct": 0.29,
+      "fraction_lost_max_pct": 1.56,
+      "jitter_avg_ms": 4.12,
+      "jitter_max_ms": 9.75
+    },
+    {
+      "call_id": "b1c4e7f2-9a30-4d6e-8c5b-0f2a7d3e1b94",
+      "ssrc": "3049281756",
+      "source_ssrc": "1928374650",
+      "first_ts": "2026-11-10T09:14:07.800000Z",
+      "last_ts": "2026-11-10T09:14:47.800000Z",
+      "report_count": 15,
+      "packets_sent": 2236,
+      "packets_lost": 5,
+      "fraction_lost_avg_pct": 0.18,
+      "fraction_lost_max_pct": 0.78,
+      "jitter_avg_ms": 5.6,
+      "jitter_max_ms": 14.25
+    }
+  ],
+  "truncated": false
+}
+```
+
+</CodeGroup>
+
+## Errors
+
+| Status | Meaning |
+| ------ | ------- |
+| `401`  | Missing or invalid API key. |
+| `403`  | The key cannot read conversations. |
+| `404`  | The call is older than 14 days, belongs to another account, or has no telephony data at all. |
+| `502`  | The telephony data store did not answer. |

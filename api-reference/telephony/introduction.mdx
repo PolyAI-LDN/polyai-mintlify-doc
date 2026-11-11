@@ -1,0 +1,82 @@
+---
+title: "Telephony API"
+sidebarTitle: "Overview"
+description: "Read the SIP signalling and audio quality of a PolyAI call, to see why it failed, rang for so long or sounded bad."
+---
+
+The Telephony API exposes what PolyAI's telephony layer recorded for a voice call: the **SIP messages** exchanged between the carrier and PolyAI, and the **RTCP reports** that describe packet loss and jitter on the audio. Use it to answer "why did this call fail?", "how long did it ring?", "who hung up?" and "was this a network problem or an agent problem?" from your own tooling.
+
+<Note>
+This API is read-only and describes calls that already happened. To connect your own telephony platform to PolyAI, see the [SIP Trunking API](/api-reference/sip-trunking/introduction).
+</Note>
+
+## Endpoints
+
+| Endpoint | What it does |
+|---|---|
+| [`GET /api/v1/telephony/calls/{conversation_id}/sip`](/api-reference/telephony/endpoint/get-call-sip-ladder) | All SIP signalling for one call, stitched across legs: carrier, PolyAI's SIP edge and the media server, including transfers. |
+| [`GET /api/v1/telephony/calls/{conversation_id}/quality`](/api-reference/telephony/endpoint/get-call-audio-quality) | Packet loss and jitter per media stream for one call, plus a per-call rollup. |
+
+Both endpoints are also available as [Data MCP](/mcp/data/capabilities#telephony) tools: `get-call-sip-ladder` and `get-call-audio-quality`.
+
+## Base URL and authentication
+
+Send an **account API key** in the `X-API-KEY` header (`Authorization: Bearer <key>` is also accepted). The key needs read access to conversations. Create keys from the **API Keys** tab in Agent Studio; see [API keys](/secrets/api-keys).
+
+Keys are region-specific. Use the host of the region your account lives in.
+
+| Region | Base URL |
+| ------ | ---------------------------------- |
+| US     | `https://api.us.poly.ai`           |
+| UK     | `https://api.uk.poly.ai`           |
+| EU     | `https://api.eu.poly.ai`           |
+| Studio | `https://api.studio.poly.ai`       |
+
+Both endpoints accept an optional `project_id`, the **Agent ID** shown in Agent Studio (`PROJECT-xxxxxxxx`). Use it to confirm a call belongs to a given agent.
+
+## Concepts
+
+### Call identifier
+
+`conversation_id` is the call's **CallSid**: for a voice call, the `conversation_id` you see in the [Conversations API](/api-reference/conversations/introduction) and the [Traces API](/api-reference/traces/introduction). A call is visible only to the account it belongs to; any other call returns `404`.
+
+### Legs
+
+One call usually involves several SIP dialogs, each with its own SIP `Call-ID`. The SIP endpoint returns every dialog it can link to the call as a **leg**: the carrier to PolyAI's SIP edge, PolyAI's SIP edge to the media server, and any further legs created by a transfer. Messages from all legs come back in one list, ordered by capture time, so you can read the call end to end.
+
+### SIP messages
+
+Each message has a `method`: the request method (`INVITE`, `BYE`, `REFER`) or, for a response, the response code as a string (`180`, `200`, `486`). Responses also carry `response_code` and `reason`. A leg's `final_response` is the first response of `200` or above seen on that leg, which is usually the quickest way to tell how a leg ended.
+
+### Audio quality
+
+Audio quality comes from RTCP reports sent during the call. The API folds them into one **stream** per reporter and source pair, with:
+
+| Field | Meaning |
+|---|---|
+| `packets_lost` | Cumulative packets lost, from the stream's last report. |
+| `fraction_lost_avg_pct` / `fraction_lost_max_pct` | Average and worst share of packets lost between two reports. |
+| `jitter_avg_ms` / `jitter_max_ms` | Interarrival jitter in milliseconds, calculated assuming an 8 kHz RTP clock (narrowband audio). |
+
+Loss or jitter that is high on every stream points to the network or the carrier. A call with clean streams but a bad experience points at the agent instead; use the [Traces API](/api-reference/traces/introduction) to look there.
+
+### Personal data
+
+Phone numbers in `from_user` and `to_user` are masked, keeping the last four digits (`***0142`), unless the API key has permission to read personal data (PII). The raw SIP text (`raw`) is returned only when you pass `include_raw=true` **and** the key has that permission. IP addresses are never masked.
+
+## Time windows
+
+Both endpoints take an optional window as the `from` and `to` query parameters, ISO 8601. `to` defaults to now and `from` to 14 days before now.
+
+Telephony data is kept for **14 days**. A `from` earlier than that is clamped to the 14-day limit, and a call older than that returns `404`.
+
+Responses carry `truncated`. It is `true` when the call hit the cap on returned messages (2,000 SIP messages) or reports (5,000 RTCP reports) and the result is therefore incomplete. Narrow the window to see the rest.
+
+## Errors
+
+| Status | Meaning |
+| ------ | ------- |
+| `401`  | Missing or invalid API key. |
+| `403`  | Authenticated, but the key cannot read conversations. |
+| `404`  | The call has no telephony data, is older than 14 days or belongs to another account. |
+| `502`  | The telephony data store did not answer. Retry with backoff. |
