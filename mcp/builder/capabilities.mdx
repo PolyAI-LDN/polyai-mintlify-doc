@@ -7,7 +7,7 @@ mode: wide
 
 Builder MCP exposes PolyAI's platform as MCP tools, grouped into the families below. Your client discovers them automatically on connection — you don't configure tools by hand. Each tool carries its own input schema, which the client reads directly from the server; the parameter tables below reproduce that schema so you can see what each tool takes without connecting first.
 
-US, UK, and EU workspaces expose **106 tools**; self-serve Studio workspaces expose **100** (the Alerts family is enterprise-only). Tool names appear exactly as your client sees them in `tools/list`.
+US, UK, and EU workspaces expose **131 tools**; self-serve Studio workspaces expose **125** (the Alerts family is enterprise-only). Tool names appear exactly as your client sees them in `tools/list`.
 
 <Note>
 Every tool maps to a PolyAI REST endpoint. Parameters are named `path_*`, `query_*`, or nested under a request `body` in the raw schema — the tables below strip those prefixes and expand the body's top-level fields. For deeply nested request bodies, follow the **API reference** link on each tool for the complete schema. To see exactly what your client discovered, ask it to list its tools or query the endpoint's `tools/list` method (see [Quickstart → Verify](/mcp/quickstart#3-verify)).
@@ -161,6 +161,72 @@ API reference: [Deploy a branch](/api-reference/agents/introduction).
 | `branchId` | string | The branch. **Required.** |
 | `agentId` | string | The agent. **Required.** |
 
+#### `check-branch-divergence`
+
+Check whether a branch has diverged from its parent branch (the parent has new changes the branch does not have).
+
+API reference: [Agents API](/api-reference/agents/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+
+#### `get-merge-history-for-a-branch`
+
+Get the merge history for a branch, showing which branches were merged into it and when.
+
+API reference: [Agents API](/api-reference/agents/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+
+#### `tag-a-branch-as-staging`
+
+Tag a branch as staging to deploy it to pre-release. Only direct children of main can be tagged, and one branch holds the staging tag per project.
+
+API reference: [Agents API](/api-reference/agents/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `tag` | string | One of `staging`. **Required.** |
+
+#### `remove-the-tag-from-a-branch`
+
+Remove the tag from a branch, clearing the environment it was deployed to (pre-release for staging, sandbox for internal).
+
+API reference: [Agents API](/api-reference/agents/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+
+#### `list-archived-branches`
+
+List deleted and merged branches that can be restored within their 30-day retention window.
+
+API reference: [Agents API](/api-reference/agents/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+
+#### `restore-an-archived-branch`
+
+Restore a soft-deleted branch from the archive back to an active state.
+
+API reference: [Agents API](/api-reference/agents/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+
 ### Deployments
 
 #### `publish-the-current-draft-to-an-environment`
@@ -200,7 +266,7 @@ API reference: [Rollback to a previous deployment](/api-reference/agents/endpoin
 | `deploymentId` | string | The deployment. **Required.** |
 | `deploymentMessage` | string | Default ``. |
 
-#### `list-deployments-for-an-environment`
+#### `list-deployments`
 
 List deployments for an environment.
 
@@ -211,6 +277,17 @@ API reference: [List deployments for an environment](/api-reference/agents/endpo
 | `agentId` | string | The agent. **Required.** |
 | `environment` | string | Environment to list deployments for (sandbox, pre-release, live). `pre-release` is the Staging environment. One of `sandbox`, `pre-release`, `live`. **Required.** |
 | `limit` | integer | Max number of deployments to return. |
+
+#### `get-a-deployment`
+
+Get a single deployment by ID.
+
+API reference: [Agents API](/api-reference/agents/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `deploymentId` | string | The deployment. **Required.** |
 
 #### `get-active-deployment-per-environment`
 
@@ -478,6 +555,42 @@ API reference: [Look up connector by phone number](/api-reference/agents/endpoin
 | `agentId` | string | The agent. **Required.** |
 | `phoneNumber` | string | Phone number to look up (E.164 format). **Required.** |
 
+### Connector tokens
+
+A connector token is the per-environment credential a telephony or websocket integration presents so PolyAI routes the call to this agent in that environment. It is not an API key. Treat it as a secret.
+
+#### `list-connector-tokens`
+
+List the connector token for each client environment of an agent. Only environments that already have a connector are returned.
+
+API reference: [List connector tokens](/api-reference/agents/endpoint/connector-tokens/list-connector-tokens).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+
+#### `get-the-connector-token-for-an-environment`
+
+Get the connector token for one client environment. Returns 404 if the environment has no connector yet.
+
+API reference: [Get connector token](/api-reference/agents/endpoint/connector-tokens/get-connector-token).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `clientEnv` | string | The client environment (sandbox, pre-release, live). `pre-release` is the Staging environment. **Required.** |
+
+#### `ensure-a-connector-token-exists-for-an-environment`
+
+Create a connector for one client environment if none exists, and return its token. Safe to call repeatedly: an existing token is returned unchanged.
+
+API reference: [Ensure connector token](/api-reference/agents/endpoint/connector-tokens/ensure-connector-token).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `clientEnv` | string | The client environment (sandbox, pre-release, live). `pre-release` is the Staging environment. **Required.** |
+
 ### Phone numbers
 
 #### `get-a-specific-phone-number`
@@ -618,24 +731,184 @@ API reference: [Upsert the JSON Schema for a config page](/api-reference/agents/
 | `clientEnv` | string | The client environment. **Required.** |
 | `schema` | object | JSON Schema (Draft 7) definition. **Required.** |
 
+### Flows
+
+#### `list-flows`
+
+List all flows on a branch.
+
+API reference: [List flows](/api-reference/agents/endpoint/flows-and-functions/list-flows).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+
+#### `create-flow`
+
+Create a flow on a branch.
+
+API reference: [Create flow](/api-reference/agents/endpoint/flows-and-functions/create-flow).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `name` | string | Min 1 character. **Required.** |
+| `description` | string | Min 1 character. **Required.** |
+| `steps` | array | Nested array of steps (`default_step`, `advanced_step`, or `function_step`). See the API reference for the full schema. **Required.** |
+| `startStepId` | string | The step the flow starts on. |
+
+#### `get-flow`
+
+Get a single flow by ID.
+
+API reference: [Get flow](/api-reference/agents/endpoint/flows-and-functions/get-flow).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `flowId` | string | The flow. **Required.** |
+
+#### `update-flow`
+
+Update a flow's name, description, start step, or steps.
+
+API reference: [Update flow](/api-reference/agents/endpoint/flows-and-functions/update-flow).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `flowId` | string | The flow. **Required.** |
+| `name` | string | Min 1 character. |
+| `description` | string | — |
+| `startStepId` | string | The step the flow starts on. |
+| `steps` | array | Nested array of steps. See the API reference for the full schema. |
+
+#### `delete-flow`
+
+Delete a flow from a branch.
+
+API reference: [Delete flow](/api-reference/agents/endpoint/flows-and-functions/delete-flow).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `flowId` | string | The flow. **Required.** |
+
 ### Functions
 
-#### `start-function`
+#### `list-all-functions-for-an-agent-on-a-branch`
 
-Start function.
+List all functions for an agent on a branch.
 
-API reference: [Start function](/tools/introduction).
+API reference: [List functions](/api-reference/agents/endpoint/flows-and-functions/list-functions).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+
+#### `create-a-new-function`
+
+Create a new custom function on a branch.
+
+API reference: [Create function](/api-reference/agents/endpoint/flows-and-functions/create-function).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `name` | string | Min 1 character. **Required.** |
+| `description` | string | — **Required.** |
+| `code` | string | Python code for the function. **Required.** |
+| `parameters` | array | Function parameters, each with `name`, `description`, and `type` (`string`, `number`, `boolean`, or `integer`). Default `[]`. |
+| `latencyControl` | object | Nested object. See the API reference for the full schema. |
+
+#### `get-a-single-function-by-id`
+
+Get a single function by ID.
+
+API reference: [Get function](/api-reference/agents/endpoint/flows-and-functions/get-function).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `functionId` | string | The function. **Required.** |
+
+#### `update-a-function`
+
+Partially update a function: name, description, code, parameters, or latency control. Renaming also rewrites the `def` name in the code. Returns 409 Conflict if a rename would orphan flow-step references, unless `force` is `true`.
+
+API reference: [Update function](/api-reference/agents/endpoint/flows-and-functions/update-function).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `functionId` | string | The function. **Required.** |
+| `name` | string | Min 1 character. |
+| `description` | string | — |
+| `code` | string | — |
+| `parameters` | array | Function parameters, each with `name`, `description`, and `type`. |
+| `latencyControl` | object | Nested object. See the API reference for the full schema. |
+| `force` | boolean | Rename even if it orphans flow-step references. |
+
+#### `delete-a-function`
+
+Archive a function on a branch. Returns 409 Conflict if the function is still referenced by flow steps, topics, stop keywords, behaviors, or variables. Call `get-function-references` first to see what would break.
+
+API reference: [Delete function](/api-reference/agents/endpoint/flows-and-functions/delete-function).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `functionId` | string | The function. **Required.** |
+
+#### `get-function-references`
+
+List the entities that reference a function.
+
+API reference: [Get function references](/api-reference/agents/endpoint/flows-and-functions/get-function-references).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `functionId` | string | The function. **Required.** |
+
+#### `validate-all-functions`
+
+Return validation issues found across all functions on a branch.
+
+API reference: [Validate functions](/api-reference/agents/endpoint/flows-and-functions/validate-functions).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+
+#### `get-the-start-function-code`
+
+Get the start function code. Runs synchronously before every conversation greeting.
+
+API reference: [Get start function](/api-reference/agents/endpoint/flows-and-functions/get-start-function).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
 | `branchId` | string | The branch. **Required.** |
 | `agentId` | string | The agent. **Required.** |
 
-#### `end-function-`
+#### `get-the-end-function-code`
 
-End function.
+Get the end function code. Runs asynchronously after every conversation ends.
 
-API reference: [End function.](/tools/introduction).
+API reference: [Get end function](/api-reference/agents/endpoint/flows-and-functions/get-end-function).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -646,7 +919,7 @@ API reference: [End function.](/tools/introduction).
 
 Execute a function.
 
-API reference: [Execute a function](/tools/introduction).
+API reference: [Execute function](/api-reference/agents/endpoint/flows-and-functions/execute-function).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -660,7 +933,7 @@ API reference: [Execute a function](/tools/introduction).
 
 Duplicate a function.
 
-API reference: [Duplicate a function](/tools/introduction).
+API reference: [Duplicate function](/api-reference/agents/endpoint/flows-and-functions/duplicate-function).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -669,23 +942,11 @@ API reference: [Duplicate a function](/tools/introduction).
 | `functionId` | string | Path parameter. **Required.** |
 | `name` | string | — |
 
-#### `replace-the-start-function-code-`
+#### `replace-the-start-function-code`
 
-Replace the start function code.
+Replace the entire code of the start function. This is a complete replacement, not a partial edit.
 
-API reference: [Replace the start function code.](/tools/introduction).
-
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `agentId` | string | The agent. **Required.** |
-| `branchId` | string | The branch. **Required.** |
-| `code` | string | — **Required.** |
-
-#### `replace-the-end-function-code-`
-
-Replace the end function code.
-
-API reference: [Replace the end function code.](/tools/introduction).
+API reference: [Replace start function](/api-reference/agents/endpoint/flows-and-functions/replace-start-function).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -693,16 +954,59 @@ API reference: [Replace the end function code.](/tools/introduction).
 | `branchId` | string | The branch. **Required.** |
 | `code` | string | — **Required.** |
 
-#### `get-python-type-stubs-for-a-function-`
+#### `replace-the-end-function-code`
 
-Get Python type stubs for a function.
+Replace the entire code of the end function. This is a complete replacement, not a partial edit.
 
-API reference: [Get Python type stubs for a function.](/tools/introduction).
+API reference: [Replace end function](/api-reference/agents/endpoint/flows-and-functions/replace-end-function).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `agentId` | string | The agent. **Required.** |
+| `branchId` | string | The branch. **Required.** |
+| `code` | string | — **Required.** |
+
+#### `get-python-type-stubs-for-a-function`
+
+Return generic Python type-stub boilerplate (for example, the `Conversation` class) for IDE autocomplete when editing a function's code.
+
+API reference: [Get function type definitions](/api-reference/agents/endpoint/flows-and-functions/get-function-type-definitions).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
 | `functionId` | string | Path parameter. **Required.** |
+| `branchId` | string | The branch. **Required.** |
 | `agentId` | string | The agent. **Required.** |
+
+### Builder knowledge
+
+Search PolyAI's builder knowledge base for design patterns, implementation rules, and best practices before building or modifying an agent.
+
+#### `search-the-builder-knowledge-base`
+
+Search the builder knowledge base. Returns ranked results by relevance.
+
+API reference: [Agents API](/api-reference/agents/introduction).
+
+The published schema for this tool lists no parameters. Ask your client to list its tools to see the input schema it discovered.
+
+#### `list-builder-knowledge-categories`
+
+List the available knowledge categories to help narrow searches, such as functions, flows, prompting, entities, deployment, integrations, scopes, and patterns.
+
+API reference: [Agents API](/api-reference/agents/introduction).
+
+This tool takes no parameters.
+
+#### `read-a-builder-knowledge-document-by-path`
+
+Read the full content of a knowledge base document by its file path. Use after searching. Returns structured fields parsed from YAML frontmatter plus the markdown body.
+
+API reference: [Agents API](/api-reference/agents/introduction).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `path` | string | The document's file path. **Required.** |
 
 ## Voice & audio
 
