@@ -141,7 +141,7 @@ Send `session.update` after `session.created`. Updates are merged into the sessi
 | `audio.input.turn_detection: null` | Push-to-talk. The voice-activity detector and the model's turn check are off: everything you append, silence included, is one turn until `input_audio_buffer.commit`, and only `response.create` starts a reply. No `speech_started` or `speech_stopped` is sent, only `input_audio_buffer.committed`, and nothing barges in. Send a `turn_detection` object to turn detection back on. |
 | `output_modalities` | `["audio"]`, the default for a new session, has the API speak the reply: audio arrives as `response.output_audio.delta` and the text as `response.output_audio_transcript.delta`. `["text"]` sends text replies you voice yourself, as `response.output_text.delta`. |
 | `audio.output.voice` | The voice for spoken replies: a Cartesia voice id, as a string or `{"id": "..."}`. Unset, the deployment's default voice speaks. An id Cartesia doesn't know is accepted here, and each response then fails with `audio_synthesis_failed`. Kept on a text session, and used if the session switches to `["audio"]`. |
-| `poly_knowledge`, `poly_response_language`, `poly_input_rate` | See [PolyAI extensions](#polyai-extensions) |
+| `poly_knowledge`, `poly_response_language`, `poly_input_rate`, `poly_first_assistant_message` | See [PolyAI extensions](#polyai-extensions) |
 
 ### Accepted and ignored
 
@@ -172,6 +172,7 @@ Fields that would change what you get if silently ignored are refused with an `e
 | `poly_session_id`, `expires_at` (set by the server) | `invalid_request_error` | the field |
 | `poly_knowledge` that isn't a list of `{ "name", "content", "actions"? }` with `actions` a string | `invalid_request_error` | `poly_knowledge`, or the entry, e.g. `poly_knowledge[2]` |
 | `poly_response_language` that isn't a string, is blank, or is over 64 characters | `invalid_request_error` | `poly_response_language` |
+| `poly_first_assistant_message` that isn't text or is blank, or a different one once the conversation has a turn of its own | `invalid_request_error` | `poly_first_assistant_message` |
 | `poly_spoken` set to anything but `true`, on a non-string property, or on more than one property of a tool | `invalid_request_error` | the path under `tools[i].parameters.properties` |
 
 ## Audio in
@@ -439,12 +440,29 @@ Extensions are additive fields on existing events, all prefixed `poly_`. Nothing
 | `session` | `poly_response_language` | An ISO 639 tag (`es`, `pt-BR`) or words (`"Singlish"`). The model answers in that language and no other. `null` clears it. |
 | `session` | `poly_input_rate` | Set for you when `audio.input.format.rate` is not 24000 |
 | `session` | `poly_session_id` | Read-only echo of the `session_id` query parameter |
+| `session` | `poly_first_assistant_message` | What the assistant says first, as written, with no generation. See [Open the conversation](#open-the-conversation). |
 | `tools[].parameters.properties.<name>` | `poly_spoken: true` | The model says this string argument to the caller while the tool runs: as `response.output_text.delta` on a text session, aloud on an audio session. One per tool, string parameters only. |
 | `conversation.item.create` with `function_call_output` | `poly_knowledge` | Knowledge attached to one tool result |
 | `response.done.response` | `poly_cited_topics` | Knowledge entries the reply cited; absent when none |
 | `response.done.response` | `poly_out_of_domain` | `true` when the model judged the request outside its instructions |
 | `response.done.response` | `poly_compacted_item_ids` | Items the prompt now leaves out, because older history was summarised or dropped to fit the context window. Sent on the first response after that changes. The items stay in history and can still be retrieved. |
 | `response.done.response` | `poly_probe_usage` | The token cost of turn detection |
+
+### Open the conversation
+
+Set `poly_first_assistant_message` on the session to have the assistant open the call with fixed words, like Vapi's `firstMessage`. Nothing is generated, so a greeting, a recording disclosure or an outbound opener is said exactly as written, with no wait for the model:
+
+```json
+{"type": "session.update", "session": {"poly_first_assistant_message": "Hi, you're through to Acme. This call is recorded."}}
+```
+
+Set before the conversation has started, it's said straight after `session.updated`, as an ordinary response: `response.created`, the output item with its text or audio transcript events, and `response.done`, with zero token usage. On an audio session the server speaks it in the session's voice and language, a caller who barges in cuts it off, and history keeps what they heard. On a text session you get the text to speak. It becomes the first assistant turn, so the model carries on from it. It's said even if the caller has already started talking.
+
+You don't need to send `response.create`. One sent while the opener plays is answered when it ends, as for any reply, so it adds a second assistant turn.
+
+It's said once. Sending the same value again, for example when you resend your whole session, is accepted and does nothing. History you seed with `conversation.item.create` comes before it, so seed first and set it last. A different value once the conversation has a turn of its own or a response has started is refused with `invalid_request_error`, as is blank text. A [transcription session](#transcription-sessions) refuses it with `unsupported_parameter`, like every field that shapes a reply. `null` clears it.
+
+An assistant message you add with `conversation.item.create` is history only and is never spoken, so seeding earlier turns doesn't read them aloud.
 
 **Playback reports.** When you voice the reply yourself, send these so the server knows what the caller heard:
 
