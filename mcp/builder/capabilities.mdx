@@ -103,6 +103,7 @@ API reference: [Create branch](/api-reference/agents/endpoint/branches/create-br
 | --- | --- | --- |
 | `agentId` | string | The agent. **Required.** |
 | `branchName` | string | 1–100 characters. **Required.** |
+| `sourceBranchId` | string | Branch to branch from. Requires deployment simplification. |
 
 #### `list-branches`
 
@@ -135,14 +136,15 @@ API reference: [Merge branch](/api-reference/agents/endpoint/branches/merge-bran
 | --- | --- | --- |
 | `agentId` | string | The agent. **Required.** |
 | `branchId` | string | The branch. **Required.** |
-| `conflictResolutions` | array | Array. |
+| `conflictResolutions` | array | Per-path conflict resolutions, each with a `path` and a `strategy` (`ours`, `theirs`, or `base`). |
 | `deploymentMessage` | string | Default ``. |
+| `acknowledgeActiveExperiment` | boolean | Required to merge to main while the project has an active experiment. Without it the merge fails with `AB_TEST_ACTIVE`. Default `false`. |
 
 #### `sync-branch-with-parent`
 
-Sync branch with parent.
+Pull the latest changes from the branch's parent (main) into it, without merging the branch back. Use to keep a long-lived branch up to date before merging.
 
-API reference: [Sync branch with parent](/api-reference/agents/introduction).
+API reference: [Sync branch with parent](/api-reference/agents/endpoint/branches/sync-branch).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -152,9 +154,9 @@ API reference: [Sync branch with parent](/api-reference/agents/introduction).
 
 #### `deploy-a-branch`
 
-Deploy a branch.
+Deploy a branch's current configuration to an environment (sandbox, pre-release, or live). Triggers any configured test runs as part of the deployment.
 
-API reference: [Deploy a branch](/api-reference/agents/introduction).
+API reference: [Deploy a branch](/api-reference/agents/endpoint/branches/deploy-branch).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -165,7 +167,7 @@ API reference: [Deploy a branch](/api-reference/agents/introduction).
 
 Check whether a branch has diverged from its parent branch (the parent has new changes the branch does not have).
 
-API reference: [Agents API](/api-reference/agents/introduction).
+API reference: [Check branch divergence](/api-reference/agents/endpoint/branches/check-branch-divergence).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -176,7 +178,7 @@ API reference: [Agents API](/api-reference/agents/introduction).
 
 Get the merge history for a branch, showing which branches were merged into it and when.
 
-API reference: [Agents API](/api-reference/agents/introduction).
+API reference: [Get merge history for a branch](/api-reference/agents/endpoint/branches/get-merge-history).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -187,7 +189,7 @@ API reference: [Agents API](/api-reference/agents/introduction).
 
 Tag a branch as staging to deploy it to pre-release. Only direct children of main can be tagged, and one branch holds the staging tag per project.
 
-API reference: [Agents API](/api-reference/agents/introduction).
+API reference: [Tag a branch as staging](/api-reference/agents/endpoint/branches/tag-branch).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -199,7 +201,7 @@ API reference: [Agents API](/api-reference/agents/introduction).
 
 Remove the tag from a branch, clearing the environment it was deployed to (pre-release for staging, sandbox for internal).
 
-API reference: [Agents API](/api-reference/agents/introduction).
+API reference: [Remove the tag from a branch](/api-reference/agents/endpoint/branches/untag-branch).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -208,9 +210,9 @@ API reference: [Agents API](/api-reference/agents/introduction).
 
 #### `list-archived-branches`
 
-List deleted and merged branches that can be restored within their 30-day retention window.
+List deleted and merged branches that can be restored within their 30-day retention window. Each entry's `status` says whether it was merged or deleted.
 
-API reference: [Agents API](/api-reference/agents/introduction).
+API reference: [List archived branches](/api-reference/agents/endpoint/branches/list-archived-branches).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -220,7 +222,7 @@ API reference: [Agents API](/api-reference/agents/introduction).
 
 Restore a soft-deleted branch from the archive back to an active state.
 
-API reference: [Agents API](/api-reference/agents/introduction).
+API reference: [Restore an archived branch](/api-reference/agents/endpoint/branches/restore-branch).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -282,7 +284,7 @@ API reference: [List deployments for an environment](/api-reference/agents/endpo
 
 Get a single deployment by ID.
 
-API reference: [Agents API](/api-reference/agents/introduction).
+API reference: [Get a deployment](/api-reference/agents/endpoint/deployments/get-a-deployment).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -637,6 +639,8 @@ API reference: [Import a single phone number](/api-reference/agents/endpoint/pho
 | `agentId` | string | The agent. **Required.** |
 | `phoneNumber` | string | The phone number (E.164). **Required.** |
 | `clientEnv` | string | Client environment (sandbox, pre-release, live). `pre-release` is the Staging environment. Default `live`. |
+| `integration` | string | Integration the number is dialed through, as configured in connector_service (e.g. `zoom`). Default `external` (no named carrier integration). |
+| `variantId` | string | Agent variant the number should reach. |
 
 #### `import-phone-numbers-into-a-project`
 
@@ -986,15 +990,19 @@ Search PolyAI's builder knowledge base for design patterns, implementation rules
 
 Search the builder knowledge base. Returns ranked results by relevance.
 
-API reference: [Agents API](/api-reference/agents/introduction).
+API reference: [Search the builder knowledge base](/api-reference/agents/endpoint/builder-knowledge/search-builder-knowledge).
 
-The published schema for this tool lists no parameters. Ask your client to list its tools to see the input schema it discovered.
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `query` | string | Search text, matched against document titles, tags and bodies. Min 1 character. **Required.** |
+| `top` | integer | Maximum number of results to return. Min 1. Default `10`. |
+| `category` | string | Only return documents in this knowledge category. `list-builder-knowledge-categories` lists the valid values. |
 
 #### `list-builder-knowledge-categories`
 
 List the available knowledge categories to help narrow searches, such as functions, flows, prompting, entities, deployment, integrations, scopes, and patterns.
 
-API reference: [Agents API](/api-reference/agents/introduction).
+API reference: [List builder knowledge categories](/api-reference/agents/endpoint/builder-knowledge/list-builder-knowledge-categories).
 
 This tool takes no parameters.
 
@@ -1002,11 +1010,11 @@ This tool takes no parameters.
 
 Read the full content of a knowledge base document by its file path. Use after searching. Returns structured fields parsed from YAML frontmatter plus the markdown body.
 
-API reference: [Agents API](/api-reference/agents/introduction).
+API reference: [Read a builder knowledge document](/api-reference/agents/endpoint/builder-knowledge/read-builder-knowledge-document).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
-| `path` | string | The document's file path. **Required.** |
+| `path` | string | The document's file path, as returned by search. **Required.** |
 
 ## Voice & audio
 
@@ -1083,7 +1091,7 @@ API reference: [Synthesize a short audio sample of a voice](/api-reference/agent
 
 Set the project's active voice.
 
-API reference: [Set the project's active voice](/api-reference/agents/introduction).
+API reference: [Set the project's active voice](/api-reference/agents/endpoint/voices/set-project-voice).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1096,7 +1104,7 @@ API reference: [Set the project's active voice](/api-reference/agents/introducti
 
 Create or update a deployed voice configuration.
 
-API reference: [Create or update a deployed voice configuration](/api-reference/agents/introduction).
+API reference: [Create or update a deployed voice configuration](/api-reference/agents/endpoint/voices/upsert-deployed-voice).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1109,7 +1117,7 @@ API reference: [Create or update a deployed voice configuration](/api-reference/
 
 List deployed voice configurations.
 
-API reference: [List deployed voice configurations](/api-reference/agents/introduction).
+API reference: [List deployed voice configurations](/api-reference/agents/endpoint/voices/list-deployed-voices).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1119,7 +1127,7 @@ API reference: [List deployed voice configurations](/api-reference/agents/introd
 
 Delete a deployed voice configuration.
 
-API reference: [Delete a deployed voice configuration](/api-reference/agents/introduction).
+API reference: [Delete a deployed voice configuration](/api-reference/agents/endpoint/voices/delete-deployed-voice).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1132,7 +1140,7 @@ API reference: [Delete a deployed voice configuration](/api-reference/agents/int
 
 Get voice tuning settings.
 
-API reference: [Get voice tuning settings](/api-reference/agents/introduction).
+API reference: [Get voice tuning settings](/api-reference/agents/endpoint/voices/get-voice-tuning-settings).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1144,7 +1152,7 @@ API reference: [Get voice tuning settings](/api-reference/agents/introduction).
 
 Update voice tuning settings.
 
-API reference: [Update voice tuning settings](/api-reference/agents/introduction).
+API reference: [Update voice tuning settings](/api-reference/agents/endpoint/voices/update-voice-tuning-settings).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1160,7 +1168,7 @@ API reference: [Update voice tuning settings](/api-reference/agents/introduction
 
 Get disclaimer voice tuning settings.
 
-API reference: [Get disclaimer voice tuning settings](/api-reference/agents/introduction).
+API reference: [Get disclaimer voice tuning settings](/api-reference/agents/endpoint/voices/get-disclaimer-tuning-settings).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1171,7 +1179,7 @@ API reference: [Get disclaimer voice tuning settings](/api-reference/agents/intr
 
 Update disclaimer voice tuning settings.
 
-API reference: [Update disclaimer voice tuning settings](/api-reference/agents/introduction).
+API reference: [Update disclaimer voice tuning settings](/api-reference/agents/endpoint/voices/update-disclaimer-tuning-settings).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1197,6 +1205,17 @@ API reference: [List audio cache entries](/api-reference/agents/endpoint/audio-c
 | `sort` | string | Sort expression, e.g. "hit_count:desc", "duration:asc". |
 | `offset` | integer | Pagination offset. Min 0. Default `0`. |
 | `limit` | integer | Max entries to return (1-200). 1–200. Default `50`. |
+| `provider` | string | TTS provider, e.g. `eleven_labs`. |
+| `providerVoiceId` | string | Voice ID in the provider's catalogue. |
+| `cacheTranscript` | string | Cached transcript text, e.g. `contains:welcome`. |
+| `languageCode` | string | BCP-47 language code, e.g. `in:[en-US,en-GB]`. |
+| `modelId` | string | TTS model ID. |
+| `regenerated` | string | `true` or `false`. |
+| `audioDuration` | string | Duration in seconds, e.g. `lt:2.5`. |
+| `cachedAt` | string | Cache time, ISO 8601, e.g. `ge:2026-01-01T00:00:00Z`. |
+| `hitCount` | string | Cache hits, e.g. `ge:10`. |
+
+Filter values take an optional operator prefix: `eq:` (default), `gt:`, `ge:`, `lt:`, `le:`, `in:`, `ex:`, `contains:` or `exists:`.
 
 #### `delete-audio-cache-entry`
 
@@ -1257,7 +1276,7 @@ API reference: [Update cache entry file and settings](/api-reference/agents/endp
 
 Generate a TTS audio preview.
 
-API reference: [Generate a TTS audio preview](/api-reference/agents/endpoint/audio-cache/synthesize-audio-preview).
+API reference: [Generate a TTS audio preview](/api-reference/agents/endpoint/voices/generate-audio-preview).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1278,7 +1297,7 @@ API reference: [Preview TTS audio for a cache entry](/api-reference/agents/endpo
 | --- | --- | --- |
 | `agentId` | string | The agent. **Required.** |
 | `entryId` | string | The audio cache entry. **Required.** |
-| `config` | string | Voice tuning settings (provider-specific). **Required.** |
+| `config` | object | Voice tuning settings (provider-specific), such as `stability`, `similarityBoost`, `speed`, `modelId`, `emotion`, or `voiceDescription`. **Required.** |
 | `language` | string | BCP-47 language tag, e.g. 'en-US'. |
 | `text` | string | Text to synthesize. **Required.** |
 
@@ -1336,13 +1355,26 @@ API reference: [Get a conversation by ID](/api-reference/conversations/v3/endpoi
 
 List conversations for a project.
 
-API reference: [List conversations for a project](/api-reference/conversations/v3/endpoint/get-conversations).
+API reference: [List conversations for an agent](/api-reference/conversations/v3/endpoint/list-agent-conversations).
+
+Filter values take an optional operator prefix: `eq:` (default), `gt:`, `ge:`, `lt:`, `le:`, `in:`, `ex:`, `contains:` or `exists:`.
 
 | Parameter | Type | Description |
 | --- | --- | --- |
 | `agentId` | string | The agent. **Required.** |
 | `limit` | integer | Max number of conversations to return. Min 1. Default `50`. |
 | `offset` | integer | Number of conversations to skip. Min 0. Default `0`. |
+| `clientEnv` | string | Environment the conversation ran in: `sandbox`, `pre-release`, `live`, or `draft`. |
+| `version` | string | Deployed agent version. |
+| `batchId` | string | Outbound call batch the conversation belongs to. |
+| `createdAt` | string | Creation time, ISO 8601, e.g. `ge:2026-01-01T00:00:00Z`. |
+| `startedAt` | string | Start time, ISO 8601. |
+| `duration` | string | Duration in seconds, e.g. `gt:60`. |
+| `inProgress` | string | `true` or `false`. |
+| `handoff` | string | `true` or `false`: whether the call was handed off. |
+| `language` | string | Conversation language code. |
+| `variantId` | string | Agent variant the conversation used. |
+| `tags` | string | Conversation tag, e.g. `in:[escalated,vip]`. |
 
 #### `get-audio-recording-for-a-conversation`
 
@@ -1361,19 +1393,19 @@ API reference: [Get audio recording for a conversation](/api-reference/conversat
 
 Add annotations to a conversation.
 
-API reference: [Add annotations to a conversation](/api-reference/conversations/introduction).
+API reference: [Add annotations to a conversation](/api-reference/conversations/v3/endpoint/add-conversation-annotations).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
 | `agentId` | string | The agent. **Required.** |
 | `conversationId` | string | The conversation. **Required.** |
-| `annotations` | array | Array. **Required.** |
+| `annotations` | array | At least one annotation, each with `turnId` (zero-based turn index), `role` (`user` or `agent`), and `annotationType` (`missing_topic`, `wrong_transcript`, or `wrong_info`). **Required.** |
 
 #### `upsert-a-note-on-a-conversation`
 
 Upsert a note on a conversation.
 
-API reference: [Upsert a note on a conversation](/api-reference/conversations/introduction).
+API reference: [Upsert a note on a conversation](/api-reference/conversations/v3/endpoint/upsert-conversation-note).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1387,20 +1419,21 @@ API reference: [Upsert a note on a conversation](/api-reference/conversations/in
 
 Trigger a simulation test run. Select test cases explicitly by id, by severity, or by tag via the `select` field. The legacy flat `testCaseIds` body is deprecated but still accepted.
 
-API reference: [Trigger a test run](/testing/introduction).
+API reference: [Trigger a test run](/api-reference/agents/endpoint/testing/trigger-test-run).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
 | `agentId` | string | The agent. **Required.** |
-| `select` | string | — **Required.** |
-| `branchId` | string | — **Required.** |
-| `testCaseIds` | string | — |
+| `branchId` | string | The branch to test. **Required.** |
+| `select` | object | Which test cases to run. One of `{"mode": "testIds", "testIds": [...]}` (1–1000 IDs), `{"mode": "severities", "severities": [...]}` (`low`, `medium`, `high`, `critical`), or `{"mode": "tags", "tags": [...]}` (1–50 tags). **Required.** |
+| `name` | string | Test run name. 1–120 characters. |
+| `testCaseIds` | array | Deprecated. Use `select` instead. |
 
 #### `get-a-test-run-by-id`
 
 Get a test run by ID.
 
-API reference: [Get a test run by ID](/testing/introduction).
+API reference: [Get a test run by ID](/api-reference/agents/endpoint/testing/get-test-run).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1411,7 +1444,7 @@ API reference: [Get a test run by ID](/testing/introduction).
 
 List test runs for a project.
 
-API reference: [List test runs for a project](/testing/introduction).
+API reference: [List test runs for a project](/api-reference/agents/endpoint/testing/list-test-runs).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1425,7 +1458,7 @@ API reference: [List test runs for a project](/testing/introduction).
 
 List test cases.
 
-API reference: [List test cases](/testing/introduction).
+API reference: [List test cases](/api-reference/agents/endpoint/testing/list-test-cases).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1436,7 +1469,7 @@ API reference: [List test cases](/testing/introduction).
 
 Get test case.
 
-API reference: [Get test case](/testing/introduction).
+API reference: [Get test case](/api-reference/agents/endpoint/testing/get-test-case).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1448,7 +1481,7 @@ API reference: [Get test case](/testing/introduction).
 
 Get test execution history for a project.
 
-API reference: [Get test execution history for a project](/testing/introduction).
+API reference: [Get test execution history for a project](/api-reference/agents/endpoint/testing/get-test-history).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1496,7 +1529,7 @@ API reference: [Get the status of an outbound call](/api-reference/agents/endpoi
 
 Add MCP server.
 
-API reference: [Add MCP server](/mcp/agent-studio-integrations).
+API reference: [Add MCP server](/api-reference/agents/endpoint/mcp-servers/add-mcp-server).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1511,7 +1544,7 @@ API reference: [Add MCP server](/mcp/agent-studio-integrations).
 
 List MCP servers.
 
-API reference: [List MCP servers](/mcp/agent-studio-integrations).
+API reference: [List MCP servers](/api-reference/agents/endpoint/mcp-servers/list-mcp-servers).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1522,7 +1555,7 @@ API reference: [List MCP servers](/mcp/agent-studio-integrations).
 
 Connect MCP server.
 
-API reference: [Connect MCP server](/mcp/agent-studio-integrations).
+API reference: [Connect MCP server](/api-reference/agents/endpoint/mcp-servers/connect-mcp-server).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1534,7 +1567,7 @@ API reference: [Connect MCP server](/mcp/agent-studio-integrations).
 
 Update MCP server.
 
-API reference: [Update MCP server](/mcp/agent-studio-integrations).
+API reference: [Update MCP server](/api-reference/agents/endpoint/mcp-servers/update-mcp-server).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1549,7 +1582,7 @@ API reference: [Update MCP server](/mcp/agent-studio-integrations).
 
 Delete MCP server.
 
-API reference: [Delete MCP server](/mcp/agent-studio-integrations).
+API reference: [Delete MCP server](/api-reference/agents/endpoint/mcp-servers/delete-mcp-server).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1563,7 +1596,7 @@ API reference: [Delete MCP server](/mcp/agent-studio-integrations).
 
 Create a secret.
 
-API reference: [Create a secret](/secrets/introduction).
+API reference: [Create a secret](/api-reference/agents/endpoint/secrets/create-a-secret).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1576,7 +1609,7 @@ API reference: [Create a secret](/secrets/introduction).
 
 Update a secret.
 
-API reference: [Update a secret](/secrets/introduction).
+API reference: [Update a secret](/api-reference/agents/endpoint/secrets/update-a-secret).
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -1589,7 +1622,7 @@ API reference: [Update a secret](/secrets/introduction).
 
 Delete a secret.
 
-API reference: [Delete a secret](/secrets/introduction).
+API reference: [Delete a secret](/api-reference/agents/endpoint/secrets/delete-a-secret).
 
 | Parameter | Type | Description |
 | --- | --- | --- |

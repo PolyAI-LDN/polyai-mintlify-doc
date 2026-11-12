@@ -2805,6 +2805,674 @@
         ],
         "additionalProperties": false,
         "title": "DeleteSecretResponse"
+      },
+      "ListArchivedBranchesPublicResponse": {
+        "type": "object",
+        "title": "ListArchivedBranchesPublicResponse",
+        "description": "Deleted and merged branches that can be restored within 30 days.",
+        "properties": {
+          "branches": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {"type": "string"},
+                "name": {"type": "string"},
+                "accountId": {"type": "string"},
+                "projectId": {"type": "string"},
+                "branchId": {"type": "string"},
+                "createdBy": {"type": ["string", "null"]},
+                "archivedAt": {"type": "string"},
+                "daysLeft": {"type": "number"},
+                "tag": {"type": ["string", "null"]},
+                "parentBranchId": {"type": ["string", "null"]},
+                "status": {"type": "string", "enum": ["merged", "deleted"], "description": "Whether the branch was merged or deleted."}
+              },
+              "required": ["id", "name", "accountId", "projectId", "branchId", "createdBy", "archivedAt", "daysLeft", "tag", "parentBranchId", "status"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["branches"],
+        "additionalProperties": false
+      },
+      "DeployBranchPublicResponse": {
+        "type": "object",
+        "title": "DeployBranchPublicResponse",
+        "description": "Versions produced by deploying a branch to a non-production environment.",
+        "properties": {
+          "artifactVersion": {"type": "string"},
+          "ragKBVersion": {"type": ["string", "null"]},
+          "lambdaDeploymentVersion": {"type": ["string", "null"]}
+        },
+        "required": ["artifactVersion", "ragKBVersion", "lambdaDeploymentVersion"],
+        "additionalProperties": false
+      },
+      "DivergencePublicResponse": {
+        "type": "object",
+        "title": "DivergencePublicResponse",
+        "description": "Whether a branch has diverged from its parent (i.e. the parent has new changes the branch does not have).",
+        "properties": {
+          "isDiverged": {"type": "boolean"}
+        },
+        "required": ["isDiverged"],
+        "additionalProperties": false
+      },
+      "MergeHistoryPublicResponse": {
+        "type": "object",
+        "title": "MergeHistoryPublicResponse",
+        "description": "The merge history for a branch.",
+        "properties": {
+          "merges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "branchId": {"type": ["string", "null"]},
+                "branchName": {"type": ["string", "null"]},
+                "actor": {"type": ["string", "null"]},
+                "mergedAt": {"type": "string"},
+                "message": {"type": ["string", "null"]}
+              },
+              "required": ["branchId", "branchName", "actor", "mergedAt", "message"],
+              "additionalProperties": false
+            }
+          },
+          "hasMore": {"type": "boolean"}
+        },
+        "required": ["merges", "hasMore"],
+        "additionalProperties": false
+      },
+      "RestoreBranchPublicResponse": {
+        "type": "object",
+        "title": "RestoreBranchPublicResponse",
+        "description": "Confirmation that a soft-deleted branch was restored.",
+        "properties": {
+          "branchId": {"type": "string"},
+          "message": {"type": "string"}
+        },
+        "required": ["branchId", "message"],
+        "additionalProperties": false
+      },
+      "ConflictResolution": {
+        "type": "object",
+        "title": "ConflictResolution",
+        "description": "A caller-supplied resolution for one conflicting path.",
+        "properties": {
+          "path": {"type": "array", "items": {"type": "string"}},
+          "strategy": {"type": "string", "enum": ["ours", "theirs", "base"]},
+          "value": {}
+        },
+        "required": ["path", "strategy"],
+        "additionalProperties": false
+      },
+      "SyncBranchBody": {
+        "type": "object",
+        "title": "SyncBranchBody",
+        "description": "Caller-supplied resolutions for conflicts encountered while syncing a branch with its parent.",
+        "properties": {
+          "conflictResolutions": {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/ConflictResolution"}
+          }
+        },
+        "additionalProperties": false
+      },
+      "SyncBranchResponse": {
+        "type": "object",
+        "title": "SyncBranchResponse",
+        "description": "The result of successfully syncing a branch with its parent.",
+        "properties": {
+          "sequence": {"type": "string"}
+        },
+        "required": ["sequence"],
+        "additionalProperties": false
+      },
+      "SyncBranchConflictResponse": {
+        "type": "object",
+        "title": "SyncBranchConflictResponse",
+        "description": "Conflict details and partial merged state returned when a branch sync could not complete automatically.",
+        "properties": {
+          "outcome": {"type": "string", "enum": ["conflicts"]},
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {"type": "array", "items": {"type": "string"}},
+                "baseValue": {},
+                "oursValue": {},
+                "theirsValue": {},
+                "type": {"type": "string", "enum": ["modify", "add", "delete"]}
+              },
+              "required": ["path", "type"],
+              "additionalProperties": false
+            }
+          },
+          "value": {"type": "object", "additionalProperties": {}},
+          "errors": {
+            "type": "array",
+            "default": [],
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {"type": "string"},
+                "path": {"type": "array", "items": {"anyOf": [{"type": "string"}, {"type": "number"}]}},
+                "message": {"type": "string"}
+              },
+              "required": ["code", "path", "message"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["outcome", "conflicts", "value"],
+        "additionalProperties": false
+      },
+      "TagBranchPublicBody": {
+        "type": "object",
+        "title": "TagBranchPublicBody",
+        "description": "Tag a branch as staging to deploy it to pre-release.",
+        "properties": {
+          "tag": {"type": "string", "enum": ["staging"]}
+        },
+        "required": ["tag"],
+        "additionalProperties": false
+      },
+      "TagBranchPublicResponse": {
+        "type": "object",
+        "title": "TagBranchPublicResponse",
+        "description": "Confirmation that a branch was tagged.",
+        "properties": {
+          "branchId": {"type": "string"},
+          "tag": {"type": "string"},
+          "message": {"type": "string"}
+        },
+        "required": ["branchId", "tag", "message"],
+        "additionalProperties": false
+      },
+      "UntagBranchPublicResponse": {
+        "type": "object",
+        "title": "UntagBranchPublicResponse",
+        "description": "Confirmation that a staging tag was removed from a branch.",
+        "properties": {
+          "branchId": {"type": "string"},
+          "message": {"type": "string"}
+        },
+        "required": ["branchId", "message"],
+        "additionalProperties": false
+      },
+      "McpServerAuth": {
+        "type": "object",
+        "title": "McpServerAuth",
+        "description": "How the MCP server authenticates: a header, a query parameter, or OAuth client credentials, each resolved from a secret at connect time.",
+        "properties": {
+          "header": {"type": "string"},
+          "queryParam": {"type": "string"},
+          "oauth": {
+            "type": "object",
+            "properties": {
+              "clientId": {"type": "string"},
+              "clientSecretName": {"type": "string"},
+              "tokenUrl": {"type": "string"},
+              "audience": {"type": "string"},
+              "scope": {"type": "string"}
+            },
+            "required": ["clientId", "tokenUrl"],
+            "additionalProperties": false
+          },
+          "secretName": {"type": "string"}
+        },
+        "additionalProperties": false
+      },
+      "CreateMcpServerBody": {
+        "type": "object",
+        "title": "CreateMcpServerBody",
+        "description": "Configuration to register a new MCP server connection on a branch.",
+        "properties": {
+          "providerId": {"type": "string", "minLength": 1},
+          "url": {"type": "string", "format": "uri"},
+          "auth": {"$ref": "#/components/schemas/McpServerAuth"},
+          "timeout": {"type": "number", "exclusiveMinimum": 0, "maximum": 30}
+        },
+        "required": ["providerId", "url"],
+        "additionalProperties": false
+      },
+      "UpdateMcpServerBody": {
+        "type": "object",
+        "title": "UpdateMcpServerBody",
+        "description": "Partial update to an existing MCP server connection.",
+        "properties": {
+          "url": {"type": "string", "format": "uri"},
+          "auth": {"$ref": "#/components/schemas/McpServerAuth"},
+          "timeout": {"type": "number", "exclusiveMinimum": 0, "maximum": 30}
+        },
+        "additionalProperties": false
+      },
+      "McpServerResponse": {
+        "type": "object",
+        "title": "McpServerResponse",
+        "description": "An MCP server connection configured on a branch, including its live discovery and connection state.",
+        "properties": {
+          "id": {"type": "string"},
+          "providerId": {"type": "string"},
+          "url": {"type": "string"},
+          "auth": {"$ref": "#/components/schemas/McpServerAuth"},
+          "timeout": {"type": "number"},
+          "enabledFunctions": {"type": "array", "items": {"type": "string"}},
+          "lastDiscoveredAt": {"type": "string"},
+          "lastDiscoveredToolCount": {"type": "number"},
+          "connected": {"type": "boolean"}
+        },
+        "required": ["id", "providerId", "url", "connected"],
+        "additionalProperties": false
+      },
+      "ListMcpServersResponse": {
+        "type": "array",
+        "title": "ListMcpServersResponse",
+        "description": "The MCP server connections configured on a branch.",
+        "items": {"$ref": "#/components/schemas/McpServerResponse"}
+      },
+      "DeleteMcpServerResponse": {
+        "type": "object",
+        "title": "DeleteMcpServerResponse",
+        "description": "Confirmation that an MCP server connection was deleted.",
+        "properties": {
+          "id": {"type": "string"}
+        },
+        "required": ["id"],
+        "additionalProperties": false
+      },
+      "TestCaseAssertion": {
+        "type": "object",
+        "title": "TestCaseAssertion",
+        "description": "A test case assertion: either a prompt the conversation must satisfy, or an expected function call.",
+        "properties": {
+          "payload": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "$case": {"type": "string", "enum": ["prompt"]},
+                  "value": {
+                    "type": "object",
+                    "properties": {"value": {"type": "string"}},
+                    "required": ["value"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["$case", "value"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "$case": {"type": "string", "enum": ["functionCall"]},
+                  "value": {
+                    "type": "object",
+                    "properties": {
+                      "name": {"type": "string"},
+                      "arguments": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "object",
+                          "properties": {
+                            "valueType": {"type": "string"},
+                            "assertionType": {"type": "string"},
+                            "expectedValue": {"anyOf": [{"type": "string"}, {"type": "number"}, {"type": "boolean"}, {"type": "null"}]}
+                          },
+                          "required": ["valueType", "assertionType", "expectedValue"],
+                          "additionalProperties": false
+                        }
+                      },
+                      "isAsserted": {"type": "boolean"}
+                    },
+                    "required": ["name", "arguments", "isAsserted"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["$case", "value"],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": ["payload"],
+        "additionalProperties": false
+      },
+      "TestCasePublicResponse": {
+        "type": "object",
+        "title": "TestCasePublicResponse",
+        "description": "A simulation test case, including its scenario, assertions, and simulation history.",
+        "properties": {
+          "id": {"type": "string"},
+          "name": {"type": "string"},
+          "scenario": {"type": "string"},
+          "assertions": {"type": "array", "items": {"$ref": "#/components/schemas/TestCaseAssertion"}},
+          "variantId": {"type": ["string", "null"]},
+          "language": {"type": "string"},
+          "channel": {"type": "string"},
+          "tags": {"type": "array", "items": {"type": "string"}},
+          "severity": {"type": ["string", "null"], "enum": ["low", "medium", "high", "critical", null], "description": "Severity of a test case, ranging from low to critical"},
+          "simulatedAt": {"type": ["string", "null"]},
+          "callerNumber": {"type": ["string", "null"]},
+          "sipHeaders": {"type": "object", "additionalProperties": {"type": "string"}},
+          "integrationAttributes": {"type": "object", "additionalProperties": {}},
+          "createdAt": {"type": "string"},
+          "createdBy": {"type": "string"},
+          "updatedAt": {"type": "string"},
+          "updatedBy": {"type": "string"}
+        },
+        "required": ["id", "name", "scenario", "assertions", "variantId", "language", "channel", "tags", "severity", "simulatedAt", "callerNumber", "sipHeaders", "integrationAttributes", "createdAt", "createdBy", "updatedAt", "updatedBy"],
+        "additionalProperties": false
+      },
+      "ListTestCasesPublicResponse": {
+        "type": "object",
+        "title": "ListTestCasesPublicResponse",
+        "description": "A page of simulation test cases on a branch, with pagination.",
+        "properties": {
+          "testCases": {"type": "array", "items": {"$ref": "#/components/schemas/TestCasePublicResponse"}},
+          "pagination": {
+            "type": "object",
+            "properties": {
+              "limit": {"type": "number"},
+              "offset": {"type": "number"},
+              "total": {"type": "number"},
+              "hasMore": {"type": "boolean"}
+            },
+            "required": ["limit", "offset", "total", "hasMore"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["testCases", "pagination"],
+        "additionalProperties": false
+      },
+      "TestHistoryEventResponse": {
+        "type": "object",
+        "title": "TestHistoryEventResponse",
+        "description": "One execution of a single test case within a test run: its result status, the conversation it produced, and pass/fail details.",
+        "properties": {
+          "id": {"type": "string", "description": "Unique history event identifier"},
+          "testCaseId": {"type": "string", "description": "Test case that was executed"},
+          "projectId": {"type": ["string", "null"], "description": "Project ID"},
+          "testRunId": {"type": ["string", "null"], "description": "Parent test run ID"},
+          "status": {"type": "string", "description": "Result status (pending, in_progress, passed, failed, errored, timed_out)"},
+          "rawConversation": {"type": ["object", "null"], "description": "Raw conversation data"},
+          "results": {"type": ["object", "null"], "description": "Test results with pass/fail details"},
+          "testCaseSnapshot": {"type": ["object", "null"], "description": "Snapshot of the test case config at execution time"},
+          "artifactVersion": {"type": "string", "default": "", "description": "Artifact version used"},
+          "lambdaDeploymentVersion": {"type": ["string", "null"], "description": "Lambda deployment version"},
+          "deployment": {"type": ["object", "null"], "description": "Deployment info snapshot"},
+          "deploymentId": {"type": ["string", "null"], "description": "Deployment ID"},
+          "startedAt": {"type": "string", "default": "", "description": "ISO 8601 start timestamp"},
+          "startedBy": {"type": "string", "default": "", "description": "Email of the user who triggered the test"},
+          "updatedAt": {"type": ["string", "null"], "description": "ISO 8601 last update timestamp"}
+        },
+        "required": ["id", "testCaseId", "status"]
+      },
+      "GetTestHistoryResponse": {
+        "type": "object",
+        "title": "GetTestHistoryResponse",
+        "description": "Individual test case executions matching the query, most recent first.",
+        "properties": {
+          "testHistory": {"type": "array", "description": "List of test history events", "items": {"$ref": "#/components/schemas/TestHistoryEventResponse"}}
+        },
+        "required": ["testHistory"]
+      },
+      "TestRunResponse": {
+        "type": "object",
+        "title": "TestRunResponse",
+        "description": "A simulation test run against a deployment: its status, pass/fail counts, and (on single-run fetch) the history of each test case executed.",
+        "properties": {
+          "id": {"type": "string", "description": "Unique test run identifier"},
+          "name": {"type": "string", "description": "Test run name"},
+          "projectId": {"type": "string", "description": "Project this test run belongs to"},
+          "branchId": {"type": ["string", "null"], "description": "Branch ID"},
+          "startedAt": {"type": "string", "description": "ISO 8601 start timestamp"},
+          "startedBy": {"type": "string", "description": "Email of the user who started the run"},
+          "updatedAt": {"type": "string", "description": "ISO 8601 last update timestamp"},
+          "artifactVersion": {"type": "string", "description": "Artifact version used"},
+          "lambdaDeploymentVersion": {"type": ["string", "null"], "description": "Lambda deployment version"},
+          "deploymentId": {"type": ["string", "null"], "description": "Deployment ID"},
+          "deployment": {"type": ["object", "null"], "description": "Deployment info snapshot"},
+          "status": {"type": "string", "description": "Run status (pending, in_progress, completed)"},
+          "testCaseCount": {"type": "integer", "description": "Total test cases in the run"},
+          "passedCount": {"type": "integer", "description": "Number of passed test cases"},
+          "failedCount": {"type": "integer", "description": "Number of failed test cases"},
+          "errorCount": {"type": "integer", "description": "Number of errored test cases"},
+          "testSetId": {"type": ["string", "null"], "description": "Test set ID if run from a set"},
+          "testHistory": {"type": ["array", "null"], "description": "Test history events for this run (included on single-run fetch)", "items": {"$ref": "#/components/schemas/TestHistoryEventResponse"}}
+        },
+        "required": ["id", "name", "projectId", "startedAt", "startedBy", "updatedAt", "artifactVersion", "status", "testCaseCount", "passedCount", "failedCount", "errorCount"]
+      },
+      "GetTestRunsResponse": {
+        "type": "object",
+        "title": "GetTestRunsResponse",
+        "description": "Test runs matching the query, most recent first.",
+        "properties": {
+          "testRuns": {"type": "array", "description": "List of test runs", "items": {"$ref": "#/components/schemas/TestRunResponse"}}
+        },
+        "required": ["testRuns"]
+      },
+      "TriggerTestRunBody": {
+        "type": "object",
+        "title": "TriggerTestRunBody",
+        "description": "Selection criteria for which test cases to run in a triggered test run, by id, severity, or tag.",
+        "properties": {
+          "branchId": {"type": "string"},
+          "select": {
+            "anyOf": [
+              {
+                "type": "object",
+                "title": "By test case ID",
+                "properties": {
+                  "mode": {"type": "string", "enum": ["testIds"]},
+                  "testIds": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 1000}
+                },
+                "required": ["mode", "testIds"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "title": "By severity",
+                "properties": {
+                  "mode": {"type": "string", "enum": ["severities"]},
+                  "severities": {"type": "array", "items": {"type": "string", "enum": ["low", "medium", "high", "critical"]}, "minItems": 1}
+                },
+                "required": ["mode", "severities"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "title": "By tag",
+                "properties": {
+                  "mode": {"type": "string", "enum": ["tags"]},
+                  "tags": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 50}
+                },
+                "required": ["mode", "tags"],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "name": {"type": "string", "minLength": 1, "maxLength": 120}
+        },
+        "required": ["branchId", "select"],
+        "additionalProperties": false
+      },
+      "DeploymentPublicResponse": {
+        "type": "object",
+        "title": "DeploymentPublicResponse",
+        "description": "A deployment of an agent version to an environment.",
+        "properties": {
+          "id": {"type": "string"},
+          "accountId": {"type": "string"},
+          "agentId": {"type": "string"},
+          "environment": {"type": "string"},
+          "artifactVersion": {"type": "string"},
+          "version": {"type": "string"},
+          "createdBy": {"type": "string"},
+          "createdAt": {"type": "string"},
+          "metadata": {"type": ["object", "null"], "additionalProperties": {}}
+        },
+        "required": ["id", "accountId", "agentId", "environment", "artifactVersion", "version", "createdBy", "createdAt"],
+        "additionalProperties": false
+      },
+      "UpdateProjectVoiceRequest": {
+        "type": "object",
+        "title": "UpdateProjectVoiceRequest",
+        "description": "The voice to set as the project's active default voice.",
+        "properties": {
+          "voiceId": {"type": "string", "description": "Voice ID to set as the project voice"}
+        },
+        "required": ["voiceId"]
+      },
+      "ProjectVoiceResponse": {
+        "type": "object",
+        "title": "ProjectVoiceResponse",
+        "description": "The project's active default voice.",
+        "properties": {
+          "voiceId": {"type": "string", "description": "The newly set project voice ID"}
+        },
+        "required": ["voiceId"]
+      },
+      "DeployedVoiceResponse": {
+        "type": "object",
+        "title": "DeployedVoiceResponse",
+        "description": "A single deployed voice configuration.",
+        "properties": {
+          "id": {"type": "string", "description": "Deployed voice ID"},
+          "genaiProjectId": {"type": "string", "description": "Project ID"},
+          "voiceId": {"type": "string", "description": "Voice ID"},
+          "probability": {"type": "number", "description": "Traffic weight"},
+          "name": {"type": ["string", "null"], "description": "The voice's configured name, as set via 'Add voice'"},
+          "provider": {"type": ["string", "null"], "description": "TTS provider for this voice"},
+          "providerVoiceId": {"type": ["string", "null"], "description": "Provider-specific voice ID"},
+          "config": {"type": ["object", "null"], "description": "Provider-specific tuning config for this voice"}
+        },
+        "required": ["id", "genaiProjectId", "voiceId", "probability"]
+      },
+      "ListDeployedVoicesResponse": {
+        "type": "object",
+        "title": "ListDeployedVoicesResponse",
+        "description": "Every voice currently deployed on the project, with its traffic weight.",
+        "properties": {
+          "deployedVoices": {"type": "array", "items": {"$ref": "#/components/schemas/DeployedVoiceResponse"}}
+        },
+        "required": ["deployedVoices"]
+      },
+      "UpsertDeployedVoiceRequest": {
+        "type": "object",
+        "title": "UpsertDeployedVoiceRequest",
+        "description": "A voice and traffic weight to deploy on the project; provide an id to update an existing deployed voice instead of creating a new one.",
+        "properties": {
+          "voiceId": {"type": "string", "description": "Voice ID to deploy"},
+          "probability": {"type": "number", "description": "Traffic weight (0.0–1.0)"},
+          "id": {"type": ["string", "null"], "description": "Deployed voice ID. Omit to create, provide to update"}
+        },
+        "required": ["voiceId", "probability"]
+      },
+      "DeleteDeployedVoiceResponse": {
+        "type": "object",
+        "title": "DeleteDeployedVoiceResponse",
+        "description": "Confirmation that a deployed voice was removed from the project.",
+        "properties": {
+          "success": {"type": "boolean", "default": true, "description": "Whether the deletion succeeded"}
+        }
+      },
+      "GenerateAudioRequest": {
+        "type": "object",
+        "title": "GenerateAudioRequest",
+        "description": "Text, language, and provider-specific config for synthesizing a short audio sample.",
+        "properties": {
+          "provider": {"type": ["string", "null"], "default": "eleven_labs", "description": "TTS provider key, e.g. 'eleven_labs', 'cartesia'"},
+          "text": {"type": "string", "description": "Text to synthesize"},
+          "language": {"type": "string", "description": "BCP-47 language tag, e.g. 'en-US'"},
+          "config": {"type": "object", "description": "Provider-specific synthesis config"},
+          "storeOnS3": {"type": ["boolean", "null"], "description": "Store audio on S3 and return a presigned URL"}
+        },
+        "required": ["text", "language", "config"]
+      },
+      "GenerateAudioResponse": {
+        "type": "object",
+        "title": "GenerateAudioResponse",
+        "description": "A synthesized audio sample and the text it was generated from.",
+        "properties": {
+          "url": {"type": "string", "description": "URL of the generated audio"},
+          "text": {"type": "string", "description": "Text that was synthesized"}
+        },
+        "required": ["url", "text"]
+      },
+      "TuningSettingsResponse": {
+        "type": "object",
+        "title": "TuningSettingsResponse",
+        "description": "Voice tuning settings.",
+        "properties": {
+          "stability": {"type": ["integer", "null"], "description": "Voice stability"},
+          "similarityBoost": {"type": ["integer", "null"], "description": "Similarity boost"},
+          "style": {"type": ["integer", "null"], "description": "Style (provider-specific)"},
+          "optimizeStreamingLatency": {"type": ["integer", "null"], "description": "Streaming latency optimization level"},
+          "speed": {"type": ["number", "null"], "description": "Playback speed multiplier"},
+          "modelId": {"type": ["string", "null"], "description": "Provider model ID"}
+        }
+      },
+      "EditVoiceTuningRequest": {
+        "type": "object",
+        "title": "EditVoiceTuningRequest",
+        "description": "Partial update to a voice's tuning settings: stability, similarity, speed, and model overrides. Only fields present are changed.",
+        "properties": {
+          "stability": {"type": ["integer", "null"], "description": "Voice stability (0–100)"},
+          "similarityBoost": {"type": ["integer", "null"], "description": "Similarity boost (0–100)"},
+          "speed": {"type": ["number", "null"], "description": "Playback speed multiplier"},
+          "modelId": {"type": ["string", "null"], "description": "Provider model ID override"},
+          "resetToDefault": {"type": ["boolean", "null"], "description": "Reset settings to provider defaults"}
+        }
+      },
+      "CategoriesResponse": {
+        "type": "object",
+        "title": "CategoriesResponse",
+        "description": "The available builder knowledge categories.",
+        "properties": {
+          "categories": {"type": "array", "description": "Alphabetically sorted list of knowledge categories", "items": {"type": "string"}}
+        },
+        "required": ["categories"]
+      },
+      "ReadDocumentResponse": {
+        "type": "object",
+        "title": "ReadDocumentResponse",
+        "description": "A builder knowledge document: frontmatter fields plus the markdown body.",
+        "properties": {
+          "path": {"type": "string", "description": "Relative path of the document"},
+          "title": {"type": "string", "description": "Document title from YAML frontmatter"},
+          "category": {"type": "string", "description": "Document category"},
+          "tags": {"type": "array", "description": "Document tags from frontmatter", "items": {"type": "string"}},
+          "whenToUse": {"type": ["string", "null"], "description": "When this document is most relevant"},
+          "body": {"type": "string", "description": "Full markdown body of the document"}
+        },
+        "required": ["path", "title", "category", "tags", "body"]
+      },
+      "SearchResultItem": {
+        "type": "object",
+        "title": "SearchResultItem",
+        "description": "A single search hit from the builder knowledge base.",
+        "properties": {
+          "score": {"type": "number", "description": "BM25 relevance score"},
+          "path": {"type": "string", "description": "Relative path to the document"},
+          "title": {"type": "string", "description": "Document title from frontmatter"},
+          "category": {"type": "string", "description": "Document category"},
+          "tags": {"type": "array", "description": "Document tags from frontmatter", "items": {"type": "string"}},
+          "summary": {"type": "string", "description": "Short summary of the document"}
+        },
+        "required": ["score", "path", "title", "category", "tags", "summary"]
+      },
+      "SearchResponse": {
+        "type": "object",
+        "title": "SearchResponse",
+        "description": "Ranked builder knowledge search results.",
+        "properties": {
+          "results": {"type": "array", "description": "Ranked search results", "items": {"$ref": "#/components/schemas/SearchResultItem"}},
+          "total": {"type": "integer", "description": "Number of results returned"},
+          "query": {"type": "string", "description": "The original search query"}
+        },
+        "required": ["results", "total", "query"]
       }
     }
   },
@@ -6899,6 +7567,615 @@
             "type": "string"
           }
         }
+      ]
+    },
+    "/v1/agents/{agentId}/branches/archive": {
+      "get": {
+        "summary": "List archived branches",
+        "description": "List deleted and merged branches that can be restored within their 30-day retention window. `status` says which.",
+        "tags": ["Branches"],
+        "responses": {
+          "200": {
+            "description": "Archived branches",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ListArchivedBranchesPublicResponse"}}}
+          },
+          "404": {"description": "Deployment simplification not enabled"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/deploy": {
+      "post": {
+        "summary": "Deploy a branch",
+        "description": "Deploy a branch's current configuration to an environment (sandbox, pre-release, or live). Triggers any configured test runs as part of the deployment.",
+        "tags": ["Branches"],
+        "responses": {
+          "200": {
+            "description": "Branch deployment result",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/DeployBranchPublicResponse"}}}
+          },
+          "404": {"description": "Branch not found"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "branchId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/divergence": {
+      "get": {
+        "summary": "Check branch divergence",
+        "description": "Check whether a branch has diverged from its parent branch (i.e. the parent has new changes the branch does not have).",
+        "tags": ["Branches"],
+        "responses": {
+          "200": {
+            "description": "Divergence status",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/DivergencePublicResponse"}}}
+          },
+          "404": {"description": "Branch not found or deployment simplification not enabled"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "branchId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/merge-history": {
+      "get": {
+        "summary": "Get merge history for a branch",
+        "description": "Get the merge history for a branch, showing which branches were merged into it and when.",
+        "tags": ["Branches"],
+        "responses": {
+          "200": {
+            "description": "Merge history entries",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/MergeHistoryPublicResponse"}}}
+          }
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "branchId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/restore": {
+      "post": {
+        "summary": "Restore an archived branch",
+        "description": "Restore a soft-deleted branch from the archive back to an active state.",
+        "tags": ["Branches"],
+        "responses": {
+          "200": {
+            "description": "Branch restored",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/RestoreBranchPublicResponse"}}}
+          },
+          "404": {"description": "Branch not found in archive or deployment simplification not enabled"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "branchId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/sync": {
+      "post": {
+        "summary": "Sync branch with parent",
+        "description": "Pull the latest changes from the branch's parent (main) into it, without merging the branch back. Use to keep a long-lived branch up to date before merging.",
+        "tags": ["Branches"],
+        "requestBody": {
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SyncBranchBody"}}}
+        },
+        "responses": {
+          "200": {
+            "description": "Branch synced with parent",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SyncBranchResponse"}}}
+          },
+          "400": {
+            "description": "Sync conflicts",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SyncBranchConflictResponse"}}}
+          }
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "branchId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/tag": {
+      "put": {
+        "summary": "Tag a branch as staging",
+        "description": "Tag a branch as staging to deploy it to pre-release. Only direct children of main can be tagged, and one branch holds the staging tag per project.",
+        "tags": ["Branches"],
+        "requestBody": {
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TagBranchPublicBody"}}}
+        },
+        "responses": {
+          "200": {
+            "description": "Branch tagged as staging",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TagBranchPublicResponse"}}}
+          },
+          "404": {"description": "BRANCH_NOT_FOUND: no such branch. DEPLOYMENT_SIMPLIFICATION_INACTIVE: the project is not on simplified deployment, or main has changes not yet published to live"},
+          "409": {"description": "Another branch already holds the staging tag, or BRANCH_NOT_ACTIVE: the branch has been merged or deleted"},
+          "422": {"description": "The branch is not a direct child of main"}
+        }
+      },
+      "delete": {
+        "summary": "Remove the tag from a branch",
+        "description": "Remove the tag from a branch, clearing the environment it was deployed to (pre-release for staging, sandbox for internal).",
+        "tags": ["Branches"],
+        "responses": {
+          "200": {
+            "description": "Tag removed",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UntagBranchPublicResponse"}}}
+          },
+          "404": {"description": "BRANCH_NOT_FOUND: no such branch. DEPLOYMENT_SIMPLIFICATION_INACTIVE: the project is not on simplified deployment, or main has changes not yet published to live"},
+          "409": {"description": "BRANCH_NOT_TAGGED: the branch holds no tag. BRANCH_NOT_ACTIVE: the branch has been merged or deleted"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "branchId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/mcp-servers": {
+      "get": {
+        "summary": "List MCP servers",
+        "description": "List all MCP servers configured on a branch. MCP servers let the agent call external tools during a conversation.",
+        "tags": ["MCP Servers"],
+        "responses": {
+          "200": {
+            "description": "List of MCP servers",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ListMcpServersResponse"}}}
+          }
+        }
+      },
+      "post": {
+        "summary": "Add MCP server",
+        "description": "Register a new MCP server on a branch. Auth (header, query param, or OAuth) is resolved via a secret at connect time.",
+        "tags": ["MCP Servers"],
+        "requestBody": {
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateMcpServerBody"}}}
+        },
+        "responses": {
+          "201": {
+            "description": "Created MCP server",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/McpServerResponse"}}}
+          }
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "branchId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/mcp-servers/{serverId}": {
+      "patch": {
+        "summary": "Update MCP server",
+        "description": "Update an MCP server's URL, auth config, or other settings.",
+        "tags": ["MCP Servers"],
+        "requestBody": {
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UpdateMcpServerBody"}}}
+        },
+        "responses": {
+          "200": {
+            "description": "Updated MCP server",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/McpServerResponse"}}}
+          },
+          "404": {"description": "MCP server not found"}
+        }
+      },
+      "delete": {
+        "summary": "Delete MCP server",
+        "description": "Remove an MCP server from a branch. The agent will no longer be able to call its tools.",
+        "tags": ["MCP Servers"],
+        "responses": {
+          "200": {
+            "description": "MCP server deleted",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/DeleteMcpServerResponse"}}}
+          },
+          "404": {"description": "MCP server not found"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "branchId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "serverId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/mcp-servers/{serverId}/connect": {
+      "patch": {
+        "summary": "Connect MCP server",
+        "description": "Connect to an MCP server and discover its available tools. Resolves auth from the configured secret before connecting.",
+        "tags": ["MCP Servers"],
+        "responses": {
+          "200": {
+            "description": "Connected MCP server with discovered tools",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/McpServerResponse"}}}
+          },
+          "404": {"description": "MCP server not found"},
+          "502": {"description": "MCP discovery failed"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "branchId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "serverId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/testing/test-cases": {
+      "get": {
+        "summary": "List test cases",
+        "description": "List simulation test cases defined on a branch, with pagination. Use to find test case IDs for the get endpoint or for triggering test runs.",
+        "tags": ["Testing"],
+        "responses": {
+          "200": {
+            "description": "Paginated list of test cases",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ListTestCasesPublicResponse"}}}
+          }
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "branchId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/branches/{branchId}/testing/test-cases/{testCaseId}": {
+      "get": {
+        "summary": "Get test case",
+        "description": "Get full details for a single test case, including its steps and expected outcomes. List test cases for the branch first to find test case IDs.",
+        "tags": ["Testing"],
+        "responses": {
+          "200": {
+            "description": "Test case details",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TestCasePublicResponse"}}}
+          },
+          "404": {"description": "Test case not found"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "branchId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "testCaseId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/testing/test-history": {
+      "get": {
+        "summary": "Get test execution history for a project",
+        "description": "List individual test-case execution events for an agent over time, optionally filtered by test case or branch. Use this to see pass/fail trends, distinct from a single test run's snapshot.",
+        "tags": ["Testing"],
+        "parameters": [
+          {"name": "limit", "in": "query", "required": false, "schema": {"type": "integer", "minimum": 1, "default": 100}, "description": "Max number of history entries to return"},
+          {"name": "offset", "in": "query", "required": false, "schema": {"type": "integer", "minimum": 0, "default": 0}, "description": "Number of history entries to skip"},
+          {"name": "testCaseId", "in": "query", "required": false, "schema": {"type": "string"}, "description": "Filter by test case ID"},
+          {"name": "branchId", "in": "query", "required": false, "schema": {"type": "string"}, "description": "Filter by branch ID"}
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/GetTestHistoryResponse"}}}
+          },
+          "401": {"description": "Unauthorized – missing or invalid API key"},
+          "403": {"description": "Forbidden – insufficient permissions"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/testing/test-runs": {
+      "get": {
+        "summary": "List test runs for a project",
+        "description": "List simulation test runs for an agent, optionally filtered by test set or branch. Fetch a single test run by ID for full details.",
+        "tags": ["Testing"],
+        "parameters": [
+          {"name": "limit", "in": "query", "required": false, "schema": {"type": "integer", "minimum": 1, "default": 100}, "description": "Max number of test runs to return"},
+          {"name": "offset", "in": "query", "required": false, "schema": {"type": "integer", "minimum": 0, "default": 0}, "description": "Number of test runs to skip"},
+          {"name": "testSetId", "in": "query", "required": false, "schema": {"type": "string"}, "description": "Filter by test set ID"},
+          {"name": "branchId", "in": "query", "required": false, "schema": {"type": "string"}, "description": "Filter by branch ID"}
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/GetTestRunsResponse"}}}
+          },
+          "401": {"description": "Unauthorized – missing or invalid API key"},
+          "403": {"description": "Forbidden – insufficient permissions"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/testing/test-runs/trigger": {
+      "post": {
+        "summary": "Trigger a test run",
+        "description": "Trigger a simulation test run. Select test cases explicitly by id, by severity, or by tag via the `select` field. The legacy flat `testCaseIds` body is deprecated but still accepted.",
+        "tags": ["Testing"],
+        "requestBody": {
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TriggerTestRunBody"}}}
+        },
+        "responses": {
+          "200": {"description": "Test run created"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/testing/test-runs/{testRunId}": {
+      "get": {
+        "summary": "Get a test run by ID",
+        "description": "Get full details for a single test run, including per-case results. List test runs for the agent first to find test run IDs.",
+        "tags": ["Testing"],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TestRunResponse"}}}
+          },
+          "401": {"description": "Unauthorized – missing or invalid API key"},
+          "403": {"description": "Forbidden – insufficient permissions"},
+          "404": {"description": "Resource not found"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "testRunId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/deployments/{deploymentId}": {
+      "get": {
+        "summary": "Get a deployment",
+        "description": "Get a single deployment by ID.",
+        "tags": ["Deployments"],
+        "responses": {
+          "200": {
+            "description": "Deployment details",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/DeploymentPublicResponse"}}}
+          },
+          "404": {"description": "Deployment not found"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "deploymentId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/voice": {
+      "put": {
+        "summary": "Set the project's active voice",
+        "description": "Set which voice from the voice library the agent uses for TTS.",
+        "tags": ["Voices"],
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UpdateProjectVoiceRequest"}}}
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ProjectVoiceResponse"}}}
+          },
+          "400": {"description": "Validation error"},
+          "401": {"description": "Unauthorized – missing or invalid API key"},
+          "403": {"description": "Forbidden – insufficient permissions"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/deployed-voices": {
+      "get": {
+        "summary": "List deployed voice configurations",
+        "description": "List deployed voice configurations for an agent. Each configuration maps a voice to a traffic weight (probability), used for voice A/B testing. Includes the voice's configured name and provider settings, so a caller can resolve a deployed voice by name without a separate voice-library lookup.",
+        "tags": ["Voices"],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ListDeployedVoicesResponse"}}}
+          },
+          "401": {"description": "Unauthorized – missing or invalid API key"},
+          "403": {"description": "Forbidden – insufficient permissions"}
+        }
+      },
+      "put": {
+        "summary": "Create or update a deployed voice configuration",
+        "description": "Create or update a deployed voice configuration. Set a voice ID and traffic probability (0.0-1.0) for voice A/B testing. Pass an existing `id` to update it, or omit it to create a new one.",
+        "tags": ["Voices"],
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UpsertDeployedVoiceRequest"}}}
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/DeployedVoiceResponse"}}}
+          },
+          "400": {"description": "Validation error"},
+          "401": {"description": "Unauthorized – missing or invalid API key"},
+          "403": {"description": "Forbidden – insufficient permissions"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/deployed-voices/{deployedVoiceId}": {
+      "delete": {
+        "summary": "Delete a deployed voice configuration",
+        "description": "Remove a deployed voice configuration from an agent's A/B rotation.",
+        "tags": ["Voices"],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/DeleteDeployedVoiceResponse"}}}
+          },
+          "401": {"description": "Unauthorized – missing or invalid API key"},
+          "403": {"description": "Forbidden – insufficient permissions"},
+          "404": {"description": "Resource not found"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "deployedVoiceId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/generate-audio": {
+      "post": {
+        "summary": "Generate a TTS audio preview",
+        "description": "Generate a TTS audio preview with custom text and voice config. Use to test how specific text sounds before committing changes to a voice's settings.",
+        "tags": ["Voices"],
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/GenerateAudioRequest"}}}
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/GenerateAudioResponse"}}}
+          },
+          "400": {"description": "Validation error"},
+          "401": {"description": "Unauthorized – missing or invalid API key"},
+          "403": {"description": "Forbidden – insufficient permissions"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/voices/{voiceId}/tuning-settings": {
+      "get": {
+        "summary": "Get voice tuning settings",
+        "description": "Get the current voice tuning settings (stability, similarity boost, speed, model) for a voice on an agent.",
+        "tags": ["Voices"],
+        "parameters": [
+          {"name": "purpose", "in": "query", "required": false, "schema": {"type": "string"}, "description": "Tuning purpose filter, e.g. 'disclaimer'"}
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TuningSettingsResponse"}}}
+          },
+          "401": {"description": "Unauthorized – missing or invalid API key"},
+          "403": {"description": "Forbidden – insufficient permissions"},
+          "404": {"description": "Resource not found"}
+        }
+      },
+      "put": {
+        "summary": "Update voice tuning settings",
+        "description": "Adjust voice tuning parameters: stability, similarity boost, speed multiplier, or model ID. Set `resetToDefault` to revert to defaults.",
+        "tags": ["Voices"],
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/EditVoiceTuningRequest"}}}
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TuningSettingsResponse"}}}
+          },
+          "400": {"description": "Validation error"},
+          "401": {"description": "Unauthorized – missing or invalid API key"},
+          "403": {"description": "Forbidden – insufficient permissions"},
+          "404": {"description": "Resource not found"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "voiceId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/agents/{agentId}/voices/{voiceId}/disclaimer/tuning-settings": {
+      "get": {
+        "summary": "Get disclaimer voice tuning settings",
+        "description": "Get voice tuning settings used specifically for the disclaimer message, independent from the agent's main voice settings.",
+        "tags": ["Voices"],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TuningSettingsResponse"}}}
+          },
+          "401": {"description": "Unauthorized – missing or invalid API key"},
+          "403": {"description": "Forbidden – insufficient permissions"},
+          "404": {"description": "Resource not found"}
+        }
+      },
+      "put": {
+        "summary": "Update disclaimer voice tuning settings",
+        "description": "Adjust voice tuning for the disclaimer message independently from the agent's main voice settings.",
+        "tags": ["Voices"],
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/EditVoiceTuningRequest"}}}
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TuningSettingsResponse"}}}
+          },
+          "400": {"description": "Validation error"},
+          "401": {"description": "Unauthorized – missing or invalid API key"},
+          "403": {"description": "Forbidden – insufficient permissions"},
+          "404": {"description": "Resource not found"}
+        }
+      },
+      "parameters": [
+        {"name": "agentId", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "voiceId", "in": "path", "required": true, "schema": {"type": "string"}}
+      ]
+    },
+    "/v1/builder-knowledge/search": {
+      "get": {
+        "summary": "Search the builder knowledge base",
+        "description": "Search the PolyAI builder knowledge base for design patterns, implementation rules, and best practices. Returns ranked results by relevance. Use this before building or modifying an agent to find the right approach.",
+        "tags": ["Builder Knowledge"],
+        "parameters": [
+          {"name": "query", "in": "query", "required": true, "schema": {"type": "string", "minLength": 1}, "description": "Search text, matched against document titles, tags and bodies"},
+          {"name": "top", "in": "query", "required": false, "schema": {"type": "integer", "minimum": 1, "default": 10}, "description": "Maximum number of results to return"},
+          {"name": "category", "in": "query", "required": false, "schema": {"type": "string"}, "description": "Only return documents in this knowledge category; GET /v1/builder-knowledge/categories lists the valid values"}
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SearchResponse"}}}
+          },
+          "400": {"description": "Validation error"},
+          "401": {"description": "Unauthorized – missing or invalid API key"},
+          "403": {"description": "Forbidden – insufficient permissions"}
+        }
+      }
+    },
+    "/v1/builder-knowledge/categories": {
+      "get": {
+        "summary": "List builder knowledge categories",
+        "description": "List the available knowledge categories to help narrow searches. Categories include: functions, flows, prompting, entities, deployment, integrations, scopes, patterns, and more.",
+        "tags": ["Builder Knowledge"],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CategoriesResponse"}}}
+          },
+          "401": {"description": "Unauthorized – missing or invalid API key"},
+          "403": {"description": "Forbidden – insufficient permissions"}
+        }
+      }
+    },
+    "/v1/builder-knowledge/docs/{path}": {
+      "get": {
+        "summary": "Read a builder knowledge document by path",
+        "description": "Read the full content of a knowledge base document by its file path. Use after searching to read the documents you need. Returns structured fields parsed from YAML frontmatter plus the markdown body.",
+        "tags": ["Builder Knowledge"],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ReadDocumentResponse"}}}
+          },
+          "401": {"description": "Unauthorized – missing or invalid API key"},
+          "403": {"description": "Forbidden – insufficient permissions"},
+          "404": {"description": "Resource not found"}
+        }
+      },
+      "parameters": [
+        {"name": "path", "in": "path", "required": true, "schema": {"type": "string"}, "description": "Relative path of the document, as returned by search"}
       ]
     }
   }

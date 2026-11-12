@@ -598,6 +598,106 @@
         }
       }
     },
+    "/v1/agents/{agentId}/conversations": {
+      "get": {
+        "tags": ["Conversations"],
+        "summary": "List conversations for an agent",
+        "description": "List recent conversations for an agent with pagination. Returns conversation summaries; fetch a single conversation by ID for full details.\n\nFilter values take an optional operator prefix: `eq:` (default), `gt:`, `ge:`, `lt:`, `le:`, `in:`, `ex:`, `contains:` or `exists:`.",
+        "servers": [
+          {"url": "https://api.us.poly.ai", "description": "US base url"},
+          {"url": "https://api.eu.poly.ai", "description": "EU base url"},
+          {"url": "https://api.uk.poly.ai", "description": "UK base url"},
+          {"url": "https://api.studio.poly.ai", "description": "Studio base url"}
+        ],
+        "parameters": [
+          {"name": "agentId", "in": "path", "description": "Agent ID.", "required": true, "schema": {"type": "string"}},
+          {"name": "limit", "in": "query", "required": false, "schema": {"type": "integer", "minimum": 1, "default": 50}, "description": "Max number of conversations to return"},
+          {"name": "offset", "in": "query", "required": false, "schema": {"type": "integer", "minimum": 0, "default": 0}, "description": "Number of conversations to skip"},
+          {"name": "clientEnv", "in": "query", "required": false, "schema": {"type": "string"}, "description": "Environment the conversation ran in: sandbox, pre-release, live or draft"},
+          {"name": "version", "in": "query", "required": false, "schema": {"type": "string"}, "description": "Deployed agent version"},
+          {"name": "batchId", "in": "query", "required": false, "schema": {"type": "string"}, "description": "Outbound call batch the conversation belongs to"},
+          {"name": "createdAt", "in": "query", "required": false, "schema": {"type": "string"}, "description": "Creation time, ISO 8601, e.g. ge:2026-01-01T00:00:00Z"},
+          {"name": "startedAt", "in": "query", "required": false, "schema": {"type": "string"}, "description": "Start time, ISO 8601"},
+          {"name": "duration", "in": "query", "required": false, "schema": {"type": "string"}, "description": "Duration in seconds, e.g. gt:60"},
+          {"name": "inProgress", "in": "query", "required": false, "schema": {"type": "string"}, "description": "true or false"},
+          {"name": "handoff", "in": "query", "required": false, "schema": {"type": "string"}, "description": "true or false: whether the call was handed off"},
+          {"name": "language", "in": "query", "required": false, "schema": {"type": "string"}, "description": "Conversation language code"},
+          {"name": "variantId", "in": "query", "required": false, "schema": {"type": "string"}, "description": "Agent variant the conversation used"},
+          {"name": "tags", "in": "query", "required": false, "schema": {"type": "string"}, "description": "Conversation tag, e.g. in:[escalated,vip]"}
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AgentConversationsResponse"}}}
+          },
+          "400": {"$ref": "#/components/responses/BadRequest"},
+          "401": {"$ref": "#/components/responses/Unauthorized"},
+          "403": {"description": "Forbidden: insufficient permissions."}
+        }
+      }
+    },
+    "/v1/agents/{agentId}/conversations/{conversationId}/annotation": {
+      "post": {
+        "tags": ["Conversations"],
+        "summary": "Add annotations to a conversation",
+        "description": "Add quality annotations to specific turns in a conversation. Supported labels: `missing_topic`, `wrong_transcript`, `wrong_info`.",
+        "servers": [
+          {"url": "https://api.us.poly.ai", "description": "US base url"},
+          {"url": "https://api.eu.poly.ai", "description": "EU base url"},
+          {"url": "https://api.uk.poly.ai", "description": "UK base url"},
+          {"url": "https://api.studio.poly.ai", "description": "Studio base url"}
+        ],
+        "parameters": [
+          {"name": "agentId", "in": "path", "description": "Agent ID.", "required": true, "schema": {"type": "string"}},
+          {"name": "conversationId", "in": "path", "description": "Unique conversation ID.", "required": true, "schema": {"type": "string"}}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AddAnnotationsBody"}}}
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/OperationSuccessResponse"}}}
+          },
+          "400": {"$ref": "#/components/responses/BadRequest"},
+          "401": {"$ref": "#/components/responses/Unauthorized"},
+          "403": {"description": "Forbidden: insufficient permissions."},
+          "404": {"$ref": "#/components/responses/NotFound"}
+        }
+      }
+    },
+    "/v1/agents/{agentId}/conversations/{conversationId}/note": {
+      "post": {
+        "tags": ["Conversations"],
+        "summary": "Upsert a note on a conversation",
+        "description": "Add or update a free-text note on a conversation. Useful for flagging conversations for review or adding analyst comments. Each conversation has at most one note; calling this again replaces it.",
+        "servers": [
+          {"url": "https://api.us.poly.ai", "description": "US base url"},
+          {"url": "https://api.eu.poly.ai", "description": "EU base url"},
+          {"url": "https://api.uk.poly.ai", "description": "UK base url"},
+          {"url": "https://api.studio.poly.ai", "description": "Studio base url"}
+        ],
+        "parameters": [
+          {"name": "agentId", "in": "path", "description": "Agent ID.", "required": true, "schema": {"type": "string"}},
+          {"name": "conversationId", "in": "path", "description": "Unique conversation ID.", "required": true, "schema": {"type": "string"}}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UpsertNoteBody"}}}
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/OperationSuccessResponse"}}}
+          },
+          "400": {"$ref": "#/components/responses/BadRequest"},
+          "401": {"$ref": "#/components/responses/Unauthorized"},
+          "403": {"description": "Forbidden: insufficient permissions."},
+          "404": {"$ref": "#/components/responses/NotFound"}
+        }
+      }
+    },
     "/v1/agents/{agentId}/debug-chat": {
       "post": {
         "tags": [
@@ -1824,6 +1924,96 @@
             "nullable": true,
             "description": "ID of the LLM request that triggered the function."
           }
+        }
+      },
+      "CustomScoreResult": {
+        "type": "object",
+        "description": "A conversation's result for one of the project's AI Scores.",
+        "properties": {
+          "customScoreId": {"type": "string", "description": "ID of the AI Score. Key results by this rather than by name, which can change."},
+          "name": {"type": ["string", "null"], "description": "The AI Score's current name. Renaming a score changes it on every conversation, including ones scored before the rename."},
+          "score": {"type": ["number", "null"], "description": "Score on the 1-5 scale. Null unless state is \"processed\"."},
+          "state": {"type": "string", "description": "Outcome of scoring: \"processed\", \"skipped\" (the conversation was too short, or matched the score's exclusion criteria), \"failed\" or \"processing\"."}
+        },
+        "required": ["customScoreId", "state"]
+      },
+      "AgentConversationSummary": {
+        "type": "object",
+        "description": "A conversation's top-level metadata, without its turn-by-turn transcript.",
+        "properties": {
+          "conversationId": {"type": "string"},
+          "accountId": {"type": "string"},
+          "projectId": {"type": "string"},
+          "createdAt": {"type": ["string", "null"]},
+          "startedAt": {"type": ["string", "null"]},
+          "finishedAt": {"type": ["string", "null"]},
+          "channel": {"type": ["string", "null"]},
+          "fromNumber": {"type": ["string", "null"]},
+          "toNumber": {"type": ["string", "null"]},
+          "language": {"type": ["string", "null"]},
+          "variantId": {"type": ["string", "null"]},
+          "clientEnv": {"type": ["string", "null"]},
+          "totalDuration": {"type": ["integer", "null"]},
+          "polyaiDuration": {"type": ["integer", "null"]},
+          "duration": {"type": ["integer", "null"]},
+          "inProgress": {"type": ["boolean", "null"]},
+          "handoff": {"type": ["boolean", "null"]},
+          "handoffDestination": {"type": ["string", "null"]},
+          "handoffReason": {"type": ["string", "null"]},
+          "direction": {"type": ["string", "null"]},
+          "tags": {"type": ["array", "null"], "items": {"type": "string"}},
+          "polyScore": {"type": ["number", "null"]},
+          "polyScoreV2": {"type": ["number", "null"], "description": "PolyScore on the 1-5 scale."},
+          "customScores": {"type": ["array", "null"], "description": "Results for the project's AI Scores, sorted by name. An AI Score that was never run on this conversation has no entry. One that ran but was skipped or failed has an entry with that state and a null score.", "items": {"$ref": "#/components/schemas/CustomScoreResult"}},
+          "shortSummary": {"anyOf": [{"$ref": "#/components/schemas/ShortSummary"}, {"type": "null"}]},
+          "deploymentId": {"type": ["string", "null"]},
+          "note": {"type": ["string", "null"]},
+          "audioUrl": {"type": ["string", "null"]}
+        },
+        "required": ["conversationId", "accountId", "projectId"]
+      },
+      "AgentConversationsResponse": {
+        "type": "object",
+        "description": "A page of conversations matching the query, plus total count and limit/offset pagination.",
+        "properties": {
+          "conversations": {"type": "array", "items": {"$ref": "#/components/schemas/AgentConversationSummary"}},
+          "count": {"type": "integer"},
+          "limit": {"type": "integer"},
+          "offset": {"type": "integer"}
+        },
+        "required": ["conversations", "count", "limit", "offset"]
+      },
+      "AnnotationItem": {
+        "type": "object",
+        "description": "A single utterance annotation.",
+        "properties": {
+          "turnId": {"type": "integer", "description": "Zero-based index of the turn."},
+          "role": {"type": "string", "enum": ["user", "agent"], "description": "Which side of the turn the annotation applies to."},
+          "annotationType": {"type": "string", "enum": ["missing_topic", "wrong_transcript", "wrong_info"], "description": "Annotation label."}
+        },
+        "required": ["turnId", "role", "annotationType"]
+      },
+      "AddAnnotationsBody": {
+        "type": "object",
+        "description": "One or more utterance annotations to attach to a conversation.",
+        "properties": {
+          "annotations": {"type": "array", "minItems": 1, "items": {"$ref": "#/components/schemas/AnnotationItem"}}
+        },
+        "required": ["annotations"]
+      },
+      "UpsertNoteBody": {
+        "type": "object",
+        "description": "A freeform note to set on a conversation, replacing any existing note.",
+        "properties": {
+          "note": {"type": "string"}
+        },
+        "required": ["note"]
+      },
+      "OperationSuccessResponse": {
+        "type": "object",
+        "description": "Minimal success payload for mutation endpoints.",
+        "properties": {
+          "success": {"type": "boolean", "default": true}
         }
       },
       "GatewayError": {
