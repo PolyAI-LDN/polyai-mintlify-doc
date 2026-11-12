@@ -1,10 +1,10 @@
 ---
 title: "Get call SIP ladder"
 api: "GET /api/v1/telephony/calls/{conversation_id}/sip"
-description: "All SIP signalling for one call, stitched across legs and ordered by capture time."
+description: "The SIP messages of one call, combined across legs and ordered by capture time."
 ---
 
-Returns every SIP message recorded for a call, grouped into legs and ordered by capture time: carrier to PolyAI, PolyAI to the media server, and any transfer legs. Use it to see why a call failed, how long it rang, who hung up and how a `REFER` transfer went. For packet loss and jitter on the audio, use [get call audio quality](/api-reference/telephony/endpoint/get-call-audio-quality).
+Returns the Session Initiation Protocol (SIP) messages recorded for a call, grouped into legs (carrier to PolyAI's SIP edge, SIP edge to media server, and any transfer legs) and ordered by capture time. Use it to see why a call failed, how long it rang, who hung up and how a `REFER` transfer went. For packet loss and jitter on the audio, use [get call audio quality](/api-reference/telephony/endpoint/get-call-audio-quality). See the [overview](/api-reference/telephony/introduction) for how legs and the time window work.
 
 ## Request
 
@@ -17,17 +17,17 @@ Returns every SIP message recorded for a call, grouped into legs and ordered by 
 ### Path parameters
 
 <ParamField path="conversation_id" type="string" required>
-  The call's CallSid.
+  The call SID.
 </ParamField>
 
 ### Query parameters
 
 <ParamField query="project_id" type="string">
-  The agent the call belongs to. Optional with an account API key.
+  The agent the call belongs to. Optional with an account API key; required with a PAT. A call that belongs to a different agent returns `404`.
 </ParamField>
 
 <ParamField query="from" type="datetime">
-  Start of the window, ISO 8601. Defaults to 14 days ago, which is also the earliest data kept.
+  Start of the window in which the call is looked up, ISO 8601. Defaults to 14 days ago, the retention limit.
 </ParamField>
 
 <ParamField query="to" type="datetime">
@@ -65,19 +65,19 @@ Returns every SIP message recorded for a call, grouped into legs and ordered by 
     </ResponseField>
     <ResponseField name="dst_ip" type="string" />
     <ResponseField name="from_user" type="string">
-      Caller user part from the first message. Masked unless the key can read PII.
+      SIP user part of the caller (usually the phone number), from the first message. Masked unless the key can read PII.
     </ResponseField>
     <ResponseField name="to_user" type="string">
-      Called user part from the first message. Masked unless the key can read PII.
+      SIP user part of the called party (usually the phone number), from the first message. Masked unless the key can read PII.
     </ResponseField>
     <ResponseField name="message_count" type="integer" />
     <ResponseField name="final_response" type="integer">
-      First final response (`200` or above) seen on this leg. `null` if the leg never got one.
+      First response of `200` or above to any request on this leg, not only to the `INVITE`: a cancelled call shows `200` (the answer to the `CANCEL`) before the `487` that ends the `INVITE`. `null` if the leg never got one.
     </ResponseField>
   </Expandable>
 </ResponseField>
 <ResponseField name="messages" type="object[]">
-  Every message across all legs, ordered by capture time.
+  The messages of all legs, ordered by capture time.
 
   <Expandable title="properties">
     <ResponseField name="ts" type="datetime">
@@ -91,7 +91,7 @@ Returns every SIP message recorded for a call, grouped into legs and ordered by 
     <ResponseField name="dst_ip" type="string" />
     <ResponseField name="dst_port" type="integer" />
     <ResponseField name="method" type="string">
-      The request method (`INVITE`, `BYE`, `REFER`), or the response code as a string (`180`, `200`) for a response.
+      The request method (for example `INVITE`, `BYE` or `REFER`), or the response code as a string (for example `180` or `200`) for a response.
     </ResponseField>
     <ResponseField name="response_code" type="integer">
       Set for responses only.
@@ -103,10 +103,10 @@ Returns every SIP message recorded for a call, grouped into legs and ordered by 
       The `CSeq` header, for example `1 INVITE`.
     </ResponseField>
     <ResponseField name="from_user" type="string">
-      Masked unless the key can read PII.
+      SIP user part of the caller (usually the phone number). Masked unless the key can read PII.
     </ResponseField>
     <ResponseField name="to_user" type="string">
-      Masked unless the key can read PII.
+      SIP user part of the called party (usually the phone number). Masked unless the key can read PII.
     </ResponseField>
     <ResponseField name="user_agent" type="string" />
     <ResponseField name="raw" type="string">
@@ -115,10 +115,10 @@ Returns every SIP message recorded for a call, grouped into legs and ordered by 
   </Expandable>
 </ResponseField>
 <ResponseField name="total" type="integer">
-  Number of messages across all legs.
+  Number of messages returned. When `truncated` is `true` this is the cap, not the call's real total.
 </ResponseField>
 <ResponseField name="truncated" type="boolean">
-  `true` when the cap of 2,000 messages was reached and later messages are missing. Narrow the window to see them.
+  `true` when the cap of 2,000 messages was reached and later messages are missing.
 </ResponseField>
 
 ## Example
@@ -208,7 +208,9 @@ The response is abridged: `legs` shows both legs, `messages` the first two of ni
 
 | Status | Meaning |
 | ------ | ------- |
+| `400`  | `project_id` is required for your credential and was not sent. |
 | `401`  | Missing or invalid API key. |
-| `403`  | The key cannot read conversations. |
-| `404`  | No SIP signalling was found: the call is older than 14 days or belongs to another account. |
-| `502`  | The telephony data store did not answer. |
+| `403`  | Authenticated, but the key cannot read conversations. |
+| `404`  | The call has no telephony data, is older than 14 days, belongs to another account or does not match `project_id`. |
+| `422`  | A parameter is malformed, for example `from`, `to` or `include_raw`. |
+| `502`  | The telephony data store did not answer. Retry with backoff. |
