@@ -1,0 +1,216 @@
+---
+title: "Get call SIP ladder"
+api: "GET /api/v1/telephony/calls/{conversation_id}/sip"
+description: "The SIP messages of one call, combined across legs and ordered by capture time."
+---
+
+Returns the Session Initiation Protocol (SIP) messages recorded for a call, grouped into legs (carrier to PolyAI's SIP edge, SIP edge to media server, and any transfer legs) and ordered by capture time. Use it to see why a call failed, how long it rang, who hung up and how a `REFER` transfer went. For packet loss and jitter on the audio, use [get call audio quality](/api-reference/telephony/endpoint/get-call-audio-quality). See the [overview](/api-reference/telephony/introduction) for how legs and the time window work.
+
+## Request
+
+### Headers
+
+<ParamField header="X-API-KEY" type="string" required>
+  Account API key with read access to conversations.
+</ParamField>
+
+### Path parameters
+
+<ParamField path="conversation_id" type="string" required>
+  The call SID.
+</ParamField>
+
+### Query parameters
+
+<ParamField query="project_id" type="string">
+  The agent the call belongs to. Optional with an account API key; required with a PAT. A call that belongs to a different agent returns `404`.
+</ParamField>
+
+<ParamField query="from" type="datetime">
+  Start of the window in which the call is looked up, ISO 8601. Defaults to 14 days ago, the retention limit.
+</ParamField>
+
+<ParamField query="to" type="datetime">
+  End of the window, ISO 8601. Defaults to now.
+</ParamField>
+
+<ParamField query="include_raw" type="boolean" default="false">
+  Include the full SIP text of each message in `raw`. Only takes effect when the key can read personal data (PII); otherwise `raw` stays `null`.
+</ParamField>
+
+## Response
+
+<ResponseField name="conversation_id" type="string" />
+<ResponseField name="account_id" type="string" />
+<ResponseField name="project_id" type="string">
+  `null` when you did not pass `project_id`.
+</ResponseField>
+<ResponseField name="first_ts" type="datetime">
+  Capture time of the first message, UTC.
+</ResponseField>
+<ResponseField name="last_ts" type="datetime">
+  Capture time of the last message, UTC.
+</ResponseField>
+<ResponseField name="legs" type="object[]">
+  One entry per SIP dialog, ordered by `first_ts`.
+
+  <Expandable title="properties">
+    <ResponseField name="call_id" type="string">
+      The dialog's SIP `Call-ID`.
+    </ResponseField>
+    <ResponseField name="first_ts" type="datetime" />
+    <ResponseField name="last_ts" type="datetime" />
+    <ResponseField name="src_ip" type="string">
+      Source of the first message on this leg.
+    </ResponseField>
+    <ResponseField name="dst_ip" type="string" />
+    <ResponseField name="from_user" type="string">
+      SIP user part of the caller (usually the phone number), from the first message. Masked unless the key can read PII.
+    </ResponseField>
+    <ResponseField name="to_user" type="string">
+      SIP user part of the called party (usually the phone number), from the first message. Masked unless the key can read PII.
+    </ResponseField>
+    <ResponseField name="message_count" type="integer" />
+    <ResponseField name="final_response" type="integer">
+      First response of `200` or above to any request on this leg, not only to the `INVITE`: a cancelled call shows `200` (the answer to the `CANCEL`) before the `487` that ends the `INVITE`. `null` if the leg never got one.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+<ResponseField name="messages" type="object[]">
+  The messages of all legs, ordered by capture time.
+
+  <Expandable title="properties">
+    <ResponseField name="ts" type="datetime">
+      Capture time, UTC.
+    </ResponseField>
+    <ResponseField name="call_id" type="string">
+      The leg the message belongs to.
+    </ResponseField>
+    <ResponseField name="src_ip" type="string" />
+    <ResponseField name="src_port" type="integer" />
+    <ResponseField name="dst_ip" type="string" />
+    <ResponseField name="dst_port" type="integer" />
+    <ResponseField name="method" type="string">
+      The request method (for example `INVITE`, `BYE` or `REFER`), or the response code as a string (for example `180` or `200`) for a response.
+    </ResponseField>
+    <ResponseField name="response_code" type="integer">
+      Set for responses only.
+    </ResponseField>
+    <ResponseField name="reason" type="string">
+      Reason phrase, for responses only.
+    </ResponseField>
+    <ResponseField name="cseq" type="string">
+      The `CSeq` header, for example `1 INVITE`.
+    </ResponseField>
+    <ResponseField name="from_user" type="string">
+      SIP user part of the caller (usually the phone number). Masked unless the key can read PII.
+    </ResponseField>
+    <ResponseField name="to_user" type="string">
+      SIP user part of the called party (usually the phone number). Masked unless the key can read PII.
+    </ResponseField>
+    <ResponseField name="user_agent" type="string" />
+    <ResponseField name="raw" type="string">
+      The full SIP message. Only with `include_raw=true` and PII access; otherwise `null`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+<ResponseField name="total" type="integer">
+  Number of messages returned. When `truncated` is `true` this is the cap, not the call's real total.
+</ResponseField>
+<ResponseField name="truncated" type="boolean">
+  `true` when the cap of 2,000 messages was reached and later messages are missing.
+</ResponseField>
+
+## Example
+
+<CodeGroup>
+
+```bash cURL
+curl "https://api.us.poly.ai/api/v1/telephony/calls/CA3f2c1e9d6b7a4f8e9c0d1b2a3c4d5e6f/sip?project_id=PROJECT-V258TF29" \
+  -H "X-API-KEY: YOUR_API_KEY"
+```
+
+```json Response
+{
+  "conversation_id": "CA3f2c1e9d6b7a4f8e9c0d1b2a3c4d5e6f",
+  "account_id": "ACCOUNT-4F8K2M1P",
+  "project_id": "PROJECT-V258TF29",
+  "first_ts": "2026-11-10T09:14:02.100000Z",
+  "last_ts": "2026-11-10T09:14:47.880000Z",
+  "legs": [
+    {
+      "call_id": "7d3b0e2a-5f41-4c1e-9a8b-2e6f0c1d4a77@203.0.113.10",
+      "first_ts": "2026-11-10T09:14:02.100000Z",
+      "last_ts": "2026-11-10T09:14:47.870000Z",
+      "src_ip": "203.0.113.10",
+      "dst_ip": "198.51.100.20",
+      "from_user": "***0142",
+      "to_user": "***0199",
+      "message_count": 5,
+      "final_response": 200
+    },
+    {
+      "call_id": "b1c4e7f2-9a30-4d6e-8c5b-0f2a7d3e1b94",
+      "first_ts": "2026-11-10T09:14:02.140000Z",
+      "last_ts": "2026-11-10T09:14:47.880000Z",
+      "src_ip": "198.51.100.20",
+      "dst_ip": "198.51.100.35",
+      "from_user": "***0142",
+      "to_user": "***0199",
+      "message_count": 4,
+      "final_response": 200
+    }
+  ],
+  "messages": [
+    {
+      "ts": "2026-11-10T09:14:02.100000Z",
+      "call_id": "7d3b0e2a-5f41-4c1e-9a8b-2e6f0c1d4a77@203.0.113.10",
+      "src_ip": "203.0.113.10",
+      "src_port": 5060,
+      "dst_ip": "198.51.100.20",
+      "dst_port": 5060,
+      "method": "INVITE",
+      "response_code": null,
+      "reason": null,
+      "cseq": "1 INVITE",
+      "from_user": "***0142",
+      "to_user": "***0199",
+      "user_agent": "Carrier-SBC/4.2",
+      "raw": null
+    },
+    {
+      "ts": "2026-11-10T09:14:02.112000Z",
+      "call_id": "7d3b0e2a-5f41-4c1e-9a8b-2e6f0c1d4a77@203.0.113.10",
+      "src_ip": "198.51.100.20",
+      "src_port": 5060,
+      "dst_ip": "203.0.113.10",
+      "dst_port": 5060,
+      "method": "100",
+      "response_code": 100,
+      "reason": "Trying",
+      "cseq": "1 INVITE",
+      "from_user": "***0142",
+      "to_user": "***0199",
+      "user_agent": null,
+      "raw": null
+    }
+  ],
+  "total": 9,
+  "truncated": false
+}
+```
+
+</CodeGroup>
+
+The response is abridged: `legs` shows both legs, `messages` the first two of nine.
+
+## Errors
+
+| Status | Meaning |
+| ------ | ------- |
+| `400`  | `project_id` is required for your credential and was not sent. |
+| `401`  | Missing or invalid API key. |
+| `403`  | Authenticated, but the key cannot read conversations. |
+| `404`  | The call has no telephony data, is older than 14 days, belongs to another account or does not match `project_id`. |
+| `422`  | A parameter is malformed, for example `from`, `to` or `include_raw`. |
+| `502`  | The telephony data store did not answer. Retry with backoff. |
